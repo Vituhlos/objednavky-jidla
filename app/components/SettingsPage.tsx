@@ -207,7 +207,7 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
                     className="settings-input"
                     defaultValue={settings.smtpFrom}
                     name="smtpFrom"
-                    placeholder="STROS objednávky <orders@example.com>"
+                    placeholder="Objednávky <orders@example.com>"
                     type="text"
                   />
                 </Field>

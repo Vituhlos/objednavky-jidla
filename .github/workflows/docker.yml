@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: vituhlos/stros-objednavky
+  IMAGE_NAME: vituhlos/objednavky-jidla
 
 jobs:
   build-and-push:

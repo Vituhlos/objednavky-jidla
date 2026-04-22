@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>stros-objednavky</Name>
-  <Repository>ghcr.io/vituhlos/stros-objednavky:latest</Repository>
-  <Registry>https://ghcr.io/vituhlos/stros-objednavky</Registry>
+  <Name>objednavky-jidla</Name>
+  <Repository>ghcr.io/vituhlos/objednavky-jidla:latest</Repository>
+  <Registry>https://ghcr.io/vituhlos/objednavky-jidla</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Overview>Interní objednávkový systém STROS pro správu objednávek obědů (LIMA) a pizzy. Bez přihlášení, sdílený objednávkový list po odděleních, odeslání e-mailem s PDF přílohou.</Overview>
+  <Overview>Interní objednávkový systém pro správu objednávek obědů (LIMA) a pizzy. Bez přihlášení, sdílený objednávkový list po odděleních, odeslání e-mailem s PDF přílohou.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/vituhlos/stros-objednavky/main/unraid-template.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/vituhlos/objednavky-jidla/main/unraid-template.xml</TemplateURL>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
-  <Description>Interní objednávkový systém STROS. Správa objednávek obědů (LIMA) a pizzy, import jídelníčku z PDF, odesílání e-mailem s PDF přílohou. Běží jako jeden kontejner bez externích závislostí.</Description>
-  <Project>https://github.com/vituhlos/stros-objednavky</Project>
+  <Description>Interní objednávkový systém. Správa objednávek obědů (LIMA) a pizzy, import jídelníčku z PDF, odesílání e-mailem s PDF přílohou. Běží jako jeden kontejner bez externích závislostí.</Description>
+  <Project>https://github.com/vituhlos/objednavky-jidla</Project>
 
   <Config
     Name="WebUI Port"
@@ -28,13 +28,13 @@
   <Config
     Name="Data"
     Target="/app/data"
-    Default="/mnt/user/appdata/stros-objednavky"
+    Default="/mnt/user/appdata/objednavky-jidla"
     Mode="rw"
     Description="Adresář pro SQLite databázi. Musí být namapován pro persistenci dat."
     Type="Path"
     Display="always"
     Required="true"
-    Mask="false">/mnt/user/appdata/stros-objednavky</Config>
+    Mask="false">/mnt/user/appdata/objednavky-jidla</Config>
 
   <Config
     Name="SMTP Host"
