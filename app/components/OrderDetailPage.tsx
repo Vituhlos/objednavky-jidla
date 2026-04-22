@@ -38,7 +38,6 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
       <section className="main-stage">
         <header className="hero">
           <div className="hero__topline">
-            <span className="hero__stamp">STROS operations</span>
             <Link href="/historie" style={{ color: "rgba(248,243,234,0.7)", fontSize: "0.9rem" }}>
               ← Zpět na historii
             </Link>

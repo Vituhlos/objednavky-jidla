@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "STROS – Interní systém",
-  description: "Interní objednávkový systém pro STROS",
+  title: "Objednávky",
+  description: "Objednávkový systém obědů a pizzy",
 };
 
 export default function RootLayout({

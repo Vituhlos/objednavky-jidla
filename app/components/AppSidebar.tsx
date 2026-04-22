@@ -17,9 +17,8 @@ export default function AppSidebar() {
   return (
     <aside className="sidebar">
       <div className="brand-block">
-        <p className="brand-block__eyebrow">STROS</p>
-        <h1>Interní systém</h1>
-        <p>Objednávky obědů a provozní přehled pro dnešní den.</p>
+        <h1>Objednávky</h1>
+        <p>Obědy a pizza pro dnešní den.</p>
       </div>
 
       <nav className="sidebar__nav">

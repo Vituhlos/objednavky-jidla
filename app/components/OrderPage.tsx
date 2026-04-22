@@ -214,7 +214,6 @@ export default function OrderPage({ initialData, cutoffTime = "08:00" }: { initi
       <section className="main-stage">
         <header className="hero">
           <div className="hero__topline">
-            <span className="hero__stamp">STROS operations</span>
             <span>{dayStr}</span>
           </div>
           <div className="hero__content">

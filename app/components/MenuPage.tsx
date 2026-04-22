@@ -341,7 +341,6 @@ export default function MenuPage({ menu: initialMenu, weekLabel, todayCode }: Pr
       <section className="main-stage">
         <header className="hero">
           <div className="hero__topline">
-            <span className="hero__stamp">STROS operations</span>
             <span>Jídelníček LIMA</span>
           </div>
           <div className="hero__content">

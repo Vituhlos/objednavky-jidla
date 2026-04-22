@@ -46,7 +46,6 @@ export default function HistoryPage({
       <section className="main-stage">
         <header className="hero">
           <div className="hero__topline">
-            <span className="hero__stamp">STROS operations</span>
             <span>{today}</span>
           </div>
           <div className="hero__content">
