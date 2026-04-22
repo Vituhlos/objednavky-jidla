@@ -1437,56 +1437,54 @@ input {
     line-height: 1.1;
   }
 
-  .hero__content {
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-  }
-
-  .hero__actions {
-    width: 100%;
-    max-width: 100%;
-    gap: 0.6rem;
-  }
-
-  .hero__actions > * {
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .email-field {
-    width: 100%;
-  }
-
-  .email-field input {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .header-action {
-    width: 100%;
-    text-align: center;
-  }
-
   .hero__topline {
     font-size: 0.72rem;
   }
 
+  .hero__content {
+    display: block;
+    margin-top: 0.5rem;
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0.75rem;
+  }
+
   .status-card,
   .email-field {
-    padding: 0.65rem 0.85rem;
+    display: block;
     width: 100%;
+    box-sizing: border-box;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .email-field input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .hero__button-row {
+    width: 100%;
+  }
+
+  .header-action {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    text-align: center;
   }
 
   .status-card strong {
     font-size: 1.5rem;
-  }
-
-  .header-action {
-    padding: 0.75rem 1rem;
-    font-size: 0.85rem;
-    width: 100%;
-    text-align: center;
   }
 
   .history-wrap {
