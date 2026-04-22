@@ -108,12 +108,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           </div>
           <div className="hero__content">
             <div>
-              <p className="hero__eyebrow">Sdílený objednávkový list</p>
               <h2>Pizza</h2>
-              <p className="hero__description">
-                Vyberte si pizzu z aktuálního ceníku. Ceník lze aktualizovat
-                přímo z webu pizza-dublovice.cz.
-              </p>
             </div>
             <div className="hero__actions">
               <div className="status-card">

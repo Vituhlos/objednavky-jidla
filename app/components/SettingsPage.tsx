@@ -121,7 +121,6 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
           </div>
           <div className="hero__content">
             <div>
-              <p className="hero__eyebrow">Konfigurace systému</p>
               <h2>Nastavení</h2>
               <p className="hero__description">
                 SMTP, výchozí e-mail příjemce, čas uzávěrky a PIN pro tuto
