@@ -140,7 +140,6 @@ export async function buildDepartmentPdfAttachment(
 
   const doc = new PDFDocument({
     size: [PAGE_W, PAGE_H],
-    layout: "landscape",
     margin: MARGIN,
     info: {
       Title: `Objednávka LIMA – ${DEPARTMENT_EMAIL_LABELS[department.name]}`,
@@ -152,7 +151,7 @@ export async function buildDepartmentPdfAttachment(
 
   // ── Company + department header ──────────────────────────────────────────
   doc.font(FONT_BOLD).fontSize(16).fillColor("#2F4858");
-  doc.text("STROS – Sedlčanské strojírny, a.s.", MARGIN, y, { lineBreak: false });
+  doc.text("Sedlčanské strojírny, a.s.", MARGIN, y, { lineBreak: false });
   y += 22;
 
   doc.font(FONT_BOLD).fontSize(13).fillColor("#B55233");
