@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useTransition, useCallback } from "react";
-import type {
-  OrderData,
-  OrderRowEnriched,
-  Department,
-  DepartmentData,
-} from "@/lib/types";
-import { DEPARTMENTS, DEPARTMENT_LABELS } from "@/lib/types";
+import type { OrderData, OrderRowEnriched, Department, DepartmentData } from "@/lib/types";
+import { DEPARTMENTS } from "@/lib/types";
 import { computeRowPrice } from "@/lib/pricing";
 import { DepartmentPanel } from "./DepartmentPanel";
 import {
@@ -17,22 +12,77 @@ import {
   actionSendOrder,
   actionUpdateExtraEmail,
 } from "@/app/actions";
-import AppSidebar from "./AppSidebar";
 
-function recalcDepartments(
-  departments: DepartmentData[]
-): DepartmentData[] {
+// ── Inline SVG icons ──────────────────────────────────────
+
+const IconOrders = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+    <rect height="4" rx="1" width="6" x="9" y="3"/>
+    <path d="M9 12h6M9 16h4"/>
+  </svg>
+);
+
+const IconPizza = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <path d="M12 2a10 10 0 0110 10"/>
+    <path d="M2 12C2 6.48 6.48 2 12 2l-10 20 20-10z"/>
+    <circle cx="12" cy="13" fill="currentColor" r="1"/>
+  </svg>
+);
+
+const IconHistory = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 6v6l4 2"/>
+  </svg>
+);
+
+const IconCalendar = () => (
+  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+    <rect height="18" rx="2" width="18" x="3" y="4"/>
+    <path d="M16 2v4M8 2v4M3 10h18"/>
+  </svg>
+);
+
+const IconClock = () => (
+  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 6v6l4 2"/>
+  </svg>
+);
+
+const IconInfo = () => (
+  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 16v-4M12 8h.01"/>
+  </svg>
+);
+
+const IconLock = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <rect height="11" rx="2" width="18" x="3" y="11"/>
+    <path d="M7 11V7a5 5 0 0110 0v4"/>
+  </svg>
+);
+
+const IconCheck = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+    <path d="M22 4L12 14.01l-3-3"/>
+  </svg>
+);
+
+// ── Helpers ───────────────────────────────────────────────
+
+function recalcDepartments(departments: DepartmentData[]): DepartmentData[] {
   return departments.map((d) => ({
     ...d,
     subtotal: d.rows.reduce((s, r) => s + r.rowPrice, 0),
   }));
 }
 
-function patchRow(
-  departments: DepartmentData[],
-  rowId: number,
-  updated: OrderRowEnriched
-): DepartmentData[] {
+function patchRow(departments: DepartmentData[], rowId: number, updated: OrderRowEnriched): DepartmentData[] {
   return recalcDepartments(
     departments.map((d) => ({
       ...d,
@@ -41,20 +91,26 @@ function patchRow(
   );
 }
 
-export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty = false }: { initialData: OrderData; cutoffTime?: string; menuEmpty?: boolean }) {
+// ── Component ─────────────────────────────────────────────
+
+export default function OrderPage({
+  initialData,
+  cutoffTime = "08:00",
+  menuEmpty = false,
+}: {
+  initialData: OrderData;
+  cutoffTime?: string;
+  menuEmpty?: boolean;
+}) {
   const [departments, setDepartments] = useState(initialData.departments);
   const [orderStatus, setOrderStatus] = useState(initialData.order.status);
   const [orderId] = useState(initialData.order.id);
-  const [extraEmail, setExtraEmail] = useState(
-    initialData.order.extraEmail ?? ""
-  );
+  const [extraEmail, setExtraEmail] = useState(initialData.order.extraEmail ?? "");
   const [sentAt, setSentAt] = useState(initialData.order.sentAt);
   const [isPending, startTransition] = useTransition();
   const [sendError, setSendError] = useState<string | null>(null);
 
   const isSent = orderStatus === "sent";
-
-  const totalPrice = departments.reduce((s, d) => s + d.subtotal, 0);
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
@@ -62,9 +118,7 @@ export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty
       setDepartments((prev) =>
         recalcDepartments(
           prev.map((d) =>
-            d.name === department
-              ? { ...d, rows: [...d.rows, newRow] }
-              : d
+            d.name === department ? { ...d, rows: [...d.rows, newRow] } : d
           )
         )
       );
@@ -88,26 +142,19 @@ export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty
         bbqCount: number;
       }>
     ) => {
-      // Optimistic update: compute new price locally
       setDepartments((prev) => {
         const allRows = prev.flatMap((d) => d.rows);
         const row = allRows.find((r) => r.id === rowId);
         if (!row) return prev;
-
         const merged = { ...row, ...updates };
         const soupItem =
           "soupItemId" in updates
-            ? initialData.todayMenu.soups.find(
-                (s) => s.id === updates.soupItemId
-              ) ?? null
+            ? initialData.todayMenu.soups.find((s) => s.id === updates.soupItemId) ?? null
             : row.soupItem;
         const mainItem =
           "mainItemId" in updates
-            ? initialData.todayMenu.meals.find(
-                (m) => m.id === updates.mainItemId
-              ) ?? null
+            ? initialData.todayMenu.meals.find((m) => m.id === updates.mainItemId) ?? null
             : row.mainItem;
-
         const optimistic: OrderRowEnriched = {
           ...merged,
           soupItem: soupItem ?? null,
@@ -116,7 +163,6 @@ export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty
         };
         return patchRow(prev, rowId, optimistic);
       });
-
       startTransition(async () => {
         const updated = await actionUpdateRow(rowId, updates);
         setDepartments((prev) => patchRow(prev, rowId, updated));
@@ -153,9 +199,7 @@ export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (error) {
         setSendError(
-          error instanceof Error
-            ? error.message
-            : "Odeslání se nezdařilo. Zkuste to znovu."
+          error instanceof Error ? error.message : "Odeslání se nezdařilo. Zkuste to znovu."
         );
       }
     });
@@ -168,204 +212,148 @@ export default function OrderPage({ initialData, cutoffTime = "08:00", menuEmpty
   };
 
   const today = new Date();
-  const dayStr = today.toLocaleDateString("cs-CZ", {
-    weekday: "short",
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-  });
+  const dayStr =
+    today.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^\w/, (c) => c.toUpperCase()) +
+    " " +
+    today.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
 
   const allSoups = initialData.todayMenu.soups;
   const allMeals = initialData.todayMenu.meals;
 
-  const summaryRows = departments.flatMap((d) =>
-    d.rows.filter((r) => r.personName || r.mainItemId)
-  );
-  const activeDepartments = departments.filter(
-    (d) => d.rows.some((r) => r.personName || r.mainItemId)
-  );
-
-  const soupCounts = new Map<string, number>();
-  const mealCounts = new Map<string, number>();
-  const extrasCounts = new Map<string, number>();
-
-  for (const r of summaryRows) {
-    if (r.soupItem) {
-      const key = `${r.soupItem.code} – ${r.soupItem.name}`;
-      soupCounts.set(key, (soupCounts.get(key) ?? 0) + 1);
-    }
-    if (r.mainItem) {
-      const key = `${r.mainItem.code} – ${r.mainItem.name}`;
-      mealCounts.set(key, (mealCounts.get(key) ?? 0) + 1);
-    }
-    const extrasMap = [
-      { label: "Houskový knedlík", count: r.breadDumplingCount },
-      { label: "Bramborový knedlík", count: r.potatoDumplingCount },
-      { label: "Kečup", count: r.ketchupCount },
-      { label: "Tatarka", count: r.tatarkaCount },
-      { label: "BBQ omáčka", count: r.bbqCount },
-      { label: "Houska", count: r.rollCount },
-    ];
-    for (const { label, count } of extrasMap) {
-      if (count > 0) {
-        extrasCounts.set(label, (extrasCounts.get(label) ?? 0) + count);
-      }
-    }
-  }
-
   return (
-    <main className="app-shell">
-      <AppSidebar />
-
-      <section className="main-stage">
-        <header className="hero">
-          <div className="hero__topline">
-            <span>{dayStr}</span>
+    <div className="v2-shell">
+      {/* ── Top navigation bar ── */}
+      <header className="v2-topbar">
+        <div className="v2-topbar__brand">
+          <div className="v2-topbar__logo">
+            <svg fill="currentColor" height="20" viewBox="0 0 24 24" width="20">
+              <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+            </svg>
           </div>
-          <div className="hero__content">
-            <div>
-              <h2>Dnešní objednávka</h2>
-            </div>
-
-            <div className="hero__actions">
-              <div className="status-card">
-                <span className="status-card__label">Stav objednávky</span>
-                <strong className={isSent ? "status--sent" : "status--draft"}>
-                  {isSent
-                    ? `ODESLÁNO ${sentAt ? new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) : ""}`
-                    : "KONCEPT"}
-                </strong>
-              </div>
-              <label className="email-field">
-                <span>Další e-mail příjemce</span>
-                <input
-                  defaultValue={extraEmail}
-                  disabled={isSent}
-                  onBlur={handleEmailBlur}
-                  onChange={(e) => setExtraEmail(e.target.value)}
-                  placeholder="volitelný e-mail..."
-                  type="email"
-                />
-              </label>
-              {sendError && (
-                <p className="send-error">{sendError}</p>
-              )}
-              <div className="hero__button-row">
-                <button
-                  className="header-action header-action--primary"
-                  disabled={isSent || isPending || isPastCutoff}
-                  onClick={handleSend}
-                  type="button"
-                >
-                  {isPending ? "Odesílám..." : isPastCutoff ? "Po uzávěrce" : "Odeslat objednávku"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {menuEmpty && !isSent && (
-          <div className="alert-strip alert-strip--warn">
-            <strong>Jídelníček není naplněný.</strong>
-            <span>Přejděte do <a href="/jidelnicek" style={{ color: "inherit", textDecoration: "underline" }}>Jídelníčku</a> a importujte PDF nebo přidejte položky ručně.</span>
-          </div>
-        )}
-
-        {!isSent && !menuEmpty && (
-          <div className="alert-strip">
-            <strong>Uzávěrka dnes v {cutoffTime}.</strong>
-            {isPastCutoff && <span>Čas uzávěrky vypršel.</span>}
-          </div>
-        )}
-
-        {isSent && (
-          <div className="alert-strip alert-strip--success">
-            <strong>Objednávka byla odeslána.</strong>
-            <span>Další úpravy nejsou možné.</span>
-          </div>
-        )}
-
-        <div className="workspace">
-          <div className="department-stack">
-            {DEPARTMENTS.map((dept) => {
-              const deptData = departments.find((d) => d.name === dept)!;
-              return (
-                <DepartmentPanel
-                  data={deptData}
-                  isSent={isSent}
-                  key={dept}
-                  meals={allMeals}
-                  onAddRow={() => handleAddRow(dept)}
-                  onDeleteRow={handleDeleteRow}
-                  onUpdateRow={handleUpdateRow}
-                  soups={allSoups}
-                />
-              );
-            })}
-          </div>
-
-          <aside className="summary-panel">
-            <div className="summary-panel__header">
-              <p className="summary-panel__eyebrow">Odesílací list</p>
-              <h2>Souhrn objednávky</h2>
-            </div>
-
-            {activeDepartments.length > 0 && (
-              <div className="summary-group">
-                <h3>Aktivní oddělení</h3>
-                {activeDepartments.map((d) => (
-                  <p key={d.name}>{DEPARTMENT_LABELS[d.name]}</p>
-                ))}
-              </div>
-            )}
-
-            {soupCounts.size > 0 && (
-              <div className="summary-group">
-                <h3>Polévky</h3>
-                {[...soupCounts.entries()].map(([k, v]) => (
-                  <p key={k}>
-                    {v}× {k}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {mealCounts.size > 0 && (
-              <div className="summary-group">
-                <h3>Jídla</h3>
-                {[...mealCounts.entries()].map(([k, v]) => (
-                  <p key={k}>
-                    {v}× {k}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {extrasCounts.size > 0 && (
-              <div className="summary-group">
-                <h3>Přílohy</h3>
-                {[...extrasCounts.entries()].map(([k, v]) => (
-                  <p key={k}>
-                    {v}× {k}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {summaryRows.length === 0 && (
-              <div className="summary-group summary-group--empty">
-                <p>Zatím žádné položky.</p>
-                <p>Přidejte řádky do oddělení a vyplňte jídla.</p>
-              </div>
-            )}
-
-            <div className="summary-panel__total">
-              <span>Celková cena</span>
-              <strong>{totalPrice} Kč</strong>
-            </div>
-          </aside>
+          <span className="v2-topbar__title">Dnešní objednávka</span>
         </div>
-      </section>
-    </main>
+        <nav className="v2-topbar__nav">
+          <a className="v2-navlink v2-navlink--active" href="/">
+            <IconOrders />
+            <span>Objednávky</span>
+          </a>
+          <a className="v2-navlink" href="/pizza">
+            <IconPizza />
+            <span>Pizza</span>
+          </a>
+          <a className="v2-navlink" href="/historie">
+            <IconHistory />
+            <span>Historie</span>
+          </a>
+        </nav>
+      </header>
+
+      {/* ── Info strip ── */}
+      <div className="v2-infostrip">
+        <div className="v2-infostrip__facts">
+          <span className="v2-fact">
+            <IconCalendar />
+            <span>{dayStr}</span>
+          </span>
+          {!isSent && (
+            <span className="v2-fact">
+              <IconClock />
+              <span>
+                Objednávat můžete do{" "}
+                <strong className="v2-accent">{cutoffTime}</strong>
+              </span>
+            </span>
+          )}
+          <span className="v2-fact">
+            <IconInfo />
+            <span>
+              Uzávěrka objednávek dnes v{" "}
+              <strong className="v2-accent">{cutoffTime}</strong>.
+            </span>
+          </span>
+        </div>
+        {!isSent && (
+          <div className="v2-infostrip__send">
+            <input
+              className="v2-email-input"
+              defaultValue={extraEmail}
+              disabled={isSent}
+              onBlur={handleEmailBlur}
+              onChange={(e) => setExtraEmail(e.target.value)}
+              placeholder="Další e-mail (volitelné)"
+              type="email"
+            />
+            <button
+              className="v2-send-btn"
+              disabled={isSent || isPending || isPastCutoff}
+              onClick={handleSend}
+              type="button"
+            >
+              {isPending ? "Odesílám…" : isPastCutoff ? "Po uzávěrce" : "Odeslat"}
+            </button>
+          </div>
+        )}
+        {sendError && <p className="v2-send-error">{sendError}</p>}
+      </div>
+
+      {/* ── Alerts ── */}
+      {menuEmpty && !isSent && (
+        <div className="v2-alert v2-alert--warn">
+          <strong>Jídelníček není naplněný.</strong>{" "}
+          Přejděte do{" "}
+          <a href="/jidelnicek" style={{ textDecoration: "underline" }}>Jídelníčku</a>
+          {" "}a importujte PDF nebo přidejte položky ručně.
+        </div>
+      )}
+
+      {/* ── Main content ── */}
+      <main className="v2-content">
+        {DEPARTMENTS.map((dept) => {
+          const deptData = departments.find((d) => d.name === dept)!;
+          return (
+            <DepartmentPanel
+              data={deptData}
+              isSent={isSent}
+              key={dept}
+              meals={allMeals}
+              onAddRow={() => handleAddRow(dept)}
+              onDeleteRow={handleDeleteRow}
+              onUpdateRow={handleUpdateRow}
+              soups={allSoups}
+            />
+          );
+        })}
+
+        {/* ── Bottom status bar ── */}
+        <div className={`v2-statusbar${isSent ? " v2-statusbar--sent" : ""}`}>
+          {isSent ? (
+            <>
+              <span className="v2-statusbar__icon v2-statusbar__icon--green"><IconCheck /></span>
+              <div>
+                <strong>Objednávka byla odeslána.</strong>
+                {sentAt && (
+                  <span>
+                    {" "}v{" "}
+                    {new Date(sentAt).toLocaleTimeString("cs-CZ", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
+                <span> Další úpravy nejsou možné.</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="v2-statusbar__icon"><IconLock /></span>
+              <div>
+                <strong>Uzávěrka proběhne v {cutoffTime}.</strong>
+                <span> Objednávku po uzávěrce odešle správce.</span>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
