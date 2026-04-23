@@ -264,6 +264,7 @@ select {
 .hero__button-row {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.4rem;
   width: 100%;
 }
@@ -275,8 +276,6 @@ select {
   letter-spacing: 0.08em;
   font-size: 0.85rem;
   cursor: pointer;
-  width: 100%;
-  text-align: center;
 }
 
 .header-action--secondary {
@@ -1500,12 +1499,11 @@ select {
   /* Hero buttons: side by side */
   .hero__button-row {
     flex-direction: row;
+    align-items: flex-start;
     gap: 0.75rem;
   }
 
   .header-action {
-    width: auto;
-    text-align: left;
     padding: 0.9rem 1.15rem;
     font-size: inherit;
   }
