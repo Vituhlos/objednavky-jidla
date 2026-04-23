@@ -11,7 +11,7 @@ import {
   actionDeleteMenuItem,
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import AppSidebar from "./AppSidebar";
+import AppTopBar from "./AppTopBar";
 
 const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"];
 const DAY_LABELS: Record<string, string> = {
@@ -118,7 +118,7 @@ function EditableItem({
         type="number"
       />
       <button
-        className="row-delete-btn"
+        className="v2-delete-btn"
         disabled={disabled}
         onClick={() => onDelete(item.id)}
         title="Smazat"
@@ -143,7 +143,7 @@ function ViewGrid({
 }) {
   const days = DAY_ORDER.filter((d) => menu[d]);
   if (days.length === 0) {
-    return <p className="menu-empty">{emptyMessage}</p>;
+    return <p className="v2-empty-state">{emptyMessage}</p>;
   }
   return (
     <div className="menu-preview-grid">
@@ -279,7 +279,6 @@ export default function MenuPage({
         setImportState({ phase: "error", message: (data as { error?: string }).error ?? "Neznámá chyba." });
         return;
       }
-      // Determine target week: match by weekStart from PDF, default to next week
       const detectedStart = data.weekStart;
       let targetWeekStart = nextWeekStart;
       let targetLabel = `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}`;
@@ -308,7 +307,7 @@ export default function MenuPage({
     });
   };
 
-  // ── Edit mode (current week only) ─────────────────────────────────────────
+  // ── Edit mode ─────────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number }>) => {
     setCurrentMenu((prev) => {
@@ -363,8 +362,6 @@ export default function MenuPage({
     });
   }, [currentWeekStart]);
 
-  // ── Delete next week ──────────────────────────────────────────────────────
-
   const handleDeleteNextWeek = () => {
     startTransition(async () => {
       await actionDeleteMenuWeek(nextWeekStart);
@@ -375,149 +372,160 @@ export default function MenuPage({
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
 
   return (
-    <main className="app-shell">
-      <AppSidebar />
+    <div className="v2-shell">
+      <AppTopBar />
 
-      <section className="main-stage">
-        <header className="hero">
-          <div className="hero__topline">
-            <span>Jídelníček LIMA</span>
+      {/* ── Infostrip ── */}
+      <div className="v2-infostrip">
+        <div className="v2-infostrip__facts">
+          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>Jídelníček LIMA</span>
+          {currentWeekLabel && (
+            <span className="v2-fact">
+              Aktuální týden: <strong className="v2-accent">{currentWeekLabel}</strong>
+            </span>
+          )}
+        </div>
+        <div className="v2-infostrip__send">
+          <button
+            className={`v2-btn ${editMode ? "v2-btn--primary" : "v2-btn--secondary"}`}
+            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+            type="button"
+          >
+            {editMode ? "Zavřít úpravu" : "Upravit ručně"}
+          </button>
+          <button
+            className="v2-btn v2-btn--primary"
+            onClick={() => {
+              setEditMode(false);
+              setImportState(isImportOpen ? { phase: "idle" } : { phase: "uploading" });
+            }}
+            type="button"
+          >
+            {isImportOpen ? "Zavřít import" : "Importovat PDF"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Import panel ── */}
+      {isImportOpen && (
+        <div style={{ background: "var(--v2-card)", borderBottom: "1px solid var(--v2-border)", padding: "1rem 1.25rem" }}>
+          <div className="import-panel__inner">
+            {importState.phase === "uploading" && (
+              <>
+                <p className="import-panel__title">Nahrát PDF jídelníčku LIMA</p>
+                <div
+                  className={`drop-zone${isDragging ? " drop-zone--active" : ""}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                >
+                  <span className="drop-zone__icon">PDF</span>
+                  <p>Přetáhněte PDF sem nebo klikněte pro výběr souboru</p>
+                  <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
+                </div>
+                <p className="import-status">Čekám na soubor...</p>
+              </>
+            )}
+            {importState.phase === "error" && (
+              <div className="import-error">
+                <strong>Chyba:</strong> {importState.message}
+                <button className="import-retry-btn" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
+              </div>
+            )}
+            {importState.phase === "preview" && (
+              <>
+                <div className="import-panel__preview-header">
+                  <div>
+                    <p className="import-panel__title">Náhled rozpoznaných položek</p>
+                    <p className="import-status">
+                      Rozpoznáno <strong>{importState.result.items.length}</strong> položek
+                      {importState.result.weekLabel && <>, týden <strong>{importState.result.weekLabel}</strong></>}
+                      {" · "}Bude uloženo jako: <strong>{importState.targetLabel}</strong>
+                    </p>
+                  </div>
+                  <div className="import-panel__preview-actions">
+                    <button className="v2-btn v2-btn--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
+                    <button className="v2-btn v2-btn--primary" disabled={isPending} onClick={handleConfirm} type="button">
+                      {isPending ? "Ukládám..." : "Uložit jídelníček"}
+                    </button>
+                  </div>
+                </div>
+                <PreviewTable items={importState.result.items} />
+              </>
+            )}
+            {importState.phase === "saving" && <p className="import-status">Ukládám jídelníček...</p>}
           </div>
-          <div className="hero__content">
-            <div>
-              <h2>Jídelníček LIMA</h2>
-              <p className="hero__description">
+        </div>
+      )}
+
+      {/* ── Content ── */}
+      <main className="v2-content">
+        {/* Current week */}
+        <section className="v2-dept">
+          <div className="v2-dept__head">
+            <div className="v2-dept__info">
+              <div>
+                <h2 className="v2-dept__title">Aktuální týden</h2>
                 {currentWeekLabel
-                  ? `Aktuální týden: ${currentWeekLabel}`
-                  : "Jídelníček není naplněný. Importujte PDF nebo přidejte položky ručně."}
-              </p>
-            </div>
-            <div className="hero__actions">
-              <div className="hero__button-row">
-                <button
-                  className={`header-action ${editMode ? "header-action--primary" : "header-action--secondary"}`}
-                  onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
-                  type="button"
-                >
-                  {editMode ? "Zavřít úpravu" : "Upravit ručně"}
-                </button>
-                <button
-                  className="header-action header-action--primary"
-                  onClick={() => {
-                    setEditMode(false);
-                    setImportState(isImportOpen ? { phase: "idle" } : { phase: "uploading" });
-                  }}
-                  type="button"
-                >
-                  {isImportOpen ? "Zavřít import" : "Importovat PDF"}
-                </button>
+                  ? <span className="v2-dept__count">{currentWeekLabel}</span>
+                  : <span className="v2-dept__count">Jídelníček není naplněný</span>
+                }
               </div>
             </div>
           </div>
-        </header>
-
-        {/* ── Import panel ─────────────────────────── */}
-        {isImportOpen && (
-          <div className="import-panel">
-            <div className="import-panel__inner">
-              {importState.phase === "uploading" && (
-                <>
-                  <p className="import-panel__title">Nahrát PDF jídelníčku LIMA</p>
-                  <div
-                    className={`drop-zone${isDragging ? " drop-zone--active" : ""}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-                  >
-                    <span className="drop-zone__icon">PDF</span>
-                    <p>Přetáhněte PDF sem nebo klikněte pro výběr souboru</p>
-                    <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
-                  </div>
-                  <p className="import-status">Čekám na soubor...</p>
-                </>
-              )}
-              {importState.phase === "error" && (
-                <div className="import-error">
-                  <strong>Chyba:</strong> {importState.message}
-                  <button className="import-retry-btn" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
-                </div>
-              )}
-              {importState.phase === "preview" && (
-                <>
-                  <div className="import-panel__preview-header">
-                    <div>
-                      <p className="import-panel__title">Náhled rozpoznaných položek</p>
-                      <p className="import-status">
-                        Rozpoznáno <strong>{importState.result.items.length}</strong> položek
-                        {importState.result.weekLabel && <>, týden <strong>{importState.result.weekLabel}</strong></>}
-                        {" · "}Bude uloženo jako: <strong>{importState.targetLabel}</strong>
-                      </p>
-                    </div>
-                    <div className="import-panel__preview-actions">
-                      <button className="header-action header-action--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
-                      <button className="header-action header-action--primary" disabled={isPending} onClick={handleConfirm} type="button">
-                        {isPending ? "Ukládám..." : "Uložit jídelníček"}
-                      </button>
-                    </div>
-                  </div>
-                  <PreviewTable items={importState.result.items} />
-                </>
-              )}
-              {importState.phase === "saving" && <p className="import-status">Ukládám jídelníček...</p>}
-            </div>
+          <div className="v2-menu-body">
+            {editMode ? (
+              <EditGrid
+                disabled={isPending}
+                menu={currentMenu}
+                onAdd={handleAdd}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+                todayCode={todayCode}
+              />
+            ) : (
+              <ViewGrid
+                emptyMessage="Jídelníček není naplněný. Importujte PDF nebo použijte ruční úpravu."
+                menu={currentMenu}
+                todayCode={todayCode}
+              />
+            )}
           </div>
-        )}
+        </section>
 
-        {/* ── Aktuální týden ────────────────────────── */}
-        <div className="menu-section">
-          {editMode ? (
-            <EditGrid
-              disabled={isPending}
-              menu={currentMenu}
-              onAdd={handleAdd}
-              onDelete={handleDelete}
-              onUpdate={handleUpdate}
-              todayCode={todayCode}
-            />
-          ) : (
-            <ViewGrid
-              emptyMessage="Jídelníček není naplněný. Importujte PDF nebo použijte ruční úpravu."
-              menu={currentMenu}
-              todayCode={todayCode}
-            />
-          )}
-        </div>
-
-        {/* ── Příští týden ──────────────────────────── */}
-        <div className="menu-section">
-          <div className="menu-next-week-header">
-            <div>
-              <p className="department__eyebrow">Připraveno dopředu</p>
-              <h3 className="menu-next-week-title">
-                Příští týden
-                {nextWeekLabel && <span className="menu-next-week-label">{nextWeekLabel}</span>}
-              </h3>
+        {/* Next week */}
+        <section className="v2-dept">
+          <div className="v2-dept__head">
+            <div className="v2-dept__info">
+              <div>
+                <h2 className="v2-dept__title">Příští týden</h2>
+                {nextWeekLabel
+                  ? <span className="v2-dept__count">{nextWeekLabel}</span>
+                  : <span className="v2-dept__count">Připraveno dopředu</span>
+                }
+              </div>
             </div>
             {hasNextWeek && (
               <button
-                className="row-delete-btn menu-next-week-delete"
+                className="v2-btn v2-btn--danger"
                 disabled={isPending}
                 onClick={handleDeleteNextWeek}
-                title="Smazat jídelníček příštího týdne"
                 type="button"
               >
                 Smazat
               </button>
             )}
           </div>
-          <ViewGrid
-            emptyMessage="Zatím žádný jídelníček. Importujte PDF příštího týdne — app ho automaticky uloží sem."
-            menu={initialNextMenu}
-            todayCode={null}
-          />
-        </div>
-      </section>
-    </main>
+          <div className="v2-menu-body">
+            <ViewGrid
+              emptyMessage="Zatím žádný jídelníček. Importujte PDF příštího týdne — app ho automaticky uloží sem."
+              menu={initialNextMenu}
+              todayCode={null}
+            />
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

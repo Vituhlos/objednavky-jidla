@@ -5,6 +5,7 @@ import type { OrderData, OrderRowEnriched, Department, DepartmentData } from "@/
 import { DEPARTMENTS } from "@/lib/types";
 import { computeRowPrice } from "@/lib/pricing";
 import { DepartmentPanel } from "./DepartmentPanel";
+import AppTopBar from "./AppTopBar";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -14,29 +15,6 @@ import {
 } from "@/app/actions";
 
 // ── Inline SVG icons ──────────────────────────────────────
-
-const IconOrders = () => (
-  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
-    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-    <rect height="4" rx="1" width="6" x="9" y="3"/>
-    <path d="M9 12h6M9 16h4"/>
-  </svg>
-);
-
-const IconPizza = () => (
-  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
-    <path d="M12 2a10 10 0 0110 10"/>
-    <path d="M2 12C2 6.48 6.48 2 12 2l-10 20 20-10z"/>
-    <circle cx="12" cy="13" fill="currentColor" r="1"/>
-  </svg>
-);
-
-const IconHistory = () => (
-  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M12 6v6l4 2"/>
-  </svg>
-);
 
 const IconCalendar = () => (
   <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
@@ -222,31 +200,7 @@ export default function OrderPage({
 
   return (
     <div className="v2-shell">
-      {/* ── Top navigation bar ── */}
-      <header className="v2-topbar">
-        <div className="v2-topbar__brand">
-          <div className="v2-topbar__logo">
-            <svg fill="currentColor" height="20" viewBox="0 0 24 24" width="20">
-              <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
-            </svg>
-          </div>
-          <span className="v2-topbar__title">Dnešní objednávka</span>
-        </div>
-        <nav className="v2-topbar__nav">
-          <a className="v2-navlink v2-navlink--active" href="/">
-            <IconOrders />
-            <span>Objednávky</span>
-          </a>
-          <a className="v2-navlink" href="/pizza">
-            <IconPizza />
-            <span>Pizza</span>
-          </a>
-          <a className="v2-navlink" href="/historie">
-            <IconHistory />
-            <span>Historie</span>
-          </a>
-        </nav>
-      </header>
+      <AppTopBar />
 
       {/* ── Info strip ── */}
       <div className="v2-infostrip">

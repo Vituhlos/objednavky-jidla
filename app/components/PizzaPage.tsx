@@ -8,7 +8,7 @@ import {
   actionDeletePizzaRow,
   actionUpdatePizzaPrices,
 } from "@/app/actions";
-import AppSidebar from "./AppSidebar";
+import AppTopBar from "./AppTopBar";
 
 function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] {
   return rows.map((r) => {
@@ -90,74 +90,80 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
     });
   };
 
-  const today = new Date().toLocaleDateString("cs-CZ", {
-    weekday: "short",
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-  });
-
   return (
-    <main className="app-shell">
-      <AppSidebar />
+    <div className="v2-shell">
+      <AppTopBar />
 
-      <section className="main-stage">
-        <header className="hero">
-          <div className="hero__topline">
-            <span>{today}</span>
-          </div>
-          <div className="hero__content">
-            <div>
-              <h2>Pizza</h2>
-            </div>
-            <div className="hero__actions">
-              <div className="status-card">
-                <span className="status-card__label">Celkem pizz</span>
-                <strong className="status--draft">{totalCount} ks</strong>
-              </div>
-              <div className="hero__button-row">
-                <button
-                  className="header-action header-action--secondary"
-                  disabled={isPending}
-                  onClick={handleScrape}
-                  type="button"
-                >
-                  {isPending ? "Načítám..." : "Aktualizovat ceník z webu"}
-                </button>
-              </div>
-              {scrapeStatus && <p className="pizza-scrape-status">{scrapeStatus}</p>}
-              {scrapeError && <p className="send-error">{scrapeError}</p>}
-            </div>
-          </div>
-        </header>
-
-        {pizzaItems.length === 0 && (
-          <div className="alert-strip">
-            <strong>Ceník není načten.</strong>
-            <span>
-              Klikněte na „Aktualizovat ceník z webu" nebo zadejte pizzy ručně
-              až po načtení.
+      {/* ── Infostrip ── */}
+      <div className="v2-infostrip">
+        <div className="v2-infostrip__facts">
+          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>Pizza</span>
+          {totalCount > 0 && (
+            <span className="v2-fact">
+              <strong>{totalCount} ks</strong>
+              {" · "}
+              <strong className="v2-accent">{totalPrice} Kč</strong>
             </span>
-          </div>
-        )}
+          )}
+          {scrapeStatus && (
+            <span className="v2-fact" style={{ color: "var(--v2-green)" }}>{scrapeStatus}</span>
+          )}
+          {scrapeError && (
+            <span className="v2-fact" style={{ color: "#dc2626" }}>{scrapeError}</span>
+          )}
+        </div>
+        <div className="v2-infostrip__send">
+          <button
+            className="v2-btn v2-btn--secondary"
+            disabled={isPending}
+            onClick={handleScrape}
+            type="button"
+          >
+            {isPending ? "Načítám..." : "Aktualizovat ceník z webu"}
+          </button>
+        </div>
+      </div>
 
-        <div className="workspace">
-          <div className="pizza-panel">
-            <div className="pizza-panel__header">
-              <p className="department__eyebrow">Objednávky</p>
-              <h2 className="pizza-panel__title">Seznam objednávek</h2>
-            </div>
+      {pizzaItems.length === 0 && (
+        <div className="v2-alert v2-alert--warn">
+          <strong>Ceník není načten.</strong>{" "}
+          Klikněte na „Aktualizovat ceník z webu" nebo zadejte pizzy ručně až po načtení.
+        </div>
+      )}
 
-            <div className="pizza-table">
-              <div className="pizza-table-head">
-                <span>#</span>
-                <span>Jméno</span>
-                <span>Pizza</span>
-                <span>Ks</span>
-                <span>Cena</span>
-                <span></span>
+      {/* ── Content ── */}
+      <main className="v2-content">
+        {/* Orders */}
+        <section className="v2-dept">
+          <div className="v2-dept__head">
+            <div className="v2-dept__info">
+              <div>
+                <h2 className="v2-dept__title">Objednávky</h2>
+                {totalCount > 0 && (
+                  <span className="v2-dept__count">{totalCount} ks · {totalPrice} Kč celkem</span>
+                )}
               </div>
+            </div>
+            <button className="v2-add-btn" disabled={isPending} onClick={handleAddRow} type="button">
+              + Přidat osobu
+            </button>
+          </div>
 
+          {rows.length > 0 && (
+            <div className="v2-pizza-cols-head" aria-hidden>
+              <span>#</span>
+              <span>Jméno</span>
+              <span>Pizza</span>
+              <span style={{ textAlign: "center" }}>Ks</span>
+              <span style={{ textAlign: "right" }}>Cena</span>
+              <span></span>
+            </div>
+          )}
+
+          {rows.length === 0 ? (
+            <div className="v2-empty-state">Zatím žádné objednávky. Přidejte první osobu.</div>
+          ) : (
+            <div>
               {rows.map((row, idx) => (
                 <PizzaRow
                   idx={idx}
@@ -169,66 +175,45 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
                   row={row}
                 />
               ))}
+            </div>
+          )}
+        </section>
 
-              {rows.length === 0 && (
-                <div className="pizza-empty">
-                  Zatím žádné objednávky. Přidejte první osobu.
+        {/* Summary */}
+        {(pizzaCounts.size > 0 || pizzaItems.length > 0) && (
+          <section className="v2-dept">
+            <div className="v2-dept__head">
+              <div>
+                <h2 className="v2-dept__title">Souhrn</h2>
+              </div>
+            </div>
+            <div className="v2-pizza-summary">
+              {pizzaCounts.size > 0 && (
+                <div className="v2-pizza-summary__group">
+                  <h3>Pizzy</h3>
+                  {[...pizzaCounts.entries()].map(([k, v]) => (
+                    <p key={k}><strong>{v}×</strong> {k}</p>
+                  ))}
+                  <p className="v2-pizza-summary__total">
+                    Celkem: <span className="v2-accent">{totalPrice} Kč</span>
+                  </p>
+                </div>
+              )}
+              {pizzaItems.length > 0 && (
+                <div className="v2-pizza-summary__group">
+                  <h3>Ceník</h3>
+                  {pizzaItems.map((item) => (
+                    <p key={item.id} style={{ fontSize: "0.82rem" }}>
+                      <strong>{item.code}.</strong> {item.name} – {item.price} Kč
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
-
-            <div className="pizza-panel__footer">
-              <button
-                className="row-add-btn"
-                disabled={isPending}
-                onClick={handleAddRow}
-                type="button"
-              >
-                + Přidat osobu
-              </button>
-            </div>
-          </div>
-
-          <aside className="summary-panel">
-            <div className="summary-panel__header">
-              <p className="summary-panel__eyebrow">Přehled</p>
-              <h2>Souhrn objednávky</h2>
-            </div>
-
-            {pizzaCounts.size > 0 ? (
-              <div className="summary-group">
-                <h3>Pizzy</h3>
-                {[...pizzaCounts.entries()].map(([k, v]) => (
-                  <p key={k}>
-                    {v}× {k}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <div className="summary-group summary-group--empty">
-                <p>Zatím žádné výběry.</p>
-              </div>
-            )}
-
-            {pizzaItems.length > 0 && (
-              <div className="summary-group">
-                <h3>Ceník</h3>
-                {pizzaItems.map((item) => (
-                  <p key={item.id} style={{ fontSize: "0.82rem" }}>
-                    <strong>{item.code}.</strong> {item.name} – {item.price} Kč
-                  </p>
-                ))}
-              </div>
-            )}
-
-            <div className="summary-panel__total">
-              <span>Celková cena</span>
-              <strong>{totalPrice} Kč</strong>
-            </div>
-          </aside>
-        </div>
-      </section>
-    </main>
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
 
@@ -248,77 +233,63 @@ function PizzaRow({
   onDelete: (rowId: number) => void;
 }) {
   return (
-    <div className="pizza-row">
-      <span className="pizza-row__num">{idx + 1}</span>
+    <div className="v2-pizza-row">
+      <span className="v2-pizza-row__num">{idx + 1}</span>
 
-      <div className="cell">
-        <input
-          className="cell-input"
-          defaultValue={row.personName}
-          disabled={isPending}
-          onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
-          placeholder="Jméno..."
-          type="text"
-        />
-      </div>
+      <input
+        className="v2-pizza-input"
+        defaultValue={row.personName}
+        disabled={isPending}
+        onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
+        placeholder="Jméno..."
+        type="text"
+      />
 
-      <div className="cell">
-        <select
-          className="cell-select"
-          disabled={isPending || pizzaItems.length === 0}
-          onChange={(e) =>
-            onUpdate(row.id, {
-              pizzaItemId: e.target.value ? Number(e.target.value) : null,
-            })
-          }
-          value={row.pizzaItemId ?? ""}
-        >
-          <option value="">— vyberte —</option>
-          {pizzaItems.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.code}. {item.name} ({item.price} Kč)
-            </option>
-          ))}
-        </select>
-      </div>
+      <select
+        className="v2-pizza-select"
+        disabled={isPending || pizzaItems.length === 0}
+        onChange={(e) => onUpdate(row.id, { pizzaItemId: e.target.value ? Number(e.target.value) : null })}
+        value={row.pizzaItemId ?? ""}
+      >
+        <option value="">— vyberte —</option>
+        {pizzaItems.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.code}. {item.name} ({item.price} Kč)
+          </option>
+        ))}
+      </select>
 
-      <div className="cell cell--center">
-        <div className="extras-panel__stepper">
-          <button
-            className="stepper-btn"
-            disabled={isPending || row.count <= 1}
-            onClick={() => onUpdate(row.id, { count: row.count - 1 })}
-            type="button"
-          >
-            −
-          </button>
-          <span className="stepper-count">{row.count}</span>
-          <button
-            className="stepper-btn"
-            disabled={isPending || row.count >= 10}
-            onClick={() => onUpdate(row.id, { count: row.count + 1 })}
-            type="button"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      <div className="cell cell--price">
-        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}
-      </div>
-
-      <div className="cell cell--action">
+      <div className="v2-pizza-stepper" style={{ display: "flex", alignItems: "center", gap: "0.3rem", justifyContent: "center" }}>
         <button
-          className="row-delete-btn"
-          disabled={isPending}
-          onClick={() => onDelete(row.id)}
-          title="Odstranit řádek"
+          className="stepper-btn"
+          disabled={isPending || row.count <= 1}
+          onClick={() => onUpdate(row.id, { count: row.count - 1 })}
           type="button"
         >
-          ×
+          −
+        </button>
+        <span className="stepper-count">{row.count}</span>
+        <button
+          className="stepper-btn"
+          disabled={isPending || row.count >= 10}
+          onClick={() => onUpdate(row.id, { count: row.count + 1 })}
+          type="button"
+        >
+          +
         </button>
       </div>
+
+      <span className="v2-pizza-price">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
+
+      <button
+        className="v2-delete-btn"
+        disabled={isPending}
+        onClick={() => onDelete(row.id)}
+        title="Odstranit řádek"
+        type="button"
+      >
+        ×
+      </button>
     </div>
   );
 }
