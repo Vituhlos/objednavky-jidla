@@ -1628,4 +1628,90 @@ select {
     align-items: stretch;
     gap: 0.5rem;
   }
+
+  /* ── Order table: 7-column grid → 3-row card layout ──────
+   *
+   * Child order from DepartmentPanel.tsx:
+   *   1 = .cell--person  (jméno input)
+   *   2 = .cell          (polévka select)
+   *   3 = .cell--center  (houska toggle)
+   *   4 = .cell--meal    (jídlo select)
+   *   5 = .cell--center  (přílohy toggle)
+   *   6 = .cell--price   (cena)
+   *   7 = .cell--action  (smazat)
+   *
+   * Card layout:
+   *   Row 1 │ Name ──────────── │ Extras⊕ │ Delete× │
+   *   Row 2 │ Meal selection ───────────────────────│
+   *   Row 3 │ Soup ──────────── │ Roll🥐  │ Price   │
+   */
+
+  /* Reset scroll container — card layout doesn't overflow */
+  .department__table {
+    overflow-x: unset;
+    padding: 0 0 0.5rem;
+  }
+
+  /* Hide column headers — placeholders serve as labels */
+  .department__table-head {
+    display: none;
+  }
+
+  /* Card grid: [flex][flex][44px][80px] */
+  .order-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2.75rem 5rem;
+    grid-template-rows: auto auto auto;
+    row-gap: 0.4rem;
+    column-gap: 0.4rem;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--line);
+    align-items: stretch;
+  }
+
+  /* Row 1 */
+  .order-row > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
+  .order-row > :nth-child(5) { grid-column: 3;     grid-row: 1; }
+  .order-row > :nth-child(7) { grid-column: 4;     grid-row: 1; min-height: 2.75rem; }
+
+  /* Row 2: meal full width */
+  .order-row > :nth-child(4) { grid-column: 1 / -1; grid-row: 2; }
+
+  /* Row 3 */
+  .order-row > :nth-child(2) { grid-column: 1 / 3; grid-row: 3; }
+  .order-row > :nth-child(3) { grid-column: 3;     grid-row: 3; }
+  .order-row > :nth-child(6) { grid-column: 4;     grid-row: 3; font-size: 0.82rem; }
+
+  /* Touch-friendly cell height */
+  .order-row .cell {
+    min-height: 2.75rem;
+  }
+
+  /* Toggle buttons fill their cell */
+  .roll-toggle,
+  .extras-toggle {
+    width: 100%;
+    height: 100%;
+    min-height: 2.75rem;
+  }
+
+  .row-delete-btn {
+    width: 100%;
+    height: 100%;
+    min-height: 2.75rem;
+    font-size: 1.2rem;
+  }
+
+  /* Extras panel: reset min-width from 760px rule */
+  .extras-row__inner {
+    min-width: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .row-add-btn {
+    margin: 0.5rem 1rem 0.25rem;
+    padding: 0.75rem 1.1rem;
+    font-size: 0.88rem;
+  }
 }
