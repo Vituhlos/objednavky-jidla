@@ -280,14 +280,19 @@ export default function MenuPage({
         return;
       }
       const detectedStart = data.weekStart;
-      let targetWeekStart = nextWeekStart;
-      let targetLabel = `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}`;
-      if (detectedStart === currentWeekStart) {
-        targetWeekStart = currentWeekStart;
-        targetLabel = `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}`;
-      } else if (detectedStart) {
+      let targetWeekStart: string;
+      let targetLabel: string;
+      if (detectedStart === nextWeekStart) {
+        targetWeekStart = nextWeekStart;
+        targetLabel = `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}`;
+      } else if (detectedStart && detectedStart !== currentWeekStart) {
+        // PDF has a specific week label that doesn't match either known week
         targetWeekStart = detectedStart;
         targetLabel = data.weekLabel ?? detectedStart;
+      } else {
+        // detectedStart === currentWeekStart, or nothing was detected → default to current week
+        targetWeekStart = currentWeekStart;
+        targetLabel = `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}`;
       }
       setImportState({ phase: "preview", result: data, targetWeekStart, targetLabel });
     } catch {
@@ -441,8 +446,24 @@ export default function MenuPage({
                     <p className="import-status">
                       Rozpoznáno <strong>{importState.result.items.length}</strong> položek
                       {importState.result.weekLabel && <>, týden <strong>{importState.result.weekLabel}</strong></>}
-                      {" · "}Bude uloženo jako: <strong>{importState.targetLabel}</strong>
                     </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                      <span style={{ fontSize: "0.83rem", color: "var(--v2-text-muted)" }}>Uložit jako:</span>
+                      <button
+                        className={`v2-btn ${importState.targetWeekStart === currentWeekStart ? "v2-btn--primary" : "v2-btn--secondary"}`}
+                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: currentWeekStart, targetLabel: `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}` } : prev)}
+                        type="button"
+                      >
+                        Aktuální týden
+                      </button>
+                      <button
+                        className={`v2-btn ${importState.targetWeekStart === nextWeekStart ? "v2-btn--primary" : "v2-btn--secondary"}`}
+                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: nextWeekStart, targetLabel: `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}` } : prev)}
+                        type="button"
+                      >
+                        Příští týden
+                      </button>
+                    </div>
                   </div>
                   <div className="import-panel__preview-actions">
                     <button className="v2-btn v2-btn--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
