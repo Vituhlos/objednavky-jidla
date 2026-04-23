@@ -1334,6 +1334,7 @@ input {
 
   .main-stage {
     padding: 1rem;
+    min-width: 0;
   }
 
   .hero__content,
@@ -1345,9 +1346,11 @@ input {
 }
 
 @media (max-width: 760px) {
+  /* min-width: 0 breaks CSS Grid's min-width: auto — prevents the cell
+     from expanding to fit 760px table rows. overflow-x stays on the
+     table itself so its internal scroll still works. */
   .main-stage {
     min-width: 0;
-    overflow-x: hidden;
   }
 
   .department__table {
@@ -1361,8 +1364,24 @@ input {
     min-width: 760px;
   }
 
+  .pizza-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pizza-table-head,
+  .pizza-row {
+    min-width: 480px;
+  }
+
   .hero__button-row {
     flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .hero__actions {
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -1383,7 +1402,7 @@ input {
     gap: 0.5rem 1.5rem;
     padding: 0.75rem 1rem;
     border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .brand-block {
@@ -1438,10 +1457,15 @@ input {
 
   .hero__topline {
     font-size: 0.72rem;
+    flex-wrap: wrap;
+    gap: 0.35rem;
   }
 
+  /* Keep display: flex, just switch to column — display:block breaks
+     the flex sizing of status-card and email-field children */
   .hero__content {
-    display: block;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-top: 0.5rem;
   }
 
@@ -1451,7 +1475,7 @@ input {
     gap: 0.6rem;
     width: 100%;
     max-width: 100%;
-    margin-top: 0.75rem;
+    margin-top: 0;
   }
 
   .status-card,
@@ -1462,7 +1486,6 @@ input {
   }
 
   .email-field input {
-    display: block;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -1471,10 +1494,10 @@ input {
   .hero__button-row {
     width: 100%;
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .header-action {
-    display: block;
     width: 100%;
     box-sizing: border-box;
     padding: 0.75rem 1rem;
@@ -1488,6 +1511,7 @@ input {
 
   .history-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .history-table {
@@ -1496,14 +1520,24 @@ input {
 
   .workspace {
     grid-template-columns: 1fr;
-  }
-
-  .department {
-    padding: 0.75rem;
+    gap: 1rem;
   }
 
   .department__header {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .alert-strip {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .summary-panel {
+    padding: 1rem;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
   }
 }
