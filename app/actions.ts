@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
+import path from "path";
+import fs from "fs";
 import type { MenuItem } from "@/lib/types";
 import {
   addOrderRow,
@@ -72,9 +74,16 @@ export async function actionUpdateExtraEmail(
 export async function actionConfirmMenuImport(
   weekStart: string,
   weekLabel: string,
-  items: ParsedMenuItem[]
+  items: ParsedMenuItem[],
+  tmpPdfName?: string
 ): Promise<void> {
   setMenuForWeek(weekStart, weekLabel, items);
+  if (tmpPdfName) {
+    const pdfsDir = path.join(process.cwd(), "data", "pdfs");
+    const tmpPath = path.join(pdfsDir, tmpPdfName);
+    const destPath = path.join(pdfsDir, `${weekStart}.pdf`);
+    try { fs.renameSync(tmpPath, destPath); } catch {}
+  }
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }

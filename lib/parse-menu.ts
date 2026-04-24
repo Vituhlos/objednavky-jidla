@@ -10,6 +10,7 @@ export interface ParseResult {
   weekStart: string | null;
   items: ParsedMenuItem[];
   rawTextPreview: string;
+  tmpPdfName?: string;
 }
 
 const DEN_MAP: Record<string, string> = {

@@ -26,17 +26,19 @@ interface Props {
   nextWeekLabel: string | null;
   nextWeekStart: string;
   todayCode: string | null;
+  hasPdfCurrent: boolean;
+  hasPdfNext: boolean;
 }
 
 type ImportState =
   | { phase: "idle" }
   | { phase: "uploading" }
-  | { phase: "preview"; result: ParseResult; targetWeekStart: string; targetLabel: string }
+  | { phase: "preview"; result: ParseResult; targetWeekStart: string; targetLabel: string; tmpPdfName?: string }
   | { phase: "saving" }
   | { phase: "done" }
   | { phase: "error"; message: string };
 
-// ── Preview table ─────────────────────────────────────────────────────────────
+// ── Preview table (import panel) ──────────────────────────────────────────────
 
 function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
   const byDay: Record<string, { soups: ParsedMenuItem[]; meals: ParsedMenuItem[] }> = {};
@@ -142,40 +144,74 @@ function ViewGrid({
   emptyMessage: string;
 }) {
   const days = DAY_ORDER.filter((d) => menu[d]);
+  const [activeDay, setActiveDay] = useState<string>(() => {
+    if (todayCode && menu[todayCode]) return todayCode;
+    return days[0] ?? DAY_ORDER[0];
+  });
+
   if (days.length === 0) {
     return <p className="v2-empty-state">{emptyMessage}</p>;
   }
+
   return (
-    <div className="menu-preview-grid">
-      {days.map((day) => (
-        <div className={`menu-day-col${day === todayCode ? " menu-day-col--today" : ""}`} key={day}>
-          <h4 className="menu-day-col__header">
-            {DAY_LABELS[day]}
-            {day === todayCode && <span className="menu-day-col__today-badge">Dnes</span>}
-          </h4>
-          {menu[day].soups.length > 0 && (
-            <div className="menu-day-col__section">
-              <p className="menu-day-col__section-label">Polévky</p>
-              {menu[day].soups.map((s) => (
-                <p className="menu-day-col__item menu-day-col__item--soup" key={s.id}>
-                  <span className="menu-item-code">{s.code}</span> {s.name}
-                </p>
-              ))}
+    <>
+      {/* Day tab bar — visible on mobile only (hidden by CSS at ≥768px) */}
+      <div className="menu-day-tabs">
+        {days.map((day) => (
+          <button
+            className={[
+              "menu-day-tab",
+              day === activeDay ? "menu-day-tab--active" : "",
+              day === todayCode ? "menu-day-tab--today" : "",
+            ].filter(Boolean).join(" ")}
+            key={day}
+            onClick={() => setActiveDay(day)}
+            type="button"
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+      <div className="v2-menu-body">
+        <div className="menu-preview-grid">
+          {days.map((day) => (
+            <div
+              className={[
+                "menu-day-col",
+                day === todayCode ? "menu-day-col--today" : "",
+                day !== activeDay ? "menu-day-col--hidden-mobile" : "",
+              ].filter(Boolean).join(" ")}
+              key={day}
+            >
+              <h4 className="menu-day-col__header">
+                {DAY_LABELS[day]}
+                {day === todayCode && <span className="menu-day-col__today-badge">Dnes</span>}
+              </h4>
+              {menu[day].soups.length > 0 && (
+                <div className="menu-day-col__section">
+                  <p className="menu-day-col__section-label">Polévky</p>
+                  {menu[day].soups.map((s) => (
+                    <p className="menu-day-col__item menu-day-col__item--soup" key={s.id}>
+                      <span className="menu-item-code">{s.code}</span> {s.name}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {menu[day].meals.length > 0 && (
+                <div className="menu-day-col__section">
+                  <p className="menu-day-col__section-label">Jídla</p>
+                  {menu[day].meals.map((m) => (
+                    <p className="menu-day-col__item" key={m.id}>
+                      <span className="menu-item-code">{m.code}</span> {m.name}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          {menu[day].meals.length > 0 && (
-            <div className="menu-day-col__section">
-              <p className="menu-day-col__section-label">Jídla</p>
-              {menu[day].meals.map((m) => (
-                <p className="menu-day-col__item" key={m.id}>
-                  <span className="menu-item-code">{m.code}</span> {m.name}
-                </p>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
-      ))}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -251,8 +287,11 @@ export default function MenuPage({
   nextWeekLabel,
   nextWeekStart,
   todayCode,
+  hasPdfCurrent,
+  hasPdfNext,
 }: Props) {
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
+  const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
   const [editMode, setEditMode] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
@@ -261,6 +300,14 @@ export default function MenuPage({
   const router = useRouter();
 
   const hasNextWeek = Object.keys(initialNextMenu).length > 0;
+  const activeWeekStart = activeWeek === "current" ? currentWeekStart : nextWeekStart;
+  const activeWeekLabel = activeWeek === "current" ? currentWeekLabel : nextWeekLabel;
+  const hasPdfActive = activeWeek === "current" ? hasPdfCurrent : hasPdfNext;
+
+  const handleWeekSwitch = (week: "current" | "next") => {
+    setActiveWeek(week);
+    if (week === "next" && editMode) setEditMode(false);
+  };
 
   // ── Import ────────────────────────────────────────────────────────────────
 
@@ -286,15 +333,13 @@ export default function MenuPage({
         targetWeekStart = nextWeekStart;
         targetLabel = `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}`;
       } else if (detectedStart && detectedStart !== currentWeekStart) {
-        // PDF has a specific week label that doesn't match either known week
         targetWeekStart = detectedStart;
         targetLabel = data.weekLabel ?? detectedStart;
       } else {
-        // detectedStart === currentWeekStart, or nothing was detected → default to current week
         targetWeekStart = currentWeekStart;
         targetLabel = `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}`;
       }
-      setImportState({ phase: "preview", result: data, targetWeekStart, targetLabel });
+      setImportState({ phase: "preview", result: data, targetWeekStart, targetLabel, tmpPdfName: data.tmpPdfName });
     } catch {
       setImportState({ phase: "error", message: "Síťová chyba. Zkuste to znovu." });
     }
@@ -302,11 +347,11 @@ export default function MenuPage({
 
   const handleConfirm = () => {
     if (importState.phase !== "preview") return;
-    const { result, targetWeekStart } = importState;
+    const { result, targetWeekStart, tmpPdfName } = importState;
     setImportState({ phase: "saving" });
     startTransition(async () => {
       const label = result.weekLabel ?? targetWeekStart;
-      await actionConfirmMenuImport(targetWeekStart, label, result.items);
+      await actionConfirmMenuImport(targetWeekStart, label, result.items, tmpPdfName);
       setImportState({ phase: "done" });
       router.refresh();
     });
@@ -384,20 +429,22 @@ export default function MenuPage({
       <div className="v2-infostrip">
         <div className="v2-infostrip__facts">
           <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>Jídelníček LIMA</span>
-          {currentWeekLabel && (
+          {activeWeekLabel && (
             <span className="v2-fact">
-              Aktuální týden: <strong className="v2-accent">{currentWeekLabel}</strong>
+              <strong className="v2-accent">{activeWeekLabel}</strong>
             </span>
           )}
         </div>
         <div className="v2-infostrip__send">
-          <button
-            className={`v2-btn ${editMode ? "v2-btn--primary" : "v2-btn--secondary"}`}
-            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
-            type="button"
-          >
-            {editMode ? "Zavřít úpravu" : "Upravit ručně"}
-          </button>
+          {activeWeek === "current" && (
+            <button
+              className={`v2-btn ${editMode ? "v2-btn--primary" : "v2-btn--secondary"}`}
+              onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+              type="button"
+            >
+              {editMode ? "Zavřít úpravu" : "Upravit ručně"}
+            </button>
+          )}
           <button
             className="v2-btn v2-btn--primary"
             onClick={() => {
@@ -482,21 +529,60 @@ export default function MenuPage({
 
       {/* ── Content ── */}
       <main className="v2-content">
-        {/* Current week */}
         <section className="v2-dept">
+          {/* Card header */}
           <div className="v2-dept__head">
-            <div className="v2-dept__info">
-              <div>
-                <h2 className="v2-dept__title">Aktuální týden</h2>
-                {currentWeekLabel
-                  ? <span className="v2-dept__count">{currentWeekLabel}</span>
-                  : <span className="v2-dept__count">Jídelníček není naplněný</span>
-                }
-              </div>
+            <div>
+              <h2 className="v2-dept__title">Jídelníček</h2>
+              <span className="v2-dept__count">
+                {activeWeekLabel ?? "Jídelníček není naplněný"}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              {hasPdfActive && (
+                <a
+                  className="v2-btn v2-btn--secondary"
+                  download
+                  href={`/api/menu/pdf/${activeWeekStart}`}
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  ↓ PDF
+                </a>
+              )}
+              {activeWeek === "next" && hasNextWeek && (
+                <button
+                  className="v2-btn v2-btn--danger"
+                  disabled={isPending}
+                  onClick={handleDeleteNextWeek}
+                  type="button"
+                >
+                  Smazat
+                </button>
+              )}
             </div>
           </div>
-          <div className="v2-menu-body">
-            {editMode ? (
+
+          {/* Week tab bar */}
+          <div className="menu-week-tabs">
+            <button
+              className={`menu-week-tab${activeWeek === "current" ? " menu-week-tab--active" : ""}`}
+              onClick={() => handleWeekSwitch("current")}
+              type="button"
+            >
+              Aktuální týden
+            </button>
+            <button
+              className={`menu-week-tab${activeWeek === "next" ? " menu-week-tab--active" : ""}`}
+              onClick={() => handleWeekSwitch("next")}
+              type="button"
+            >
+              Příští týden
+            </button>
+          </div>
+
+          {/* Content area */}
+          {activeWeek === "current" && editMode ? (
+            <div style={{ padding: "0.75rem 1.25rem 1.25rem", overflowX: "auto" }}>
               <EditGrid
                 disabled={isPending}
                 menu={currentMenu}
@@ -505,46 +591,20 @@ export default function MenuPage({
                 onUpdate={handleUpdate}
                 todayCode={todayCode}
               />
-            ) : (
-              <ViewGrid
-                emptyMessage="Jídelníček není naplněný. Importujte PDF nebo použijte ruční úpravu."
-                menu={currentMenu}
-                todayCode={todayCode}
-              />
-            )}
-          </div>
-        </section>
-
-        {/* Next week */}
-        <section className="v2-dept">
-          <div className="v2-dept__head">
-            <div className="v2-dept__info">
-              <div>
-                <h2 className="v2-dept__title">Příští týden</h2>
-                {nextWeekLabel
-                  ? <span className="v2-dept__count">{nextWeekLabel}</span>
-                  : <span className="v2-dept__count">Připraveno dopředu</span>
-                }
-              </div>
             </div>
-            {hasNextWeek && (
-              <button
-                className="v2-btn v2-btn--danger"
-                disabled={isPending}
-                onClick={handleDeleteNextWeek}
-                type="button"
-              >
-                Smazat
-              </button>
-            )}
-          </div>
-          <div className="v2-menu-body">
+          ) : activeWeek === "current" ? (
+            <ViewGrid
+              emptyMessage="Jídelníček není naplněný. Importujte PDF nebo použijte ruční úpravu."
+              menu={currentMenu}
+              todayCode={todayCode}
+            />
+          ) : (
             <ViewGrid
               emptyMessage="Zatím žádný jídelníček. Importujte PDF příštího týdne — app ho automaticky uloží sem."
               menu={initialNextMenu}
               todayCode={null}
             />
-          </div>
+          )}
         </section>
       </main>
     </div>

@@ -50,7 +50,7 @@ export function getMenuItemsForDay(day: string, weekStart?: string): {
   const ws = weekStart ?? getMondayISO();
   const items = db
     .prepare(
-      "SELECT * FROM menu_items WHERE day = ? AND (week_start = ? OR week_start IS NULL) ORDER BY type DESC, code ASC, id ASC"
+      "SELECT * FROM menu_items WHERE day = ? AND (week_start = ? OR week_start IS NULL) ORDER BY type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
     )
     .all(day, ws) as Record<string, unknown>[];
   const mapped = items.map(mapRow);
@@ -99,7 +99,7 @@ export function getFullMenu(weekStart?: string): Record<
   const ws = weekStart ?? getMondayISO();
   const all = db
     .prepare(
-      "SELECT * FROM menu_items WHERE week_start = ? OR week_start IS NULL ORDER BY day, type DESC, code ASC, id ASC"
+      "SELECT * FROM menu_items WHERE week_start = ? OR week_start IS NULL ORDER BY day, type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
     )
     .all(ws) as Record<string, unknown>[];
   const result: Record<string, { soups: MenuItem[]; meals: MenuItem[] }> = {};

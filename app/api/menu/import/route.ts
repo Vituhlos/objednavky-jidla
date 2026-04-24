@@ -1,6 +1,8 @@
 import pdfParse from "pdf-parse";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseMenuText } from "@/lib/parse-menu";
+import path from "path";
+import fs from "fs";
 
 export async function POST(request: NextRequest) {
   let formData: FormData;
@@ -46,5 +48,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(parsed);
+  // Save PDF to a temporary file so it can be stored after confirmation
+  let tmpPdfName: string | undefined;
+  try {
+    const pdfsDir = path.join(process.cwd(), "data", "pdfs");
+    fs.mkdirSync(pdfsDir, { recursive: true });
+    tmpPdfName = `tmp_${Date.now()}.pdf`;
+    fs.writeFileSync(path.join(pdfsDir, tmpPdfName), buffer);
+  } catch {
+    // Non-fatal — PDF storage is best-effort
+  }
+
+  return NextResponse.json({ ...parsed, tmpPdfName });
 }
