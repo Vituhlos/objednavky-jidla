@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#2F4858"/>
+  <rect width="32" height="32" rx="7" fill="#ea580c"/>
   <!-- fork -->
-  <line x1="10" y1="5" x2="10" y2="27" stroke="#F0CA81" stroke-width="1.6" stroke-linecap="round"/>
-  <line x1="8"  y1="5" x2="8"  y2="12" stroke="#F0CA81" stroke-width="1.6" stroke-linecap="round"/>
-  <line x1="12" y1="5" x2="12" y2="12" stroke="#F0CA81" stroke-width="1.6" stroke-linecap="round"/>
-  <path d="M8 12 Q10 15 12 12" fill="none" stroke="#F0CA81" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="10" y1="5" x2="10" y2="27" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="8"  y1="5" x2="8"  y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="12" y1="5" x2="12" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8 11 Q10 14.5 12 11" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
   <!-- knife -->
-  <line x1="22" y1="14" x2="22" y2="27" stroke="#F0CA81" stroke-width="1.6" stroke-linecap="round"/>
-  <path d="M22 5 Q26 8 22 14" fill="#F0CA81" stroke="#F0CA81" stroke-width="0.5" stroke-linejoin="round"/>
+  <line x1="22" y1="13" x2="22" y2="27" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <path d="M22 5 Q27 8.5 22 13" fill="white" stroke="none"/>
 </svg>
