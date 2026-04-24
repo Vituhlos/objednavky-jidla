@@ -1,10 +1,18 @@
 import pdfParse from "pdf-parse";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseMenuText } from "@/lib/parse-menu";
+import { checkRateLimit } from "@/lib/rate-limit";
 import path from "path";
 import fs from "fs";
 
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`pdf-import:${ip}`, 10, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Příliš mnoho nahraných souborů. Zkuste to za hodinu." }, { status: 429 });
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -18,6 +26,10 @@ export async function POST(request: NextRequest) {
   const file = formData.get("file");
   if (!file || typeof file === "string") {
     return NextResponse.json({ error: "Soubor nebyl nalezen." }, { status: 400 });
+  }
+
+  if (file.size > MAX_PDF_BYTES) {
+    return NextResponse.json({ error: "Soubor je příliš velký (max 10 MB)." }, { status: 413 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
@@ -155,6 +157,8 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 }
 
 export async function actionCheckPin(pin: string): Promise<boolean> {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`pin:${ip}`, 5, 10 * 60 * 1000)) return false;
   return checkPin(pin);
 }
 
