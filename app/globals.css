@@ -2327,6 +2327,24 @@ select {
   margin: 0;
 }
 
+.modal-extras__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  background: #f9fafb;
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--v2-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.modal-extras__toggle:hover { background: #f3f4f6; }
+.modal-extras__toggle-arrow { font-size: 0.7rem; opacity: 0.6; }
+
 .modal-stepper {
   display: grid;
   grid-template-columns: 1fr auto auto;
