@@ -27,6 +27,7 @@ import {
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
+import { broadcast } from "@/lib/sse-broadcast";
 
 export async function actionAddRow(
   orderId: number,
@@ -34,6 +35,7 @@ export async function actionAddRow(
 ): Promise<OrderRowEnriched> {
   const row = addOrderRow(orderId, department);
   revalidatePath("/");
+  broadcast();
   return row;
 }
 
@@ -55,12 +57,15 @@ export async function actionUpdateRow(
     note: string;
   }>
 ): Promise<OrderRowEnriched> {
-  return updateOrderRow(rowId, updates);
+  const row = updateOrderRow(rowId, updates);
+  broadcast();
+  return row;
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
   deleteOrderRow(rowId);
   revalidatePath("/");
+  broadcast();
 }
 
 export async function actionSendOrder(
@@ -69,6 +74,7 @@ export async function actionSendOrder(
 ): Promise<void> {
   await dbSendOrder(orderId, extraEmail);
   revalidatePath("/");
+  broadcast();
 }
 
 export async function actionUpdateExtraEmail(
@@ -159,11 +165,13 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
   reopenOrder(orderId);
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
+  broadcast();
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
   clearOrderRows(orderId);
   revalidatePath("/");
+  broadcast();
 }
 
 export async function actionCheckPin(pin: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { DEPARTMENTS } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
@@ -99,6 +99,28 @@ export default function OrderPage({
   const [clearConfirm, setClearConfirm] = useState(false);
 
   const isSent = orderStatus === "sent";
+
+  // ── Real-time sync via SSE ────────────────────────────────
+  const isPendingRef = useRef(isPending);
+  useEffect(() => { isPendingRef.current = isPending; }, [isPending]);
+
+  useEffect(() => {
+    const es = new EventSource("/api/sse");
+    es.addEventListener("change", () => {
+      if (isPendingRef.current) return;
+      fetch("/api/order-refresh")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
+          if (!data) return;
+          setDepartments(data.departments);
+          setOrderStatus(data.status as "draft" | "sent");
+          if (data.sentAt) setSentAt(data.sentAt);
+        })
+        .catch(() => {});
+    });
+    return () => es.close();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
