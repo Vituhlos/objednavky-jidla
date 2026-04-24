@@ -33,12 +33,12 @@ function formatDate(isoDate: string): string {
 
 function extraCell(row: OrderRowEnriched): string {
   const parts: string[] = [];
-  if (row.rollCount > 0) parts.push(`${row.rollCount}× H`);
-  if (row.breadDumplingCount > 0) parts.push(`${row.breadDumplingCount}× HK`);
-  if (row.potatoDumplingCount > 0) parts.push(`${row.potatoDumplingCount}× BK`);
-  if (row.ketchupCount > 0) parts.push(`${row.ketchupCount}× Keč`);
-  if (row.tatarkaCount > 0) parts.push(`${row.tatarkaCount}× Tat`);
-  if (row.bbqCount > 0) parts.push(`${row.bbqCount}× BBQ`);
+  if (row.rollCount > 0) parts.push(`${row.rollCount}× Houska`);
+  if (row.breadDumplingCount > 0) parts.push(`${row.breadDumplingCount}× Hous. knedlík`);
+  if (row.potatoDumplingCount > 0) parts.push(`${row.potatoDumplingCount}× Bram. knedlík`);
+  if (row.ketchupCount > 0) parts.push(`${row.ketchupCount}× Kečup`);
+  if (row.tatarkaCount > 0) parts.push(`${row.tatarkaCount}× Tatarka`);
+  if (row.bbqCount > 0) parts.push(`${row.bbqCount}× BBQ omáčka`);
   return parts.join(", ");
 }
 
@@ -58,13 +58,12 @@ interface ColDef {
 
 // widths sum to TABLE_W (769.89)
 const COL_DEFS: ColDef[] = [
-  { header: "#",         width: 22,    align: "center", value: (_, i) => String(i + 1) },
-  { header: "Jméno",     width: 100,   align: "left",   value: (r) => r.personName || "–" },
-  { header: "Polévka",   width: 120,   align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
-  { header: "H",         width: 20,    align: "center", value: (r) => r.rollCount > 0 ? String(r.rollCount) : "" },
-  { header: "Jídlo",     width: 185,   align: "left",   value: (r) => r.mainItem ? `${r.mainItem.code}  ${r.mainItem.name}` : "–" },
-  { header: "Přílohy",   width: 100,   align: "left",   value: (r) => extraCell(r) },
-  { header: "Poznámka",  width: 222.89, align: "left",   value: (r) => r.note || "" },
+  { header: "#",        width: 22,     align: "center", value: (_, i) => String(i + 1) },
+  { header: "Jméno",    width: 100,    align: "left",   value: (r) => r.personName || "–" },
+  { header: "Polévka",  width: 120,    align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
+  { header: "Jídlo",    width: 185,    align: "left",   value: (r) => r.mainItem ? `${r.mainItem.code}  ${r.mainItem.name}` : "–" },
+  { header: "Přílohy",  width: 120,    align: "left",   value: (r) => extraCell(r) },
+  { header: "Poznámka", width: 222.89, align: "left",   value: (r) => r.note || "" },
 ];
 
 const HEADER_H = 26;
