@@ -49,6 +49,7 @@ export interface OrderRow {
   ketchupCount: number;
   tatarkaCount: number;
   bbqCount: number;
+  note: string;
 }
 
 export interface Order {

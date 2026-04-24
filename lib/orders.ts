@@ -46,6 +46,7 @@ function mapOrderRow(row: Record<string, unknown>): OrderRow {
     ketchupCount: (row.ketchup_count as number) ?? 0,
     tatarkaCount: (row.tatarka_count as number) ?? 0,
     bbqCount: (row.bbq_count as number) ?? 0,
+    note: (row.note as string) ?? "",
   };
 }
 
@@ -185,6 +186,7 @@ export function updateOrderRow(
     ketchupCount: number;
     tatarkaCount: number;
     bbqCount: number;
+    note: string;
   }>
 ): OrderRowEnriched {
   const db = getDb();
@@ -199,6 +201,7 @@ export function updateOrderRow(
     ketchupCount: "ketchup_count",
     tatarkaCount: "tatarka_count",
     bbqCount: "bbq_count",
+    note: "note",
   };
 
   const entries = Object.entries(updates).filter(([, v]) => v !== undefined);

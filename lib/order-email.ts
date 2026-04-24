@@ -95,6 +95,10 @@ export function buildOrderEmail(orderData: OrderData): {
     throw new Error("Objednávka neobsahuje žádné aktivní položky k odeslání.");
   }
 
+  const notes = activeRows
+    .filter((row) => row.note?.trim())
+    .map((row) => ({ name: row.personName || "?", note: row.note.trim() }));
+
   const soups = summariseCounts(
     activeRows
       .filter((row) => row.soupItem)
@@ -120,6 +124,10 @@ export function buildOrderEmail(orderData: OrderData): {
     <h3 style="color:#2F5496;">🥖 Přílohy</h3>
     <ul>${renderExtrasList(extras)}</ul>`;
 
+  const notesHtml = notes.length > 0
+    ? `<h3 style="color:#2F5496;">📝 Poznámky k jídlům</h3><ul>${notes.map((n) => `<li><strong>${escapeHtml(n.name)}:</strong> ${escapeHtml(n.note)}</li>`).join("")}</ul>`
+    : "";
+
   const htmlShrnuti = `
     <div style="font-family: Calibri, sans-serif; font-size: 15px;">
       <h3 style="color:#2F5496;">📍 Objednávaná oddělení</h3>
@@ -129,6 +137,7 @@ export function buildOrderEmail(orderData: OrderData): {
       <h3 style="color:#2F5496;">🍽 Jídla</h3>
       <ul>${renderCountList(meals, "Jídlo", "Žádná")}</ul>
       ${prilohyHtml}
+      ${notesHtml}
     </div>`;
 
   const html = `
@@ -166,6 +175,11 @@ export function buildOrderEmail(orderData: OrderData): {
       : ["- Žádné"]),
     "",
   ];
+  if (notes.length > 0) {
+    textLines.push("Poznámky k jídlům:");
+    textLines.push(...notes.map((n) => `- ${n.name}: ${n.note}`));
+    textLines.push("");
+  }
   textLines.push(`Celková cena objednávky: ${orderData.totalPrice} Kč`);
   textLines.push("", "Hezký den!", "", "– automat objednávek", "Jiří Rytíř", "+420 770 138 644");
 

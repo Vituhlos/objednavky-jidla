@@ -85,4 +85,6 @@ function migrate(db: Database.Database): void {
 
   // Add week_start column to existing databases (idempotent)
   try { db.exec("ALTER TABLE menu_items ADD COLUMN week_start TEXT"); } catch {}
+  // Add note column to order_rows (idempotent)
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
 }

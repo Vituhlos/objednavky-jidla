@@ -58,13 +58,14 @@ interface ColDef {
 
 // widths sum to TABLE_W (769.89)
 const COL_DEFS: ColDef[] = [
-  { header: "#",       width: 24,  align: "center", value: (_, i) => String(i + 1) },
-  { header: "Jméno",   width: 115, align: "left",   value: (r) => r.personName || "–" },
-  { header: "Polévka", width: 168, align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
-  { header: "H",       width: 22,  align: "center", value: (r) => r.rollCount > 0 ? String(r.rollCount) : "" },
-  { header: "Jídlo",   width: 233, align: "left",   value: (r) => r.mainItem ? `${r.mainItem.code}  ${r.mainItem.name}` : "–" },
-  { header: "Přílohy", width: 120, align: "left",   value: (r) => extraCell(r) },
-  { header: "Cena",    width: 88,  align: "right",  value: (r) => r.rowPrice > 0 ? `${r.rowPrice} Kč` : "–" },
+  { header: "#",         width: 22,    align: "center", value: (_, i) => String(i + 1) },
+  { header: "Jméno",     width: 100,   align: "left",   value: (r) => r.personName || "–" },
+  { header: "Polévka",   width: 120,   align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
+  { header: "H",         width: 20,    align: "center", value: (r) => r.rollCount > 0 ? String(r.rollCount) : "" },
+  { header: "Jídlo",     width: 185,   align: "left",   value: (r) => r.mainItem ? `${r.mainItem.code}  ${r.mainItem.name}` : "–" },
+  { header: "Přílohy",   width: 100,   align: "left",   value: (r) => extraCell(r) },
+  { header: "Poznámka",  width: 135,   align: "left",   value: (r) => r.note || "" },
+  { header: "Cena",      width: 87.89, align: "right",  value: (r) => r.rowPrice > 0 ? `${r.rowPrice} Kč` : "–" },
 ];
 
 const HEADER_H = 26;

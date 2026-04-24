@@ -14,6 +14,7 @@ type RowUpdates = Partial<{
   ketchupCount: number;
   tatarkaCount: number;
   bbqCount: number;
+  note: string;
 }>;
 
 interface Props {
@@ -122,6 +123,7 @@ function OrderEditModal({
   const [ketchupCount, setKetchupCount] = useState(row.ketchupCount);
   const [tatarkaCount, setTatarkaCount] = useState(row.tatarkaCount);
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
+  const [note, setNote] = useState(row.note);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
 
@@ -167,11 +169,23 @@ function OrderEditModal({
             <ModalStepper label="Tatarka" onChange={setTatarkaCount} price={20} value={tatarkaCount} />
             <ModalStepper label="BBQ omáčka" onChange={setBbqCount} price={20} value={bbqCount} />
           </div>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>
+            <textarea
+              className="modal-note"
+              id="modal-note"
+              maxLength={120}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="např. bez špenátu, bez zelí..."
+              rows={2}
+              value={note}
+            />
+          </div>
         </div>
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={onDelete} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
-          <button className="modal-btn modal-btn--primary" onClick={() => onSave({ personName, soupItemId, mainItemId, rollCount, breadDumplingCount, potatoDumplingCount, ketchupCount, tatarkaCount, bbqCount })} type="button">Uložit</button>
+          <button className="modal-btn modal-btn--primary" onClick={() => onSave({ personName, soupItemId, mainItemId, rollCount, breadDumplingCount, potatoDumplingCount, ketchupCount, tatarkaCount, bbqCount, note })} type="button">Uložit</button>
         </div>
       </div>
     </div>
@@ -228,9 +242,10 @@ function V2OrderRow({
           : <span className="v2-muted">—</span>}
       </div>
 
-      {/* Col 4: Extras chips */}
+      {/* Col 4: Extras chips + note */}
       <div className="v2-order-row__extras">
         {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
+        {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
       </div>
 
       {/* Actions */}

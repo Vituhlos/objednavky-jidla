@@ -46,6 +46,7 @@ export async function actionUpdateRow(
     ketchupCount: number;
     tatarkaCount: number;
     bbqCount: number;
+    note: string;
   }>
 ): Promise<OrderRowEnriched> {
   return updateOrderRow(rowId, updates);
