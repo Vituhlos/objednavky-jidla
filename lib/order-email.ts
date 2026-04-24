@@ -147,6 +147,8 @@ export function buildOrderEmail(orderData: OrderData): {
       <ul>${renderCountList(meals, "Jídlo", "Žádná")}</ul>
       ${prilohyHtml}
       ${notesHtml}
+      <h3 style="color:#2F5496;">💰 Celková cena</h3>
+      <p style="font-size:17px;font-weight:bold;">${orderData.totalPrice} Kč</p>
     </div>`;
 
   const html = `
@@ -188,6 +190,7 @@ export function buildOrderEmail(orderData: OrderData): {
     textLines.push(...notes.map((n) => `- ${n.name}: ${n.note}`));
     textLines.push("");
   }
+  textLines.push(`Celková cena: ${orderData.totalPrice} Kč`, "");
   textLines.push("", "Hezký den!", "", "– automat objednávek", "Jiří Rytíř", "+420 770 138 644");
 
   return {
