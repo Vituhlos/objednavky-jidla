@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { OrderData } from "@/lib/types";
+import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { DEPARTMENT_LABELS, DEPARTMENT_ACCENT } from "@/lib/types";
-import { EXTRAS_ROW_FIELDS } from "@/lib/pricing";
 import { actionReopenOrder } from "@/app/actions";
-import AppSidebar from "./AppSidebar";
+import AppTopBar from "./AppTopBar";
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -26,124 +25,138 @@ function formatSentAt(iso: string | null): string {
   });
 }
 
+function getInitials(name: string): string {
+  if (!name.trim()) return "?";
+  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function getChips(row: OrderRowEnriched): string[] {
+  const chips: string[] = [];
+  if (row.rollCount > 0) chips.push(`Houska ×${row.rollCount}`);
+  if (row.breadDumplingCount > 0) chips.push(`H. kned. ×${row.breadDumplingCount}`);
+  if (row.potatoDumplingCount > 0) chips.push(`B. kned. ×${row.potatoDumplingCount}`);
+  if (row.ketchupCount > 0) chips.push(`Kečup ×${row.ketchupCount}`);
+  if (row.tatarkaCount > 0) chips.push(`Tatarka ×${row.tatarkaCount}`);
+  if (row.bbqCount > 0) chips.push(`BBQ ×${row.bbqCount}`);
+  return chips;
+}
+
+function pluralOrders(n: number): string {
+  if (n === 1) return "objednávka";
+  if (n >= 2 && n <= 4) return "objednávky";
+  return "objednávek";
+}
+
+function ReadOnlyRow({ row, accent }: { row: OrderRowEnriched; accent: string }) {
+  const chips = getChips(row);
+  return (
+    <div className="v2-order-row">
+      <div className="v2-order-row__name">
+        <div className={`v2-avatar v2-avatar--${accent}`}>{getInitials(row.personName)}</div>
+        <span className="v2-order-row__name-text">{row.personName || "—"}</span>
+      </div>
+      <div className="v2-order-row__main">
+        {row.mainItem ? <span>{row.mainItem.name}</span> : <span className="v2-muted">—</span>}
+      </div>
+      <div className="v2-order-row__soup">
+        {row.soupItem ? <span>{row.soupItem.name}</span> : <span className="v2-muted">—</span>}
+      </div>
+      <div className="v2-order-row__extras">
+        {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
+        {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
+      </div>
+      <div className="v2-order-row__price">
+        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="v2-muted">—</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function OrderDetailPage({ data }: { data: OrderData }) {
   const { order, departments, totalPrice } = data;
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  const canReopen =
+    order.status === "sent" &&
+    order.date === new Date().toISOString().slice(0, 10);
+
   return (
-    <main className="app-shell">
-      <AppSidebar />
+    <div className="v2-shell">
+      <AppTopBar />
 
-      <section className="main-stage">
-        <header className="hero">
-          <div className="hero__topline">
-            <Link href="/historie" style={{ color: "rgba(248,243,234,0.7)", fontSize: "0.9rem" }}>
-              ← Zpět na historii
-            </Link>
-          </div>
-          <div className="hero__content">
-            <div>
-              <p className="hero__eyebrow">Archiv – detail</p>
-              <h2>Objednávka {formatDate(order.date)}</h2>
-              <p className="hero__description">
-                Stav:{" "}
-                <strong>{order.status === "sent" ? "Odesláno" : "Koncept"}</strong>
-                {order.sentAt && <> · Odesláno: {formatSentAt(order.sentAt)}</>}
-                {order.extraEmail && <> · Kopie: {order.extraEmail}</>}
-              </p>
-            </div>
-            <div className="hero__actions">
-              <div className="status-card">
-                <span className="status-card__label">Celková cena</span>
-                <strong className="status--draft">{totalPrice} Kč</strong>
-              </div>
-              {order.status === "sent" && order.date === new Date().toISOString().slice(0, 10) && (
-                <button
-                  className="btn-reopen"
-                  disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await actionReopenOrder(order.id);
-                      router.refresh();
-                    })
-                  }
-                >
-                  {pending ? "…" : "Znovu otevřít"}
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <div className="department-stack" style={{ marginTop: "1.5rem" }}>
-          {departments.map((dept) => {
-            const activeRows = dept.rows.filter(
-              (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
-            );
-            if (activeRows.length === 0) return null;
-            const accent = DEPARTMENT_ACCENT[dept.name];
-            return (
-              <div className={`department department--${accent}`} key={dept.name}>
-                <div className="department__header">
-                  <div>
-                    <p className="department__eyebrow">Oddělení</p>
-                    <h2>{DEPARTMENT_LABELS[dept.name]}</h2>
-                  </div>
-                  <div className="department__meta">
-                    <span>Mezisoučet</span>
-                    <strong>{dept.subtotal} Kč</strong>
-                  </div>
-                </div>
-
-                <div className="department__table">
-                  <div className="order-row department__table-head">
-                    <span>Jméno</span>
-                    <span>Polévka</span>
-                    <span>H</span>
-                    <span>Jídlo</span>
-                    <span>Přílohy</span>
-                    <span>Cena</span>
-                    <span></span>
-                  </div>
-                  {activeRows.map((row) => {
-                    const extrasSummary = EXTRAS_ROW_FIELDS.flatMap((e) => {
-                      const count = row[e.rowKey] as number;
-                      return count > 0 ? [`${count}× ${e.label}`] : [];
-                    }).join(", ");
-
-                    return (
-                      <div className="order-row order-row--active" key={row.id}>
-                        <span style={{ padding: "0 0.5rem", fontWeight: 600 }}>
-                          {row.personName || "–"}
-                        </span>
-                        <span style={{ padding: "0 0.5rem", fontSize: "0.85rem" }}>
-                          {row.soupItem
-                            ? `${row.soupItem.code} – ${row.soupItem.name}`
-                            : "–"}
-                        </span>
-                        <span style={{ textAlign: "center", fontSize: "0.85rem" }}>
-                          {row.rollCount > 0 ? row.rollCount : ""}
-                        </span>
-                        <span style={{ padding: "0 0.5rem", fontSize: "0.85rem" }}>
-                          {row.mainItem
-                            ? `${row.mainItem.code} – ${row.mainItem.name}`
-                            : "–"}
-                        </span>
-                        <span style={{ padding: "0 0.5rem", fontSize: "0.82rem", color: "var(--graphite)" }}>
-                          {extrasSummary || "–"}
-                        </span>
-                        <div className="cell cell--price">{row.rowPrice} Kč</div>
-                        <span></span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+      {/* ── Infostrip ── */}
+      <div className="v2-infostrip">
+        <div className="v2-infostrip__facts">
+          <Link
+            href="/historie"
+            style={{ color: "var(--v2-text-muted)", fontSize: "0.85rem", textDecoration: "none" }}
+          >
+            ← Historie
+          </Link>
+          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>
+            Objednávka {formatDate(order.date)}
+          </span>
+          <span className="v2-fact">
+            {order.status === "sent" ? "✓ Odesláno" : "Koncept"}
+            {order.sentAt && <> · {formatSentAt(order.sentAt)}</>}
+          </span>
+          {order.extraEmail && (
+            <span className="v2-fact">Kopie: {order.extraEmail}</span>
+          )}
         </div>
-      </section>
-    </main>
+        <div className="v2-infostrip__send" style={{ gap: "0.75rem", alignItems: "center" }}>
+          <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--v2-text)" }}>
+            {totalPrice} Kč
+          </span>
+          {canReopen && (
+            <button
+              className="v2-btn v2-btn--secondary"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await actionReopenOrder(order.id);
+                  router.refresh();
+                })
+              }
+              type="button"
+            >
+              {pending ? "…" : "Znovu otevřít"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <main className="v2-content">
+        {departments.map((dept) => {
+          const activeRows = dept.rows.filter(
+            (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
+          );
+          if (activeRows.length === 0) return null;
+          const accent = DEPARTMENT_ACCENT[dept.name];
+          return (
+            <section className={`v2-dept v2-dept--${accent}`} key={dept.name}>
+              <div className="v2-dept__head">
+                <div className="v2-dept__info">
+                  <div>
+                    <h2 className="v2-dept__title">{DEPARTMENT_LABELS[dept.name]}</h2>
+                    <span className="v2-dept__count">
+                      {activeRows.length} {pluralOrders(activeRows.length)}
+                      {dept.subtotal > 0 && <> · <strong>{dept.subtotal} Kč</strong></>}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="v2-dept__rows">
+                {activeRows.map((row) => (
+                  <ReadOnlyRow accent={accent} key={row.id} row={row} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </main>
+    </div>
   );
 }

@@ -295,6 +295,7 @@ export default function MenuPage({
   const [editMode, setEditMode] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
+  const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -307,6 +308,7 @@ export default function MenuPage({
   const handleWeekSwitch = (week: "current" | "next") => {
     setActiveWeek(week);
     if (week === "next" && editMode) setEditMode(false);
+    setConfirmDeleteNext(false);
   };
 
   // ── Import ────────────────────────────────────────────────────────────────
@@ -413,6 +415,7 @@ export default function MenuPage({
   }, [currentWeekStart]);
 
   const handleDeleteNextWeek = () => {
+    setConfirmDeleteNext(false);
     startTransition(async () => {
       await actionDeleteMenuWeek(nextWeekStart);
       router.refresh();
@@ -550,14 +553,24 @@ export default function MenuPage({
                 </a>
               )}
               {activeWeek === "next" && hasNextWeek && (
-                <button
-                  className="v2-btn v2-btn--danger"
-                  disabled={isPending}
-                  onClick={handleDeleteNextWeek}
-                  type="button"
-                >
-                  Smazat
-                </button>
+                confirmDeleteNext ? (
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "0.82rem", color: "var(--v2-orange, #c78b2a)", fontWeight: 600 }}>Opravdu smazat?</span>
+                    <button className="v2-btn v2-btn--secondary" onClick={() => setConfirmDeleteNext(false)} type="button">Zrušit</button>
+                    <button className="v2-btn v2-btn--danger" disabled={isPending} onClick={handleDeleteNextWeek} type="button">
+                      {isPending ? "Mažu…" : "Ano, smazat"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="v2-btn v2-btn--danger"
+                    disabled={isPending}
+                    onClick={() => setConfirmDeleteNext(true)}
+                    type="button"
+                  >
+                    Smazat
+                  </button>
+                )
               )}
             </div>
           </div>
