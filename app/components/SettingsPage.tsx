@@ -68,6 +68,7 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
       smtpFrom: fd.get("smtpFrom") as string,
       smtpSecure: fd.get("smtpSecure") === "on" ? "true" : "false",
       orderEmailTo: fd.get("orderEmailTo") as string,
+      smtpReplyTo: fd.get("smtpReplyTo") as string,
       cutoffTime: fd.get("cutoffTime") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
@@ -236,14 +237,25 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
             </Section>
 
             <Section title="E-mail objednávky">
-              <Field hint="výchozí příjemce odesílané objednávky" label="Příjemce (ORDER_EMAIL_TO)">
-                <input
-                  className="settings-input"
-                  defaultValue={settings.orderEmailTo}
-                  name="orderEmailTo"
-                  type="email"
-                />
-              </Field>
+              <div className="settings-row">
+                <Field hint="výchozí příjemce odesílané objednávky" label="Příjemce (To)">
+                  <input
+                    className="settings-input"
+                    defaultValue={settings.orderEmailTo}
+                    name="orderEmailTo"
+                    type="email"
+                  />
+                </Field>
+                <Field hint="pokud prázdné, Reply-To se nenastavuje" label="Adresa pro odpovědi (Reply-To)">
+                  <input
+                    className="settings-input"
+                    defaultValue={settings.smtpReplyTo}
+                    name="smtpReplyTo"
+                    placeholder="jiri@example.com"
+                    type="email"
+                  />
+                </Field>
+              </div>
             </Section>
 
             <Section title="Provoz">

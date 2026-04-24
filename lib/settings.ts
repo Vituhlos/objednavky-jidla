@@ -6,6 +6,7 @@ export interface AppSettings {
   smtpUser: string;
   smtpPass: string;
   smtpFrom: string;
+  smtpReplyTo: string;
   smtpSecure: string;
   orderEmailTo: string;
   cutoffTime: string;
@@ -18,6 +19,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   smtpUser: "smtp_user",
   smtpPass: "smtp_pass",
   smtpFrom: "smtp_from",
+  smtpReplyTo: "smtp_reply_to",
   smtpSecure: "smtp_secure",
   orderEmailTo: "order_email_to",
   cutoffTime: "cutoff_time",
@@ -31,6 +33,7 @@ function envDefaults(): AppSettings {
     smtpUser: process.env.SMTP_USER ?? "",
     smtpPass: process.env.SMTP_PASS ?? "",
     smtpFrom: process.env.SMTP_FROM ?? "",
+    smtpReplyTo: process.env.SMTP_REPLY_TO ?? "",
     smtpSecure: process.env.SMTP_SECURE ?? "false",
     orderEmailTo:
       process.env.ORDER_EMAIL_TO ?? process.env.ORDER_EMAIL_DEFAULT ?? "jirirytir1992@gmail.com",

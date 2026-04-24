@@ -32,10 +32,11 @@ export async function sendEmail({
   const port = Number(s.smtpPort) || 587;
   const secure = s.smtpSecure === "true" || port === 465;
   const from = s.smtpFrom || s.smtpUser;
+  const replyTo = s.smtpReplyTo?.trim() || undefined;
 
   const transporter = nodemailer.createTransport({ host: s.smtpHost, port, secure, auth: { user: s.smtpUser, pass: s.smtpPass } });
 
-  await transporter.sendMail({ from, to: to.join(", "), subject, html, text, attachments });
+  await transporter.sendMail({ from, replyTo, to: to.join(", "), subject, html, text, attachments });
 }
 
 export async function testSmtpConnection(): Promise<void> {
