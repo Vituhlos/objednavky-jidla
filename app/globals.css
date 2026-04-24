@@ -2317,7 +2317,7 @@ select {
   gap: 0;
   border: 1px solid var(--v2-border, #e5e7eb);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: clip;
 }
 
 .modal-extras > .modal-label {
