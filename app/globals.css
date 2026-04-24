@@ -2300,6 +2300,14 @@ select {
   font-style: italic;
 }
 
+.modal-price-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--v2-orange, #ea580c);
+}
+
 .modal-extras {
   display: flex;
   flex-direction: column;

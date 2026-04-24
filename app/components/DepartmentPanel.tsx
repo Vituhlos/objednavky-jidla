@@ -150,15 +150,17 @@ function OrderEditModal({
             <label className="modal-label" htmlFor="modal-soup">Polévka</label>
             <select className="modal-select" id="modal-soup" onChange={(e) => setSoupItemId(e.target.value ? Number(e.target.value) : null)} value={soupItemId ?? ""}>
               <option value="">— žádná polévka —</option>
-              {soups.map((s) => <option key={s.id} value={s.id}>{s.code} – {s.name}</option>)}
+              {soups.map((s) => <option key={s.id} value={s.id}>{s.code} – {s.name} ({s.price} Kč)</option>)}
             </select>
+            {soupItemId && (() => { const s = soups.find((x) => x.id === soupItemId); return s ? <span className="modal-price-hint">{s.price} Kč</span> : null; })()}
           </div>
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-meal">Jídlo</label>
             <select className="modal-select" id="modal-meal" onChange={(e) => setMainItemId(e.target.value ? Number(e.target.value) : null)} value={mainItemId ?? ""}>
               <option value="">— žádné jídlo —</option>
-              {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name}</option>)}
+              {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name} ({m.price} Kč)</option>)}
             </select>
+            {mainItemId && (() => { const m = meals.find((x) => x.id === mainItemId); return m ? <span className="modal-price-hint">{m.price} Kč</span> : null; })()}
           </div>
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>

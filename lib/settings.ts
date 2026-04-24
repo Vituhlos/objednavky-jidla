@@ -11,6 +11,8 @@ export interface AppSettings {
   orderEmailTo: string;
   cutoffTime: string;
   settingsPin: string;
+  defaultSoupPrice: string;
+  defaultMealPrice: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -24,6 +26,8 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   orderEmailTo: "order_email_to",
   cutoffTime: "cutoff_time",
   settingsPin: "settings_pin",
+  defaultSoupPrice: "default_soup_price",
+  defaultMealPrice: "default_meal_price",
 };
 
 function envDefaults(): AppSettings {
@@ -39,6 +43,8 @@ function envDefaults(): AppSettings {
       process.env.ORDER_EMAIL_TO ?? process.env.ORDER_EMAIL_DEFAULT ?? "jirirytir1992@gmail.com",
     cutoffTime: "08:00",
     settingsPin: process.env.SETTINGS_PIN ?? "1234",
+    defaultSoupPrice: "30",
+    defaultMealPrice: "110",
   };
 }
 

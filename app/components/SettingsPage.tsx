@@ -70,6 +70,8 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
       orderEmailTo: fd.get("orderEmailTo") as string,
       smtpReplyTo: fd.get("smtpReplyTo") as string,
       cutoffTime: fd.get("cutoffTime") as string,
+      defaultSoupPrice: fd.get("defaultSoupPrice") as string,
+      defaultMealPrice: fd.get("defaultMealPrice") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -267,6 +269,32 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
                   type="time"
                 />
               </Field>
+            </Section>
+
+            <Section title="Ceník jídel">
+              <p style={{ fontSize: "0.83rem", color: "var(--v2-text-muted, #6b7280)", margin: "0 0 0.75rem" }}>
+                Výchozí ceny používané při importu jídelního lístku z webu. Existující položky v menu se nemění.
+              </p>
+              <div className="settings-row">
+                <Field hint="Kč za porci" label="Výchozí cena polévky">
+                  <input
+                    className="settings-input settings-input--short"
+                    defaultValue={settings.defaultSoupPrice}
+                    min="0"
+                    name="defaultSoupPrice"
+                    type="number"
+                  />
+                </Field>
+                <Field hint="Kč za porci" label="Výchozí cena jídla">
+                  <input
+                    className="settings-input settings-input--short"
+                    defaultValue={settings.defaultMealPrice}
+                    min="0"
+                    name="defaultMealPrice"
+                    type="number"
+                  />
+                </Field>
+              </div>
             </Section>
 
             <Section title="Zabezpečení">

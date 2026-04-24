@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { getSettings } from "./settings";
 import type { MenuItem, DayCode } from "./types";
 
 const JS_DAY_TO_CODE: Record<number, DayCode> = {
@@ -119,13 +120,16 @@ export function setMenuForWeek(
   items: import("./parse-menu").ParsedMenuItem[]
 ): void {
   const db = getDb();
+  const s = getSettings();
+  const soupPrice = parseInt(s.defaultSoupPrice) || 30;
+  const mealPrice = parseInt(s.defaultMealPrice) || 110;
   const transaction = db.transaction(() => {
     db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
     const insert = db.prepare(
       "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     for (const item of items) {
-      const price = item.type === "Polévka" ? 30 : 110;
+      const price = item.type === "Polévka" ? soupPrice : mealPrice;
       insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price);
     }
   });
