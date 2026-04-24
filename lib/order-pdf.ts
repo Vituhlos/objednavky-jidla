@@ -62,11 +62,10 @@ const COL_DEFS: ColDef[] = [
   { header: "Jméno",    width: 100,    align: "left",   value: (r) => r.personName || "–" },
   { header: "Polévka",  width: 120,    align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
   { header: "Jídlo",    width: 185,    align: "left",   value: (r) => {
-    if (!r.mainItem && !r.mainItem2) return "–";
     const parts: string[] = [];
     if (r.mainItem) parts.push(`${(r.mealCount || 1) > 1 ? `${r.mealCount}× ` : ""}${r.mainItem.code}  ${r.mainItem.name}`);
-    if (r.mainItem2) parts.push(`${(r.mealCount2 || 1) > 1 ? `${r.mealCount2}× ` : ""}${r.mainItem2.code}  ${r.mainItem2.name}`);
-    return parts.join("\n+ ");
+    for (const { item, count } of r.extraMealItems) parts.push(`${count > 1 ? `${count}× ` : ""}${item.code}  ${item.name}`);
+    return parts.length > 0 ? parts.join("\n+ ") : "–";
   } },
   { header: "Přílohy",  width: 120,    align: "left",   value: (r) => extraCell(r) },
   { header: "Poznámka", width: 222.89, align: "left",   value: (r) => r.note || "" },

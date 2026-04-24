@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import type { DepartmentData, OrderRowEnriched, MenuItem, Department, MealEntry } from "@/lib/types";
 import { DEPARTMENT_LABELS, DEPARTMENT_ACCENT } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
+import { hasOrderRowContent } from "@/lib/order-utils";
 
 type RowUpdates = Partial<{
   personName: string;
@@ -448,18 +449,22 @@ function pluralOrders(n: number): string {
 export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const accent = DEPARTMENT_ACCENT[data.name];
   const label = DEPARTMENT_LABELS[data.name];
-  const activeRows = data.rows.filter((r) => r.personName || r.soupItemId || r.mainItemId);
+  const activeRows = data.rows.filter(hasOrderRowContent);
   const modalRow = modalState ? (data.rows.find((r) => r.id === modalState.rowId) ?? null) : null;
 
   const handleAddAndOpen = async () => {
     if (isAdding) return;
     setIsAdding(true);
+    setAddError(null);
     try {
       const rowId = await onAddRow();
       setModalState({ rowId, isNew: true });
+    } catch {
+      setAddError("Nepodařilo se přidat řádek.");
     } finally {
       setIsAdding(false);
     }
@@ -484,10 +489,14 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
           </div>
           {!isSent && (
             <button className="v2-add-btn" disabled={isAdding} onClick={handleAddAndOpen} type="button">
-              + Přidat sebe
+              {isAdding ? "…" : "+ Přidat sebe"}
             </button>
           )}
         </div>
+
+        {addError && (
+          <div className="v2-alert v2-alert--warn" style={{ margin: "0 0 0.5rem" }}>{addError}</div>
+        )}
 
         {/* Table header (desktop) */}
         {activeRows.length > 0 && (

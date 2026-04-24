@@ -76,6 +76,7 @@ export async function actionUpdateExtraEmail(
   email: string
 ): Promise<void> {
   updateExtraEmail(orderId, email);
+  revalidatePath("/");
 }
 
 export async function actionConfirmMenuImport(

@@ -35,6 +35,11 @@ export interface MenuItem {
   price: number;
 }
 
+export interface MealEntry {
+  itemId: number;
+  count: number;
+}
+
 export interface OrderRow {
   id: number;
   orderId: number;
@@ -42,10 +47,10 @@ export interface OrderRow {
   sortOrder: number;
   personName: string;
   soupItemId: number | null;
+  soupItemId2: number | null;
   mainItemId: number | null;
   mealCount: number;
-  mainItemId2: number | null;
-  mealCount2: number;
+  extraMeals: MealEntry[];
   rollCount: number;
   breadDumplingCount: number;
   potatoDumplingCount: number;
@@ -65,8 +70,9 @@ export interface Order {
 
 export interface OrderRowEnriched extends OrderRow {
   soupItem: MenuItem | null;
+  soupItem2: MenuItem | null;
   mainItem: MenuItem | null;
-  mainItem2: MenuItem | null;
+  extraMealItems: Array<{ item: MenuItem; count: number }>;
   rowPrice: number;
 }
 

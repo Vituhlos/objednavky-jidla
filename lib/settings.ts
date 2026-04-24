@@ -1,4 +1,9 @@
 import { getDb } from "./db";
+import { createHash } from "crypto";
+
+function hashPin(pin: string): string {
+  return createHash("sha256").update(pin.trim()).digest("hex");
+}
 
 export interface AppSettings {
   smtpHost: string;
@@ -96,7 +101,10 @@ export function saveSettings(updates: Partial<AppSettings>): void {
   db.transaction(() => {
     for (const [field, value] of Object.entries(updates) as [keyof AppSettings, string][]) {
       const dbKey = KEY_MAP[field];
-      if (dbKey) setSetting(dbKey, value);
+      if (!dbKey) continue;
+      // Hash the PIN before storing
+      const stored = field === "settingsPin" ? hashPin(value) : value;
+      setSetting(dbKey, stored);
     }
   })();
 }
@@ -104,5 +112,9 @@ export function saveSettings(updates: Partial<AppSettings>): void {
 export function checkPin(pin: string): boolean {
   const stored = getSetting("settings_pin");
   const expected = stored ?? (process.env.SETTINGS_PIN ?? "1234");
-  return pin.trim() === expected.trim();
+  // Backward compat: if stored value isn't a 64-char hex hash, compare plaintext (first run)
+  if (expected.length !== 64) {
+    return pin.trim() === expected.trim();
+  }
+  return hashPin(pin) === expected;
 }

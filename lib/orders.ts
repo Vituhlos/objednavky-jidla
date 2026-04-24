@@ -18,6 +18,7 @@ import type {
   OrderRowEnriched,
   OrderData,
   Department,
+  MealEntry,
 } from "./types";
 import { DEPARTMENTS } from "./types";
 import { isDepartmentSubmitted } from "./order-utils";
@@ -33,6 +34,13 @@ function mapOrder(row: Record<string, unknown>): Order {
 }
 
 function mapOrderRow(row: Record<string, unknown>): OrderRow {
+  let extraMeals: MealEntry[] = [];
+  try {
+    const raw = row.extra_meals as string | null;
+    if (raw && raw !== "[]") extraMeals = JSON.parse(raw) as MealEntry[];
+  } catch (e) {
+    console.error(`[orders] Chyba parsování extra_meals pro řádek ${row.id}:`, e);
+  }
   return {
     id: row.id as number,
     orderId: row.order_id as number,
@@ -40,10 +48,10 @@ function mapOrderRow(row: Record<string, unknown>): OrderRow {
     sortOrder: row.sort_order as number,
     personName: (row.person_name as string) ?? "",
     soupItemId: (row.soup_item_id as number | null) ?? null,
+    soupItemId2: (row.soup_item_id_2 as number | null) ?? null,
     mainItemId: (row.main_item_id as number | null) ?? null,
     mealCount: (row.meal_count as number) || 1,
-    mainItemId2: (row.main_item_id_2 as number | null) ?? null,
-    mealCount2: (row.meal_count_2 as number) || 1,
+    extraMeals,
     rollCount: (row.roll_count as number) ?? 0,
     breadDumplingCount: (row.bread_dumpling_count as number) ?? 0,
     potatoDumplingCount: (row.potato_dumpling_count as number) ?? 0,
@@ -72,14 +80,18 @@ function readDefaultPrices(): { soupPrice: number; mealPrice: number; ep: Extras
 
 function enrichRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: ExtrasPrices): OrderRowEnriched {
   const soup = row.soupItemId ? getMenuItemById(row.soupItemId) : null;
+  const soup2 = row.soupItemId2 ? getMenuItemById(row.soupItemId2) : null;
   const main = row.mainItemId ? getMenuItemById(row.mainItemId) : null;
-  const main2 = row.mainItemId2 ? getMenuItemById(row.mainItemId2) : null;
+  const extraMealItems = row.extraMeals
+    .map((e) => ({ item: getMenuItemById(e.itemId), count: e.count }))
+    .filter((e): e is { item: NonNullable<typeof e.item>; count: number } => e.item != null);
   return {
     ...row,
     soupItem: soup,
+    soupItem2: soup2,
     mainItem: main,
-    mainItem2: main2,
-    rowPrice: computeRowPrice(row, soup, main, main2, soupPrice, mealPrice, ep),
+    extraMealItems,
+    rowPrice: computeRowPrice(row, soup, soup2, main, extraMealItems, soupPrice, mealPrice, ep),
   };
 }
 
@@ -203,10 +215,10 @@ export function updateOrderRow(
   updates: Partial<{
     personName: string;
     soupItemId: number | null;
+    soupItemId2: number | null;
     mainItemId: number | null;
     mealCount: number;
-    mainItemId2: number | null;
-    mealCount2: number;
+    extraMeals: MealEntry[];
     rollCount: number;
     breadDumplingCount: number;
     potatoDumplingCount: number;
@@ -221,10 +233,10 @@ export function updateOrderRow(
   const fieldMap: Record<string, string> = {
     personName: "person_name",
     soupItemId: "soup_item_id",
+    soupItemId2: "soup_item_id_2",
     mainItemId: "main_item_id",
     mealCount: "meal_count",
-    mainItemId2: "main_item_id_2",
-    mealCount2: "meal_count_2",
+    extraMeals: "extra_meals",
     rollCount: "roll_count",
     breadDumplingCount: "bread_dumpling_count",
     potatoDumplingCount: "potato_dumpling_count",
@@ -234,21 +246,25 @@ export function updateOrderRow(
     note: "note",
   };
 
-  const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
-  if (entries.length > 0) {
-    const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");
-    const values = entries.map(([, v]) => v);
-    db.prepare(`UPDATE order_rows SET ${setClauses} WHERE id = ?`).run(
-      ...values,
-      rowId
-    );
-  }
-
-  const row = db
-    .prepare("SELECT * FROM order_rows WHERE id = ?")
-    .get(rowId) as Record<string, unknown>;
   const { soupPrice, mealPrice, ep } = readDefaultPrices();
-  return enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+
+  return db.transaction(() => {
+    const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
+    if (entries.length > 0) {
+      const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");
+      const values = entries.map(([k, v]) => k === "extraMeals" ? JSON.stringify(v) : v);
+      db.prepare(`UPDATE order_rows SET ${setClauses} WHERE id = ?`).run(
+        ...values,
+        rowId
+      );
+    }
+
+    const row = db
+      .prepare("SELECT * FROM order_rows WHERE id = ?")
+      .get(rowId) as Record<string, unknown> | undefined;
+    if (!row) throw new Error(`Řádek objednávky ${rowId} nenalezen.`);
+    return enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+  })();
 }
 
 export function deleteOrderRow(rowId: number): void {
@@ -358,4 +374,8 @@ export function getOrderList(): OrderSummary[] {
     extraEmail: (r.extra_email as string | null) ?? null,
     rowCount: r.row_count as number,
   }));
+}
+
+export function clearOrderRows(orderId: number): void {
+  getDb().prepare("DELETE FROM order_rows WHERE order_id = ?").run(orderId);
 }

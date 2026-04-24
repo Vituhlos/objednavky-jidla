@@ -4,6 +4,7 @@ import { useState, useTransition, useCallback } from "react";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { DEPARTMENTS } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
+import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
 import AppTopBar from "./AppTopBar";
 import {
@@ -55,14 +56,10 @@ const IconCheck = () => (
 
 // ── Helpers ───────────────────────────────────────────────
 
-function isRowSubmitted(r: OrderRowEnriched): boolean {
-  return !!(r.personName || r.soupItemId || r.mainItemId);
-}
-
 function recalcDepartments(departments: DepartmentData[]): DepartmentData[] {
   return departments.map((d) => ({
     ...d,
-    subtotal: d.rows.filter(isRowSubmitted).reduce((s, r) => s + r.rowPrice, 0),
+    subtotal: d.rows.filter(hasOrderRowContent).reduce((s, r) => s + r.rowPrice, 0),
   }));
 }
 
@@ -105,15 +102,20 @@ export default function OrderPage({
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
-      const newRow = await actionAddRow(orderId, department);
-      setDepartments((prev) =>
-        recalcDepartments(
-          prev.map((d) =>
-            d.name === department ? { ...d, rows: [...d.rows, newRow] } : d
+      try {
+        const newRow = await actionAddRow(orderId, department);
+        setDepartments((prev) =>
+          recalcDepartments(
+            prev.map((d) =>
+              d.name === department ? { ...d, rows: [...d.rows, newRow] } : d
+            )
           )
-        )
-      );
-      return newRow.id;
+        );
+        return newRow.id;
+      } catch {
+        setSendError("Nepodařilo se přidat řádek. Zkuste to znovu.");
+        throw new Error("add failed");
+      }
     },
     [orderId]
   );
@@ -171,8 +173,14 @@ export default function OrderPage({
         return patchRow(prev, rowId, optimistic);
       });
       startTransition(async () => {
-        const updated = await actionUpdateRow(rowId, updates);
-        setDepartments((prev) => patchRow(prev, rowId, updated));
+        try {
+          const updated = await actionUpdateRow(rowId, updates);
+          setDepartments((prev) => patchRow(prev, rowId, updated));
+        } catch {
+          setSendError("Nepodařilo se uložit změny. Zkuste to znovu.");
+          // Rollback: refetch by reverting to server-confirmed state via re-render
+          setDepartments((prev) => recalcDepartments([...prev]));
+        }
       });
     },
     [initialData.todayMenu]
@@ -309,7 +317,8 @@ export default function OrderPage({
       {/* ── Main content ── */}
       <main className="v2-content">
         {DEPARTMENTS.map((dept) => {
-          const deptData = departments.find((d) => d.name === dept)!;
+          const deptData = departments.find((d) => d.name === dept);
+          if (!deptData) return null;
           return (
             <DepartmentPanel
               data={deptData}

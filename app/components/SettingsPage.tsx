@@ -100,6 +100,11 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
     startTransition(async () => {
       try {
         const res = await fetch("/api/smtp-test");
+        if (!res.ok) {
+          setSmtpTestStatus("error");
+          setSmtpTestMsg(`Server vrátil chybu ${res.status}.`);
+          return;
+        }
         const json = await res.json() as { ok: boolean; error?: string };
         if (json.ok) {
           setSmtpTestStatus("ok");

@@ -4,8 +4,9 @@ export function hasOrderRowContent(row: OrderRowEnriched): boolean {
   return Boolean(
     row.personName ||
       row.soupItem ||
+      row.soupItem2 ||
       row.mainItem ||
-      row.mainItem2 ||
+      row.extraMealItems.length > 0 ||
       row.rollCount > 0 ||
       row.breadDumplingCount > 0 ||
       row.potatoDumplingCount > 0 ||
@@ -26,8 +27,9 @@ export function isDepartmentActive(department: DepartmentData): boolean {
 export function hasSubmittedOrderContent(row: OrderRowEnriched): boolean {
   return Boolean(
     row.soupItem ||
+      row.soupItem2 ||
       row.mainItem ||
-      row.mainItem2 ||
+      row.extraMealItems.length > 0 ||
       row.rollCount > 0 ||
       row.breadDumplingCount > 0 ||
       row.potatoDumplingCount > 0 ||

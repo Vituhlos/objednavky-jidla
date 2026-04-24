@@ -100,9 +100,12 @@ export function buildOrderEmail(orderData: OrderData): {
     .map((row) => ({ name: row.personName || "?", note: row.note.trim() }));
 
   const soups = summariseCounts(
-    activeRows
-      .filter((row) => row.soupItem)
-      .map((row) => `${row.soupItem!.code} – ${row.soupItem!.name}`.replace(/\s*[-–]\s*/, " – "))
+    activeRows.flatMap((row) => {
+      const items: string[] = [];
+      if (row.soupItem) items.push(`${row.soupItem.code} – ${row.soupItem.name}`.replace(/\s*[-–]\s*/, " – "));
+      if (row.soupItem2) items.push(`${row.soupItem2.code} – ${row.soupItem2.name}`.replace(/\s*[-–]\s*/, " – "));
+      return items;
+    })
   );
   const meals = summariseCounts(
     activeRows.flatMap((row) => {
@@ -111,9 +114,9 @@ export function buildOrderEmail(orderData: OrderData): {
         const label = `${row.mainItem.code} – ${row.mainItem.name}`.replace(/\s*[-–]\s*/, " – ");
         for (let i = 0; i < (row.mealCount || 1); i++) items.push(label);
       }
-      if (row.mainItem2) {
-        const label = `${row.mainItem2.code} – ${row.mainItem2.name}`.replace(/\s*[-–]\s*/, " – ");
-        for (let i = 0; i < (row.mealCount2 || 1); i++) items.push(label);
+      for (const { item, count } of row.extraMealItems) {
+        const label = `${item.code} – ${item.name}`.replace(/\s*[-–]\s*/, " – ");
+        for (let i = 0; i < count; i++) items.push(label);
       }
       return items;
     })

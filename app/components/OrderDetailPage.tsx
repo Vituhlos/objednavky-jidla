@@ -153,6 +153,13 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
 
       {/* ── Content ── */}
       <main className="v2-content">
+        {departments.every((dept) =>
+          dept.rows.every((r) => !r.personName && !r.soupItem && !r.mainItem && r.rollCount === 0)
+        ) && (
+          <div className="v2-empty-state" style={{ textAlign: "center", padding: "3rem 1rem" }}>
+            Objednávka neobsahuje žádné položky.
+          </div>
+        )}
         {departments.map((dept) => {
           const activeRows = dept.rows.filter(
             (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
