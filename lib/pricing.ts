@@ -81,11 +81,13 @@ export function computeRowPrice(
     | "bbqCount"
   >,
   soup: MenuItem | null,
-  main: MenuItem | null
+  main: MenuItem | null,
+  soupPrice?: number,
+  mealPrice?: number
 ): number {
   let price = 0;
-  if (soup) price += soup.price;
-  if (main) price += main.price;
+  if (soup) price += soupPrice ?? soup.price;
+  if (main) price += mealPrice ?? main.price;
   price += row.rollCount * EXTRAS_PRICES.roll;
   price += row.breadDumplingCount * EXTRAS_PRICES.breadDumpling;
   price += row.potatoDumplingCount * EXTRAS_PRICES.potatoDumpling;

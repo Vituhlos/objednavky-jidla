@@ -141,7 +141,7 @@ export default function OrderPage({
           ...merged,
           soupItem: soupItem ?? null,
           mainItem: mainItem ?? null,
-          rowPrice: computeRowPrice(merged, soupItem ?? null, mainItem ?? null),
+          rowPrice: computeRowPrice(merged, soupItem ?? null, mainItem ?? null, defaultSoupPrice, defaultMealPrice),
         };
         return patchRow(prev, rowId, optimistic);
       });
