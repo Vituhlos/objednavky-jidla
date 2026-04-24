@@ -32,7 +32,7 @@ export function computePizzaTotals(
   }
   allPricesWithBox.sort((a, b) => a - b);
 
-  const freeCount = Math.floor(totalCount / 3);
+  const freeCount = Math.floor(totalCount / 4);
   const discountAmount = allPricesWithBox.slice(0, freeCount).reduce((s, p) => s + p, 0);
   const deliveryFee = totalCount >= 4 ? 0 : (PIZZA_DELIVERY[totalCount] ?? 0);
   const finalTotal = baseTotal + boxTotal - discountAmount + deliveryFee;
