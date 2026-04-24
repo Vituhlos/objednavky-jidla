@@ -255,17 +255,7 @@ export async function sendOrder(orderId: number, extraEmail?: string): Promise<O
   }
 
   const currentOrder = mapOrder(current);
-  if (currentOrder.status === "sent") {
-    throw new Error("Objednávka již byla odeslána.");
-  }
-
   const normalizedExtraEmail = extraEmail?.trim() || currentOrder.extraEmail || null;
-  if (extraEmail !== undefined) {
-    db.prepare("UPDATE orders SET extra_email = ? WHERE id = ?").run(
-      normalizedExtraEmail,
-      orderId
-    );
-  }
 
   const orderData = getOrderData(orderId);
   const activeDepartments = orderData.departments.filter(isDepartmentSubmitted);
@@ -275,10 +265,7 @@ export async function sendOrder(orderId: number, extraEmail?: string): Promise<O
   const recipients = getOrderRecipients(normalizedExtraEmail);
   const email = buildOrderEmail({
     ...orderData,
-    order: {
-      ...orderData.order,
-      extraEmail: normalizedExtraEmail,
-    },
+    order: { ...orderData.order, extraEmail: normalizedExtraEmail },
   });
   const attachments = await Promise.all(
     activeDepartments.map((department) =>
@@ -286,18 +273,32 @@ export async function sendOrder(orderId: number, extraEmail?: string): Promise<O
     )
   );
 
-  await sendEmail({
-    to: recipients,
-    subject: email.subject,
-    html: email.html,
-    text: email.text,
-    attachments,
-  });
-
+  // Atomic claim: only one concurrent caller wins — the one whose UPDATE touches a row.
+  // WHERE status = 'draft' ensures a second caller (or retry) gets changes = 0 and throws.
   const sentAt = new Date().toISOString();
-  db.prepare(
-    "UPDATE orders SET status = 'sent', sent_at = ?, extra_email = ? WHERE id = ?"
-  ).run(sentAt, normalizedExtraEmail, orderId);
+  const claim = db
+    .prepare(
+      "UPDATE orders SET status = 'sent', sent_at = ?, extra_email = ? WHERE id = ? AND status = 'draft'"
+    )
+    .run(sentAt, normalizedExtraEmail, orderId);
+
+  if (claim.changes === 0) {
+    throw new Error("Objednávka již byla odeslána.");
+  }
+
+  try {
+    await sendEmail({
+      to: recipients,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      attachments,
+    });
+  } catch (err) {
+    // Revert the claim so the user can retry after fixing SMTP
+    db.prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?").run(orderId);
+    throw err;
+  }
 
   const order = db
     .prepare("SELECT * FROM orders WHERE id = ?")
