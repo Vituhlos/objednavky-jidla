@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { AppSettings } from "@/lib/settings";
 import { actionCheckPin, actionSaveSettings } from "@/app/actions";
-import AppSidebar from "./AppSidebar";
+import AppTopBar from "./AppTopBar";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -106,57 +106,54 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
     });
   };
 
-  const today = new Date().toLocaleDateString("cs-CZ", {
-    weekday: "short", day: "numeric", month: "numeric", year: "numeric",
-  });
-
   return (
-    <main className="app-shell">
-      <AppSidebar />
+    <div className="v2-shell">
+      <AppTopBar />
 
-      <section className="main-stage">
-        <header className="hero">
-          <div className="hero__topline">
-            <span>{today}</span>
-          </div>
-          <div className="hero__content">
-            <div>
-              <h2>Nastavení</h2>
-              <p className="hero__description">
-                SMTP, výchozí e-mail příjemce, čas uzávěrky a PIN pro tuto
-                stránku.
-              </p>
-            </div>
-          </div>
-        </header>
+      {/* ── Infostrip ── */}
+      <div className="v2-infostrip">
+        <div className="v2-infostrip__facts">
+          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>Nastavení</span>
+          <span className="v2-fact">SMTP, e-mail příjemce, čas uzávěrky, PIN</span>
+        </div>
+      </div>
 
+      {/* ── Content ── */}
+      <main className="v2-content">
         {!unlocked ? (
-          <div className="settings-pin-gate">
-            <form className="settings-pin-form" onSubmit={handlePinSubmit}>
-              <p className="settings-pin-form__label">Zadejte PIN pro přístup k nastavení</p>
-              <input
-                autoFocus
-                className="settings-pin-input"
-                inputMode="numeric"
-                maxLength={8}
-                onChange={(e) => setPin(e.target.value)}
-                pattern="[0-9]*"
-                placeholder="••••"
-                type="password"
-                value={pin}
-              />
-              {pinError && (
-                <p className="settings-pin-error">Nesprávný PIN. Zkuste to znovu.</p>
-              )}
-              <button
-                className="header-action header-action--primary"
-                disabled={isPending || pin.length === 0}
-                type="submit"
-              >
-                {isPending ? "Ověřuji..." : "Odemknout"}
-              </button>
-            </form>
-          </div>
+          <section className="v2-dept">
+            <div className="v2-dept__head">
+              <div>
+                <h2 className="v2-dept__title">Přístup chráněn PINem</h2>
+                <span className="v2-dept__count">Zadejte PIN pro zobrazení nastavení</span>
+              </div>
+            </div>
+            <div style={{ padding: "1.5rem 1.25rem" }}>
+              <form onSubmit={handlePinSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: "280px" }}>
+                <input
+                  autoFocus
+                  className="settings-pin-input"
+                  inputMode="numeric"
+                  maxLength={8}
+                  onChange={(e) => setPin(e.target.value)}
+                  pattern="[0-9]*"
+                  placeholder="••••"
+                  type="password"
+                  value={pin}
+                />
+                {pinError && (
+                  <p className="settings-pin-error">Nesprávný PIN. Zkuste to znovu.</p>
+                )}
+                <button
+                  className="v2-btn v2-btn--primary"
+                  disabled={isPending || pin.length === 0}
+                  type="submit"
+                >
+                  {isPending ? "Ověřuji..." : "Odemknout"}
+                </button>
+              </form>
+            </div>
+          </section>
         ) : (
           <form className="settings-form" onSubmit={handleSave} ref={formRef}>
             <Section title="SMTP – odchozí pošta">
@@ -223,7 +220,7 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
               </div>
               <div className="settings-test-row">
                 <button
-                  className="header-action header-action--secondary"
+                  className="v2-btn v2-btn--secondary"
                   disabled={isPending}
                   onClick={handleSmtpTest}
                   type="button"
@@ -285,7 +282,7 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
                 <span className="settings-save-error">Chyba při ukládání.</span>
               )}
               <button
-                className="header-action header-action--primary"
+                className="v2-btn v2-btn--primary"
                 disabled={isPending}
                 type="submit"
               >
@@ -294,7 +291,7 @@ export default function SettingsPage({ settings }: { settings: AppSettings }) {
             </div>
           </form>
         )}
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }
