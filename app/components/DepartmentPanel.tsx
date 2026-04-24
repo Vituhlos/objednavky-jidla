@@ -159,8 +159,6 @@ function OrderEditModal({
   const [tatarkaCount, setTatarkaCount] = useState(row.tatarkaCount);
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
   const [note, setNote] = useState(row.note);
-  const hasExtras = row.rollCount + row.breadDumplingCount + row.potatoDumplingCount + row.ketchupCount + row.tatarkaCount + row.bbqCount > 0;
-  const [extrasOpen, setExtrasOpen] = useState(hasExtras);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
 
@@ -326,24 +324,13 @@ function OrderEditModal({
             />
           </div>
           <div className="modal-extras">
-            <button
-              className="modal-extras__toggle"
-              onClick={() => setExtrasOpen((o) => !o)}
-              type="button"
-            >
-              <span>Přílohy a doplňky</span>
-              <span className="modal-extras__toggle-arrow">{extrasOpen ? "▲" : "▼"}</span>
-            </button>
-            {extrasOpen && (
-              <>
-                <ModalStepper label="Houska" onChange={setRollCount} price={ep.roll} value={rollCount} />
-                <ModalStepper label="Houskový knedlík" onChange={setBreadDumplingCount} price={ep.breadDumpling} value={breadDumplingCount} />
-                <ModalStepper label="Bramborový knedlík" onChange={setPotatoDumplingCount} price={ep.potatoDumpling} value={potatoDumplingCount} />
-                <ModalStepper label="Kečup" onChange={setKetchupCount} price={ep.ketchup} value={ketchupCount} />
-                <ModalStepper label="Tatarka" onChange={setTatarkaCount} price={ep.tatarka} value={tatarkaCount} />
-                <ModalStepper label="BBQ omáčka" onChange={setBbqCount} price={ep.bbq} value={bbqCount} />
-              </>
-            )}
+            <span className="modal-label" style={{ padding: "0.55rem 0.85rem 0.45rem", background: "#f9fafb", borderBottom: "1px solid var(--v2-border, #e5e7eb)", display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--v2-text-muted, #6b7280)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Přílohy a doplňky</span>
+            <ModalStepper label="Houska" onChange={setRollCount} price={ep.roll} value={rollCount} />
+            <ModalStepper label="Houskový knedlík" onChange={setBreadDumplingCount} price={ep.breadDumpling} value={breadDumplingCount} />
+            <ModalStepper label="Bramborový knedlík" onChange={setPotatoDumplingCount} price={ep.potatoDumpling} value={potatoDumplingCount} />
+            <ModalStepper label="Kečup" onChange={setKetchupCount} price={ep.ketchup} value={ketchupCount} />
+            <ModalStepper label="Tatarka" onChange={setTatarkaCount} price={ep.tatarka} value={tatarkaCount} />
+            <ModalStepper label="BBQ omáčka" onChange={setBbqCount} price={ep.bbq} value={bbqCount} />
           </div>
         </div>
         <div className="modal-sheet__footer">
