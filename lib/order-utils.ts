@@ -5,6 +5,7 @@ export function hasOrderRowContent(row: OrderRowEnriched): boolean {
     row.personName ||
       row.soupItem ||
       row.mainItem ||
+      row.mainItem2 ||
       row.rollCount > 0 ||
       row.breadDumplingCount > 0 ||
       row.potatoDumplingCount > 0 ||
@@ -26,6 +27,7 @@ export function hasSubmittedOrderContent(row: OrderRowEnriched): boolean {
   return Boolean(
     row.soupItem ||
       row.mainItem ||
+      row.mainItem2 ||
       row.rollCount > 0 ||
       row.breadDumplingCount > 0 ||
       row.potatoDumplingCount > 0 ||

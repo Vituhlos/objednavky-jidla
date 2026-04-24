@@ -41,6 +41,9 @@ function mapOrderRow(row: Record<string, unknown>): OrderRow {
     personName: (row.person_name as string) ?? "",
     soupItemId: (row.soup_item_id as number | null) ?? null,
     mainItemId: (row.main_item_id as number | null) ?? null,
+    mealCount: (row.meal_count as number) || 1,
+    mainItemId2: (row.main_item_id_2 as number | null) ?? null,
+    mealCount2: (row.meal_count_2 as number) || 1,
     rollCount: (row.roll_count as number) ?? 0,
     breadDumplingCount: (row.bread_dumpling_count as number) ?? 0,
     potatoDumplingCount: (row.potato_dumpling_count as number) ?? 0,
@@ -70,11 +73,13 @@ function readDefaultPrices(): { soupPrice: number; mealPrice: number; ep: Extras
 function enrichRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: ExtrasPrices): OrderRowEnriched {
   const soup = row.soupItemId ? getMenuItemById(row.soupItemId) : null;
   const main = row.mainItemId ? getMenuItemById(row.mainItemId) : null;
+  const main2 = row.mainItemId2 ? getMenuItemById(row.mainItemId2) : null;
   return {
     ...row,
     soupItem: soup,
     mainItem: main,
-    rowPrice: computeRowPrice(row, soup, main, soupPrice, mealPrice, ep),
+    mainItem2: main2,
+    rowPrice: computeRowPrice(row, soup, main, main2, soupPrice, mealPrice, ep),
   };
 }
 
@@ -199,6 +204,9 @@ export function updateOrderRow(
     personName: string;
     soupItemId: number | null;
     mainItemId: number | null;
+    mealCount: number;
+    mainItemId2: number | null;
+    mealCount2: number;
     rollCount: number;
     breadDumplingCount: number;
     potatoDumplingCount: number;
@@ -214,6 +222,9 @@ export function updateOrderRow(
     personName: "person_name",
     soupItemId: "soup_item_id",
     mainItemId: "main_item_id",
+    mealCount: "meal_count",
+    mainItemId2: "main_item_id_2",
+    mealCount2: "meal_count_2",
     rollCount: "roll_count",
     breadDumplingCount: "bread_dumpling_count",
     potatoDumplingCount: "potato_dumpling_count",

@@ -105,9 +105,18 @@ export function buildOrderEmail(orderData: OrderData): {
       .map((row) => `${row.soupItem!.code} – ${row.soupItem!.name}`.replace(/\s*[-–]\s*/, " – "))
   );
   const meals = summariseCounts(
-    activeRows
-      .filter((row) => row.mainItem)
-      .map((row) => `${row.mainItem!.code} – ${row.mainItem!.name}`.replace(/\s*[-–]\s*/, " – "))
+    activeRows.flatMap((row) => {
+      const items: string[] = [];
+      if (row.mainItem) {
+        const label = `${row.mainItem.code} – ${row.mainItem.name}`.replace(/\s*[-–]\s*/, " – ");
+        for (let i = 0; i < (row.mealCount || 1); i++) items.push(label);
+      }
+      if (row.mainItem2) {
+        const label = `${row.mainItem2.code} – ${row.mainItem2.name}`.replace(/\s*[-–]\s*/, " – ");
+        for (let i = 0; i < (row.mealCount2 || 1); i++) items.push(label);
+      }
+      return items;
+    })
   );
   const extras = buildExtrasSummary(activeRows);
   const subject = `Denní objednávka obědů – LIMA (${formatOrderDateForSubject(orderData.order.date)})`;

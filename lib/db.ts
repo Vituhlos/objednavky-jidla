@@ -87,4 +87,8 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE menu_items ADD COLUMN week_start TEXT"); } catch {}
   // Add note column to order_rows (idempotent)
   try { db.exec("ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
+  // Add meal count + second meal columns (idempotent)
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN meal_count INTEGER NOT NULL DEFAULT 1"); } catch {}
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN main_item_id_2 INTEGER REFERENCES menu_items(id)"); } catch {}
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN meal_count_2 INTEGER NOT NULL DEFAULT 1"); } catch {}
 }

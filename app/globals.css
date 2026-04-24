@@ -2410,6 +2410,64 @@ select {
   background: #fef2f2;
 }
 
+.modal-count-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.modal-count-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--v2-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--v2-bg, #f9fafb);
+  color: var(--v2-text, #111827);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms;
+}
+
+.modal-count-btn:hover:not(:disabled) { background: var(--v2-border); }
+.modal-count-btn:disabled { opacity: 0.35; cursor: default; }
+
+.modal-count-val {
+  min-width: 28px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--v2-text);
+}
+
+.modal-add-second {
+  background: none;
+  border: 1px dashed var(--v2-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--v2-text-muted, #6b7280);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 120ms, color 120ms;
+}
+.modal-add-second:hover { background: var(--v2-bg, #f9fafb); color: var(--v2-text); }
+
+.modal-remove-second {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--v2-text-muted, #9ca3af);
+  cursor: pointer;
+  padding: 0;
+}
+.modal-remove-second:hover { color: #dc2626; }
+
 /* ═══════════════════════════════════════════════════════════
    v2 FULL LAYOUT — ordering page redesign
    ═══════════════════════════════════════════════════════════ */

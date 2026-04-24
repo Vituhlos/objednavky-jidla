@@ -122,6 +122,9 @@ export default function OrderPage({
         personName: string;
         soupItemId: number | null;
         mainItemId: number | null;
+        mealCount: number;
+        mainItemId2: number | null;
+        mealCount2: number;
         rollCount: number;
         breadDumplingCount: number;
         potatoDumplingCount: number;
@@ -143,11 +146,16 @@ export default function OrderPage({
           "mainItemId" in updates
             ? initialData.todayMenu.meals.find((m) => m.id === updates.mainItemId) ?? null
             : row.mainItem;
+        const mainItem2 =
+          "mainItemId2" in updates
+            ? initialData.todayMenu.meals.find((m) => m.id === updates.mainItemId2) ?? null
+            : row.mainItem2;
         const optimistic: OrderRowEnriched = {
           ...merged,
           soupItem: soupItem ?? null,
           mainItem: mainItem ?? null,
-          rowPrice: computeRowPrice(merged, soupItem ?? null, mainItem ?? null, defaultSoupPrice, defaultMealPrice, extrasPrices),
+          mainItem2: mainItem2 ?? null,
+          rowPrice: computeRowPrice(merged, soupItem ?? null, mainItem ?? null, mainItem2 ?? null, defaultSoupPrice, defaultMealPrice, extrasPrices),
         };
         return patchRow(prev, rowId, optimistic);
       });

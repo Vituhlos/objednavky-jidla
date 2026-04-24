@@ -78,6 +78,8 @@ export const EXTRAS_ROW_FIELDS: Array<{
 export function computeRowPrice(
   row: Pick<
     OrderRow,
+    | "mealCount"
+    | "mealCount2"
     | "rollCount"
     | "breadDumplingCount"
     | "potatoDumplingCount"
@@ -87,6 +89,7 @@ export function computeRowPrice(
   >,
   soup: MenuItem | null,
   main: MenuItem | null,
+  main2: MenuItem | null,
   soupPrice?: number,
   mealPrice?: number,
   ep?: Partial<ExtrasPrices>
@@ -94,7 +97,8 @@ export function computeRowPrice(
   const d = EXTRAS_PRICES_DEFAULT;
   let price = 0;
   if (soup) price += soupPrice ?? soup.price;
-  if (main) price += mealPrice ?? main.price;
+  if (main) price += (mealPrice ?? main.price) * (row.mealCount || 1);
+  if (main2) price += (mealPrice ?? main2.price) * (row.mealCount2 || 1);
   price += row.rollCount * (ep?.roll ?? d.roll);
   price += row.breadDumplingCount * (ep?.breadDumpling ?? d.breadDumpling);
   price += row.potatoDumplingCount * (ep?.potatoDumpling ?? d.potatoDumpling);

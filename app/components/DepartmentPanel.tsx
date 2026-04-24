@@ -9,6 +9,9 @@ type RowUpdates = Partial<{
   personName: string;
   soupItemId: number | null;
   mainItemId: number | null;
+  mealCount: number;
+  mainItemId2: number | null;
+  mealCount2: number;
   rollCount: number;
   breadDumplingCount: number;
   potatoDumplingCount: number;
@@ -141,6 +144,10 @@ function OrderEditModal({
   const [personName, setPersonName] = useState(row.personName);
   const [soupItemId, setSoupItemId] = useState<number | null>(row.soupItemId);
   const [mainItemId, setMainItemId] = useState<number | null>(row.mainItemId);
+  const [mealCount, setMealCount] = useState(row.mealCount || 1);
+  const [mainItemId2, setMainItemId2] = useState<number | null>(row.mainItemId2);
+  const [mealCount2, setMealCount2] = useState(row.mealCount2 || 1);
+  const [showSecondMeal, setShowSecondMeal] = useState(row.mainItemId2 != null);
   const [rollCount, setRollCount] = useState(row.rollCount);
   const [breadDumplingCount, setBreadDumplingCount] = useState(row.breadDumplingCount);
   const [potatoDumplingCount, setPotatoDumplingCount] = useState(row.potatoDumplingCount);
@@ -199,11 +206,57 @@ function OrderEditModal({
               Jídlo
               {defaultMealPrice != null && <span className="modal-label-price">{defaultMealPrice} Kč</span>}
             </label>
-            <select className="modal-select" id="modal-meal" onChange={(e) => setMainItemId(e.target.value ? Number(e.target.value) : null)} value={mainItemId ?? ""}>
-              <option value="">— žádné jídlo —</option>
-              {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <select className="modal-select" id="modal-meal" onChange={(e) => setMainItemId(e.target.value ? Number(e.target.value) : null)} style={{ flex: 1 }} value={mainItemId ?? ""}>
+                <option value="">— žádné jídlo —</option>
+                {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name}</option>)}
+              </select>
+              {mainItemId && (
+                <div className="modal-count-stepper">
+                  <button className="modal-count-btn" disabled={mealCount <= 1} onClick={() => setMealCount((v) => Math.max(1, v - 1))} type="button">−</button>
+                  <span className="modal-count-val">{mealCount}×</span>
+                  <button className="modal-count-btn" disabled={mealCount >= 10} onClick={() => setMealCount((v) => Math.min(10, v + 1))} type="button">+</button>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Druhé jídlo */}
+          {showSecondMeal ? (
+            <div className="modal-field">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <label className="modal-label" htmlFor="modal-meal2">
+                  Druhé jídlo
+                  {defaultMealPrice != null && <span className="modal-label-price">{defaultMealPrice} Kč</span>}
+                </label>
+                <button
+                  className="modal-remove-second"
+                  onClick={() => { setShowSecondMeal(false); setMainItemId2(null); setMealCount2(1); }}
+                  type="button"
+                >
+                  × odebrat
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <select className="modal-select" id="modal-meal2" onChange={(e) => setMainItemId2(e.target.value ? Number(e.target.value) : null)} style={{ flex: 1 }} value={mainItemId2 ?? ""}>
+                  <option value="">— žádné druhé jídlo —</option>
+                  {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name}</option>)}
+                </select>
+                {mainItemId2 && (
+                  <div className="modal-count-stepper">
+                    <button className="modal-count-btn" disabled={mealCount2 <= 1} onClick={() => setMealCount2((v) => Math.max(1, v - 1))} type="button">−</button>
+                    <span className="modal-count-val">{mealCount2}×</span>
+                    <button className="modal-count-btn" disabled={mealCount2 >= 10} onClick={() => setMealCount2((v) => Math.min(10, v + 1))} type="button">+</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <button className="modal-add-second" onClick={() => setShowSecondMeal(true)} type="button">
+              + Přidat druhé jídlo
+            </button>
+          )}
+
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>
             <textarea
@@ -229,7 +282,7 @@ function OrderEditModal({
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={onDelete} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
-          <button className="modal-btn modal-btn--primary" onClick={() => onSave({ personName, soupItemId, mainItemId, rollCount, breadDumplingCount, potatoDumplingCount, ketchupCount, tatarkaCount, bbqCount, note })} type="button">Uložit</button>
+          <button className="modal-btn modal-btn--primary" onClick={() => onSave({ personName, soupItemId, mainItemId, mealCount, mainItemId2: showSecondMeal ? mainItemId2 : null, mealCount2, rollCount, breadDumplingCount, potatoDumplingCount, ketchupCount, tatarkaCount, bbqCount, note })} type="button">Uložit</button>
         </div>
       </div>
     </div>
@@ -274,9 +327,23 @@ function V2OrderRow({
 
       {/* Col 2: Main dish */}
       <div className="v2-order-row__main">
-        {row.mainItem
-          ? <span>{row.mainItem.name}</span>
-          : <span className="v2-muted">—</span>}
+        {row.mainItem ? (
+          <span>
+            {(row.mealCount || 1) > 1 && <strong>{row.mealCount}× </strong>}
+            {row.mainItem.name}
+            {row.mainItem2 && (
+              <>
+                <br />
+                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
+                  {(row.mealCount2 || 1) > 1 && <strong>{row.mealCount2}× </strong>}
+                  {row.mainItem2.name}
+                </span>
+              </>
+            )}
+          </span>
+        ) : (
+          <span className="v2-muted">—</span>
+        )}
       </div>
 
       {/* Col 3: Soup */}

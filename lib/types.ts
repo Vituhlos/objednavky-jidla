@@ -43,6 +43,9 @@ export interface OrderRow {
   personName: string;
   soupItemId: number | null;
   mainItemId: number | null;
+  mealCount: number;
+  mainItemId2: number | null;
+  mealCount2: number;
   rollCount: number;
   breadDumplingCount: number;
   potatoDumplingCount: number;
@@ -63,6 +66,7 @@ export interface Order {
 export interface OrderRowEnriched extends OrderRow {
   soupItem: MenuItem | null;
   mainItem: MenuItem | null;
+  mainItem2: MenuItem | null;
   rowPrice: number;
 }
 
