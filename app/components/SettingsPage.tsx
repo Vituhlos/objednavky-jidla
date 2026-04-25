@@ -16,9 +16,13 @@ import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
 
 const ACCENT_OPTIONS = [
-  { value: "blue", label: "Modrá" },
-  { value: "rust", label: "Rezavá" },
-  { value: "green", label: "Zelená" },
+  { value: "blue",   label: "Modrá" },
+  { value: "rust",   label: "Rezavá" },
+  { value: "green",  label: "Zelená" },
+  { value: "amber",  label: "Jantarová" },
+  { value: "navy",   label: "Námořnická" },
+  { value: "orange", label: "Oranžová" },
+  { value: "red",    label: "Červená" },
 ];
 
 const DAY_OPTIONS: { code: string; label: string }[] = [

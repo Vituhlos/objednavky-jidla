@@ -744,9 +744,13 @@ select {
 .dept-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
 }
-.dept-dot--blue  { background: var(--v2-blue, #3b82f6); }
-.dept-dot--rust  { background: var(--v2-rust, #b55233); }
-.dept-dot--green { background: var(--v2-green-accent, #4f6f52); }
+.dept-dot--blue   { background: var(--v2-blue, #1d4ed8); }
+.dept-dot--rust   { background: var(--rust, #b55233); }
+.dept-dot--green  { background: var(--v2-green, #15803d); }
+.dept-dot--amber  { background: var(--amber, #c78b2a); }
+.dept-dot--navy   { background: var(--navy, #16324a); }
+.dept-dot--orange { background: var(--v2-orange, #ea580c); }
+.dept-dot--red    { background: var(--v2-red, #dc2626); }
 .dept-move-btn {
   width: 36px; height: 36px;
   border: 1px solid var(--v2-border, #e5e7eb);
@@ -1779,9 +1783,13 @@ select {
   flex-shrink: 0;
 }
 
-.v2-dept-icon--blue  { background: var(--v2-orange); }
-.v2-dept-icon--rust  { background: var(--v2-blue); }
-.v2-dept-icon--green { background: var(--v2-green); }
+.v2-dept-icon--blue   { background: var(--v2-blue, #1d4ed8); }
+.v2-dept-icon--rust   { background: var(--rust, #b55233); }
+.v2-dept-icon--green  { background: var(--v2-green, #15803d); }
+.v2-dept-icon--amber  { background: var(--amber, #c78b2a); }
+.v2-dept-icon--navy   { background: var(--navy, #16324a); }
+.v2-dept-icon--orange { background: var(--v2-orange, #ea580c); }
+.v2-dept-icon--red    { background: var(--v2-red, #dc2626); }
 
 .v2-dept__title {
   margin: 0;
@@ -1929,9 +1937,13 @@ select {
   letter-spacing: 0.03em;
 }
 
-.v2-avatar--blue  { background: var(--v2-orange); }
-.v2-avatar--rust  { background: var(--v2-blue); }
-.v2-avatar--green { background: var(--v2-green); }
+.v2-avatar--blue   { background: var(--v2-blue, #1d4ed8); }
+.v2-avatar--rust   { background: var(--rust, #b55233); }
+.v2-avatar--green  { background: var(--v2-green, #15803d); }
+.v2-avatar--amber  { background: var(--amber, #c78b2a); }
+.v2-avatar--navy   { background: var(--navy, #16324a); }
+.v2-avatar--orange { background: var(--v2-orange, #ea580c); }
+.v2-avatar--red    { background: var(--v2-red, #dc2626); }
 
 /* ── Chips ── */
 
