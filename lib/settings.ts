@@ -24,6 +24,10 @@ export interface AppSettings {
   priceKetchup: string;
   priceTatarka: string;
   priceBbq: string;
+  autoSendEnabled: string;
+  autoSendTime: string;
+  autoSendDays: string;
+  autoSendMinOrders: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -45,6 +49,10 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   priceKetchup: "price_ketchup",
   priceTatarka: "price_tatarka",
   priceBbq: "price_bbq",
+  autoSendEnabled: "auto_send_enabled",
+  autoSendTime: "auto_send_time",
+  autoSendDays: "auto_send_days",
+  autoSendMinOrders: "auto_send_min_orders",
 };
 
 function envDefaults(): AppSettings {
@@ -68,6 +76,10 @@ function envDefaults(): AppSettings {
     priceKetchup: "20",
     priceTatarka: "20",
     priceBbq: "20",
+    autoSendEnabled: "false",
+    autoSendTime: "08:00",
+    autoSendDays: "Po,Út,St,Čt,Pá",
+    autoSendMinOrders: "1",
   };
 }
 

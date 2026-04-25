@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { DepartmentData, OrderRowEnriched, MenuItem, Department, MealEntry } from "@/lib/types";
-import { DEPARTMENT_LABELS, DEPARTMENT_ACCENT } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 
@@ -451,8 +450,8 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
-  const accent = DEPARTMENT_ACCENT[data.name];
-  const label = DEPARTMENT_LABELS[data.name];
+  const accent = data.accent;
+  const label = data.label;
   const activeRows = data.rows.filter(hasOrderRowContent);
   const modalRow = modalState ? (data.rows.find((r) => r.id === modalState.rowId) ?? null) : null;
 

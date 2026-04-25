@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
-import { DEPARTMENTS } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
@@ -354,25 +353,21 @@ export default function OrderPage({
 
       {/* ── Main content ── */}
       <main className="v2-content">
-        {DEPARTMENTS.map((dept) => {
-          const deptData = departments.find((d) => d.name === dept);
-          if (!deptData) return null;
-          return (
-            <DepartmentPanel
-              data={deptData}
-              defaultMealPrice={defaultMealPrice}
-              defaultSoupPrice={defaultSoupPrice}
-              extrasPrices={extrasPrices}
-              isSent={isSent}
-              key={dept}
-              meals={allMeals}
-              onAddRow={() => handleAddRow(dept)}
-              onDeleteRow={handleDeleteRow}
-              onUpdateRow={handleUpdateRow}
-              soups={allSoups}
-            />
-          );
-        })}
+        {departments.map((dept) => (
+          <DepartmentPanel
+            data={dept}
+            defaultMealPrice={defaultMealPrice}
+            defaultSoupPrice={defaultSoupPrice}
+            extrasPrices={extrasPrices}
+            isSent={isSent}
+            key={dept.name}
+            meals={allMeals}
+            onAddRow={() => handleAddRow(dept.name)}
+            onDeleteRow={handleDeleteRow}
+            onUpdateRow={handleUpdateRow}
+            soups={allSoups}
+          />
+        ))}
 
         {/* ── Bottom status bar ── */}
         <div className={`v2-statusbar${isSent ? " v2-statusbar--sent" : ""}`}>

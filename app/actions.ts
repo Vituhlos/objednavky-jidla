@@ -28,6 +28,14 @@ import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import { broadcast } from "@/lib/sse-broadcast";
+import {
+  getDepartments,
+  addDepartment,
+  updateDepartment,
+  deleteDepartment,
+  reorderDepartments,
+} from "@/lib/departments";
+import type { DepartmentInfo } from "@/lib/departments";
 
 export async function actionAddRow(
   orderId: number,
@@ -172,6 +180,41 @@ export async function actionClearOrder(orderId: number): Promise<void> {
   clearOrderRows(orderId);
   revalidatePath("/");
   broadcast();
+}
+
+export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
+  return getDepartments();
+}
+
+export async function actionAddDepartment(data: {
+  name: string; label: string; emailLabel: string; accent: string;
+}): Promise<DepartmentInfo> {
+  const dept = addDepartment(data);
+  revalidatePath("/");
+  revalidatePath("/nastaveni");
+  return dept;
+}
+
+export async function actionUpdateDepartment(
+  id: number,
+  data: Partial<{ label: string; emailLabel: string; accent: string }>
+): Promise<DepartmentInfo> {
+  const dept = updateDepartment(id, data);
+  revalidatePath("/");
+  revalidatePath("/nastaveni");
+  return dept;
+}
+
+export async function actionDeleteDepartment(id: number): Promise<void> {
+  deleteDepartment(id);
+  revalidatePath("/");
+  revalidatePath("/nastaveni");
+}
+
+export async function actionReorderDepartments(orderedIds: number[]): Promise<void> {
+  reorderDepartments(orderedIds);
+  revalidatePath("/");
+  revalidatePath("/nastaveni");
 }
 
 export async function actionCheckPin(pin: string): Promise<boolean> {

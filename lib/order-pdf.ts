@@ -4,7 +4,7 @@ import path from "path";
 const FONT = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans.ttf");
 const FONT_BOLD = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Bold.ttf");
 import { PassThrough } from "stream";
-import { DEPARTMENT_EMAIL_LABELS, type DepartmentData, type OrderRowEnriched } from "./types";
+import { type DepartmentData, type OrderRowEnriched } from "./types";
 import { getSubmittedRows } from "./order-utils";
 
 async function pdfToBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
@@ -153,7 +153,7 @@ export async function buildDepartmentPdfAttachment(
     size: [PAGE_W, PAGE_H],
     margin: MARGIN,
     info: {
-      Title: `Objednávka LIMA – ${DEPARTMENT_EMAIL_LABELS[department.name]}`,
+      Title: `Objednávka LIMA – ${department.emailLabel}`,
       Author: "STROS – automat objednávek",
     },
   });
@@ -165,7 +165,7 @@ export async function buildDepartmentPdfAttachment(
   y += 22;
 
   doc.font(FONT_BOLD).fontSize(13).fillColor("#B55233");
-  doc.text(`Objednávka LIMA – ${DEPARTMENT_EMAIL_LABELS[department.name]}`, MARGIN, y, { lineBreak: false });
+  doc.text(`Objednávka LIMA – ${department.emailLabel}`, MARGIN, y, { lineBreak: false });
   y += 18;
 
   doc.font(FONT).fontSize(10).fillColor("#30343A");

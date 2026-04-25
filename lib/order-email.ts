@@ -1,5 +1,4 @@
 import type { OrderData, OrderRowEnriched } from "./types";
-import { DEPARTMENT_EMAIL_LABELS } from "./types";
 import { EXTRAS_ROW_FIELDS } from "./pricing";
 import { getSubmittedRows, isDepartmentSubmitted, joinDepartmentNames } from "./order-utils";
 
@@ -123,9 +122,7 @@ export function buildOrderEmail(orderData: OrderData): {
   );
   const extras = buildExtrasSummary(activeRows);
   const subject = `Denní objednávka obědů – LIMA (${formatOrderDateForSubject(orderData.order.date)})`;
-  const departmentNames = activeDepartments.map(
-    (department) => DEPARTMENT_EMAIL_LABELS[department.name]
-  );
+  const departmentNames = activeDepartments.map((d) => d.emailLabel);
   const departmentList = joinDepartmentNames(departmentNames);
 
   const oddeleniHtml = departmentNames

@@ -98,4 +98,43 @@ function migrate(db: Database.Database): void {
   try {
     db.exec(`UPDATE order_rows SET extra_meals = json_array(json_object('itemId', main_item_id_2, 'count', COALESCE(meal_count_2, 1))) WHERE main_item_id_2 IS NOT NULL AND extra_meals = '[]'`);
   } catch {}
+
+  // Departments table (dynamic, replaces hardcoded DEPARTMENTS constant)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS departments (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL UNIQUE,
+      label       TEXT    NOT NULL,
+      email_label TEXT    NOT NULL,
+      accent      TEXT    NOT NULL DEFAULT 'blue',
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      active      INTEGER NOT NULL DEFAULT 1
+    );
+    INSERT OR IGNORE INTO departments (name, label, email_label, accent, sort_order) VALUES
+      ('Konstrukce',  'Konstrukce',          'Konstrukce',          'blue',  0),
+      ('Dílna',       'Dílna',               'Dílna',               'rust',  1),
+      ('Kanceláře',   'Kanceláře / obchod',  'Kanceláře (obchod)',  'green', 2);
+  `);
+
+  // Rate limits table (replaces in-memory Map)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key      TEXT    PRIMARY KEY,
+      count    INTEGER NOT NULL DEFAULT 0,
+      reset_at INTEGER NOT NULL
+    );
+  `);
+
+  // Audit log
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts          TEXT    NOT NULL DEFAULT (datetime('now')),
+      action      TEXT    NOT NULL,
+      order_id    INTEGER,
+      department  TEXT,
+      person_name TEXT,
+      details     TEXT
+    );
+  `);
 }

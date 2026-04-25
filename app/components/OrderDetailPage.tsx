@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
-import { DEPARTMENT_LABELS, DEPARTMENT_ACCENT } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
 
@@ -165,13 +164,12 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
             (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
           );
           if (activeRows.length === 0) return null;
-          const accent = DEPARTMENT_ACCENT[dept.name];
           return (
-            <section className={`v2-dept v2-dept--${accent}`} key={dept.name}>
+            <section className={`v2-dept v2-dept--${dept.accent}`} key={dept.name}>
               <div className="v2-dept__head">
                 <div className="v2-dept__info">
                   <div>
-                    <h2 className="v2-dept__title">{DEPARTMENT_LABELS[dept.name]}</h2>
+                    <h2 className="v2-dept__title">{dept.label}</h2>
                     <span className="v2-dept__count">
                       {activeRows.length} {pluralOrders(activeRows.length)}
                       {dept.subtotal > 0 && <> · <strong>{dept.subtotal} Kč</strong></>}
@@ -181,7 +179,7 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
               </div>
               <div className="v2-dept__rows">
                 {activeRows.map((row) => (
-                  <ReadOnlyRow accent={accent} key={row.id} row={row} />
+                  <ReadOnlyRow accent={dept.accent} key={row.id} row={row} />
                 ))}
               </div>
             </section>

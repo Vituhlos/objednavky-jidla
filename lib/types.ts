@@ -2,28 +2,7 @@ export type DayCode = "Po" | "Út" | "St" | "Čt" | "Pá";
 
 export type MenuItemType = "Polévka" | "Jídlo";
 
-export type Department = "Konstrukce" | "Dílna" | "Kanceláře";
-
-export const DEPARTMENTS: Department[] = ["Konstrukce", "Dílna", "Kanceláře"];
-
-export const DEPARTMENT_LABELS: Record<Department, string> = {
-  Konstrukce: "Konstrukce",
-  Dílna: "Dílna",
-  Kanceláře: "Kanceláře / obchod",
-};
-
-export const DEPARTMENT_EMAIL_LABELS: Record<Department, string> = {
-  Konstrukce: "Konstrukce",
-  Dílna: "Dílna",
-  Kanceláře: "Kanceláře (obchod)",
-};
-
-export const DEPARTMENT_ACCENT: Record<Department, "blue" | "rust" | "green"> =
-  {
-    Konstrukce: "blue",
-    Dílna: "rust",
-    Kanceláře: "green",
-  };
+export type Department = string;
 
 export interface MenuItem {
   id: number;
@@ -78,6 +57,9 @@ export interface OrderRowEnriched extends OrderRow {
 
 export interface DepartmentData {
   name: Department;
+  label: string;
+  emailLabel: string;
+  accent: string;
   rows: OrderRowEnriched[];
   subtotal: number;
 }

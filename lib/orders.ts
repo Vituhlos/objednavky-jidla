@@ -20,7 +20,8 @@ import type {
   Department,
   MealEntry,
 } from "./types";
-import { DEPARTMENTS } from "./types";
+import { getDepartments } from "./departments";
+import { logAudit } from "./audit";
 import { isDepartmentSubmitted } from "./order-utils";
 
 function mapOrder(row: Record<string, unknown>): Order {
@@ -131,10 +132,11 @@ export function getTodayOrderData(): OrderData {
 
   const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
 
-  const departments: DepartmentData[] = DEPARTMENTS.map((dept) => {
-    const deptRows = rows.filter((r) => r.department === dept);
+  const depts = getDepartments();
+  const departments: DepartmentData[] = depts.map((dept) => {
+    const deptRows = rows.filter((r) => r.department === dept.name);
     const subtotal = deptRows.filter((r) => r.personName || r.soupItemId || r.mainItemId).reduce((s, r) => s + r.rowPrice, 0);
-    return { name: dept, rows: deptRows, subtotal };
+    return { name: dept.name, label: dept.label, emailLabel: dept.emailLabel, accent: dept.accent, rows: deptRows, subtotal };
   });
 
   return {
@@ -171,10 +173,11 @@ export function getOrderData(orderId: number): OrderData {
     .all(order.id) as Record<string, unknown>[];
 
   const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
-  const departments: DepartmentData[] = DEPARTMENTS.map((dept) => {
-    const deptRows = rows.filter((r) => r.department === dept);
+  const depts = getDepartments();
+  const departments: DepartmentData[] = depts.map((dept) => {
+    const deptRows = rows.filter((r) => r.department === dept.name);
     const subtotal = deptRows.filter((r) => r.personName || r.soupItemId || r.mainItemId).reduce((s, r) => s + r.rowPrice, 0);
-    return { name: dept, rows: deptRows, subtotal };
+    return { name: dept.name, label: dept.label, emailLabel: dept.emailLabel, accent: dept.accent, rows: deptRows, subtotal };
   });
 
   return {
@@ -207,7 +210,9 @@ export function addOrderRow(
     .prepare("SELECT * FROM order_rows WHERE id = ?")
     .get(result.lastInsertRowid) as Record<string, unknown>;
   const { soupPrice, mealPrice, ep } = readDefaultPrices();
-  return enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+  const enriched = enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+  logAudit({ action: "row_add", orderId, department });
+  return enriched;
 }
 
 export function updateOrderRow(
@@ -263,12 +268,23 @@ export function updateOrderRow(
       .prepare("SELECT * FROM order_rows WHERE id = ?")
       .get(rowId) as Record<string, unknown> | undefined;
     if (!row) throw new Error(`Řádek objednávky ${rowId} nenalezen.`);
-    return enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+    const enriched = enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+    logAudit({
+      action: "row_update",
+      orderId: enriched.orderId,
+      department: enriched.department,
+      personName: enriched.personName || null,
+      details: Object.keys(updates).join(","),
+    });
+    return enriched;
   })();
 }
 
 export function deleteOrderRow(rowId: number): void {
-  getDb().prepare("DELETE FROM order_rows WHERE id = ?").run(rowId);
+  const db = getDb();
+  const row = db.prepare("SELECT order_id, department, person_name FROM order_rows WHERE id = ?").get(rowId) as Record<string, unknown> | undefined;
+  db.prepare("DELETE FROM order_rows WHERE id = ?").run(rowId);
+  if (row) logAudit({ action: "row_delete", orderId: row.order_id as number, department: row.department as string, personName: row.person_name as string });
 }
 
 export async function sendOrder(orderId: number, extraEmail?: string): Promise<Order> {
@@ -330,6 +346,7 @@ export async function sendOrder(orderId: number, extraEmail?: string): Promise<O
   const order = db
     .prepare("SELECT * FROM orders WHERE id = ?")
     .get(orderId) as Record<string, unknown>;
+  logAudit({ action: "order_send", orderId });
   return mapOrder(order);
 }
 
@@ -352,6 +369,7 @@ export function reopenOrder(orderId: number): void {
   getDb()
     .prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?")
     .run(orderId);
+  logAudit({ action: "order_reopen", orderId });
 }
 
 export function getOrderList(): OrderSummary[] {
@@ -378,4 +396,5 @@ export function getOrderList(): OrderSummary[] {
 
 export function clearOrderRows(orderId: number): void {
   getDb().prepare("DELETE FROM order_rows WHERE order_id = ?").run(orderId);
+  logAudit({ action: "order_clear", orderId });
 }
