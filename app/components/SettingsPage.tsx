@@ -345,7 +345,7 @@ export default function SettingsPage({
           </section>
         ) : (
           <>
-            <form className="settings-form" onSubmit={handleSave} ref={formRef}>
+            <form className="settings-form" id="settings-form" onSubmit={handleSave} ref={formRef}>
               <Section title="SMTP – odchozí pošta">
                 <div className="settings-row">
                   <Field hint="např. smtp.gmail.com" label="SMTP host">
@@ -470,13 +470,6 @@ export default function SettingsPage({
                 </Field>
               </Section>
 
-              <div className="settings-actions">
-                {saveStatus === "saved" && <span className="settings-save-ok">Nastavení uloženo.</span>}
-                {saveStatus === "error" && <span className="settings-save-error">Chyba při ukládání.</span>}
-                <button className="v2-btn v2-btn--primary" disabled={isPending} type="submit">
-                  {isPending ? "Ukládám..." : "Uložit nastavení"}
-                </button>
-              </div>
             </form>
 
             {/* Správa oddělení — mimo hlavní formulář aby nepomíchala submit */}
@@ -525,6 +518,14 @@ export default function SettingsPage({
                   <button className="v2-btn v2-btn--secondary" onClick={() => setShowAddDept(true)} style={{ marginTop: "0.75rem" }} type="button">+ Přidat oddělení</button>
                 )}
               </div>
+            </div>
+
+            <div className="settings-actions">
+              {saveStatus === "saved" && <span className="settings-save-ok">Nastavení uloženo.</span>}
+              {saveStatus === "error" && <span className="settings-save-error">Chyba při ukládání.</span>}
+              <button className="v2-btn v2-btn--primary" disabled={isPending} form="settings-form" type="submit">
+                {isPending ? "Ukládám..." : "Uložit nastavení"}
+              </button>
             </div>
 
             {/* Záloha dat */}
