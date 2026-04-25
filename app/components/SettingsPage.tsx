@@ -264,17 +264,15 @@ export default function SettingsPage({
   };
 
   const handleDeptMove = (id: number, direction: "up" | "down") => {
-    setDepartments((prev) => {
-      const idx = prev.findIndex((d) => d.id === id);
-      if (idx < 0) return prev;
-      const next = [...prev];
-      const swap = direction === "up" ? idx - 1 : idx + 1;
-      if (swap < 0 || swap >= next.length) return prev;
-      [next[idx], next[swap]] = [next[swap], next[idx]];
-      startTransition(async () => {
-        await actionReorderDepartments(next.map((d) => d.id));
-      });
-      return next;
+    const idx = departments.findIndex((d) => d.id === id);
+    if (idx < 0) return;
+    const swap = direction === "up" ? idx - 1 : idx + 1;
+    if (swap < 0 || swap >= departments.length) return;
+    const next = [...departments];
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    setDepartments(next);
+    startTransition(async () => {
+      await actionReorderDepartments(next.map((d) => d.id));
     });
   };
 
