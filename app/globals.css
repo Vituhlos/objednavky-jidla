@@ -142,20 +142,14 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top left, rgba(199, 139, 42, 0.12), transparent 30%),
-    linear-gradient(180deg, #f7f2e8 0%, var(--paper) 100%);
+  background: var(--bg);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  color: var(--graphite);
+  color: var(--ink);
   font-family: "Inter", sans-serif;
-  background-image:
-    linear-gradient(to right, rgba(47, 72, 88, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(47, 72, 88, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
 
 a {
@@ -1200,8 +1194,11 @@ select {
 /* ── Confirm dialog (destructive action) ── */
 
 .confirm-dialog {
-  background: var(--v2-card, white);
-  border-radius: 16px;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: 20px;
   padding: 2rem 1.75rem 1.5rem;
   width: min(360px, calc(100vw - 2rem));
   text-align: center;
@@ -1209,7 +1206,9 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 20px 60px rgba(15,23,42,0.18);
   animation: confirm-dialog-in 180ms ease;
 }
 
@@ -1310,7 +1309,11 @@ select {
 }
 
 .modal-sheet {
-  background: var(--v2-card, white);
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.8);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 20px 60px rgba(15,23,42,0.16);
   width: 100%;
   max-width: 480px;
   max-height: 92dvh;
@@ -1530,22 +1533,25 @@ select {
 }
 
 .modal-btn--primary {
-  background: var(--v2-orange, #ea580c);
+  background: var(--brand-grad);
+  box-shadow: 0 4px 14px -4px rgba(50,173,230,0.4);
   color: white;
+  border-radius: 8px;
 }
 
 .modal-btn--primary:hover {
-  opacity: 0.88;
+  box-shadow: 0 6px 18px -4px rgba(50,173,230,0.5);
 }
 
 .modal-btn--secondary {
-  background: var(--v2-bg, #f3f4f6);
+  background: rgba(247,249,251,0.8);
   color: var(--v2-text, #111827);
-  border: 1px solid var(--v2-border, #e5e7eb);
+  border: 1px solid rgba(15,23,42,0.1);
+  border-radius: 8px;
 }
 
 .modal-btn--secondary:hover {
-  background: #e5e7eb;
+  background: rgba(241,245,249,0.9);
 }
 
 .modal-btn--danger {
@@ -1645,13 +1651,46 @@ select {
   font-family: "Inter", sans-serif;
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
+}
+
+.v2-shell::before,
+.v2-shell::after {
+  content: "";
+  position: fixed;
+  border-radius: 9999px;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.v2-shell::before {
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(50,173,230,0.22) 0%, transparent 70%);
+  top: -100px;
+  right: -100px;
+}
+
+.v2-shell::after {
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(48,209,88,0.16) 0%, transparent 70%);
+  bottom: -80px;
+  left: -80px;
 }
 
 /* ── Top bar ── */
 
 .v2-topbar {
-  background: var(--v2-card);
-  border-bottom: 1px solid var(--v2-border);
+  background: rgba(247,249,251,0.72);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-bottom: 1px solid rgba(255,255,255,0.72);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.85) inset,
+    0 1px 6px rgba(15,23,42,0.06);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -1660,7 +1699,6 @@ select {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .v2-topbar__brand {
@@ -1674,7 +1712,8 @@ select {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--v2-orange);
+  background: var(--brand-grad);
+  box-shadow: 0 4px 12px -4px rgba(50,173,230,0.45);
   color: white;
   display: flex;
   align-items: center;
@@ -1733,8 +1772,11 @@ select {
 /* ── Info strip ── */
 
 .v2-infostrip {
-  background: var(--v2-card);
-  border-bottom: 1px solid var(--v2-border);
+  background: rgba(255,255,255,0.58);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset;
   padding: 0.75rem 1.25rem;
   display: flex;
   flex-wrap: wrap;
@@ -1808,20 +1850,24 @@ select {
 
 .v2-send-btn {
   padding: 0.45rem 1.1rem;
-  background: var(--v2-orange);
+  background: var(--brand-grad);
+  box-shadow: 0 4px 14px -4px rgba(50,173,230,0.4);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
   min-height: 38px;
   white-space: nowrap;
-  transition: opacity 150ms ease;
+  transition: opacity 150ms ease, box-shadow 150ms ease;
 }
 
-.v2-send-btn:hover:not(:disabled) { opacity: 0.88; }
+.v2-send-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 18px -4px rgba(50,173,230,0.5);
+}
+
 .v2-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .v2-send-error {
@@ -1872,11 +1918,16 @@ select {
 /* ── Department section ── */
 
 .v2-dept {
-  background: var(--v2-card);
-  border: 1px solid var(--v2-border);
-  border-radius: 10px;
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(22px) saturate(190%);
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  border: 1px solid rgba(255,255,255,0.75);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: var(--v2-shadow);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 14px 40px -16px rgba(15,23,42,0.12),
+    0 2px 6px -2px rgba(15,23,42,0.05);
 }
 
 .v2-dept__head {
@@ -1971,8 +2022,8 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--v2-text-muted);
-  border-bottom: 1px solid var(--v2-border);
-  background: #f9fafb;
+  border-bottom: 1px solid rgba(15,23,42,0.07);
+  background: rgba(247,249,251,0.6);
 }
 
 /* ── Order rows ── */
@@ -1995,7 +2046,7 @@ select {
 .v2-order-row:last-child { border-bottom: none; }
 
 .v2-order-row--interactive { cursor: pointer; }
-.v2-order-row--interactive:hover { background: #f9fafb; }
+.v2-order-row--interactive:hover { background: rgba(50,173,230,0.05); }
 
 .v2-order-row__name {
   display: flex;
@@ -2314,11 +2365,15 @@ select {
     left: 0;
     right: 0;
     z-index: 200;
-    background: var(--v2-card, white);
-    border-top: 1px solid var(--v2-border, #e5e7eb);
+    background: rgba(247,249,251,0.82);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border-top: 1px solid rgba(255,255,255,0.8);
+    box-shadow:
+      0 -1px 0 rgba(255,255,255,0.9) inset,
+      0 -2px 12px rgba(15,23,42,0.06);
     height: calc(58px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.07);
     align-items: stretch;
   }
 
