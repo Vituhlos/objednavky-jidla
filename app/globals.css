@@ -150,33 +150,15 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family: "Inter", sans-serif;
-  position: relative;
 }
 
-body::before,
-body::after {
-  content: "";
+/* Orby – stálá vrstva pod celou appkou */
+.orb-stage {
   position: fixed;
-  border-radius: 9999px;
-  filter: blur(100px);
+  inset: 0;
   pointer-events: none;
   z-index: 0;
-}
-
-body::before {
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle, rgba(50,173,230,0.22) 0%, transparent 70%);
-  top: -100px;
-  right: -100px;
-}
-
-body::after {
-  width: 440px;
-  height: 440px;
-  background: radial-gradient(circle, rgba(48,209,88,0.16) 0%, transparent 70%);
-  bottom: -80px;
-  left: -80px;
+  overflow: hidden;
 }
 
 a {
@@ -1680,6 +1662,7 @@ select {
   flex-direction: column;
   position: relative;
   z-index: 1;
+  isolation: isolate;
 }
 
 /* ── Top bar ── */
@@ -1712,9 +1695,9 @@ select {
 .v2-topbar__logo {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 11px;
   background: var(--brand-grad);
-  box-shadow: 0 4px 12px -4px rgba(50,173,230,0.45);
+  box-shadow: 0 6px 16px -6px rgba(50,173,230,0.5);
   color: white;
   display: flex;
   align-items: center;
@@ -1750,24 +1733,35 @@ select {
   align-items: center;
   gap: 0.4rem;
   padding: 0 0.85rem;
-  height: 60px;
+  height: 36px;
+  margin: auto 0;
   font-size: 0.88rem;
   font-weight: 600;
+  font-family: "Plus Jakarta Sans", sans-serif;
   color: var(--v2-text-muted);
-  border-bottom: 2px solid transparent;
+  border-radius: 12px;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: color 150ms ease, border-color 150ms ease;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
   text-decoration: none;
 }
 
 .v2-navlink:hover {
+  background: rgba(255,255,255,0.6);
   color: var(--v2-text);
 }
 
 .v2-navlink--active {
-  color: var(--v2-orange);
-  border-bottom-color: var(--v2-orange);
+  background: rgba(255,255,255,0.85);
+  color: var(--v2-text);
+  box-shadow: 0 4px 14px -8px rgba(15,23,42,0.2);
+}
+
+.v2-navlink--active .material-symbols-outlined {
+  background: var(--brand-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ── Info strip ── */
@@ -2185,7 +2179,7 @@ select {
   margin: 0;
 }
 
-/* ── Bottom nav (mobile tab bar) ── */
+/* ── Bottom nav (mobile floating pill) ── */
 
 .v2-bottomnav {
   display: none;
@@ -2196,19 +2190,39 @@ select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  font-size: 0.68rem;
+  gap: 2px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: var(--v2-text-muted);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: #64748b;
   text-decoration: none;
-  padding: 8px 4px 6px;
-  transition: color 150ms ease;
+  padding: 6px 12px;
+  border-radius: 16px;
+  transition: background 150ms ease, color 150ms ease;
   line-height: 1.2;
 }
 
 .v2-bottomnav__link--active {
-  color: var(--v2-orange, #ea580c);
+  background: rgba(50,173,230,0.1);
+  color: #0f172a;
+}
+
+.v2-bottomnav__link--active .material-symbols-outlined {
+  background: var(--brand-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Tečka pod aktivní položkou */
+.v2-bottomnav__link--active::after {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--brand-blue);
+  margin-top: 2px;
 }
 
 /* ── Sent toast ── */
@@ -2343,7 +2357,8 @@ select {
 
 @media (max-width: 767px) {
   .v2-content {
-    padding: 0.75rem 0.75rem calc(1.5rem + 58px + env(safe-area-inset-bottom));
+    /* floating pill nav: 12px bottom + ~72px nav výška + 12px gap + 24px navíc */
+    padding: 0.75rem 0.75rem calc(120px + env(safe-area-inset-bottom));
     gap: 0.75rem;
   }
 
@@ -2362,20 +2377,27 @@ select {
   .v2-bottomnav {
     display: flex;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 200;
-    background: rgba(247,249,251,0.82);
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    border-top: 1px solid rgba(255,255,255,0.8);
+    /* Glass – přesně jako .glass z kitu */
+    background: rgba(255,255,255,0.35);
+    backdrop-filter: blur(28px) saturate(200%) contrast(1.08);
+    -webkit-backdrop-filter: blur(28px) saturate(200%) contrast(1.08);
+    border: 1px solid rgba(255,255,255,0.55);
     box-shadow:
-      0 -1px 0 rgba(255,255,255,0.9) inset,
-      0 -2px 12px rgba(15,23,42,0.06);
-    height: calc(58px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    align-items: stretch;
+      0 1px 0  rgba(255,255,255,0.9)  inset,
+      0 -1px 0 rgba(255,255,255,0.25) inset,
+      1px  0 0 rgba(255,255,255,0.35) inset,
+      -1px 0 0 rgba(255,255,255,0.35) inset,
+      0 14px 40px -16px rgba(15,23,42,0.22),
+      0 2px  6px  -2px  rgba(15,23,42,0.08);
+    border-radius: 24px;
+    padding: 8px;
+    align-items: center;
+    justify-content: space-around;
+    height: auto;
   }
 
   .v2-infostrip {

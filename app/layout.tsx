@@ -32,6 +32,12 @@ export default function RootLayout({
         />
       </head>
       <body>
+        {/* Orby – kit OrbBackground */}
+        <div aria-hidden className="orb-stage">
+          <div className="orb orb-sky" />
+          <div className="orb orb-purple" />
+          <div className="orb orb-mint" />
+        </div>
         {children}
         <SwRegister />
       </body>
