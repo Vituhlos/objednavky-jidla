@@ -751,6 +751,43 @@ select {
   border-radius: 6px;
 }
 
+.stepper-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--v2-border, #e5e7eb);
+  background: var(--v2-card, white);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--v2-text, #111827);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, border-color 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: var(--v2-orange, #ea580c);
+  border-color: var(--v2-orange, #ea580c);
+  color: white;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stepper-count {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--v2-text, #111827);
+}
+
 .settings-save-ok {
   font-size: 0.9rem;
   color: var(--v2-green);
