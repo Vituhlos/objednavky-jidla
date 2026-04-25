@@ -37,25 +37,17 @@ interface Props {
 
 // ── Department icons ──────────────────────────────────────
 
+const DEPT_ICONS: Partial<Record<Department, string>> = {
+  "Konstrukce": "home_work",
+  "Dílna":      "build",
+};
+
 function DeptIcon({ name }: { name: Department }) {
-  if (name === "Konstrukce") {
-    return (
-      <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-        <path d="M12 3L4 9v12h16V9L12 3zm0 2.5L18 10v9H6v-9l6-4.5zM10 13h4v6h-4z"/>
-      </svg>
-    );
-  }
-  if (name === "Dílna") {
-    return (
-      <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-        <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
-      </svg>
-    );
-  }
+  const icon = DEPT_ICONS[name] ?? "groups";
   return (
-    <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-      <path d="M20 6h-2.18c.07-.44.18-.86.18-1.3C18 2.12 15.88 0 13.3 0c-1.47 0-2.76.81-3.54 2.05L12 4.06l2.24-2.01C14.69 1.39 15.5 1 16.5 1c1.93 0 3.5 1.57 3.5 3.5 0 .47-.09.92-.24 1.35-.04.09-.14.15-.23.15H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 14H4V8h16v12zm-5-9h-4v2h4v-2zm0 4h-4v2h4v-2zM7 9h2v8H7z"/>
-    </svg>
+    <span aria-hidden className="material-symbols-outlined msym-fill" style={{ fontSize: 18 }}>
+      {icon}
+    </span>
   );
 }
 
@@ -97,7 +89,7 @@ function RowMenuButton({ onEdit, onDelete }: { onEdit: () => void; onDelete: () 
         ref={btnRef}
         type="button"
       >
-        ⋮
+        <span aria-hidden className="material-symbols-outlined" style={{ fontSize: 18 }}>more_vert</span>
       </button>
       {open && pos && (
         <div
@@ -532,11 +524,9 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
         {/* Rows */}
         {activeRows.length === 0 ? (
           <div className="v2-empty-state">
-            <svg aria-hidden className="v2-empty-state__icon" fill="none" height="32" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="32">
-              <path d="M3 11l1-7h16l1 7"/>
-              <path d="M3 11h18v2a9 9 0 01-18 0v-2z"/>
-              <path d="M12 11V4M8 11V6M16 11V6"/>
-            </svg>
+            <span aria-hidden className="material-symbols-outlined v2-empty-state__icon" style={{ fontSize: 32 }}>
+              shopping_basket
+            </span>
             <p className="v2-empty-state__text">Zatím nikdo neobjednal</p>
             {!isSent && <p className="v2-empty-state__hint">Přidej svoji objednávku tlačítkem výše</p>}
           </div>

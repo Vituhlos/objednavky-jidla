@@ -170,11 +170,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
 
           {rows.length === 0 ? (
             <div className="v2-empty-state">
-              <svg aria-hidden className="v2-empty-state__icon" fill="none" height="32" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="32">
-                <path d="M12 2a10 10 0 0110 10"/>
-                <path d="M2 12C2 6.48 6.48 2 12 2l-10 20 20-10z"/>
-                <circle cx="10" cy="13" fill="currentColor" r="1.5"/>
-              </svg>
+              <span aria-hidden className="material-symbols-outlined msym-fill v2-empty-state__icon" style={{ fontSize: 32 }}>local_pizza</span>
               <p className="v2-empty-state__text">Zatím nikdo neobjednal</p>
               <p className="v2-empty-state__hint">Přidej první osobu tlačítkem výše</p>
             </div>

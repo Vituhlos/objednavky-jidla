@@ -19,40 +19,17 @@ import {
 
 // ── Inline SVG icons ──────────────────────────────────────
 
-const IconCalendar = () => (
-  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-    <rect height="18" rx="2" width="18" x="3" y="4"/>
-    <path d="M16 2v4M8 2v4M3 10h18"/>
-  </svg>
+const Msym = ({ name, size = 16, fill = false }: { name: string; size?: number; fill?: boolean }) => (
+  <span aria-hidden className={`material-symbols-outlined${fill ? " msym-fill" : ""}`} style={{ fontSize: size }}>
+    {name}
+  </span>
 );
 
-const IconClock = () => (
-  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M12 6v6l4 2"/>
-  </svg>
-);
-
-const IconInfo = () => (
-  <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M12 16v-4M12 8h.01"/>
-  </svg>
-);
-
-const IconLock = () => (
-  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
-    <rect height="11" rx="2" width="18" x="3" y="11"/>
-    <path d="M7 11V7a5 5 0 0110 0v4"/>
-  </svg>
-);
-
-const IconCheck = () => (
-  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
-    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-    <path d="M22 4L12 14.01l-3-3"/>
-  </svg>
-);
+const IconCalendar = () => <Msym name="calendar_today" size={14} />;
+const IconClock    = () => <Msym name="schedule" size={14} />;
+const IconInfo     = () => <Msym name="info" size={14} />;
+const IconLock     = () => <Msym name="lock" size={16} fill />;
+const IconCheck    = () => <Msym name="check_circle" size={16} fill />;
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -413,9 +390,7 @@ export default function OrderPage({
       )}
       {showOfflineBanner && (
         <div aria-live="assertive" className="v2-offline-banner" role="alert">
-          <svg aria-hidden fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-          </svg>
+          <Msym name="wifi_off" size={14} />
           <span>Odpojeno – živé aktualizace nefungují. Zkontrolujte připojení.</span>
         </div>
       )}
