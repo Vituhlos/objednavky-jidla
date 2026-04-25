@@ -1,7 +1,6 @@
 import cron from "node-cron";
 import { getSettings } from "./settings";
 import { getTodayOrderData, sendOrder } from "./orders";
-import { logAudit } from "./audit";
 import { hasOrderRowContent } from "./order-utils";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -55,8 +54,7 @@ export function startScheduler(): void {
       }
 
       console.log(`[scheduler] Automatické odesílání objednávky ${data.order.id}...`);
-      await sendOrder(data.order.id, data.order.extraEmail ?? "");
-      logAudit({ action: "auto_send", orderId: data.order.id, details: `auto-send v ${currentTime}` });
+      await sendOrder(data.order.id, data.order.extraEmail ?? "", "auto");
       console.log("[scheduler] Objednávka automaticky odeslána.");
     } catch (err) {
       console.error("[scheduler] Chyba při automatickém odeslání:", err);

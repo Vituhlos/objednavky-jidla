@@ -20,7 +20,7 @@ import type {
   Department,
   MealEntry,
 } from "./types";
-import { getDepartments } from "./departments";
+import { getDepartments, getDepartmentByName } from "./departments";
 import { logAudit } from "./audit";
 import { isDepartmentSubmitted } from "./order-utils";
 
@@ -173,8 +173,18 @@ export function getOrderData(orderId: number): OrderData {
     .all(order.id) as Record<string, unknown>[];
 
   const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
-  const depts = getDepartments();
-  const departments: DepartmentData[] = depts.map((dept) => {
+  const activeDepts = getDepartments();
+  const activeDeptNames = new Set(activeDepts.map((d) => d.name));
+
+  // Include inactive departments that still have rows in this order
+  const orphanNames = [...new Set(rows.map((r) => r.department))].filter((n) => !activeDeptNames.has(n));
+  const orphanDepts = orphanNames.map((name) => {
+    const info = getDepartmentByName(name);
+    return info ?? { id: -1, name, label: name, emailLabel: name, accent: "blue" as const, sortOrder: 999, active: false };
+  });
+
+  const allDepts = [...activeDepts, ...orphanDepts];
+  const departments: DepartmentData[] = allDepts.map((dept) => {
     const deptRows = rows.filter((r) => r.department === dept.name);
     const subtotal = deptRows.filter((r) => r.personName || r.soupItemId || r.mainItemId).reduce((s, r) => s + r.rowPrice, 0);
     return { name: dept.name, label: dept.label, emailLabel: dept.emailLabel, accent: dept.accent, rows: deptRows, subtotal };
@@ -290,7 +300,7 @@ export function deleteOrderRow(rowId: number): void {
   if (row) logAudit({ action: "row_delete", orderId: row.order_id as number, department: row.department as string, personName: row.person_name as string });
 }
 
-export async function sendOrder(orderId: number, extraEmail?: string): Promise<Order> {
+export async function sendOrder(orderId: number, extraEmail?: string, source: "manual" | "auto" = "manual"): Promise<Order> {
   const db = getDb();
   const current = db
     .prepare("SELECT * FROM orders WHERE id = ?")
@@ -349,7 +359,7 @@ export async function sendOrder(orderId: number, extraEmail?: string): Promise<O
   const order = db
     .prepare("SELECT * FROM orders WHERE id = ?")
     .get(orderId) as Record<string, unknown>;
-  logAudit({ action: "order_send", orderId });
+  logAudit({ action: source === "auto" ? "auto_send" : "order_send", orderId });
   return mapOrder(order);
 }
 
