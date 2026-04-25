@@ -20,10 +20,14 @@ async function pdfToBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
   });
 }
 
-function departmentFileSlug(name: DepartmentData["name"]): string {
-  if (name === "Konstrukce") return "Konstrukce";
-  if (name === "Dílna") return "Dilna";
-  return "Obchod";
+function departmentFileSlug(name: string): string {
+  return (
+    name
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "Oddeleni"
+  );
 }
 
 function formatDate(isoDate: string): string {

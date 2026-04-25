@@ -5,13 +5,16 @@ export function checkRateLimit(key: string, max: number, windowMs: number): bool
   const now = Date.now();
 
   return db.transaction(() => {
+    // opportunistic cleanup of expired entries
+    db.prepare("DELETE FROM rate_limits WHERE reset_at < ?").run(now);
+
     const row = db.prepare("SELECT count, reset_at FROM rate_limits WHERE key = ?").get(key) as
       | { count: number; reset_at: number }
       | undefined;
 
-    if (!row || now > row.reset_at) {
+    if (!row) {
       db.prepare(
-        "INSERT INTO rate_limits (key, count, reset_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = 1, reset_at = excluded.reset_at"
+        "INSERT INTO rate_limits (key, count, reset_at) VALUES (?, 1, ?)"
       ).run(key, now + windowMs);
       return true;
     }

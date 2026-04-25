@@ -34,6 +34,15 @@ const IconHistory = () => (
   </svg>
 );
 
+const IconOverview = () => (
+  <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
+    <rect height="7" rx="1" width="7" x="3" y="3"/>
+    <rect height="7" rx="1" width="7" x="14" y="3"/>
+    <rect height="7" rx="1" width="7" x="3" y="14"/>
+    <rect height="7" rx="1" width="7" x="14" y="14"/>
+  </svg>
+);
+
 const IconSettings = () => (
   <svg aria-hidden fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16">
     <circle cx="12" cy="12" r="3"/>
@@ -42,11 +51,12 @@ const IconSettings = () => (
 );
 
 const NAV = [
-  { href: "/",           label: "Objednávky", icon: <IconOrders />,  exact: true },
-  { href: "/jidelnicek", label: "Jídelníček", icon: <IconMenu />,    exact: false },
-  { href: "/pizza",      label: "Pizza",      icon: <IconPizza />,   exact: false },
-  { href: "/historie",   label: "Historie",   icon: <IconHistory />, exact: false },
-  { href: "/nastaveni",  label: "Nastavení",  icon: <IconSettings />,exact: false },
+  { href: "/",           label: "Objednávky", icon: <IconOrders />,   exact: true },
+  { href: "/jidelnicek", label: "Jídelníček", icon: <IconMenu />,     exact: false },
+  { href: "/pizza",      label: "Pizza",      icon: <IconPizza />,    exact: false },
+  { href: "/prehled",    label: "Přehled",    icon: <IconOverview />, exact: false },
+  { href: "/historie",   label: "Historie",   icon: <IconHistory />,  exact: false },
+  { href: "/nastaveni",  label: "Nastavení",  icon: <IconSettings />, exact: false },
 ];
 
 export default function AppTopBar() {

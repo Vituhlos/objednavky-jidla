@@ -269,13 +269,16 @@ export function updateOrderRow(
       .get(rowId) as Record<string, unknown> | undefined;
     if (!row) throw new Error(`Řádek objednávky ${rowId} nenalezen.`);
     const enriched = enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
-    logAudit({
-      action: "row_update",
-      orderId: enriched.orderId,
-      department: enriched.department,
-      personName: enriched.personName || null,
-      details: Object.keys(updates).join(","),
-    });
+    const significantFields = ["personName", "soupItemId", "soupItemId2", "mainItemId", "extraMeals"];
+    if (Object.keys(updates).some((k) => significantFields.includes(k))) {
+      logAudit({
+        action: "row_update",
+        orderId: enriched.orderId,
+        department: enriched.department,
+        personName: enriched.personName || null,
+        details: Object.keys(updates).filter((k) => significantFields.includes(k)).join(","),
+      });
+    }
     return enriched;
   })();
 }
