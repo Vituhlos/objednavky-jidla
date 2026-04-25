@@ -96,6 +96,8 @@ export default function OrderPage({
   const [isPending, startTransition] = useTransition();
   const [sendError, setSendError] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [justSent, setJustSent] = useState(false);
+  const justSentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSent = orderStatus === "sent";
 
@@ -262,7 +264,9 @@ export default function OrderPage({
         await actionSendOrder(orderId, extraEmail);
         setOrderStatus("sent");
         setSentAt(new Date().toISOString());
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        setJustSent(true);
+        if (justSentTimer.current) clearTimeout(justSentTimer.current);
+        justSentTimer.current = setTimeout(() => setJustSent(false), 2800);
       } catch (error) {
         setSendError(
           error instanceof Error ? error.message : "Odeslání se nezdařilo. Zkuste to znovu."
@@ -286,9 +290,21 @@ export default function OrderPage({
   const allSoups = initialData.todayMenu.soups;
   const allMeals = initialData.todayMenu.meals;
 
+  useEffect(() => {
+    return () => { if (justSentTimer.current) clearTimeout(justSentTimer.current); };
+  }, []);
+
   return (
     <div className="v2-shell">
       <AppTopBar />
+      {justSent && (
+        <div aria-live="polite" className="v2-sent-toast" role="status">
+          <div className="v2-sent-toast__inner">
+            <IconCheck />
+            <span>Objednávka odeslána!</span>
+          </div>
+        </div>
+      )}
 
       {/* ── Info strip ── */}
       <div className="v2-infostrip">

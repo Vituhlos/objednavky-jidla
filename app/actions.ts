@@ -227,3 +227,4 @@ export async function actionSaveSettings(updates: Partial<AppSettings>): Promise
   saveSettings(updates);
   revalidatePath("/nastaveni");
 }
+

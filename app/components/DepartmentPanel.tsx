@@ -141,7 +141,10 @@ function OrderEditModal({
   isNew: boolean; defaultSoupPrice?: number; defaultMealPrice?: number; ep: ExtrasPrices;
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
-  const [personName, setPersonName] = useState(row.personName);
+  const [personName, setPersonName] = useState(() => {
+    if (row.personName) return row.personName;
+    try { return localStorage.getItem("lastPersonName") ?? ""; } catch { return ""; }
+  });
   const [soupIds, setSoupIds] = useState<(number | null)[]>(
     row.soupItemId2 != null
       ? [row.soupItemId, row.soupItemId2]
@@ -182,6 +185,9 @@ function OrderEditModal({
   }, []);
 
   const handleSave = () => {
+    if (personName.trim()) {
+      try { localStorage.setItem("lastPersonName", personName.trim()); } catch { /* */ }
+    }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
       .slice(1)
@@ -198,6 +204,7 @@ function OrderEditModal({
       ketchupCount, tatarkaCount, bbqCount, note,
     });
   };
+
 
   return (
     <div className="modal-overlay" onClick={handleCancel}>
@@ -511,7 +518,15 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
 
         {/* Rows */}
         {activeRows.length === 0 ? (
-          <div className="v2-empty-state">Zatím nikdo neobjednal.</div>
+          <div className="v2-empty-state">
+            <svg aria-hidden className="v2-empty-state__icon" fill="none" height="32" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="32">
+              <path d="M3 11l1-7h16l1 7"/>
+              <path d="M3 11h18v2a9 9 0 01-18 0v-2z"/>
+              <path d="M12 11V4M8 11V6M16 11V6"/>
+            </svg>
+            <p className="v2-empty-state__text">Zatím nikdo neobjednal</p>
+            {!isSent && <p className="v2-empty-state__hint">Přidej svoji objednávku tlačítkem výše</p>}
+          </div>
         ) : (
           <div className="v2-dept__rows">
             {activeRows.map((row) => (
