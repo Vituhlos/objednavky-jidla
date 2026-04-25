@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans, Material_Symbols_Outlined } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 
@@ -19,12 +19,6 @@ const plusJakarta = Plus_Jakarta_Sans({
   preload: true,
 });
 
-const materialSymbols = Material_Symbols_Outlined({
-  variable: "--font-material-symbols",
-  display: "swap",
-  axes: ["opsz", "FILL", "GRAD"],
-  preload: false,
-});
 
 export const metadata: Metadata = {
   title: "Objednávky",
@@ -48,8 +42,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="cs" className={`${inter.variable} ${plusJakarta.variable} ${materialSymbols.variable}`}>
-      <head />
+    <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+        />
+      </head>
       <body className={inter.className}>
         {/* Orby – kit OrbBackground */}
         <div aria-hidden className="orb-stage">
