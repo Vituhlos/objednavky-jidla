@@ -12,6 +12,7 @@ import {
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import AppTopBar from "./AppTopBar";
+import { ConfirmModal } from "./ConfirmModal";
 
 const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"];
 const DAY_LABELS: Record<string, string> = {
@@ -296,6 +297,7 @@ export default function MenuPage({
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
   const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
+  const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -452,53 +454,60 @@ export default function MenuPage({
             className="v2-btn v2-btn--primary"
             onClick={() => {
               setEditMode(false);
-              setImportState(isImportOpen ? { phase: "idle" } : { phase: "uploading" });
+              setImportState({ phase: "uploading" });
             }}
             type="button"
           >
-            {isImportOpen ? "Zavřít import" : "Importovat PDF"}
+            Importovat PDF
           </button>
         </div>
       </div>
 
-      {/* ── Import panel ── */}
+      {/* ── Import modal ── */}
       {isImportOpen && (
-        <div style={{ background: "var(--v2-card)", borderBottom: "1px solid var(--v2-border)", padding: "1rem 1.25rem" }}>
-          <div className="import-panel__inner">
-            {importState.phase === "uploading" && (
-              <>
-                <p className="import-panel__title">Nahrát PDF jídelníčku LIMA</p>
-                <div
-                  className={`drop-zone${isDragging ? " drop-zone--active" : ""}`}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-                >
-                  <span className="drop-zone__icon">PDF</span>
-                  <p>Přetáhněte PDF sem nebo klikněte pro výběr souboru</p>
-                  <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
+        <div className="modal-overlay" onClick={() => setImportState({ phase: "idle" })}>
+          <div
+            className={`modal-sheet${importState.phase === "preview" ? " modal-sheet--wide" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-sheet__header">
+              <h3 className="modal-sheet__title">
+                {importState.phase === "preview" ? "Náhled importu" : "Importovat PDF jídelníčku"}
+              </h3>
+              <button aria-label="Zavřít" className="modal-close-btn" onClick={() => setImportState({ phase: "idle" })} type="button">×</button>
+            </div>
+            <div className="modal-sheet__body">
+              {importState.phase === "uploading" && (
+                <>
+                  <div
+                    className={`drop-zone${isDragging ? " drop-zone--active" : ""}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                  >
+                    <span className="drop-zone__icon">PDF</span>
+                    <p>Přetáhněte PDF sem nebo klikněte pro výběr souboru</p>
+                    <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
+                  </div>
+                  <p className="import-status">Čekám na soubor...</p>
+                </>
+              )}
+              {importState.phase === "error" && (
+                <div className="import-error">
+                  <strong>Chyba:</strong> {importState.message}
+                  <button className="import-retry-btn" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
                 </div>
-                <p className="import-status">Čekám na soubor...</p>
-              </>
-            )}
-            {importState.phase === "error" && (
-              <div className="import-error">
-                <strong>Chyba:</strong> {importState.message}
-                <button className="import-retry-btn" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
-              </div>
-            )}
-            {importState.phase === "preview" && (
-              <>
-                <div className="import-panel__preview-header">
-                  <div>
-                    <p className="import-panel__title">Náhled rozpoznaných položek</p>
-                    <p className="import-status">
+              )}
+              {importState.phase === "preview" && (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+                    <span className="import-status" style={{ margin: 0 }}>
                       Rozpoznáno <strong>{importState.result.items.length}</strong> položek
                       {importState.result.weekLabel && <>, týden <strong>{importState.result.weekLabel}</strong></>}
-                    </p>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-                      <span style={{ fontSize: "0.83rem", color: "var(--v2-text-muted)" }}>Uložit jako:</span>
+                    </span>
+                    <span style={{ marginLeft: "auto", display: "flex", gap: "0.4rem" }}>
+                      <span style={{ fontSize: "0.83rem", color: "var(--v2-text-muted)", alignSelf: "center" }}>Uložit jako:</span>
                       <button
                         className={`v2-btn ${importState.targetWeekStart === currentWeekStart ? "v2-btn--primary" : "v2-btn--secondary"}`}
                         onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: currentWeekStart, targetLabel: `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}` } : prev)}
@@ -513,19 +522,21 @@ export default function MenuPage({
                       >
                         Příští týden
                       </button>
-                    </div>
+                    </span>
                   </div>
-                  <div className="import-panel__preview-actions">
-                    <button className="v2-btn v2-btn--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
-                    <button className="v2-btn v2-btn--primary" disabled={isPending} onClick={handleConfirm} type="button">
-                      {isPending ? "Ukládám..." : "Uložit jídelníček"}
-                    </button>
-                  </div>
-                </div>
-                <PreviewTable items={importState.result.items} />
-              </>
+                  <PreviewTable items={importState.result.items} />
+                </>
+              )}
+              {importState.phase === "saving" && <p className="import-status">Ukládám jídelníček...</p>}
+            </div>
+            {importState.phase === "preview" && (
+              <div className="modal-sheet__footer">
+                <button className="modal-btn modal-btn--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
+                <button className="modal-btn modal-btn--primary" disabled={isPending} onClick={handleConfirm} type="button">
+                  {isPending ? "Ukládám..." : "Uložit jídelníček"}
+                </button>
+              </div>
             )}
-            {importState.phase === "saving" && <p className="import-status">Ukládám jídelníček...</p>}
           </div>
         </div>
       )}
@@ -553,24 +564,24 @@ export default function MenuPage({
                 </a>
               )}
               {activeWeek === "next" && hasNextWeek && (
-                confirmDeleteNext ? (
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "0.82rem", color: "var(--v2-orange, #c78b2a)", fontWeight: 600 }}>Opravdu smazat?</span>
-                    <button className="v2-btn v2-btn--secondary" onClick={() => setConfirmDeleteNext(false)} type="button">Zrušit</button>
-                    <button className="v2-btn v2-btn--danger" disabled={isPending} onClick={handleDeleteNextWeek} type="button">
-                      {isPending ? "Mažu…" : "Ano, smazat"}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="v2-btn v2-btn--danger"
-                    disabled={isPending}
-                    onClick={() => setConfirmDeleteNext(true)}
-                    type="button"
-                  >
-                    Smazat
-                  </button>
-                )
+                <button
+                  className="v2-btn v2-btn--danger"
+                  disabled={isPending}
+                  onClick={() => setConfirmDeleteNext(true)}
+                  type="button"
+                >
+                  Smazat
+                </button>
+              )}
+              {confirmDeleteNext && (
+                <ConfirmModal
+                  confirmLabel="Smazat"
+                  isPending={isPending}
+                  message="Celý jídelníček příštího týdne bude trvale odstraněn."
+                  onClose={() => setConfirmDeleteNext(false)}
+                  onConfirm={handleDeleteNextWeek}
+                  title="Smazat příští týden"
+                />
               )}
             </div>
           </div>
@@ -600,10 +611,18 @@ export default function MenuPage({
                 disabled={isPending}
                 menu={currentMenu}
                 onAdd={handleAdd}
-                onDelete={handleDelete}
+                onDelete={(id) => setConfirmDeleteItemId(id)}
                 onUpdate={handleUpdate}
                 todayCode={todayCode}
               />
+              {confirmDeleteItemId !== null && (
+                <ConfirmModal
+                  message="Tato položka jídelníčku bude trvale odstraněna."
+                  onClose={() => setConfirmDeleteItemId(null)}
+                  onConfirm={() => { handleDelete(confirmDeleteItemId); setConfirmDeleteItemId(null); }}
+                  title="Smazat položku"
+                />
+              )}
             </div>
           ) : activeWeek === "current" ? (
             <ViewGrid

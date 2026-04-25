@@ -6,6 +6,7 @@ import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
 import AppTopBar from "./AppTopBar";
+import { ConfirmModal } from "./ConfirmModal";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -416,31 +417,27 @@ export default function OrderPage({
           ) : (
             <>
               <span className="v2-statusbar__icon"><IconLock /></span>
-              {clearConfirm ? (
-                <>
-                  <span style={{ flex: 1, fontWeight: 600 }}>Opravdu smazat celou objednávku?</span>
-                  <span style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                    <button className="v2-btn v2-btn--danger" disabled={isPending} onClick={handleClear} type="button">
-                      {isPending ? "…" : "Smazat"}
-                    </button>
-                    <button className="v2-btn v2-btn--secondary" onClick={() => setClearConfirm(false)} type="button">Zrušit</button>
-                  </span>
-                </>
-              ) : (
-                <>
-                  <div style={{ flex: 1 }}>
-                    <strong>Uzávěrka proběhne v {cutoffTime}.</strong>
-                    <span> Objednávku po uzávěrce odešle správce.</span>
-                  </div>
-                  <button
-                    className="v2-btn v2-btn--ghost"
-                    onClick={() => setClearConfirm(true)}
-                    style={{ marginLeft: "auto", flexShrink: 0 }}
-                    type="button"
-                  >
-                    Smazat objednávku
-                  </button>
-                </>
+              <div style={{ flex: 1 }}>
+                <strong>Uzávěrka proběhne v {cutoffTime}.</strong>
+                <span> Objednávku po uzávěrce odešle správce.</span>
+              </div>
+              <button
+                className="v2-btn v2-btn--ghost"
+                onClick={() => setClearConfirm(true)}
+                style={{ marginLeft: "auto", flexShrink: 0 }}
+                type="button"
+              >
+                Smazat objednávku
+              </button>
+              {clearConfirm && (
+                <ConfirmModal
+                  confirmLabel="Smazat"
+                  isPending={isPending}
+                  message="Celá dnešní objednávka bude vymazána. Tuto akci nelze vrátit."
+                  onClose={() => setClearConfirm(false)}
+                  onConfirm={handleClear}
+                  title="Smazat objednávku"
+                />
               )}
             </>
           )}

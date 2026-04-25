@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import type { DepartmentData, OrderRowEnriched, MenuItem, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
+import { ConfirmModal } from "./ConfirmModal";
 
 type RowUpdates = Partial<{
   personName: string;
@@ -161,6 +162,7 @@ function OrderEditModal({
   const [tatarkaCount, setTatarkaCount] = useState(row.tatarkaCount);
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
   const [note, setNote] = useState(row.note);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
 
@@ -340,11 +342,19 @@ function OrderEditModal({
           </div>
         </div>
         <div className="modal-sheet__footer">
-          {!isNew && <button className="modal-btn modal-btn--danger" onClick={onDelete} type="button">Smazat</button>}
+          {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
           <button className="modal-btn modal-btn--primary" onClick={handleSave} type="button">Uložit</button>
         </div>
       </div>
+      {showDeleteConfirm && (
+        <ConfirmModal
+          message="Objednávka této osoby bude odstraněna."
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={onDelete}
+          title="Smazat objednávku"
+        />
+      )}
     </div>
   );
 }
@@ -456,6 +466,7 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [deleteConfirmRowId, setDeleteConfirmRowId] = useState<number | null>(null);
 
   const accent = data.accent;
   const label = data.label;
@@ -534,7 +545,7 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
                 accent={accent}
                 isSent={isSent}
                 key={row.id}
-                onDelete={() => onDeleteRow(row.id)}
+                onDelete={() => setDeleteConfirmRowId(row.id)}
                 onEdit={() => setModalState({ rowId: row.id, isNew: false })}
                 row={row}
               />
@@ -556,6 +567,16 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
           onSave={(updates) => { onUpdateRow(modalState!.rowId, updates); setModalState(null); }}
           row={modalRow}
           soups={soups}
+        />
+      )}
+
+      {/* Confirm delete row */}
+      {deleteConfirmRowId !== null && (
+        <ConfirmModal
+          message="Objednávka této osoby bude odstraněna."
+          onClose={() => setDeleteConfirmRowId(null)}
+          onConfirm={() => { onDeleteRow(deleteConfirmRowId); setDeleteConfirmRowId(null); }}
+          title="Smazat objednávku"
         />
       )}
     </>

@@ -11,6 +11,7 @@ import {
   actionUpdatePizzaPrices,
 } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
+import { ConfirmModal } from "./ConfirmModal";
 
 function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] {
   return rows.map((r) => {
@@ -26,6 +27,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
   const [isPending, startTransition] = useTransition();
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [scrapeStatus, setScrapeStatus] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const totals = computePizzaTotals(rows);
   const totalCount = rows.reduce((s, r) => s + r.count, 0);
@@ -175,13 +177,21 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
                   idx={idx}
                   isPending={isPending}
                   key={row.id}
-                  onDelete={handleDeleteRow}
+                  onDelete={(id) => setDeleteConfirmId(id)}
                   onUpdate={handleUpdateRow}
                   pizzaItems={pizzaItems}
                   pricePerPizza={totals.pricePerPizza}
                   row={row}
                 />
               ))}
+              {deleteConfirmId !== null && (
+                <ConfirmModal
+                  message="Tento řádek objednávky pizzy bude odstraněn."
+                  onClose={() => setDeleteConfirmId(null)}
+                  onConfirm={() => { handleDeleteRow(deleteConfirmId); setDeleteConfirmId(null); }}
+                  title="Smazat řádek"
+                />
+              )}
             </div>
           )}
         </section>

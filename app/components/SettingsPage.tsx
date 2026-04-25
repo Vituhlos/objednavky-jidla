@@ -13,6 +13,7 @@ import {
   actionReorderDepartments,
 } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
+import { ConfirmModal } from "./ConfirmModal";
 
 const ACCENT_OPTIONS = [
   { value: "blue", label: "Modrá" },
@@ -78,19 +79,19 @@ function DeptRow({
           <span className="dept-row__label">{dept.label}</span>
           <span className="dept-row__name">({dept.name})</span>
         </div>
-        {confirmDelete ? (
-          <div className="dept-row__actions">
-            <span style={{ fontSize: "0.82rem", color: "var(--v2-text-muted, #6b7280)" }}>Opravdu smazat?</span>
-            <button className="v2-btn v2-btn--danger" onClick={() => onDelete(dept.id)} type="button">Ano, smazat</button>
-            <button className="v2-btn v2-btn--secondary" onClick={() => setConfirmDelete(false)} type="button">Zrušit</button>
-          </div>
-        ) : (
-          <div className="dept-row__actions">
-            <button className="dept-move-btn" disabled={isFirst} onClick={() => onMoveUp(dept.id)} title="Nahoru" type="button">↑</button>
-            <button className="dept-move-btn" disabled={isLast} onClick={() => onMoveDown(dept.id)} title="Dolů" type="button">↓</button>
-            <button className="v2-btn v2-btn--secondary" onClick={() => setEditing(true)} type="button">Upravit</button>
-            <button className="v2-btn v2-btn--danger" onClick={() => setConfirmDelete(true)} type="button">Smazat</button>
-          </div>
+        <div className="dept-row__actions">
+          <button className="dept-move-btn" disabled={isFirst} onClick={() => onMoveUp(dept.id)} title="Nahoru" type="button">↑</button>
+          <button className="dept-move-btn" disabled={isLast} onClick={() => onMoveDown(dept.id)} title="Dolů" type="button">↓</button>
+          <button className="v2-btn v2-btn--secondary" onClick={() => setEditing(true)} type="button">Upravit</button>
+          <button className="v2-btn v2-btn--danger" onClick={() => setConfirmDelete(true)} type="button">Smazat</button>
+        </div>
+        {confirmDelete && (
+          <ConfirmModal
+            message={`Oddělení „${dept.label}" bude trvale smazáno.`}
+            onClose={() => setConfirmDelete(false)}
+            onConfirm={() => { onDelete(dept.id); setConfirmDelete(false); }}
+            title="Smazat oddělení"
+          />
         )}
       </div>
     );
