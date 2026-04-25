@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Objednávkový systém obědů a pizzy",
     start_url: "/",
     display: "standalone",
-    background_color: "#16324a",
-    theme_color: "#ea580c",
+    background_color: "#f7f9fb",
+    theme_color: "#32ADE6",
     orientation: "any",
     icons: [
       { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
