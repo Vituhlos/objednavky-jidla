@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ea580c",
+  themeColor: "#32ADE6",
 };
 
 export default function RootLayout({
@@ -25,6 +25,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="cs">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
+        />
+      </head>
       <body>
         {children}
         <SwRegister />
