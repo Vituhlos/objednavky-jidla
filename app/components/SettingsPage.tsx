@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
+import type { AuditEntry } from "@/lib/audit";
 import {
   actionCheckPin,
   actionSaveSettings,
@@ -108,11 +109,30 @@ function DeptRow({
 
 // ── Main component ────────────────────────────────────────
 
+const ACTION_LABELS: Record<string, string> = {
+  row_add: "Přidání řádku",
+  row_update: "Úprava řádku",
+  row_delete: "Smazání řádku",
+  order_send: "Odeslání objednávky",
+  order_reopen: "Znovuotevření",
+  order_clear: "Vymazání objednávky",
+  auto_send: "Auto-odeslání",
+};
+
+function formatTs(ts: string): string {
+  const d = new Date(ts + "Z");
+  return d.toLocaleString("cs-CZ", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 export default function SettingsPage({
-  settings, departments: initialDepts,
+  settings, departments: initialDepts, auditLog: initialAuditLog,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
+  auditLog: AuditEntry[];
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [pin, setPin] = useState("");
@@ -505,6 +525,43 @@ export default function SettingsPage({
                 <a className="v2-btn v2-btn--secondary" download href="/api/backup" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}>
                   ↓ Stáhnout zálohu
                 </a>
+              </div>
+            </div>
+
+            {/* Historie změn */}
+            <div className="settings-section">
+              <h3 className="settings-section__title">Historie změn</h3>
+              <div className="settings-section__body" style={{ padding: 0, overflow: "hidden" }}>
+                {initialAuditLog.length === 0 ? (
+                  <p style={{ padding: "1rem", fontSize: "0.83rem", color: "var(--v2-text-muted, #6b7280)", margin: 0 }}>
+                    Zatím žádné záznamy.
+                  </p>
+                ) : (
+                  <div className="audit-table-wrap">
+                    <table className="audit-table">
+                      <thead>
+                        <tr>
+                          <th>Čas</th>
+                          <th>Akce</th>
+                          <th>Oddělení</th>
+                          <th>Osoba</th>
+                          <th>Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {initialAuditLog.map((entry) => (
+                          <tr key={entry.id} className={`audit-row audit-row--${entry.action}`}>
+                            <td className="audit-ts">{formatTs(entry.ts)}</td>
+                            <td className="audit-action">{ACTION_LABELS[entry.action] ?? entry.action}</td>
+                            <td>{entry.department ?? "—"}</td>
+                            <td>{entry.personName ?? "—"}</td>
+                            <td className="audit-detail">{entry.details ?? ""}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </>

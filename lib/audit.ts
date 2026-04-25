@@ -43,14 +43,8 @@ export function logAudit(entry: {
   }
 }
 
-export function getAuditLog(orderId: number): AuditEntry[] {
-  return (
-    getDb()
-      .prepare(
-        "SELECT * FROM audit_log WHERE order_id = ? ORDER BY id DESC"
-      )
-      .all(orderId) as Record<string, unknown>[]
-  ).map((r) => ({
+function mapRow(r: Record<string, unknown>): AuditEntry {
+  return {
     id: r.id as number,
     ts: r.ts as string,
     action: r.action as AuditAction,
@@ -58,5 +52,21 @@ export function getAuditLog(orderId: number): AuditEntry[] {
     department: r.department as string | null,
     personName: r.person_name as string | null,
     details: r.details as string | null,
-  }));
+  };
+}
+
+export function getAuditLog(orderId: number): AuditEntry[] {
+  return (
+    getDb()
+      .prepare("SELECT * FROM audit_log WHERE order_id = ? ORDER BY id DESC")
+      .all(orderId) as Record<string, unknown>[]
+  ).map(mapRow);
+}
+
+export function getRecentAuditLog(limit = 200): AuditEntry[] {
+  return (
+    getDb()
+      .prepare("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?")
+      .all(limit) as Record<string, unknown>[]
+  ).map(mapRow);
 }

@@ -3472,3 +3472,84 @@ select {
   .v2-history-table td { padding: 0.55rem 0.85rem; }
 }
 
+/* ── Audit log table ──────────────────────────────────────── */
+
+.audit-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.audit-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-family: "Source Sans 3", sans-serif;
+}
+
+.audit-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--steel);
+  color: #fff;
+}
+
+.audit-table th {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.audit-table td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--graphite) 10%, transparent);
+  vertical-align: top;
+  color: var(--graphite);
+}
+
+.audit-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--paper) 60%, white);
+}
+
+.audit-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--sand) 30%, white);
+}
+
+.audit-ts {
+  white-space: nowrap;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.audit-action {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.audit-row--order_send .audit-action,
+.audit-row--auto_send .audit-action {
+  color: var(--green);
+}
+
+.audit-row--order_clear .audit-action,
+.audit-row--row_delete .audit-action {
+  color: var(--rust);
+}
+
+.audit-row--order_reopen .audit-action {
+  color: var(--amber);
+}
+
+.audit-detail {
+  color: #6b7280;
+  font-size: 0.78rem;
+  max-width: 260px;
+  word-break: break-word;
+}
+
