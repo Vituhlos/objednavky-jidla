@@ -1,10 +1,8 @@
-// Odregistruje se a smaže všechny cache — SW pro tuto aplikaci nepotřebujeme,
-// prohlížeč cachuje /_next/static/ sám přes Cache-Control: immutable.
+// Pasivní SW — žádný fetch handler = nulový overhead na síťové requesty.
+// Aktivuje se okamžitě (skipWaiting), smaže staré cache bez blokování (fire-and-forget).
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .then(() => self.registration.unregister())
-  );
+self.addEventListener("activate", () => {
+  // Bez e.waitUntil — activate se dokončí ihned, iOS Safari nečeká
+  caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
 });
+// Žádný fetch handler = prohlížeč zpracovává requesty sám
