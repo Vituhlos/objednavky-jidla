@@ -44,10 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+      <head />
       <body className={inter.className}>
         {/* Orby – kit OrbBackground */}
         <div aria-hidden className="orb-stage">
