@@ -21,7 +21,7 @@ export default function AppTopBar() {
           <div className="v2-topbar__logo">
             <MIcon name="restaurant" size={20} fill />
           </div>
-          <span className="v2-topbar__title">Dnešní objednávka</span>
+          <span className="v2-topbar__title">Kantýna</span>
         </div>
         <nav className="v2-topbar__nav">
           {NAV.map(({ href, label, icon, exact }) => {

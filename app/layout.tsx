@@ -21,11 +21,11 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 
 export const metadata: Metadata = {
-  title: "Objednávky",
+  title: "Kantýna",
   description: "Objednávkový systém obědů a pizzy",
   appleWebApp: {
     capable: true,
-    title: "Objednávky",
+    title: "Kantýna",
     statusBarStyle: "black-translucent",
   },
 };

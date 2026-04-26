@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Objednávky LIMA",
-    short_name: "Objednávky",
+    name: "Kantýna",
+    short_name: "Kantýna",
     description: "Objednávkový systém obědů a pizzy",
     start_url: "/",
     display: "standalone",
