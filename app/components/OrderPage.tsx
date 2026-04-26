@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -27,6 +27,15 @@ const IconLock     = () => <MIcon name="lock" size={16} fill />;
 const IconCheck    = () => <MIcon name="check_circle" size={16} fill />;
 
 // ── Helpers ───────────────────────────────────────────────
+
+function getPragueNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
+}
+
+function parseCutoffMinutes(cutoffTime: string) {
+  const [h, m] = cutoffTime.split(":").map(Number);
+  return h * 60 + m;
+}
 
 function recalcDepartments(departments: DepartmentData[]): DepartmentData[] {
   return departments.map((d) => ({
@@ -66,7 +75,7 @@ export default function OrderPage({
   useEffect(() => { departmentsRef.current = departments; }, [departments]);
 
   const [orderStatus, setOrderStatus] = useState(initialData.order.status);
-  const [orderId] = useState(initialData.order.id);
+  const orderId = initialData.order.id;
   const [extraEmail, setExtraEmail] = useState(initialData.order.extraEmail ?? "");
   const [sentAt, setSentAt] = useState(initialData.order.sentAt);
   const [isPending, startTransition] = useTransition();
@@ -85,9 +94,8 @@ export default function OrderPage({
 
   // ── Live cutoff check ─────────────────────────────────────
   const checkCutoff = useCallback(() => {
-    const [h, m] = cutoffTime.split(":").map(Number);
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-    return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
+    const now = getPragueNow();
+    return now.getHours() * 60 + now.getMinutes() >= parseCutoffMinutes(cutoffTime);
   }, [cutoffTime]);
 
   const [isPastCutoff, setIsPastCutoff] = useState(checkCutoff);
@@ -114,10 +122,12 @@ export default function OrderPage({
         document.title = originalTitle.current;
       }
     };
+    const onVisibility = () => { if (!document.hidden) resetTitle(); };
     window.addEventListener("focus", resetTitle);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) resetTitle(); });
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("focus", resetTitle);
+      document.removeEventListener("visibilitychange", onVisibility);
       document.title = originalTitle.current;
     };
   }, []);
@@ -234,7 +244,7 @@ export default function OrderPage({
     [initialData.todayMenu]
   );
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     startTransition(async () => {
       await actionClearOrder(orderId);
       setDepartments((prev) =>
@@ -242,15 +252,15 @@ export default function OrderPage({
       );
       setClearConfirm(false);
     });
-  };
+  }, [orderId]);
 
-  const handleReopen = () => {
+  const handleReopen = useCallback(() => {
     startTransition(async () => {
       await actionReopenOrder(orderId);
       setOrderStatus("draft");
       setSentAt(null);
     });
-  };
+  }, [orderId]);
 
   const commitDelete = useCallback((rowId: number) => {
     actionDeleteRow(rowId).catch(() => {});
@@ -260,12 +270,9 @@ export default function OrderPage({
   }, []);
 
   const handleDeleteRow = useCallback((rowId: number) => {
-    // If there's already a pending delete, commit it immediately before starting new one
     if (pendingDeleteTimer.current && pendingDeleteRef.current) {
       clearTimeout(pendingDeleteTimer.current);
-      actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
-      pendingDeleteRef.current = null;
-      pendingDeleteTimer.current = null;
+      commitDelete(pendingDeleteRef.current.rowId);
     }
 
     // Find and capture row data before removing from UI
@@ -321,25 +328,30 @@ export default function OrderPage({
     });
   };
 
-  const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleEmailBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     startTransition(async () => {
       await actionUpdateExtraEmail(orderId, e.target.value);
     });
-  };
+  }, [orderId]);
 
-  const activeOrderCount = departments.flatMap((d) => d.rows).filter(hasOrderRowContent).length;
-  const totalPrice = departments.reduce((s, d) => s + d.subtotal, 0);
+  const activeOrderCount = useMemo(
+    () => departments.flatMap((d) => d.rows).filter(hasOrderRowContent).length,
+    [departments]
+  );
+  const totalPrice = useMemo(
+    () => departments.reduce((s, d) => s + d.subtotal, 0),
+    [departments]
+  );
 
-  function getCountdown(): string | null {
-    const [h, m] = cutoffTime.split(":").map(Number);
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-    const diff = (h * 60 + m) - (now.getHours() * 60 + now.getMinutes());
+  const getCountdown = useCallback((): string | null => {
+    const now = getPragueNow();
+    const diff = parseCutoffMinutes(cutoffTime) - (now.getHours() * 60 + now.getMinutes());
     if (diff <= 0) return null;
     if (diff < 60) return `za ${diff} min`;
     const hours = Math.floor(diff / 60);
     const mins = diff % 60;
     return mins > 0 ? `za ${hours} h ${mins} min` : `za ${hours} h`;
-  }
+  }, [cutoffTime]);
   const [countdown, setCountdown] = useState(getCountdown);
   useEffect(() => {
     const id = setInterval(() => setCountdown(getCountdown()), 30_000);
@@ -347,11 +359,14 @@ export default function OrderPage({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffTime]);
 
-  const today = new Date();
-  const dayStr =
-    today.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^\w/, (c) => c.toUpperCase()) +
-    " " +
-    today.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
+  const dayStr = useMemo(() => {
+    const today = new Date();
+    return (
+      today.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^\w/, (c) => c.toUpperCase()) +
+      " " +
+      today.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
+    );
+  }, []);
 
   const allSoups = initialData.todayMenu.soups;
   const allMeals = initialData.todayMenu.meals;
