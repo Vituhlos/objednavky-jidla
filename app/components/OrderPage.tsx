@@ -131,6 +131,7 @@ export default function OrderPage({
       if (document.hidden) {
         tabNotifCount.current += 1;
         document.title = `(${tabNotifCount.current}) Nová objednávka`;
+        return;
       }
       if (isPendingRef.current) return;
       fetch("/api/order-refresh")
