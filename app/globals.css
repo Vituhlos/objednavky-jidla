@@ -144,14 +144,11 @@
 
 html {
   background: var(--bg);
-  height: 100%;
-  overflow: hidden;
 }
 
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
   color: var(--ink);
   font-family: var(--font-inter), sans-serif;
 }
@@ -1671,9 +1668,7 @@ select {
 /* ── Shell ── */
 
 .v2-shell {
-  height: 100dvh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: 100dvh;
   background: transparent;
   color: var(--v2-text);
   font-family: var(--font-inter), sans-serif;
@@ -2432,20 +2427,6 @@ select {
     height: auto;
   }
 
-  /* Jemný frosted glass strip pod floating pillem – zakryje gap u Safari chrome */
-  body::after {
-    content: '';
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(env(safe-area-inset-bottom, 0px) + 12px);
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    z-index: 199;
-    pointer-events: none;
-  }
 
   .v2-infostrip {
     padding: 0.5rem 0.85rem;
