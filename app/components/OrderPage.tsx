@@ -489,21 +489,23 @@ export default function OrderPage({
 
       {/* ── Main content ── */}
       <main className="v2-content">
-        {departments.map((dept) => (
-          <DepartmentPanel
-            data={dept}
-            defaultMealPrice={defaultMealPrice}
-            defaultSoupPrice={defaultSoupPrice}
-            extrasPrices={extrasPrices}
-            isSent={isSent}
-            key={dept.name}
-            meals={allMeals}
-            onAddRow={() => handleAddRow(dept.name)}
-            onDeleteRow={handleDeleteRow}
-            onUpdateRow={handleUpdateRow}
-            soups={allSoups}
-          />
-        ))}
+        <div className="v2-dept-grid">
+          {departments.map((dept) => (
+            <DepartmentPanel
+              data={dept}
+              defaultMealPrice={defaultMealPrice}
+              defaultSoupPrice={defaultSoupPrice}
+              extrasPrices={extrasPrices}
+              isSent={isSent}
+              key={dept.name}
+              meals={allMeals}
+              onAddRow={() => handleAddRow(dept.name)}
+              onDeleteRow={handleDeleteRow}
+              onUpdateRow={handleUpdateRow}
+              soups={allSoups}
+            />
+          ))}
+        </div>
 
         {/* ── Bottom status bar ── */}
         <div className={`v2-statusbar${isSent ? " v2-statusbar--sent" : ""}`}>

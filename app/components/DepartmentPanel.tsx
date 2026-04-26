@@ -379,62 +379,50 @@ function V2OrderRow({
 }) {
   const chips = getChips(row);
 
+  const mainFood = row.mainItem
+    ? `${(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}${row.mainItem.name}`
+    : null;
+  const extraFoods = row.extraMealItems.map(
+    (em) => `${em.count > 1 ? `${em.count}× ` : ""}${em.item.name}`,
+  );
+  const soupName = row.soupItem?.name ?? null;
+  const soup2Name = row.soupItem2?.name ?? null;
+
   return (
     <div
       className={`v2-order-row${!isSent ? " v2-order-row--interactive" : ""}${isSaved ? " v2-order-row--saved" : ""}`}
       onClick={!isSent ? onEdit : undefined}
     >
-      {/* Col 1: Name + avatar */}
+      {/* Avatar */}
       <div className="v2-order-row__name">
         <div className={`v2-avatar v2-avatar--${accent}`}>{getInitials(row.personName)}</div>
-        <span className="v2-order-row__name-text">{row.personName || "—"}</span>
       </div>
 
-      {/* Col 2: Main dish */}
-      <div className="v2-order-row__main">
-        {row.mainItem ? (
-          <span>
-            {(row.mealCount || 1) > 1 && <strong>{row.mealCount}× </strong>}
-            {row.mainItem.name}
-            {row.extraMealItems.map((em, i) => (
-              <span key={i}>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
-                  {em.count > 1 && <strong>{em.count}× </strong>}
-                  {em.item.name}
-                </span>
-              </span>
-            ))}
-          </span>
-        ) : (
-          <span className="v2-muted">—</span>
+      {/* Body: name + food info */}
+      <div className="v2-order-row__body">
+        <div className="v2-order-row__body-name">{row.personName || "—"}</div>
+        <div className="v2-order-row__body-food">
+          {mainFood && <span className="v2-order-row__main">{mainFood}</span>}
+          {extraFoods.map((f, i) => (
+            <span key={i} className="v2-order-row__main">{f}</span>
+          ))}
+          {(mainFood || extraFoods.length > 0) && soupName && (
+            <span className="v2-order-row__sep">·</span>
+          )}
+          {soupName && <span className="v2-order-row__soup">{soupName}</span>}
+          {soupName && soup2Name && <span className="v2-order-row__sep">·</span>}
+          {soup2Name && <span className="v2-order-row__soup">{soup2Name}</span>}
+          {!mainFood && !soupName && <span className="v2-muted">—</span>}
+        </div>
+        {(chips.length > 0 || row.note) && (
+          <div className="v2-order-row__extras">
+            {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
+            {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
+          </div>
         )}
       </div>
 
-      {/* Col 3: Soup */}
-      <div className="v2-order-row__soup">
-        {row.soupItem ? (
-          <span>
-            {row.soupItem.name}
-            {row.soupItem2 && (
-              <>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>{row.soupItem2.name}</span>
-              </>
-            )}
-          </span>
-        ) : (
-          <span className="v2-muted">—</span>
-        )}
-      </div>
-
-      {/* Col 4: Extras chips + note */}
-      <div className="v2-order-row__extras">
-        {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
-        {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
-      </div>
-
-      {/* Col 5: Price */}
+      {/* Price */}
       <div className="v2-order-row__price">
         {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="v2-muted">—</span>}
       </div>
