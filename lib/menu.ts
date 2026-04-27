@@ -113,7 +113,9 @@ export function getFullMenu(weekStart?: string): Record<
   return result;
 }
 
-// Replace (or create) all menu items for a specific week
+// Replace (or create) all menu items for a specific week.
+// After replacing, tries to re-link order_rows to the new items by matching day+code+name
+// so that re-importing the same PDF doesn't wipe meal selections.
 export function setMenuForWeek(
   weekStart: string,
   weekLabel: string,
@@ -123,16 +125,68 @@ export function setMenuForWeek(
   const s = getSettings();
   const soupPrice = parseInt(s.defaultSoupPrice) || 30;
   const mealPrice = parseInt(s.defaultMealPrice) || 110;
+
+  interface RefRow {
+    row_id: number;
+    soup_day: string | null; soup_code: string | null; soup_name: string | null;
+    soup2_day: string | null; soup2_code: string | null; soup2_name: string | null;
+    main_day: string | null; main_code: string | null; main_name: string | null;
+  }
+
   const transaction = db.transaction(() => {
+    // Capture which order_rows reference this week's items before deletion
+    const affected = db.prepare(`
+      SELECT or2.id AS row_id,
+        soup.day AS soup_day, soup.code AS soup_code, soup.name AS soup_name,
+        soup2.day AS soup2_day, soup2.code AS soup2_code, soup2.name AS soup2_name,
+        main.day AS main_day, main.code AS main_code, main.name AS main_name
+      FROM order_rows or2
+      LEFT JOIN menu_items soup  ON soup.id  = or2.soup_item_id   AND soup.week_start  = ?
+      LEFT JOIN menu_items soup2 ON soup2.id = or2.soup_item_id_2 AND soup2.week_start = ?
+      LEFT JOIN menu_items main  ON main.id  = or2.main_item_id   AND main.week_start  = ?
+      WHERE or2.soup_item_id   IN (SELECT id FROM menu_items WHERE week_start = ?)
+         OR or2.soup_item_id_2 IN (SELECT id FROM menu_items WHERE week_start = ?)
+         OR or2.main_item_id   IN (SELECT id FROM menu_items WHERE week_start = ?)
+    `).all(weekStart, weekStart, weekStart, weekStart, weekStart, weekStart) as RefRow[];
+
     db.prepare("UPDATE order_rows SET soup_item_id = NULL WHERE soup_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
+    db.prepare("UPDATE order_rows SET soup_item_id_2 = NULL WHERE soup_item_id_2 IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
     db.prepare("UPDATE order_rows SET main_item_id = NULL WHERE main_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
     db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
+
     const insert = db.prepare(
       "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     for (const item of items) {
       const price = item.type === "Polévka" ? soupPrice : mealPrice;
       insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price);
+    }
+
+    // Re-link order rows: match by (day, code, name) — fall back to (day, code) first match
+    const findNewId = (day: string, type: string, code: string, name: string): number | null => {
+      const exact = db.prepare(
+        "SELECT id FROM menu_items WHERE week_start=? AND day=? AND type=? AND code=? AND name=? LIMIT 1"
+      ).get(weekStart, day, type, code, name) as { id: number } | undefined;
+      if (exact) return exact.id;
+      const byCode = db.prepare(
+        "SELECT id FROM menu_items WHERE week_start=? AND day=? AND type=? AND code=? LIMIT 1"
+      ).get(weekStart, day, type, code) as { id: number } | undefined;
+      return byCode?.id ?? null;
+    };
+
+    for (const ref of affected) {
+      if (ref.soup_day) {
+        const newId = findNewId(ref.soup_day, "Polévka", ref.soup_code!, ref.soup_name ?? "");
+        if (newId) db.prepare("UPDATE order_rows SET soup_item_id=? WHERE id=?").run(newId, ref.row_id);
+      }
+      if (ref.soup2_day) {
+        const newId = findNewId(ref.soup2_day, "Polévka", ref.soup2_code!, ref.soup2_name ?? "");
+        if (newId) db.prepare("UPDATE order_rows SET soup_item_id_2=? WHERE id=?").run(newId, ref.row_id);
+      }
+      if (ref.main_day) {
+        const newId = findNewId(ref.main_day, "Jídlo", ref.main_code!, ref.main_name ?? "");
+        if (newId) db.prepare("UPDATE order_rows SET main_item_id=? WHERE id=?").run(newId, ref.row_id);
+      }
     }
   });
   transaction();

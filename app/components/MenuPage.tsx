@@ -187,26 +187,26 @@ function WeekItem({
     return (
       <div className="group flex items-center gap-1 py-0.5">
         <input
-          className="modal-input !py-0.5 !px-1.5 text-[10px] font-mono w-8 shrink-0"
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] font-mono w-7 shrink-0 text-center outline-none focus:border-amber-400/60"
           defaultValue={item.code}
           disabled={disabled}
           onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
           title="Kód"
         />
         <input
-          className="modal-input !py-0.5 !px-1.5 text-[11px] flex-1 min-w-0"
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-slate-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
           defaultValue={item.name}
           disabled={disabled}
           onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
           title="Název"
         />
         <input
-          className="modal-input !py-0.5 !px-1.5 text-[10px] w-12 text-right shrink-0"
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
           defaultValue={item.price}
           disabled={disabled}
           min={0}
           onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
-          title="Cena"
+          title="Cena Kč"
           type="number"
         />
         <button
@@ -343,6 +343,12 @@ export default function MenuPage({
   hasPdfNext,
 }: Props) {
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
+  // Sync state when server pushes new props (after router.refresh() following an import)
+  const prevMenuPropsRef = useRef(initialCurrentMenu);
+  if (prevMenuPropsRef.current !== initialCurrentMenu) {
+    prevMenuPropsRef.current = initialCurrentMenu;
+    setCurrentMenu(initialCurrentMenu);
+  }
   const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
   const [editMode, setEditMode] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
