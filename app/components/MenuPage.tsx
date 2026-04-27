@@ -334,6 +334,14 @@ export default function MenuPage({
   const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
   const isReadOnly = activeWeek === "next";
 
+  const dayDates: Record<string, number> = {};
+  const weekBase = new Date(activeWeekStart + "T00:00:00");
+  DAY_ORDER.forEach((d, i) => {
+    const dt = new Date(weekBase);
+    dt.setDate(weekBase.getDate() + i);
+    dayDates[d] = dt.getDate();
+  });
+
   return (
     <div className="k-shell">
       <AppTopBar />
@@ -448,7 +456,7 @@ export default function MenuPage({
                 {day}
               </span>
               <span className={`font-display font-bold text-[12px] leading-tight mt-0.5 ${active ? "text-white" : hasData ? "text-slate-700" : "text-slate-300"}`}>
-                {DAY_LABELS[day].slice(0, 2)}.
+                {dayDates[day]}
               </span>
               {isToday && (
                 <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.75)" : "#F59E0B" }} />
