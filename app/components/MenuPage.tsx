@@ -80,7 +80,157 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
   );
 }
 
-// ── Menu section ──────────────────────────────────────────────────────────────
+// ── Week grid (desktop read/edit view) ────────────────────────────────────────
+
+function WeekGrid({
+  menu, dayDates, todayCode, editMode, disabled, onAdd, onDelete, onUpdate,
+}: {
+  menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
+  dayDates: Record<string, number>;
+  todayCode: string | null;
+  editMode: boolean;
+  disabled: boolean;
+  onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
+  onDelete: (id: number) => void;
+  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-3 items-start">
+      {DAY_ORDER.map((day) => {
+        const isToday = day === todayCode;
+        const { soups = [], meals = [] } = menu[day] ?? {};
+        const hasItems = soups.length > 0 || meals.length > 0;
+        return (
+          <div
+            key={day}
+            className="glass rounded-3xl overflow-hidden"
+            style={isToday ? { boxShadow: "0 0 0 2px rgba(245,158,11,0.45)" } : {}}
+          >
+            {/* Day header */}
+            <div
+              className="px-3 py-2.5 border-b border-white/40 flex items-center gap-2"
+              style={isToday ? { background: "linear-gradient(135deg,rgba(245,158,11,0.13),rgba(234,88,12,0.08))" } : { background: "rgba(255,255,255,0.25)" }}
+            >
+              <span className={`font-display font-bold text-[16px] ${isToday ? "text-amber-600" : "text-slate-800"}`}>{dayDates[day]}</span>
+              <div className="flex flex-col leading-none">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-amber-500" : "text-slate-400"}`}>{day}</span>
+                {isToday && <span className="text-[9px] font-semibold text-amber-500">Dnes</span>}
+              </div>
+            </div>
+
+            {!hasItems && !editMode ? (
+              <div className="px-3 py-5 text-[11.5px] text-slate-300 text-center">–</div>
+            ) : (
+              <div className="px-3 py-2 space-y-2">
+                {/* Soups */}
+                {(soups.length > 0 || editMode) && (
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[9.5px] uppercase tracking-wide font-bold text-amber-600">Polévky</span>
+                      {editMode && (
+                        <button
+                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          disabled={disabled}
+                          onClick={() => onAdd(day, "Polévka" as const)}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
+                          title="Přidat polévku"
+                          type="button"
+                        >+</button>
+                      )}
+                    </div>
+                    {soups.map((item) => (
+                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
+                    ))}
+                    {soups.length === 0 && editMode && <p className="text-[11px] text-slate-300 py-0.5">Žádné</p>}
+                  </div>
+                )}
+                {/* Meals */}
+                {(meals.length > 0 || editMode) && (
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[9.5px] uppercase tracking-wide font-bold text-orange-500">Jídla</span>
+                      {editMode && (
+                        <button
+                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          disabled={disabled}
+                          onClick={() => onAdd(day, "Jídlo" as const)}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
+                          title="Přidat jídlo"
+                          type="button"
+                        >+</button>
+                      )}
+                    </div>
+                    {meals.map((item) => (
+                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
+                    ))}
+                    {meals.length === 0 && editMode && <p className="text-[11px] text-slate-300 py-0.5">Žádné</p>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeekItem({
+  item, editMode, disabled, onDelete, onUpdate,
+}: {
+  item: MenuItem;
+  editMode: boolean;
+  disabled: boolean;
+  onDelete: (id: number) => void;
+  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+}) {
+  if (editMode) {
+    return (
+      <div className="group flex items-center gap-1 py-0.5">
+        <input
+          className="modal-input !py-0.5 !px-1.5 text-[10px] font-mono w-8 shrink-0"
+          defaultValue={item.code}
+          disabled={disabled}
+          onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
+          title="Kód"
+        />
+        <input
+          className="modal-input !py-0.5 !px-1.5 text-[11px] flex-1 min-w-0"
+          defaultValue={item.name}
+          disabled={disabled}
+          onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
+          title="Název"
+        />
+        <input
+          className="modal-input !py-0.5 !px-1.5 text-[10px] w-12 text-right shrink-0"
+          defaultValue={item.price}
+          disabled={disabled}
+          min={0}
+          onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
+          title="Cena"
+          type="number"
+        />
+        <button
+          className="w-5 h-5 rounded-full inline-flex items-center justify-center text-slate-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100 shrink-0"
+          disabled={disabled}
+          onClick={() => onDelete(item.id)}
+          type="button"
+        >
+          <MIcon name="close" size={10} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-baseline gap-1 py-0.5">
+      <span className="font-mono text-[10px] text-slate-400 w-5 shrink-0 text-right">{item.code}</span>
+      <span className="flex-1 text-[12px] text-slate-700 leading-snug">{item.name}</span>
+      <span className="shrink-0 text-[11px] font-medium text-slate-400 tabular-nums">{item.price} Kč</span>
+    </div>
+  );
+}
+
+// ── Menu section (mobile) ──────────────────────────────────────────────────────
 
 function MenuSection({
   title,
@@ -438,8 +588,8 @@ export default function MenuPage({
         )}
       </div>
 
-      {/* Day tabs */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
+      {/* Day tabs — mobile only */}
+      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
         {DAY_ORDER.map((day) => {
           const active = activeDay === day;
           const isToday = day === todayCode;
@@ -455,52 +605,58 @@ export default function MenuPage({
               }
               type="button"
             >
-              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-slate-500"}`}>
-                {day}
-              </span>
-              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-slate-700"}`}>
-                {dayDates[day]}
-              </span>
-              {isToday && (
-                <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />
-              )}
+              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-slate-500"}`}>{day}</span>
+              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-slate-700"}`}>{dayDates[day]}</span>
+              {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
             </button>
           );
         })}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto scroll-area px-4 pb-28 md:pb-8">
-        <div className="max-w-2xl mx-auto space-y-3">
-        <div className="font-display font-bold text-[17px] text-slate-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
-
-        <MenuSection
-          accent="rgba(245,158,11,0.12)"
+      {/* Desktop: full week grid */}
+      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3">
+        <WeekGrid
+          dayDates={dayDates}
           disabled={isPending}
           editMode={!isReadOnly && editMode}
-          emptyLabel="Žádné polévky pro tento den."
-          icon="restaurant"
-          iconColor="#D97706"
-          items={dayMenu.soups}
-          onAdd={() => handleAdd(activeDay, "Polévka")}
+          menu={activeMenu}
+          onAdd={(day, type) => handleAdd(day, type)}
           onDelete={(id) => setConfirmDeleteItemId(id)}
           onUpdate={handleUpdate}
-          title="Polévky"
+          todayCode={todayCode}
         />
+      </div>
 
-        <MenuSection
-          accent="rgba(234,88,12,0.1)"
-          disabled={isPending}
-          editMode={!isReadOnly && editMode}
-          emptyLabel="Žádná jídla pro tento den."
-          icon="restaurant_menu"
-          iconColor="#EA580C"
-          items={dayMenu.meals}
-          onAdd={() => handleAdd(activeDay, "Jídlo")}
-          onDelete={(id) => setConfirmDeleteItemId(id)}
-          onUpdate={handleUpdate}
-          title="Jídla"
-        />
+      {/* Mobile: single day view */}
+      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-28">
+        <div className="space-y-3">
+          <div className="font-display font-bold text-[17px] text-slate-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
+          <MenuSection
+            accent="rgba(245,158,11,0.12)"
+            disabled={isPending}
+            editMode={!isReadOnly && editMode}
+            emptyLabel="Žádné polévky pro tento den."
+            icon="restaurant"
+            iconColor="#D97706"
+            items={dayMenu.soups}
+            onAdd={() => handleAdd(activeDay, "Polévka")}
+            onDelete={(id) => setConfirmDeleteItemId(id)}
+            onUpdate={handleUpdate}
+            title="Polévky"
+          />
+          <MenuSection
+            accent="rgba(234,88,12,0.1)"
+            disabled={isPending}
+            editMode={!isReadOnly && editMode}
+            emptyLabel="Žádná jídla pro tento den."
+            icon="restaurant_menu"
+            iconColor="#EA580C"
+            items={dayMenu.meals}
+            onAdd={() => handleAdd(activeDay, "Jídlo")}
+            onDelete={(id) => setConfirmDeleteItemId(id)}
+            onUpdate={handleUpdate}
+            title="Jídla"
+          />
         </div>
       </div>
 
