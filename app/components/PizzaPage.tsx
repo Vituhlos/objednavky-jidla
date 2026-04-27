@@ -155,7 +155,8 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
+      <div className="space-y-4 md:grid md:gap-4 md:space-y-0 md:items-start" style={{ gridTemplateColumns: "1fr 280px" }}>
         {/* Orders */}
         <section className="glass rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
@@ -223,7 +224,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
               <span className="font-display font-bold text-[13.5px] text-slate-900">Souhrn</span>
             </div>
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 grid grid-cols-1 gap-4">
               {pizzaCounts.size > 0 && (
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-2">Pizzy</p>
@@ -248,6 +249,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             </div>
           </section>
         )}
+      </div>
       </main>
     </div>
   );

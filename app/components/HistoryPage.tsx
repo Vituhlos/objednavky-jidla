@@ -102,7 +102,8 @@ export default function HistoryPage({
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
+      <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
         {/* LIMA orders */}
         <section className="glass rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
@@ -190,6 +191,7 @@ export default function HistoryPage({
             </div>
           )}
         </section>
+      </div>
       </main>
     </div>
   );
