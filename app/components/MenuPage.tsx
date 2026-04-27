@@ -168,11 +168,11 @@ function MenuSection({
         items.map((item, i) => (
           <div
             key={item.id}
-            className={`flex items-center gap-3 px-4 py-3 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
+            className={`flex items-baseline gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
           >
-            <span className="font-mono text-[11px] text-slate-400 w-7 shrink-0">{item.code}</span>
-            <span className="flex-1 text-[13px] text-slate-800">{item.name}</span>
-            <span className="font-display font-semibold text-[13px] text-slate-700">{item.price} Kč</span>
+            <span className="font-mono text-[11px] text-slate-400 w-6 shrink-0 text-right">{item.code}</span>
+            <span className="flex-1 text-[13px] text-slate-800 leading-snug">{item.name}</span>
+            <span className="shrink-0 font-semibold text-[12.5px] text-slate-500 tabular-nums">{item.price} Kč</span>
           </div>
         ))
       )}
@@ -447,19 +447,22 @@ export default function MenuPage({
           return (
             <button
               key={day}
-              className="shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-xl transition"
+              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
               onClick={() => setActiveDay(day)}
-              style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
+              style={active
+                ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
+                : { background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.7)" }
+              }
               type="button"
             >
-              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/75" : hasData ? "text-slate-500" : "text-slate-300"}`}>
+              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-slate-500"}`}>
                 {day}
               </span>
-              <span className={`font-display font-bold text-[12px] leading-tight mt-0.5 ${active ? "text-white" : hasData ? "text-slate-700" : "text-slate-300"}`}>
+              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-slate-700"}`}>
                 {dayDates[day]}
               </span>
               {isToday && (
-                <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.75)" : "#F59E0B" }} />
+                <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />
               )}
             </button>
           );
@@ -467,8 +470,9 @@ export default function MenuPage({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto scroll-area px-4 pb-28 md:pb-8 space-y-3">
-        <div className="font-display font-bold text-[17px] text-slate-900 mb-1">{DAY_LABELS[activeDay]}</div>
+      <div className="flex-1 overflow-y-auto scroll-area px-4 pb-28 md:pb-8">
+        <div className="max-w-2xl mx-auto space-y-3">
+        <div className="font-display font-bold text-[17px] text-slate-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
 
         <MenuSection
           accent="rgba(245,158,11,0.12)"
@@ -497,6 +501,7 @@ export default function MenuPage({
           onUpdate={handleUpdate}
           title="Jídla"
         />
+        </div>
       </div>
 
       {/* Confirm modals */}
