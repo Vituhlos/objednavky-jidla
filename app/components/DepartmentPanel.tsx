@@ -441,7 +441,7 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
               type="button"
               disabled={isAdding}
               onClick={handleAddAndOpen}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 transition"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             >
               <MIcon name="add" size={14} />

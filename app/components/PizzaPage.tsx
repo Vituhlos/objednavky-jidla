@@ -137,7 +137,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
           {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
           <button
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600 shrink-0"
+            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600 shrink-0 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
             disabled={isPending}
             onClick={handleScrape}
             type="button"
@@ -165,7 +165,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
               <span className="text-[11px] text-slate-500">{totalCount} ks · {totals.finalTotal} Kč</span>
             )}
             <button
-              className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white"
+              className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
               disabled={isPending}
               onClick={handleAddRow}

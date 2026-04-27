@@ -277,9 +277,10 @@ body {
   padding: 0.6rem 1rem; border-radius: 14px;
   font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   border: none; font-family: var(--font-inter);
-  transition: opacity .15s;
+  transition: opacity .15s, transform .12s;
 }
 .modal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.modal-btn:not(:disabled):active { transform: scale(0.97); }
 .modal-btn--secondary {
   background: rgba(255,255,255,0.6);
   backdrop-filter: blur(22px);
@@ -287,12 +288,15 @@ body {
   box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset;
   color: var(--ink-2);
 }
+.modal-btn--secondary:not(:disabled):hover { background: rgba(255,255,255,0.78); }
 .modal-btn--primary {
   background: linear-gradient(135deg,#F59E0B,#EA580C);
   box-shadow: 0 6px 16px -6px rgba(245,158,11,0.45);
   color: white;
 }
+.modal-btn--primary:not(:disabled):hover { opacity: 0.88; }
 .modal-btn--danger { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+.modal-btn--danger:not(:disabled):hover { background: #fee2e2; }
 
 /* ── Form inputs (modal + settings) ── */
 .modal-field { display: flex; flex-direction: column; gap: 0.3rem; }

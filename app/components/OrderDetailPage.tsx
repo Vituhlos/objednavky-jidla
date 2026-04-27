@@ -137,7 +137,7 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
           )}
           {canReopen && (
             <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft text-slate-600"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-full glass-soft text-slate-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
               disabled={pending}
               onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
               type="button"
@@ -169,7 +169,7 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
           {order.sentAt && <span className="text-[11px] text-slate-500">{formatSentAt(order.sentAt)}</span>}
           {canReopen && (
             <button
-              className="ml-auto text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600"
+              className="ml-auto text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-soft text-slate-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
               disabled={pending}
               onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
               type="button"

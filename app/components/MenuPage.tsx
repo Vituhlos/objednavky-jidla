@@ -114,7 +114,7 @@ function MenuSection({
         <span className="font-display font-bold text-[13.5px] text-slate-900 flex-1">{title}</span>
         {editMode && onAdd && (
           <button
-            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white"
+            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
             disabled={disabled}
             onClick={onAdd}
             style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
@@ -361,7 +361,7 @@ export default function MenuPage({
         <div className="ml-auto flex items-center gap-2">
           {activeWeek === "current" && (
             <button
-              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft ${editMode ? "text-amber-600" : "text-slate-600"}`}
+              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-amber-600" : "text-slate-600"}`}
               onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
               type="button"
             >
@@ -380,7 +380,7 @@ export default function MenuPage({
             </button>
           )}
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft text-slate-600"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft text-slate-600 hover:bg-white/50 active:scale-[0.97] transition"
             onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
             type="button"
           >
@@ -395,7 +395,7 @@ export default function MenuPage({
           <span className="font-display font-bold text-[14px] text-slate-900 flex-1">Jídelníček LIMA</span>
           {activeWeekLabel && <span className="text-[11px] text-slate-500">{activeWeekLabel}</span>}
           <button
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600 hover:bg-white/50 active:scale-[0.97] transition"
             onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
             type="button"
           >
@@ -429,7 +429,7 @@ export default function MenuPage({
         )}
         {activeWeek === "current" && (
           <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft ${editMode ? "text-amber-600" : "text-slate-600"}`}
+            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-amber-600" : "text-slate-600"}`}
             onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
             type="button"
           >

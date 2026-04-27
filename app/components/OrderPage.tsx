@@ -436,7 +436,7 @@ export default function OrderPage({
               type="email"
             />
             <button
-              className="px-4 py-1.5 rounded-xl text-[12.5px] font-semibold text-white disabled:opacity-50"
+              className="px-4 py-1.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               disabled={isPending}
               onClick={() => setShowSendConfirm(true)}
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
@@ -448,7 +448,7 @@ export default function OrderPage({
         )}
         {isSent && (
           <button
-            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-slate-600 disabled:opacity-50"
+            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-slate-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
             disabled={isPending}
             onClick={handleReopen}
             type="button"
@@ -490,10 +490,10 @@ export default function OrderPage({
               type="email"
             />
             <button
-              className="shrink-0 px-4 py-1.5 rounded-xl text-[12.5px] font-semibold text-white disabled:opacity-50"
+              className="shrink-0 px-4 py-1.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               disabled={isPending}
               onClick={() => setShowSendConfirm(true)}
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
               type="button"
             >
               {isPending ? "…" : "Odeslat"}
@@ -568,7 +568,7 @@ export default function OrderPage({
             )}
             {!isSent && (
               <button
-                className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-xl glass-soft text-slate-500"
+                className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-soft text-slate-500 hover:bg-white/50 active:scale-[0.97] transition"
                 onClick={() => setClearConfirm(true)}
                 type="button"
               >
@@ -577,7 +577,7 @@ export default function OrderPage({
             )}
             {isSent && (
               <button
-                className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-slate-600 disabled:opacity-50"
+                className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-slate-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
                 disabled={isPending}
                 onClick={handleReopen}
                 type="button"
