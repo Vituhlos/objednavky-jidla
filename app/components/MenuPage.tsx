@@ -87,7 +87,7 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
           <h4 className="font-display font-bold text-[12px] text-slate-700 mb-2">{DAY_LABELS[day]}</h4>
           {byDay[day].soups.length > 0 && (
             <div className="mb-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Polévky</p>
+              <p className="font-display text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Polévky</p>
               {byDay[day].soups.map((s, i) => (
                 <p className="text-[12px] text-slate-700 py-0.5" key={i}>
                   <span className="font-mono text-[10px] text-slate-400 mr-1">{s.code}</span>{s.name}
@@ -97,7 +97,7 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
           )}
           {byDay[day].meals.length > 0 && (
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Jídla</p>
+              <p className="font-display text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Jídla</p>
               {byDay[day].meals.map((m, i) => (
                 <p className="text-[12px] text-slate-700 py-0.5" key={i}>
                   <span className="font-mono text-[10px] text-slate-400 mr-1">{m.code}</span>{m.name}
@@ -155,7 +155,7 @@ function WeekGrid({
                 {(soups.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">Polévky</span>
+                      <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-slate-500">Polévky</span>
                       {editMode && (
                         <button
                           className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
@@ -177,7 +177,7 @@ function WeekGrid({
                 {(meals.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">Jídla</span>
+                      <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-slate-500">Jídla</span>
                       {editMode && (
                         <button
                           className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"

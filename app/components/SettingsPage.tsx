@@ -647,11 +647,11 @@ export default function SettingsPage({
                   <table className="w-full text-[12px]">
                     <thead>
                       <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                        <th className="text-left px-4 py-2 font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide">Čas</th>
-                        <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide">Akce</th>
-                        <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
-                        <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
-                        <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
+                        <th className="text-left px-4 py-2 font-display font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide">Čas</th>
+                        <th className="text-left px-3 py-2 font-display font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide">Akce</th>
+                        <th className="text-left px-3 py-2 font-display font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
+                        <th className="text-left px-3 py-2 font-display font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
+                        <th className="text-left px-3 py-2 font-display font-semibold text-slate-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
                       </tr>
                     </thead>
                     <tbody>

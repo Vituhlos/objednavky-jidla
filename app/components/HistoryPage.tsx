@@ -120,11 +120,11 @@ export default function HistoryPage({
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
+                    <th className="text-left px-4 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -165,10 +165,10 @@ export default function HistoryPage({
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="text-left px-4 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
