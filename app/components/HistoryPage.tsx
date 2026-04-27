@@ -120,11 +120,11 @@ export default function HistoryPage({
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
+                    <th className="text-left px-4 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -137,7 +137,7 @@ export default function HistoryPage({
                       <td className="px-3 py-2.5 text-slate-500 hidden sm:table-cell">{order.rowCount}</td>
                       <td className="px-3 py-2.5 text-slate-500 hidden md:table-cell">{order.extraEmail ?? "–"}</td>
                       <td className="px-3 py-2.5">
-                        <Link className="text-amber-600 hover:text-amber-700 font-semibold text-[12px]" href={`/historie/${order.id}`}>
+                        <Link className="text-slate-600 hover:text-slate-900 font-semibold text-[12px] transition" href={`/historie/${order.id}`}>
                           Detail →
                         </Link>
                       </td>
@@ -165,10 +165,10 @@ export default function HistoryPage({
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="text-left px-4 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -180,7 +180,7 @@ export default function HistoryPage({
                       <td className="px-3 py-2.5 text-slate-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
                       <td className="px-3 py-2.5 text-slate-500 hidden sm:table-cell">{order.rowCount}</td>
                       <td className="px-3 py-2.5">
-                        <Link className="text-amber-600 hover:text-amber-700 font-semibold text-[12px]" href={`/historie/pizza/${order.id}`}>
+                        <Link className="text-slate-600 hover:text-slate-900 font-semibold text-[12px] transition" href={`/historie/pizza/${order.id}`}>
                           Detail →
                         </Link>
                       </td>

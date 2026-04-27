@@ -95,10 +95,10 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
         {(chips.length > 0 || row.note) && (
           <div className="flex flex-wrap gap-1 mt-1">
             {chips.map((c) => (
-              <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">{c}</span>
+              <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-slate-600 border border-slate-200/70">{c}</span>
             ))}
             {row.note && (
-              <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100" title={row.note}>✎ {row.note}</span>
+              <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-slate-600 border border-slate-200/70" title={row.note}>✎ {row.note}</span>
             )}
           </div>
         )}

@@ -513,7 +513,7 @@ export default function OrderPage({
               <span className="text-slate-700">
                 <strong>Jídelníček není naplněný.</strong>{" "}
                 Přejděte do{" "}
-                <a href="/jidelnicek" className="underline text-amber-700">Jídelníčku</a>
+                <a href="/jidelnicek" className="underline text-slate-700 hover:text-slate-900">Jídelníčku</a>
                 {" "}a importujte PDF nebo přidejte položky ručně.
               </span>
             </div>

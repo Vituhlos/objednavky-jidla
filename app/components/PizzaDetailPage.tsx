@@ -123,7 +123,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
             <div className="px-4 py-6 text-[13px] text-slate-400 text-center">Žádné řádky v objednávce.</div>
           ) : (
             <>
-              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 text-[10px] uppercase tracking-wide text-slate-400 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 60px 80px 80px", background: "rgba(255,255,255,0.3)" }}>
+              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 text-[10px] uppercase tracking-wide text-slate-500 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 60px 80px 80px", background: "rgba(255,255,255,0.3)" }}>
                 <span>#</span>
                 <span>Jméno</span>
                 <span>Pizza</span>
@@ -175,7 +175,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
             <div className="p-4">
               {pizzaCounts.size > 0 && (
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-2">Pizzy</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Pizzy</p>
                   {[...pizzaCounts.entries()].map(([k, v]) => (
                     <p key={k} className="text-[12.5px] text-slate-700 py-0.5">
                       <strong className="text-slate-900">{v}×</strong> {k}

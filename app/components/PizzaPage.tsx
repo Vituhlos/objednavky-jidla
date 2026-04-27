@@ -106,7 +106,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         <span className="font-display font-bold text-[15px] text-slate-900">Pizza</span>
         {totalCount > 0 && (
           <span className="text-[12px] text-slate-600">
-            <strong>{totalCount} ks</strong> · <strong className="text-amber-600">{totals.finalTotal} Kč</strong>
+            <strong>{totalCount} ks</strong> · <strong className="text-slate-800">{totals.finalTotal} Kč</strong>
             {totals.pricePerPizza > 0 && ` · ${totals.pricePerPizza} Kč/ks`}
           </span>
         )}
@@ -130,7 +130,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-slate-900 flex-1">Pizza</span>
           {totalCount > 0 && (
-            <span className="text-[12px] text-amber-600 font-semibold">{totalCount} ks · {totals.finalTotal} Kč</span>
+            <span className="text-[12px] text-slate-700 font-semibold">{totalCount} ks · {totals.finalTotal} Kč</span>
           )}
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5">
@@ -149,7 +149,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
       </div>
 
       {pizzaItems.length === 0 && (
-        <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-amber-200/60 text-[12.5px] text-amber-800">
+        <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-slate-200/60 text-[12.5px] text-slate-700">
           <strong>Ceník není načten.</strong>{" "}
           Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
         </div>
@@ -184,7 +184,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             </div>
           ) : (
             <>
-              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 text-[10px] uppercase tracking-wide text-slate-400 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 90px 80px 80px 32px", background: "rgba(255,255,255,0.3)" }}>
+              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 text-[10px] uppercase tracking-wide text-slate-500 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 90px 80px 80px 32px", background: "rgba(255,255,255,0.3)" }}>
                 <span>#</span>
                 <span>Jméno</span>
                 <span>Pizza</span>
@@ -227,7 +227,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             <div className="p-4 grid grid-cols-1 gap-4">
               {pizzaCounts.size > 0 && (
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-2">Pizzy</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Pizzy</p>
                   {[...pizzaCounts.entries()].map(([k, v]) => (
                     <p key={k} className="text-[12.5px] text-slate-700 py-0.5">
                       <strong className="text-slate-900">{v}×</strong> {k}
@@ -238,7 +238,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
               )}
               {pizzaItems.length > 0 && (
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-2">Ceník</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Ceník</p>
                   {pizzaItems.map((item) => (
                     <p key={item.id} className="text-[12px] text-slate-600 py-0.5">
                       <strong className="text-slate-800">{item.code}.</strong> {item.name} – {item.price} Kč

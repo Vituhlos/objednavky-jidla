@@ -334,7 +334,7 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-display font-semibold text-[13px] text-slate-900 leading-none">{row.personName || "—"}</span>
           {row.note && (
-            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 max-w-[120px] truncate" title={row.note}>
+            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-slate-600 border border-slate-200/70 max-w-[120px] truncate" title={row.note}>
               ✎ {row.note}
             </span>
           )}

@@ -87,7 +87,7 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
           <h4 className="font-display font-bold text-[12px] text-slate-700 mb-2">{DAY_LABELS[day]}</h4>
           {byDay[day].soups.length > 0 && (
             <div className="mb-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Polévky</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Polévky</p>
               {byDay[day].soups.map((s, i) => (
                 <p className="text-[12px] text-slate-700 py-0.5" key={i}>
                   <span className="font-mono text-[10px] text-slate-400 mr-1">{s.code}</span>{s.name}
@@ -97,7 +97,7 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
           )}
           {byDay[day].meals.length > 0 && (
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Jídla</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Jídla</p>
               {byDay[day].meals.map((m, i) => (
                 <p className="text-[12px] text-slate-700 py-0.5" key={i}>
                   <span className="font-mono text-[10px] text-slate-400 mr-1">{m.code}</span>{m.name}
@@ -140,7 +140,7 @@ function WeekGrid({
             {/* Day header */}
             <div className="px-3 pt-3 pb-2.5 border-b border-white/40">
               <div className="flex items-start justify-between gap-1">
-                <span className={`font-display font-bold text-[28px] leading-none ${isToday ? "text-amber-700" : "text-slate-800"}`}>{dayDates[day]}</span>
+                <span className="font-display font-bold text-[28px] leading-none text-slate-900">{dayDates[day]}</span>
                 {isToday && (
                   <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mt-0.5 shrink-0" style={{ background: "rgba(245,158,11,0.25)", color: "#92400E" }}>Dnes</span>
                 )}
@@ -156,7 +156,7 @@ function WeekGrid({
                 {(soups.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">Polévky</span>
+                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">Polévky</span>
                       {editMode && (
                         <button
                           className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
@@ -178,7 +178,7 @@ function WeekGrid({
                 {(meals.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">Jídla</span>
+                      <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">Jídla</span>
                       {editMode && (
                         <button
                           className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
@@ -538,7 +538,7 @@ export default function MenuPage({
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-slate-900">Jídelníček LIMA</span>
         {activeWeekLabel && (
-          <span className="text-[12px] text-slate-500">Týden <strong className="text-amber-600">{activeWeekLabel}</strong></span>
+          <span className="text-[12px] text-slate-500">Týden <strong className="text-slate-700">{activeWeekLabel}</strong></span>
         )}
         {hasPdfActive && (
           <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-slate-600"
@@ -549,7 +549,7 @@ export default function MenuPage({
         <div className="ml-auto flex items-center gap-2">
           {activeWeek === "current" && (
             <button
-              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-amber-600" : "text-slate-600"}`}
+              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-slate-900" : "text-slate-600"}`}
               onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
               type="button"
             >
@@ -617,7 +617,7 @@ export default function MenuPage({
         )}
         {activeWeek === "current" && (
           <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-amber-600" : "text-slate-600"}`}
+            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft hover:bg-white/50 active:scale-[0.97] transition ${editMode ? "text-slate-900" : "text-slate-600"}`}
             onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
             type="button"
           >
