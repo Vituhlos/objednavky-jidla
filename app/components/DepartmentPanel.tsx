@@ -342,21 +342,35 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
           {row.mainItem && (
             <span className="text-[11.5px] text-slate-600 leading-snug">
-              {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}{row.mainItem.name}
+              {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
+              {row.mainItem.code && <span className="font-mono text-[10.5px] text-slate-400 mr-0.5">{row.mainItem.code}</span>}
+              {row.mainItem.name}
             </span>
           )}
           {row.extraMealItems.map((e, i) => (
             <span key={i} className="text-[11.5px] text-slate-600 leading-snug">
               <span className="text-slate-300 mx-0.5">+</span>
-              {e.count > 1 ? `${e.count}× ` : ""}{e.item.name}
+              {e.count > 1 ? `${e.count}× ` : ""}
+              {e.item.code && <span className="font-mono text-[10.5px] text-slate-400 mr-0.5">{e.item.code}</span>}
+              {e.item.name}
             </span>
           ))}
           {(row.mainItem || row.extraMealItems.length > 0) && row.soupItem && (
             <span className="text-slate-300 text-[11px]">·</span>
           )}
-          {row.soupItem && <span className="text-[11.5px] text-slate-500 leading-snug">{row.soupItem.name}</span>}
+          {row.soupItem && (
+            <span className="text-[11.5px] text-slate-500 leading-snug">
+              {row.soupItem.code && <span className="font-mono text-[10.5px] text-slate-400 mr-0.5">{row.soupItem.code}</span>}
+              {row.soupItem.name}
+            </span>
+          )}
           {row.soupItem && row.soupItem2 && <span className="text-slate-300 text-[11px]">+</span>}
-          {row.soupItem2 && <span className="text-[11.5px] text-slate-500 leading-snug">{row.soupItem2.name}</span>}
+          {row.soupItem2 && (
+            <span className="text-[11.5px] text-slate-500 leading-snug">
+              {row.soupItem2.code && <span className="font-mono text-[10.5px] text-slate-400 mr-0.5">{row.soupItem2.code}</span>}
+              {row.soupItem2.name}
+            </span>
+          )}
           {!row.mainItem && !row.soupItem && <span className="text-[11.5px] text-slate-400">—</span>}
           {chips.map((c) => (
             <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-slate-500">{c}</span>

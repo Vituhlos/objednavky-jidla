@@ -75,18 +75,21 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
         {row.mainItem && (
           <div className="text-[12px] text-slate-600 mt-0.5">
             {(row.mealCount || 1) > 1 && <strong className="text-slate-800">{row.mealCount}× </strong>}
+            {row.mainItem.code && <span className="font-mono text-[10.5px] text-slate-400 mr-0.5">{row.mainItem.code}</span>}
             {row.mainItem.name}
             {row.extraMealItems.map((em, i) => (
               <span key={i} className="block text-[11.5px] text-slate-400">
-                {em.count > 1 && <strong>{em.count}× </strong>}{em.item.name}
+                {em.count > 1 && <strong>{em.count}× </strong>}
+                {em.item.code && <span className="font-mono text-[10px] mr-0.5">{em.item.code}</span>}
+                {em.item.name}
               </span>
             ))}
           </div>
         )}
         {row.soupItem && (
           <div className="text-[11.5px] text-slate-500 mt-0.5">
-            Polévka: {row.soupItem.name}
-            {row.soupItem2 && <span className="text-slate-400"> · {row.soupItem2.name}</span>}
+            Polévka: {row.soupItem.code && <span className="font-mono text-[10.5px] mr-0.5">{row.soupItem.code}</span>}{row.soupItem.name}
+            {row.soupItem2 && <span className="text-slate-400"> · {row.soupItem2.code && <span className="font-mono text-[10.5px]">{row.soupItem2.code}</span>} {row.soupItem2.name}</span>}
           </div>
         )}
         {(chips.length > 0 || row.note) && (
