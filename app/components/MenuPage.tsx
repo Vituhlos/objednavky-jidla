@@ -135,14 +135,13 @@ function WeekGrid({
           <div
             key={day}
             className="glass rounded-3xl overflow-hidden"
-            style={isToday ? { boxShadow: "0 0 0 2px rgba(245,158,11,0.45)" } : {}}
           >
             {/* Day header */}
             <div className="px-3 pt-3 pb-2.5 border-b border-white/40">
               <div className="flex items-start justify-between gap-1">
                 <span className="font-display font-bold text-[28px] leading-none text-slate-900">{dayDates[day]}</span>
                 {isToday && (
-                  <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mt-0.5 shrink-0" style={{ background: "rgba(245,158,11,0.25)", color: "#92400E" }}>Dnes</span>
+                  <span className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ background: "rgba(245,158,11,0.7)" }} />
                 )}
               </div>
               <span className="text-[12px] font-semibold mt-0.5 block text-slate-500">{DAY_LABELS[day]}</span>
