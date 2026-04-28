@@ -542,7 +542,7 @@ export default function MenuPage({
           <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
         )}
         {hasPdfActive && (
-          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 hover:bg-white/70 active:scale-[0.97] transition"
+          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
             download href={`/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
