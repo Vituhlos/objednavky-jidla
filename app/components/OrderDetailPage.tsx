@@ -154,7 +154,7 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <Link className="text-[12px] text-stone-400" href="/historie">←</Link>
+          <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">←</Link>
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">
             Objednávka {formatDate(order.date)}
           </span>

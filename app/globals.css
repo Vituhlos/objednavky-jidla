@@ -188,7 +188,10 @@ body {
   border-radius: 9999px; border: 1px solid rgba(255,255,255,0.4);
   background: transparent; color: white; font-size: 0.78rem;
   font-weight: 600; cursor: pointer;
+  transition: background .15s, transform .12s;
 }
+.k-toast__undo:hover { background: rgba(255,255,255,0.15); }
+.k-toast__undo:active { transform: scale(0.96); }
 
 /* ── Offline banner ── */
 .k-offline {
@@ -335,7 +338,10 @@ body {
 .modal-add-second {
   align-self: flex-start; font-size: 0.78rem; font-weight: 600;
   color: #374151; background: none; border: none; cursor: pointer; padding: 0.1rem 0;
+  transition: color .15s, opacity .15s;
 }
+.modal-add-second:hover { color: var(--ink); }
+.modal-add-second:active { opacity: 0.7; }
 .modal-extras { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.65); }
 .modal-stepper { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.5); }
 .modal-stepper:last-child { border-bottom: none; }
@@ -347,8 +353,10 @@ body {
   background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.65);
   font-size: 1rem; font-weight: 700; cursor: pointer; color: var(--ink-2);
   display: inline-flex; align-items: center; justify-content: center;
-  transition: opacity .15s;
+  transition: background .15s, transform .12s, opacity .15s;
 }
+.stepper-btn:not(:disabled):hover { background: rgba(255,255,255,0.88); }
+.stepper-btn:not(:disabled):active { transform: scale(0.93); }
 .stepper-btn:disabled { opacity: 0.3; cursor: default; }
 .stepper-count { min-width: 20px; text-align: center; font-family: var(--font-jakarta); font-weight: 700; font-size: 0.875rem; color: var(--ink); }
 .modal-count-stepper { display: flex; align-items: center; gap: 0.3rem; }
@@ -357,7 +365,10 @@ body {
   background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.65);
   font-size: 0.875rem; font-weight: 700; cursor: pointer; color: var(--ink-2);
   display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s, transform .12s;
 }
+.modal-count-btn:not(:disabled):hover { background: rgba(255,255,255,0.88); }
+.modal-count-btn:not(:disabled):active { transform: scale(0.93); }
 .modal-count-btn:disabled { opacity: 0.3; cursor: default; }
 .modal-count-val { font-family: var(--font-jakarta); font-weight: 700; font-size: 0.8125rem; color: var(--ink); min-width: 24px; text-align: center; }
 

@@ -540,7 +540,7 @@ export default function MenuPage({
           <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
         )}
         {hasPdfActive && (
-          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600"
+          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 hover:bg-white/70 active:scale-[0.97] transition"
             download href={`/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
@@ -557,7 +557,7 @@ export default function MenuPage({
           )}
           {activeWeek === "next" && hasNextWeek && (
             <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl text-red-600"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl text-red-600 hover:opacity-90 active:scale-[0.97] transition disabled:opacity-50"
               style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}
               disabled={isPending}
               onClick={() => setConfirmDeleteNext(true)}
@@ -593,21 +593,23 @@ export default function MenuPage({
 
       {/* Week tabs */}
       <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">
-        {(["current", "next"] as const).map((week) => {
-          const active = activeWeek === week;
-          const label = week === "current" ? "Aktuální týden" : "Příští týden";
-          return (
-            <button
-              key={week}
-              className="text-[12px] font-semibold px-3 py-1.5 rounded-xl transition"
-              onClick={() => handleWeekSwitch(week)}
-              style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white" } : {}}
-              type="button"
-            >
-              <span className={active ? "text-white" : "text-stone-500"}>{label}</span>
-            </button>
-          );
-        })}
+        <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
+          {(["current", "next"] as const).map((week) => {
+            const active = activeWeek === week;
+            const label = week === "current" ? "Aktuální týden" : "Příští týden";
+            return (
+              <button
+                key={week}
+                className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-[0.97] ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
+                onClick={() => handleWeekSwitch(week)}
+                style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
+                type="button"
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
         {hasPdfActive && (
           <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 md:hidden"
             download href={`/api/menu/pdf/${activeWeekStart}`}>
