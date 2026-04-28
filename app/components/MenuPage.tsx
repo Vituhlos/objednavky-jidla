@@ -548,7 +548,7 @@ export default function MenuPage({
         <div className="ml-auto flex items-center gap-2">
           {activeWeek === "current" && (
             <button
-              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft hover:bg-white/80 active:scale-[0.97] transition ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
               onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
               type="button"
             >
@@ -567,7 +567,7 @@ export default function MenuPage({
             </button>
           )}
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-soft text-stone-600 hover:bg-white/80 active:scale-[0.97] transition"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
             onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
             type="button"
           >
@@ -582,7 +582,7 @@ export default function MenuPage({
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
           {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
           <button
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 hover:bg-white/80 active:scale-[0.97] transition"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
             onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
             type="button"
           >
@@ -618,7 +618,7 @@ export default function MenuPage({
         )}
         {activeWeek === "current" && (
           <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft hover:bg-white/80 active:scale-[0.97] transition ${editMode ? "text-stone-900" : "text-stone-600"}`}
+            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
             onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
             type="button"
           >

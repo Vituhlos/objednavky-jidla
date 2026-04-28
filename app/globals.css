@@ -72,6 +72,23 @@ body {
   border: 1px solid rgba(255,255,255,0.68);
   box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 8px 22px -10px rgba(26,18,8,0.09);
 }
+.glass-btn {
+  position: relative;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.68);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 8px 22px -10px rgba(26,18,8,0.09);
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s, transform .12s;
+}
+.glass-btn:not(:disabled):hover {
+  background: rgba(255,255,255,0.85);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.95) inset, 0 6px 20px -8px rgba(26,18,8,0.14);
+}
+.glass-btn:not(:disabled):active { transform: scale(0.97); }
+.glass-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .glass-dim {
   position: relative;
   background: rgba(26,18,8,0.28);
