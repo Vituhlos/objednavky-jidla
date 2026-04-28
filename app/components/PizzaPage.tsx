@@ -137,7 +137,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
           {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
           <button
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 shrink-0 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
+            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-soft text-stone-600 shrink-0 disabled:opacity-50 hover:bg-white/80 active:scale-[0.97] transition"
             disabled={isPending}
             onClick={handleScrape}
             type="button"

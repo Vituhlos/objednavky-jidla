@@ -597,7 +597,7 @@ export default function SettingsPage({
                 </div>
               ) : (
                 <button
-                  className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-stone-600 hover:bg-white/50 active:scale-[0.97] transition"
+                  className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-stone-600 hover:bg-white/80 active:scale-[0.97] transition"
                   onClick={() => setShowAddDept(true)}
                   type="button"
                 >

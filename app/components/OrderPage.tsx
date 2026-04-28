@@ -448,7 +448,7 @@ export default function OrderPage({
         )}
         {isSent && (
           <button
-            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-stone-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
+            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-stone-600 disabled:opacity-50 hover:bg-white/80 active:scale-[0.97] transition"
             disabled={isPending}
             onClick={handleReopen}
             type="button"
@@ -568,7 +568,7 @@ export default function OrderPage({
             )}
             {!isSent && (
               <button
-                className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-soft text-stone-500 hover:bg-white/50 active:scale-[0.97] transition"
+                className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-soft text-stone-500 hover:bg-white/80 active:scale-[0.97] transition"
                 onClick={() => setClearConfirm(true)}
                 type="button"
               >
@@ -577,7 +577,7 @@ export default function OrderPage({
             )}
             {isSent && (
               <button
-                className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-stone-600 disabled:opacity-50 hover:bg-white/50 active:scale-[0.97] transition"
+                className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-soft text-stone-600 disabled:opacity-50 hover:bg-white/80 active:scale-[0.97] transition"
                 disabled={isPending}
                 onClick={handleReopen}
                 type="button"
