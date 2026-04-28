@@ -130,7 +130,10 @@ function WeekGrid({
       {DAY_ORDER.map((day) => {
         const isToday = day === todayCode;
         const { soups = [], meals = [] } = menu[day] ?? {};
-        const hasItems = soups.length > 0 || meals.length > 0;
+        const isClosed = [...soups, ...meals].every(i => i.name === "Zavřeno") && (soups.length + meals.length) > 0;
+        const displaySoups = soups.filter(i => i.name !== "Zavřeno");
+        const displayMeals = meals.filter(i => i.name !== "Zavřeno");
+        const hasItems = displaySoups.length > 0 || displayMeals.length > 0;
         return (
           <div
             key={day}
@@ -159,12 +162,21 @@ function WeekGrid({
               <span className="text-[12px] font-semibold mt-0.5 block text-stone-500">{DAY_LABELS[day]}</span>
             </div>
 
-            {!hasItems && !editMode ? (
+            {isClosed ? (
+              <div className="px-3 py-5 flex items-center justify-center">
+                <span
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-stone-400"
+                  style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
+                >
+                  Zavřeno
+                </span>
+              </div>
+            ) : !hasItems && !editMode ? (
               <div className="px-3 py-5 text-[11.5px] text-stone-300 text-center">–</div>
             ) : (
               <div className="px-3 py-2.5 space-y-3">
                 {/* Soups */}
-                {(soups.length > 0 || editMode) && (
+                {(displaySoups.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.6)" }} />
@@ -180,14 +192,14 @@ function WeekGrid({
                         >+</button>
                       )}
                     </div>
-                    {soups.map((item) => (
+                    {displaySoups.map((item) => (
                       <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
                     ))}
-                    {soups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
+                    {displaySoups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
                 )}
                 {/* Meals */}
-                {(meals.length > 0 || editMode) && (
+                {(displayMeals.length > 0 || editMode) && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "rgba(234,88,12,0.55)" }} />
@@ -203,10 +215,10 @@ function WeekGrid({
                         >+</button>
                       )}
                     </div>
-                    {meals.map((item) => (
+                    {displayMeals.map((item) => (
                       <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
                     ))}
-                    {meals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
+                    {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
                 )}
               </div>
@@ -533,6 +545,9 @@ export default function MenuPage({
 
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
   const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
+  const isDayClosed = [...dayMenu.soups, ...dayMenu.meals].every(i => i.name === "Zavřeno") && (dayMenu.soups.length + dayMenu.meals.length) > 0;
+  const displayDaySoups = dayMenu.soups.filter(i => i.name !== "Zavřeno");
+  const displayDayMeals = dayMenu.meals.filter(i => i.name !== "Zavřeno");
   const isReadOnly = activeWeek === "next";
 
   const dayDates: Record<string, number> = {};
@@ -684,32 +699,45 @@ export default function MenuPage({
       <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-28">
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
-          <MenuSection
-            accent="rgba(245,158,11,0.12)"
-            disabled={isPending}
-            editMode={!isReadOnly && editMode}
-            emptyLabel="Žádné polévky pro tento den."
-            icon="restaurant"
-            iconColor="#D97706"
-            items={dayMenu.soups}
-            onAdd={() => handleAdd(activeDay, "Polévka")}
-            onDelete={(id) => setConfirmDeleteItemId(id)}
-            onUpdate={handleUpdate}
-            title="Polévky"
-          />
-          <MenuSection
-            accent="rgba(234,88,12,0.1)"
-            disabled={isPending}
-            editMode={!isReadOnly && editMode}
-            emptyLabel="Žádná jídla pro tento den."
-            icon="restaurant_menu"
-            iconColor="#EA580C"
-            items={dayMenu.meals}
-            onAdd={() => handleAdd(activeDay, "Jídlo")}
-            onDelete={(id) => setConfirmDeleteItemId(id)}
-            onUpdate={handleUpdate}
-            title="Jídla"
-          />
+          {isDayClosed ? (
+            <div className="flex items-center justify-center py-8">
+              <span
+                className="text-[12px] font-semibold px-3 py-1.5 rounded-full text-stone-400"
+                style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
+              >
+                Zavřeno
+              </span>
+            </div>
+          ) : (
+            <>
+              <MenuSection
+                accent="rgba(245,158,11,0.12)"
+                disabled={isPending}
+                editMode={!isReadOnly && editMode}
+                emptyLabel="Žádné polévky pro tento den."
+                icon="restaurant"
+                iconColor="#D97706"
+                items={displayDaySoups}
+                onAdd={() => handleAdd(activeDay, "Polévka")}
+                onDelete={(id) => setConfirmDeleteItemId(id)}
+                onUpdate={handleUpdate}
+                title="Polévky"
+              />
+              <MenuSection
+                accent="rgba(234,88,12,0.1)"
+                disabled={isPending}
+                editMode={!isReadOnly && editMode}
+                emptyLabel="Žádná jídla pro tento den."
+                icon="restaurant_menu"
+                iconColor="#EA580C"
+                items={displayDayMeals}
+                onAdd={() => handleAdd(activeDay, "Jídlo")}
+                onDelete={(id) => setConfirmDeleteItemId(id)}
+                onUpdate={handleUpdate}
+                title="Jídla"
+              />
+            </>
+          )}
         </div>
       </div>
 
