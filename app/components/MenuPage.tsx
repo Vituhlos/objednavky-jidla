@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition, useCallback, useEffect } from "react";
+import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
 import type { ParsedMenuItem, ParseResult } from "@/lib/parse-menu";
 import {
@@ -65,7 +66,9 @@ interface Props {
   currentMenu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   currentWeekLabel: string | null;
   currentWeekStart: string;
+  currentHolidayNames: Record<string, string | null>;
   nextMenu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
+  nextHolidayNames: Record<string, string | null>;
   nextWeekLabel: string | null;
   nextWeekStart: string;
   todayCode: string | null;
@@ -124,11 +127,12 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 function WeekGrid({
-  menu, dayDates, todayCode, editMode, disabled, onAdd, onDelete, onUpdate,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, onAdd, onDelete, onUpdate,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
   todayCode: string | null;
+  holidayNames: Record<string, string | null>;
   editMode: boolean;
   disabled: boolean;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
@@ -140,6 +144,8 @@ function WeekGrid({
       {DAY_ORDER.map((day) => {
         const isToday = day === todayCode;
         const { soups = [], meals = [] } = menu[day] ?? {};
+        const holidayName = holidayNames[day];
+        const holidayEmoji = getHolidayEmoji(holidayName);
         const isClosed = [...soups, ...meals].every(i => i.name === "Zavřeno") && (soups.length + meals.length) > 0;
         const displaySoups = soups.filter(i => i.name !== "Zavřeno");
         const displayMeals = meals.filter(i => i.name !== "Zavřeno");
@@ -173,13 +179,35 @@ function WeekGrid({
             </div>
 
             {isClosed ? (
-              <div className="px-3 py-5 flex items-center justify-center">
-                <span
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-stone-400"
-                  style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
-                >
-                  Zavřeno
-                </span>
+              <div className="px-3 py-3">
+                {holidayName ? (
+                  <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.14)" }}>
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-white/40">
+                      <div
+                        className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(245,158,11,0.14)" }}
+                      >
+                        <span className="text-[16px] leading-none">{holidayEmoji}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-display font-bold text-[12px] text-stone-900 leading-none">{holidayName}</div>
+                        <div className="text-[10.5px] text-stone-500 mt-0.5">Svátek / zavřeno</div>
+                      </div>
+                    </div>
+                    <div className="px-3 py-2.5 text-[11px] text-stone-600 leading-snug">
+                      V tento den jídelníček neprobíhá.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-2.5">
+                    <span
+                      className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-stone-400"
+                      style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
+                    >
+                      Zavřeno
+                    </span>
+                  </div>
+                )}
               </div>
             ) : !hasItems && !editMode ? (
               <div className="px-3 py-5 text-[11.5px] text-stone-300 text-center">–</div>
@@ -404,9 +432,11 @@ export default function MenuPage({
   currentWeekLabel,
   currentWeekStart,
   nextMenu: initialNextMenu,
+  nextHolidayNames,
   nextWeekLabel,
   nextWeekStart,
   todayCode,
+  currentHolidayNames,
   hasPdfCurrent,
   hasPdfNext,
 }: Props) {
@@ -432,6 +462,7 @@ export default function MenuPage({
   const activeWeekLabel = activeWeek === "current" ? currentWeekLabel : nextWeekLabel;
   const hasPdfActive = activeWeek === "current" ? hasPdfCurrent : hasPdfNext;
   const activeMenu = activeWeek === "current" ? currentMenu : initialNextMenu;
+  const activeHolidayNames = activeWeek === "current" ? currentHolidayNames : nextHolidayNames;
   const visibleTodayCode = activeWeek === "current" ? todayCode : null;
   const [activeDay, setActiveDay] = useState<string>(() => resolveActiveDay(activeMenu, visibleTodayCode));
 
@@ -557,6 +588,8 @@ export default function MenuPage({
 
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
   const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
+  const activeHolidayName = activeHolidayNames[activeDay];
+  const activeHolidayEmoji = getHolidayEmoji(activeHolidayName);
   const isDayClosed = [...dayMenu.soups, ...dayMenu.meals].every(i => i.name === "Zavřeno") && (dayMenu.soups.length + dayMenu.meals.length) > 0;
   const displayDaySoups = dayMenu.soups.filter(i => i.name !== "Zavřeno");
   const displayDayMeals = dayMenu.meals.filter(i => i.name !== "Zavřeno");
@@ -699,6 +732,7 @@ export default function MenuPage({
           dayDates={dayDates}
           disabled={isPending}
           editMode={!isReadOnly && editMode}
+          holidayNames={activeHolidayNames}
           menu={activeMenu}
           onAdd={(day, type) => handleAdd(day, type)}
           onDelete={(id) => setConfirmDeleteItemId(id)}
@@ -712,13 +746,44 @@ export default function MenuPage({
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
           {isDayClosed ? (
-            <div className="flex items-center justify-center py-8">
-              <span
-                className="text-[12px] font-semibold px-3 py-1.5 rounded-full text-stone-400"
-                style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
+            <div className="glass rounded-3xl overflow-hidden">
+              <div
+                className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40"
+                style={{ background: "rgba(245,158,11,0.08)" }}
               >
-                Zavřeno
-              </span>
+                <div
+                  className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(245,158,11,0.14)" }}
+                >
+                  {activeHolidayName ? (
+                    <span className="text-[18px] leading-none">{activeHolidayEmoji}</span>
+                  ) : (
+                    <MIcon
+                      name="event_busy"
+                      size={18}
+                      fill
+                      style={{ color: "#D97706" }}
+                    />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-display font-bold text-[13.5px] text-stone-900 leading-none">
+                    {activeHolidayName ?? "Zavřeno"}
+                  </div>
+                  <div className="text-[11.5px] text-stone-500 mt-0.5">
+                    {activeHolidayName ? "Svátek / zavřeno" : "V tento den není jídelníček k dispozici."}
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 py-6 text-center">
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-medium text-stone-600"
+                  style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(245,158,11,0.14)" }}
+                >
+                  <MIcon name="info" size={14} style={{ color: "#D97706" }} />
+                  <span>{activeHolidayName ? "V tento den se jídla nevydávají." : "Zkuste jiný den nebo doplnit menu v editaci."}</span>
+                </div>
+              </div>
             </div>
           ) : (
             <>

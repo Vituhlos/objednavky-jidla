@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -413,6 +414,7 @@ export default function OrderPage({
         .toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
         .replace(/^\w/, (c) => c.toUpperCase())
     : null;
+  const holidayEmoji = getHolidayEmoji(holidayName ?? null);
 
   useEffect(() => {
     return () => {
@@ -595,12 +597,16 @@ export default function OrderPage({
                   className="w-10 h-10 rounded-xl inline-flex items-center justify-center shrink-0"
                   style={{ background: "rgba(245,158,11,0.14)" }}
                 >
-                  <MIcon
-                    name={holidayName ? "celebration" : "event_busy"}
-                    size={20}
-                    fill
-                    style={{ color: "#D97706" }}
-                  />
+                  {holidayName ? (
+                    <span className="text-[20px] leading-none">{holidayEmoji}</span>
+                  ) : (
+                    <MIcon
+                      name="event_busy"
+                      size={20}
+                      fill
+                      style={{ color: "#D97706" }}
+                    />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-display font-bold text-[14px] text-stone-900 leading-none">
@@ -616,12 +622,16 @@ export default function OrderPage({
                   className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{ background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.5)" }}
                 >
-                  <MIcon
-                    name={holidayName ? "celebration" : "no_meals"}
-                    size={28}
-                    fill
-                    style={{ color: "white" }}
-                  />
+                  {holidayName ? (
+                    <span className="text-[28px] leading-none text-white">{holidayEmoji}</span>
+                  ) : (
+                    <MIcon
+                      name="no_meals"
+                      size={28}
+                      fill
+                      style={{ color: "white" }}
+                    />
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   <div className="font-display font-bold text-[21px] text-stone-900 leading-tight">

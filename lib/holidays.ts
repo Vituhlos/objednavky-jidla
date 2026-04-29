@@ -47,3 +47,25 @@ export function getHolidayName(iso: string): string | null {
 
   return null;
 }
+
+export function getHolidayEmoji(name: string | null): string {
+  if (!name) return "☺";
+
+  const EMOJI_MAP: Record<string, string> = {
+    "Nový rok": "🎆",
+    "Svátek práce": "🛠",
+    "Den vítězství": "🕊",
+    "Den slovanských věrozvěstů Cyrila a Metoděje": "📖",
+    "Den upálení mistra Jana Husa": "🕯",
+    "Den české státnosti": "🇨🇿",
+    "Den vzniku samostatného Československa": "🎉",
+    "Den boje za svobodu a demokracii": "🗽",
+    "Štědrý den": "🎄",
+    "1. svátek vánoční": "🎁",
+    "2. svátek vánoční": "✨",
+    "Velký pátek": "✝",
+    "Velikonoční pondělí": "🐣",
+  };
+
+  return EMOJI_MAP[name] ?? "☺";
+}
