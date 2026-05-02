@@ -55,7 +55,8 @@ export async function GET() {
   try {
     const res = await fetch("https://www.pizza-dublovice.cz/menu/pizza/", {
       headers: { "User-Agent": "Mozilla/5.0" },
-      next: { revalidate: 0 },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
       return NextResponse.json(

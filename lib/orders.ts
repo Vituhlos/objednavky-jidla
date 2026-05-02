@@ -8,9 +8,12 @@ import {
   getMenuItemById,
   getMenuItemsForDay,
   getTodayDayCode,
+  getDayCodeForISO,
+  getMondayISO,
   seedMenuIfEmpty,
   getWeekLabel,
 } from "./menu";
+import { getPragueISODate } from "./time";
 import type {
   Order,
   DepartmentData,
@@ -96,9 +99,19 @@ function enrichRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: Extr
   };
 }
 
+function getOrCreateOrderForDate(date: string): Order {
+  const db = getDb();
+  let order = db.prepare("SELECT * FROM orders WHERE date = ?").get(date) as Record<string, unknown> | undefined;
+  if (!order) {
+    const result = db.prepare("INSERT INTO orders (date, status) VALUES (?, 'draft')").run(date);
+    order = db.prepare("SELECT * FROM orders WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>;
+  }
+  return mapOrder(order);
+}
+
 function getOrCreateTodayOrder(): Order {
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getPragueISODate();
   let order = db
     .prepare("SELECT * FROM orders WHERE date = ?")
     .get(today) as Record<string, unknown> | undefined;
@@ -130,6 +143,39 @@ export function getTodayOrderData(): OrderData {
     )
     .all(order.id) as Record<string, unknown>[];
 
+  const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
+
+  const depts = getDepartments();
+  const departments: DepartmentData[] = depts.map((dept) => {
+    const deptRows = rows.filter((r) => r.department === dept.name);
+    const subtotal = deptRows.filter((r) => r.personName || r.soupItemId || r.mainItemId).reduce((s, r) => s + r.rowPrice, 0);
+    return { name: dept.name, label: dept.label, emailLabel: dept.emailLabel, accent: dept.accent, rows: deptRows, subtotal };
+  });
+
+  return {
+    order,
+    departments,
+    todayMenu,
+    totalPrice: departments.reduce((s, d) => s + d.subtotal, 0),
+    dayCode,
+  };
+}
+
+export function getOrderDataForDate(date: string): OrderData {
+  seedMenuIfEmpty(getWeekLabel());
+  const order = getOrCreateOrderForDate(date);
+  const db = getDb();
+  const { soupPrice, mealPrice, ep } = readDefaultPrices();
+
+  const dayCode = getDayCodeForISO(date);
+  const weekStart = getMondayISO(new Date(`${date}T12:00:00`));
+  const todayMenu = dayCode
+    ? getMenuItemsForDay(dayCode, weekStart)
+    : { soups: [], meals: [] };
+
+  const rawRows = db
+    .prepare("SELECT * FROM order_rows WHERE order_id = ? ORDER BY department, sort_order, id")
+    .all(order.id) as Record<string, unknown>[];
   const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
 
   const depts = getDepartments();
@@ -300,7 +346,7 @@ export function deleteOrderRow(rowId: number): void {
   if (row) logAudit({ action: "row_delete", orderId: row.order_id as number, department: row.department as string, personName: row.person_name as string });
 }
 
-export async function sendOrder(orderId: number, extraEmail?: string, source: "manual" | "auto" = "manual"): Promise<Order> {
+export async function sendOrder(orderId: number, source: "manual" | "auto" = "manual"): Promise<Order> {
   const db = getDb();
   const current = db
     .prepare("SELECT * FROM orders WHERE id = ?")
@@ -311,7 +357,8 @@ export async function sendOrder(orderId: number, extraEmail?: string, source: "m
   }
 
   const currentOrder = mapOrder(current);
-  const normalizedExtraEmail = extraEmail?.trim() || currentOrder.extraEmail || null;
+  const configuredExtraEmail = getSettings().orderExtraEmail.trim();
+  const normalizedExtraEmail = configuredExtraEmail || currentOrder.extraEmail || null;
 
   const orderData = getOrderData(orderId);
   const activeDepartments = orderData.departments.filter(isDepartmentSubmitted);
@@ -361,12 +408,6 @@ export async function sendOrder(orderId: number, extraEmail?: string, source: "m
     .get(orderId) as Record<string, unknown>;
   logAudit({ action: source === "auto" ? "auto_send" : "order_send", orderId });
   return mapOrder(order);
-}
-
-export function updateExtraEmail(orderId: number, email: string): void {
-  getDb()
-    .prepare("UPDATE orders SET extra_email = ? WHERE id = ?")
-    .run(email, orderId);
 }
 
 export interface OrderSummary {

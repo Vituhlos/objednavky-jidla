@@ -91,6 +91,27 @@ function parseWeekStart(weekLabel: string): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Single-word Czech přílohy that LIMA sometimes separates with commas instead
+// of slashes when offering a garnish alternative, e.g. "knedlík, zelí, špenát".
+const PRILOHA_ALT_WORDS = new Set([
+  "zelí", "špenát", "rýže", "kaše", "krokety", "hranolky",
+  "bramboráčky", "bramboráky", "těstoviny", "polenta", "bulgur",
+  "brambory", "knedlík",
+]);
+
+// Convert trailing comma-separated příloha alternatives to slash form so that
+// splitVariants handles them uniformly.
+// "Pečeně, bramborový knedlík, zelí, špenát" → "Pečeně, bramborový knedlík, zelí/ špenát"
+function normalizeCommaAlts(name: string): string {
+  const parts = name.split(",").map((s) => s.trim());
+  if (parts.length < 3) return name;
+  let i = parts.length - 1;
+  while (i >= 1 && PRILOHA_ALT_WORDS.has(parts[i].toLowerCase())) i--;
+  const trailingCount = parts.length - 1 - i;
+  if (trailingCount < 2) return name;
+  return parts.slice(0, i + 1).join(", ") + ", " + parts.slice(i + 1).join("/ ");
+}
+
 // Recursively split "/" variants into separate items.
 //
 // Two patterns handled:
@@ -195,7 +216,7 @@ export function parseMenuText(rawText: string): ParseResult {
     m = line.match(/^(\d+)\s+(.+)$/);
     if (m) {
       const cleaned = stripAlergeny(m[2]);
-      const expanded = expandVariants(m[1], cleaned);
+      const expanded = expandVariants(m[1], normalizeCommaAlts(cleaned));
       for (const variant of expanded) {
         items.push({ day: currentDay, type: "Jídlo", code: variant.code, name: variant.name });
       }

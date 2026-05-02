@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Objednávky LIMA",
-    short_name: "Objednávky",
+    name: "Kantýna",
+    short_name: "Kantýna",
     description: "Objednávkový systém obědů a pizzy",
     start_url: "/",
     display: "standalone",
-    background_color: "#16324a",
-    theme_color: "#ea580c",
+    background_color: "#f7f9fb",
+    theme_color: "#EA580C",
     orientation: "any",
     icons: [
       { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },

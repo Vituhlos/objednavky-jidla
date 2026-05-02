@@ -1,16 +1,41 @@
-import { getTodayOrderData } from "@/lib/orders";
+import { getOrderDataForDate } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
-import { getMenuWeekLabel } from "@/lib/menu";
+import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
+import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
+import { getPragueNow, toLocalISODate } from "@/lib/time";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const data = await getTodayOrderData();
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const params = await searchParams;
+  const pragueNow = getPragueNow();
+  const todayISO = toLocalISODate(pragueNow);
+
+  const tomorrowDate = new Date(pragueNow);
+  tomorrowDate.setDate(pragueNow.getDate() + 1);
+  const tomorrowISO = toLocalISODate(tomorrowDate);
+
+  const menuDates = getMenuDates();
+  const allDates = [...new Set([todayISO, ...menuDates.filter((d) => d >= todayISO)])].sort();
+
+  const isAfterNoon = pragueNow.getHours() >= 12;
+  const autoDate = isAfterNoon && menuDates.includes(tomorrowISO) ? tomorrowISO : todayISO;
+  const selectedDate = params.date && allDates.includes(params.date) ? params.date : autoDate;
+
+  const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
-  const menuEmpty = getMenuWeekLabel() === null;
+
+  const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
+  const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
+  const holidayName = getHolidayName(selectedDate);
+  const holidayDescription = getHolidayDescription(holidayName);
+
   return (
     <OrderPage
+      availableDates={allDates}
+      holidayName={holidayName}
+      holidayDescription={holidayDescription}
       cutoffTime={s.cutoffTime}
       defaultMealPrice={parseInt(s.defaultMealPrice) || 110}
       defaultSoupPrice={parseInt(s.defaultSoupPrice) || 30}
@@ -24,6 +49,8 @@ export default async function HomePage() {
       }}
       initialData={data}
       menuEmpty={menuEmpty}
+      selectedDate={selectedDate}
+      todayDate={todayISO}
     />
   );
 }

@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { getPragueISODate } from "./time";
 
 export interface DepartmentInfo {
   id: number;
@@ -73,7 +74,7 @@ export function deleteDepartment(id: number): void {
   const db = getDb();
   const dept = db.prepare("SELECT name FROM departments WHERE id = ?").get(id) as { name: string } | undefined;
   if (!dept) throw new Error("Oddělení nenalezeno.");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getPragueISODate();
   const { n } = db.prepare(
     `SELECT COUNT(*) as n FROM order_rows r
      JOIN orders o ON o.id = r.order_id

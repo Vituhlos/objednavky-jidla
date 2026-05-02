@@ -5,6 +5,7 @@ import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
 import Link from "next/link";
 import AppTopBar from "./AppTopBar";
+import MIcon from "./MIcon";
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -15,12 +16,33 @@ function formatSentAt(iso: string | null): string {
   if (!iso) return "–";
   return new Date(iso).toLocaleString("cs-CZ", {
     timeZone: "Europe/Prague",
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "numeric", month: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const sent = status === "sent";
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={sent
+        ? { background: "rgba(21,128,61,0.12)", color: "#15803d" }
+        : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+    >
+      {sent ? "Odesláno" : "Koncept"}
+    </span>
+  );
+}
+
+function HistoryTable({ rows }: { rows: React.ReactNode[][] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[12.5px]">
+        <tbody>{rows}</tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function HistoryPage({
@@ -44,76 +66,78 @@ export default function HistoryPage({
   const pizzaSentCount = pizzaOrders.filter((o) => o.status === "sent").length;
 
   return (
-    <div className="v2-shell">
+    <div className="k-shell">
       <AppTopBar />
 
-      {/* ── Infostrip ── */}
-      <div className="v2-infostrip">
-        <div className="v2-infostrip__facts">
-          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>
-            Historie objednávek
-          </span>
-          <span className="v2-fact">
-            <strong>{sentCount}</strong> odeslaných obědů
-          </span>
-          <span className="v2-fact">
-            <strong>{pizzaSentCount}</strong> odeslaných pizz
-          </span>
+      {/* Desktop topbar */}
+      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+        <span className="font-display font-bold text-[15px] text-stone-900 flex-1">Historie objednávek</span>
+        <span className="text-[12px] text-stone-500">
+          <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
+          <strong className="text-stone-700">{pizzaSentCount}</strong> pizz
+        </span>
+        <input
+          className="modal-input !py-1.5 !text-[12px] w-56"
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Hledat (datum, e-mail)…"
+          type="search"
+          value={search}
+        />
+      </div>
+
+      {/* Mobile topbar */}
+      <div className="md:hidden border-b border-white/50 topbar shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
+          <span className="text-[11px] text-stone-500">{sentCount} obědů · {pizzaSentCount} pizz</span>
         </div>
-        <div className="v2-infostrip__send">
+        <div className="px-4 pb-2.5">
           <input
-            className="v2-email-input"
+            className="modal-input w-full !py-1.5 !text-[12px]"
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Hledat podle data (např. 04.2025)…"
+            placeholder="Hledat (datum, e-mail)…"
             type="search"
             value={search}
           />
         </div>
       </div>
 
-      {/* ── Content ── */}
-      <main className="v2-content">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
+      <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
         {/* LIMA orders */}
-        <section className="v2-dept">
-          <div className="v2-dept__head">
-            <div>
-              <h2 className="v2-dept__title">Obědy LIMA</h2>
-              <span className="v2-dept__count">
-                {orders.length} záznamů · {sentCount} odesláno
-              </span>
-            </div>
+        <section className="glass rounded-3xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
+            <MIcon name="restaurant_menu" size={17} fill style={{ color: "#3B82F6" }} />
+            <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Obědy LIMA</span>
+            <span className="text-[11px] text-stone-500">{orders.length} záznamů · {sentCount} odesláno</span>
           </div>
           {filteredOrders.length === 0 ? (
-            <div className="v2-empty-state">
-              <p className="v2-empty-state__text">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné objednávky v databázi."}</p>
+            <div className="px-4 py-6 text-[13px] text-stone-400 text-center">
+              {q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné objednávky v databázi."}
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="v2-history-table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12.5px]">
                 <thead>
-                  <tr>
-                    <th>Datum</th>
-                    <th>Stav</th>
-                    <th>Odesláno</th>
-                    <th>Řádků</th>
-                    <th>Doplňkový e-mail</th>
-                    <th></th>
+                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
+                    <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td style={{ fontWeight: 600 }}>{formatDate(order.date)}</td>
-                      <td>
-                        <span className={`v2-badge v2-badge--${order.status}`}>
-                          {order.status === "sent" ? "Odesláno" : "Koncept"}
-                        </span>
-                      </td>
-                      <td className="v2-td-muted">{formatSentAt(order.sentAt)}</td>
-                      <td className="v2-td-muted">{order.rowCount}</td>
-                      <td className="v2-td-muted">{order.extraEmail ?? "–"}</td>
-                      <td>
-                        <Link className="v2-detail-link" href={`/historie/${order.id}`}>
+                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
+                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
+                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                      <td className="px-3 py-2.5 text-stone-500 hidden md:table-cell">{order.extraEmail ?? "–"}</td>
+                      <td className="px-3 py-2.5">
+                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/${order.id}`}>
                           Detail →
                         </Link>
                       </td>
@@ -126,44 +150,37 @@ export default function HistoryPage({
         </section>
 
         {/* Pizza orders */}
-        <section className="v2-dept">
-          <div className="v2-dept__head">
-            <div>
-              <h2 className="v2-dept__title">Pizza</h2>
-              <span className="v2-dept__count">
-                {pizzaOrders.length} záznamů · {pizzaSentCount} odesláno
-              </span>
-            </div>
+        <section className="glass rounded-3xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
+            <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
+            <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Pizza</span>
+            <span className="text-[11px] text-stone-500">{pizzaOrders.length} záznamů · {pizzaSentCount} odesláno</span>
           </div>
           {filteredPizza.length === 0 ? (
-            <div className="v2-empty-state">
-              <p className="v2-empty-state__text">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné pizzové objednávky v databázi."}</p>
+            <div className="px-4 py-6 text-[13px] text-stone-400 text-center">
+              {q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné pizzové objednávky v databázi."}
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="v2-history-table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12.5px]">
                 <thead>
-                  <tr>
-                    <th>Datum</th>
-                    <th>Stav</th>
-                    <th>Odesláno</th>
-                    <th>Řádků</th>
-                    <th></th>
+                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
+                    <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPizza.map((order) => (
-                    <tr key={order.id}>
-                      <td style={{ fontWeight: 600 }}>{formatDate(order.date)}</td>
-                      <td>
-                        <span className={`v2-badge v2-badge--${order.status}`}>
-                          {order.status === "sent" ? "Odesláno" : "Koncept"}
-                        </span>
-                      </td>
-                      <td className="v2-td-muted">{formatSentAt(order.sentAt)}</td>
-                      <td className="v2-td-muted">{order.rowCount}</td>
-                      <td>
-                        <Link className="v2-detail-link" href={`/historie/pizza/${order.id}`}>
+                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
+                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
+                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                      <td className="px-3 py-2.5">
+                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/pizza/${order.id}`}>
                           Detail →
                         </Link>
                       </td>
@@ -174,6 +191,7 @@ export default function HistoryPage({
             </div>
           )}
         </section>
+      </div>
       </main>
     </div>
   );

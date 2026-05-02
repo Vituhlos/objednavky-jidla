@@ -14,6 +14,7 @@ export interface AppSettings {
   smtpReplyTo: string;
   smtpSecure: string;
   orderEmailTo: string;
+  orderExtraEmail: string;
   cutoffTime: string;
   settingsPin: string;
   defaultSoupPrice: string;
@@ -39,6 +40,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   smtpReplyTo: "smtp_reply_to",
   smtpSecure: "smtp_secure",
   orderEmailTo: "order_email_to",
+  orderExtraEmail: "order_extra_email",
   cutoffTime: "cutoff_time",
   settingsPin: "settings_pin",
   defaultSoupPrice: "default_soup_price",
@@ -66,6 +68,7 @@ function envDefaults(): AppSettings {
     smtpSecure: process.env.SMTP_SECURE ?? "false",
     orderEmailTo:
       process.env.ORDER_EMAIL_TO ?? process.env.ORDER_EMAIL_DEFAULT ?? "jirirytir1992@gmail.com",
+    orderExtraEmail: process.env.ORDER_EXTRA_EMAIL ?? "",
     cutoffTime: "08:00",
     settingsPin: process.env.SETTINGS_PIN ?? "1234",
     defaultSoupPrice: "30",

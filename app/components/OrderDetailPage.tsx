@@ -6,6 +6,18 @@ import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
+import MIcon from "./MIcon";
+
+const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
+  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
+  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
+  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#D97706", grad: "linear-gradient(135deg,#fbbf24,#D97706)" },
+  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
+  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
+  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
+};
+const DC_DEFAULT = DEPT_COLORS.blue;
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -16,12 +28,14 @@ function formatSentAt(iso: string | null): string {
   if (!iso) return "–";
   return new Date(iso).toLocaleString("cs-CZ", {
     timeZone: "Europe/Prague",
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "numeric", month: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
+}
+
+function getPragueTodayISO(): string {
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function getInitials(name: string): string {
@@ -31,12 +45,12 @@ function getInitials(name: string): string {
 
 function getChips(row: OrderRowEnriched): string[] {
   const chips: string[] = [];
-  if (row.rollCount > 0) chips.push(`Houska ×${row.rollCount}`);
-  if (row.breadDumplingCount > 0) chips.push(`H. kned. ×${row.breadDumplingCount}`);
+  if (row.rollCount > 0)           chips.push(`Houska ×${row.rollCount}`);
+  if (row.breadDumplingCount > 0)  chips.push(`H. kned. ×${row.breadDumplingCount}`);
   if (row.potatoDumplingCount > 0) chips.push(`B. kned. ×${row.potatoDumplingCount}`);
-  if (row.ketchupCount > 0) chips.push(`Kečup ×${row.ketchupCount}`);
-  if (row.tatarkaCount > 0) chips.push(`Tatarka ×${row.tatarkaCount}`);
-  if (row.bbqCount > 0) chips.push(`BBQ ×${row.bbqCount}`);
+  if (row.ketchupCount > 0)        chips.push(`Kečup ×${row.ketchupCount}`);
+  if (row.tatarkaCount > 0)        chips.push(`Tatarka ×${row.tatarkaCount}`);
+  if (row.bbqCount > 0)            chips.push(`BBQ ×${row.bbqCount}`);
   return chips;
 }
 
@@ -46,56 +60,53 @@ function pluralOrders(n: number): string {
   return "objednávek";
 }
 
-function ReadOnlyRow({ row, accent }: { row: OrderRowEnriched; accent: string }) {
+function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT }) {
   const chips = getChips(row);
   return (
-    <div className="v2-order-row">
-      <div className="v2-order-row__name">
-        <div className={`v2-avatar v2-avatar--${accent}`}>{getInitials(row.personName)}</div>
-        <span className="v2-order-row__name-text">{row.personName || "—"}</span>
+    <div className="flex items-start gap-3 px-4 py-3 border-b border-white/30 last:border-0">
+      <div
+        className="w-7 h-7 rounded-xl flex items-center justify-center text-white text-[10px] font-display font-bold shrink-0 mt-0.5"
+        style={{ background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
+      >
+        {getInitials(row.personName)}
       </div>
-      <div className="v2-order-row__main">
-        {row.mainItem ? (
-          <span>
-            {(row.mealCount || 1) > 1 && <strong>{row.mealCount}× </strong>}
-            {row.mainItem.code && <span className="menu-item-code">{row.mainItem.code}</span>}{" "}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-[13px] font-semibold text-stone-800">{row.personName || "—"}</span>
+          {row.rowPrice > 0 && (
+            <span className="text-[12px] font-display font-bold text-stone-600 ml-auto shrink-0">{row.rowPrice} Kč</span>
+          )}
+        </div>
+        {row.mainItem && (
+          <div className="text-[12px] text-stone-600 mt-0.5">
+            {(row.mealCount || 1) > 1 && <strong className="text-stone-800">{row.mealCount}× </strong>}
+            {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
             {row.mainItem.name}
             {row.extraMealItems.map((em, i) => (
-              <span key={i}>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
-                  {em.count > 1 && <strong>{em.count}× </strong>}
-                  {em.item.code && <span className="menu-item-code">{em.item.code}</span>}{" "}
-                  {em.item.name}
-                </span>
+              <span key={i} className="block text-[11.5px] text-stone-400">
+                {em.count > 1 && <strong>{em.count}× </strong>}
+                {em.item.code && <span className="font-mono text-[10px] mr-0.5">{em.item.code}</span>}
+                {em.item.name}
               </span>
             ))}
-          </span>
-        ) : <span className="v2-muted">—</span>}
-      </div>
-      <div className="v2-order-row__soup">
-        {row.soupItem ? (
-          <span>
-            {row.soupItem.code && <span className="menu-item-code">{row.soupItem.code}</span>}{" "}
-            {row.soupItem.name}
-            {row.soupItem2 && (
-              <>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
-                  {row.soupItem2.code && <span className="menu-item-code">{row.soupItem2.code}</span>}{" "}
-                  {row.soupItem2.name}
-                </span>
-              </>
+          </div>
+        )}
+        {row.soupItem && (
+          <div className="text-[11.5px] text-stone-500 mt-0.5">
+            Polévka: {row.soupItem.code && <span className="font-mono text-[10.5px] mr-0.5">{row.soupItem.code}</span>}{row.soupItem.name}
+            {row.soupItem2 && <span className="text-stone-400"> · {row.soupItem2.code && <span className="font-mono text-[10.5px]">{row.soupItem2.code}</span>} {row.soupItem2.name}</span>}
+          </div>
+        )}
+        {(chips.length > 0 || row.note) && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {chips.map((c) => (
+              <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70">{c}</span>
+            ))}
+            {row.note && (
+              <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70" title={row.note}>✎ {row.note}</span>
             )}
-          </span>
-        ) : <span className="v2-muted">—</span>}
-      </div>
-      <div className="v2-order-row__extras">
-        {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
-        {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
-      </div>
-      <div className="v2-order-row__price">
-        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="v2-muted">—</span>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -108,46 +119,35 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
 
   const canReopen =
     order.status === "sent" &&
-    order.date === new Date().toISOString().slice(0, 10);
+    order.date === getPragueTodayISO();
+
+  const sent = order.status === "sent";
 
   return (
-    <div className="v2-shell">
+    <div className="k-shell">
       <AppTopBar />
 
-      {/* ── Infostrip ── */}
-      <div className="v2-infostrip">
-        <div className="v2-infostrip__facts">
-          <Link
-            href="/historie"
-            style={{ color: "var(--v2-text-muted)", fontSize: "0.85rem", textDecoration: "none" }}
-          >
-            ← Historie
-          </Link>
-          <span style={{ fontWeight: 700, color: "var(--v2-text)", fontSize: "0.95rem" }}>
-            Objednávka {formatDate(order.date)}
-          </span>
-          <span className="v2-fact">
-            {order.status === "sent" ? "✓ Odesláno" : "Koncept"}
-            {order.sentAt && <> · {formatSentAt(order.sentAt)}</>}
-          </span>
-          {order.extraEmail && (
-            <span className="v2-fact">Kopie: {order.extraEmail}</span>
+      {/* Desktop topbar */}
+      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
+        <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">← Historie</Link>
+        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDate(order.date)}</span>
+        <span
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+          style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+        >
+          {sent ? "Odesláno" : "Koncept"}
+        </span>
+        {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
+        {order.extraEmail && <span className="text-[12px] text-stone-500">Kopie: {order.extraEmail}</span>}
+        <div className="ml-auto flex items-center gap-3">
+          {totalPrice > 0 && (
+            <span className="font-display font-bold text-[16px] text-stone-900">{totalPrice} Kč</span>
           )}
-        </div>
-        <div className="v2-infostrip__send" style={{ gap: "0.75rem", alignItems: "center" }}>
-          <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--v2-text)" }}>
-            {totalPrice} Kč
-          </span>
           {canReopen && (
             <button
-              className="v2-btn v2-btn--secondary"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-full glass-btn text-stone-600"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  await actionReopenOrder(order.id);
-                  router.refresh();
-                })
-              }
+              onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
               type="button"
             >
               {pending ? "…" : "Znovu otevřít"}
@@ -156,12 +156,43 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
         </div>
       </div>
 
-      {/* ── Content ── */}
-      <main className="v2-content">
+      {/* Mobile topbar */}
+      <div className="md:hidden border-b border-white/50 topbar shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">←</Link>
+          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">
+            Objednávka {formatDate(order.date)}
+          </span>
+          {totalPrice > 0 && (
+            <span className="font-display font-bold text-[14px] text-stone-900">{totalPrice} Kč</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 px-4 pb-2.5">
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+            style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+          >
+            {sent ? "Odesláno" : "Koncept"}
+          </span>
+          {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
+          {canReopen && (
+            <button
+              className="ml-auto text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
+              disabled={pending}
+              onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
+              type="button"
+            >
+              {pending ? "…" : "Znovu otevřít"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
         {departments.every((dept) =>
           dept.rows.every((r) => !r.personName && !r.soupItem && !r.mainItem && r.rollCount === 0)
         ) && (
-          <div className="v2-empty-state" style={{ textAlign: "center", padding: "3rem 1rem" }}>
+          <div className="glass rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
             Objednávka neobsahuje žádné položky.
           </div>
         )}
@@ -170,24 +201,29 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
             (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
           );
           if (activeRows.length === 0) return null;
+          const dc = DEPT_COLORS[dept.accent] ?? DC_DEFAULT;
           return (
-            <section className={`v2-dept v2-dept--${dept.accent}`} key={dept.name}>
-              <div className="v2-dept__head">
-                <div className="v2-dept__info">
-                  <div>
-                    <h2 className="v2-dept__title">{dept.label}</h2>
-                    <span className="v2-dept__count">
-                      {activeRows.length} {pluralOrders(activeRows.length)}
-                      {dept.subtotal > 0 && <> · <strong>{dept.subtotal} Kč</strong></>}
-                    </span>
-                  </div>
+            <section
+              className="glass rounded-3xl overflow-hidden"
+              key={dept.name}
+              style={{ borderColor: dc.border }}
+            >
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
+                <div
+                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: `${dc.icon}22` }}
+                >
+                  <MIcon name="groups" size={14} fill style={{ color: dc.icon }} />
                 </div>
+                <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
+                <span className="text-[11px] text-stone-500">
+                  {activeRows.length} {pluralOrders(activeRows.length)}
+                  {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
+                </span>
               </div>
-              <div className="v2-dept__rows">
-                {activeRows.map((row) => (
-                  <ReadOnlyRow accent={dept.accent} key={row.id} row={row} />
-                ))}
-              </div>
+              {activeRows.map((row) => (
+                <ReadOnlyRow dc={dc} key={row.id} row={row} />
+              ))}
             </section>
           );
         })}

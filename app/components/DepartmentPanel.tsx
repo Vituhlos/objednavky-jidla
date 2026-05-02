@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { DepartmentData, OrderRowEnriched, MenuItem, Department, MealEntry } from "@/lib/types";
+import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { ConfirmModal } from "./ConfirmModal";
+import MIcon from "./MIcon";
 
 type RowUpdates = Partial<{
   personName: string;
@@ -24,9 +25,10 @@ type RowUpdates = Partial<{
 
 interface Props {
   data: DepartmentData;
-  soups: MenuItem[];
-  meals: MenuItem[];
+  soups: import("@/lib/types").MenuItem[];
+  meals: import("@/lib/types").MenuItem[];
   isSent: boolean;
+  existingNames?: string[];
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
   extrasPrices?: ExtrasPrices;
@@ -35,82 +37,25 @@ interface Props {
   onDeleteRow: (rowId: number) => void;
 }
 
+// ── Department colors (matches template) ─────────────────
+
+const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
+  blue:  { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
+  rust:  { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
+  green: { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+};
+const DC_DEFAULT = DEPT_COLORS.blue;
+
 // ── Department icons ──────────────────────────────────────
 
-function DeptIcon({ name }: { name: Department }) {
-  if (name === "Konstrukce") {
-    return (
-      <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-        <path d="M12 3L4 9v12h16V9L12 3zm0 2.5L18 10v9H6v-9l6-4.5zM10 13h4v6h-4z"/>
-      </svg>
-    );
-  }
-  if (name === "Dílna") {
-    return (
-      <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-        <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
-      </svg>
-    );
-  }
-  return (
-    <svg aria-hidden fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
-      <path d="M20 6h-2.18c.07-.44.18-.86.18-1.3C18 2.12 15.88 0 13.3 0c-1.47 0-2.76.81-3.54 2.05L12 4.06l2.24-2.01C14.69 1.39 15.5 1 16.5 1c1.93 0 3.5 1.57 3.5 3.5 0 .47-.09.92-.24 1.35-.04.09-.14.15-.23.15H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 14H4V8h16v12zm-5-9h-4v2h4v-2zm0 4h-4v2h4v-2zM7 9h2v8H7z"/>
-    </svg>
-  );
-}
+const DEPT_ICONS: Partial<Record<Department, string>> = {
+  "Konstrukce": "home_work",
+  "Dílna":      "build",
+};
 
-// ── Row context menu ──────────────────────────────────────
-
-function RowMenuButton({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        btnRef.current && !btnRef.current.contains(e.target as Node) &&
-        dropRef.current && !dropRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const handleOpen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
-    }
-    setOpen((o) => !o);
-  };
-
-  return (
-    <div className="row-menu-wrap">
-      <button
-        aria-label="Možnosti"
-        className="row-menu-btn"
-        onClick={handleOpen}
-        ref={btnRef}
-        type="button"
-      >
-        ⋮
-      </button>
-      {open && pos && (
-        <div
-          className="row-menu-dropdown"
-          ref={dropRef}
-          style={{ position: "fixed", top: pos.top, right: pos.right }}
-        >
-          <button onClick={() => { setOpen(false); onEdit(); }} type="button">Upravit</button>
-          <button className="row-menu-danger" onClick={() => { setOpen(false); onDelete(); }} type="button">Smazat</button>
-        </div>
-      )}
-    </div>
-  );
+function DeptIcon({ name, color }: { name: Department; color: string }) {
+  const icon = DEPT_ICONS[name] ?? "groups";
+  return <MIcon name={icon} size={18} fill style={{ color }} />;
 }
 
 // ── Modal stepper ─────────────────────────────────────────
@@ -125,9 +70,9 @@ function ModalStepper({
       <span className="modal-stepper__label">{label}</span>
       <span className="modal-stepper__price">{price} Kč/ks</span>
       <div className="modal-stepper__controls">
-        <button className="stepper-btn" disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))} type="button">−</button>
-        <span className="stepper-count">{value}</span>
-        <button className="stepper-btn" onClick={() => onChange(value + 1)} type="button">+</button>
+        <button aria-label={`Ubrat ${label}`} className="stepper-btn" disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))} type="button">−</button>
+        <span aria-label={`Počet: ${value}`} className="stepper-count">{value}</span>
+        <button aria-label={`Přidat ${label}`} className="stepper-btn" onClick={() => onChange(value + 1)} type="button">+</button>
       </div>
     </div>
   );
@@ -136,10 +81,11 @@ function ModalStepper({
 // ── Edit modal ────────────────────────────────────────────
 
 function OrderEditModal({
-  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, onSave, onClose, onDelete,
+  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, existingNames, onSave, onClose, onDelete,
 }: {
-  row: OrderRowEnriched; soups: MenuItem[]; meals: MenuItem[];
+  row: OrderRowEnriched; soups: import("@/lib/types").MenuItem[]; meals: import("@/lib/types").MenuItem[];
   isNew: boolean; defaultSoupPrice?: number; defaultMealPrice?: number; ep: ExtrasPrices;
+  existingNames: string[];
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
   const [personName, setPersonName] = useState(() => {
@@ -147,9 +93,7 @@ function OrderEditModal({
     try { return localStorage.getItem("lastPersonName") ?? ""; } catch { return ""; }
   });
   const [soupIds, setSoupIds] = useState<(number | null)[]>(
-    row.soupItemId2 != null
-      ? [row.soupItemId, row.soupItemId2]
-      : [row.soupItemId]
+    row.soupItemId2 != null ? [row.soupItemId, row.soupItemId2] : [row.soupItemId]
   );
   const [mealEntries, setMealEntries] = useState<{ itemId: number | null; count: number }[]>([
     { itemId: row.mainItemId, count: row.mealCount || 1 },
@@ -163,6 +107,7 @@ function OrderEditModal({
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
 
@@ -186,10 +131,31 @@ function OrderEditModal({
     };
   }, []);
 
+  const hasFood =
+    soupIds.some((id) => id != null) ||
+    mealEntries.some((e) => e.itemId != null) ||
+    rollCount > 0 || breadDumplingCount > 0 || potatoDumplingCount > 0;
+
+  const isDuplicateName =
+    personName.trim() !== "" &&
+    personName.trim().toLowerCase() !== row.personName.trim().toLowerCase() &&
+    existingNames.some((n) => n.toLowerCase() === personName.trim().toLowerCase());
+
   const handleSave = () => {
-    if (personName.trim()) {
-      try { localStorage.setItem("lastPersonName", personName.trim()); } catch { /* */ }
+    if (!personName.trim()) {
+      setValidationError("Zadejte jméno osoby.");
+      return;
     }
+    if (!hasFood) {
+      setValidationError("Vyberte alespoň jedno jídlo nebo přílohu.");
+      return;
+    }
+    if (isDuplicateName) {
+      setValidationError(`„${personName.trim()}" už v objednávce je.`);
+      return;
+    }
+    setValidationError(null);
+    try { localStorage.setItem("lastPersonName", personName.trim()); } catch { /* */ }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
       .slice(1)
@@ -207,21 +173,35 @@ function OrderEditModal({
     });
   };
 
-
   return (
     <div className="modal-overlay" onClick={handleCancel}>
       <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title">{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
-          <button aria-label="Zavřít" className="modal-close-btn" onClick={handleCancel} type="button">×</button>
+          <button
+            aria-label="Zavřít"
+            className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+            onClick={handleCancel}
+            type="button"
+          >×</button>
         </div>
         <div className="modal-sheet__body">
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-name">Jméno</label>
-            <input autoFocus className="modal-input" id="modal-name" onChange={(e) => setPersonName(e.target.value)} placeholder="Jméno osoby..." type="text" value={personName} />
+            <input
+              autoFocus
+              className="modal-input"
+              id="modal-name"
+              onChange={(e) => { setPersonName(e.target.value); setValidationError(null); }}
+              placeholder="Jméno a příjmení..."
+              type="text"
+              value={personName}
+            />
+            {isDuplicateName && (
+              <p className="text-[11.5px] text-amber-700 mt-1">⚠ Toto jméno už v objednávce je.</p>
+            )}
           </div>
 
-          {/* ── Polévky ── */}
           {soupIds.map((soupId, idx) => (
             <div className="modal-field" key={`soup-${idx}`}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -230,11 +210,7 @@ function OrderEditModal({
                   {defaultSoupPrice != null && <span className="modal-label-price">{defaultSoupPrice} Kč</span>}
                 </label>
                 {idx > 0 && (
-                  <button
-                    className="modal-remove-second"
-                    onClick={() => setSoupIds((prev) => prev.slice(0, -1))}
-                    type="button"
-                  >
+                  <button className="modal-remove-second" onClick={() => setSoupIds((prev) => prev.slice(0, -1))} type="button">
                     × odebrat
                   </button>
                 )}
@@ -259,7 +235,6 @@ function OrderEditModal({
             </button>
           )}
 
-          {/* ── Jídla ── */}
           {mealEntries.map((entry, idx) => (
             <div className="modal-field" key={`meal-${idx}`}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -268,11 +243,7 @@ function OrderEditModal({
                   {defaultMealPrice != null && <span className="modal-label-price">{defaultMealPrice} Kč</span>}
                 </label>
                 {idx > 0 && (
-                  <button
-                    className="modal-remove-second"
-                    onClick={() => setMealEntries((prev) => prev.filter((_, i) => i !== idx))}
-                    type="button"
-                  >
+                  <button className="modal-remove-second" onClick={() => setMealEntries((prev) => prev.filter((_, i) => i !== idx))} type="button">
                     × odebrat
                   </button>
                 )}
@@ -285,7 +256,7 @@ function OrderEditModal({
                     const val = e.target.value ? Number(e.target.value) : null;
                     setMealEntries((prev) => prev.map((ent, i) => i === idx ? { ...ent, itemId: val } : ent));
                   }}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, width: "auto", minWidth: 0 }}
                   value={entry.itemId ?? ""}
                 >
                   <option value="">— žádné jídlo —</option>
@@ -311,11 +282,7 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          <button
-            className="modal-add-second"
-            onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
-            type="button"
-          >
+          <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
             + Přidat další jídlo
           </button>
 
@@ -331,8 +298,9 @@ function OrderEditModal({
               value={note}
             />
           </div>
+
           <div className="modal-extras">
-            <span className="modal-label" style={{ padding: "0.55rem 0.85rem 0.45rem", background: "#f9fafb", borderBottom: "1px solid var(--v2-border, #e5e7eb)", display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--v2-text-muted, #6b7280)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Přílohy a doplňky</span>
+            <span className="modal-label" style={{ padding: "0.55rem 0.85rem 0.45rem", background: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.5)", display: "block", fontSize: "0.72rem", fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Přílohy a doplňky</span>
             <ModalStepper label="Houska" onChange={setRollCount} price={ep.roll} value={rollCount} />
             <ModalStepper label="Houskový knedlík" onChange={setBreadDumplingCount} price={ep.breadDumpling} value={breadDumplingCount} />
             <ModalStepper label="Bramborový knedlík" onChange={setPotatoDumplingCount} price={ep.potatoDumpling} value={potatoDumplingCount} />
@@ -341,10 +309,13 @@ function OrderEditModal({
             <ModalStepper label="BBQ omáčka" onChange={setBbqCount} price={ep.bbq} value={bbqCount} />
           </div>
         </div>
+        {validationError && (
+          <div className="px-4 pb-2 text-[12px] text-red-600 font-medium">{validationError}</div>
+        )}
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
-          <button className="modal-btn modal-btn--primary" onClick={handleSave} type="button">Uložit</button>
+          <button className="modal-btn modal-btn--primary" disabled={isDuplicateName} onClick={handleSave} type="button">Uložit</button>
         </div>
       </div>
       {showDeleteConfirm && (
@@ -359,7 +330,7 @@ function OrderEditModal({
   );
 }
 
-// ── Order row (display only) ──────────────────────────────
+// ── Order row ─────────────────────────────────────────────
 
 function getInitials(name: string): string {
   if (!name.trim()) return "?";
@@ -377,90 +348,95 @@ function getChips(row: OrderRowEnriched): string[] {
   return chips;
 }
 
-function V2OrderRow({
-  row, accent, isSent, isSaved, onEdit, onDelete,
-}: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; isSaved: boolean; onEdit: () => void; onDelete: () => void;
+function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean; onEdit: () => void; onDelete: () => void;
 }) {
+  const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
   const chips = getChips(row);
 
   return (
     <div
-      className={`v2-order-row${!isSent ? " v2-order-row--interactive" : ""}${isSaved ? " v2-order-row--saved" : ""}`}
+      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition ${!isSent ? "hover:bg-white/50 active:bg-white/50 cursor-pointer active:scale-[0.995]" : ""}`}
       onClick={!isSent ? onEdit : undefined}
     >
-      {/* Col 1: Name + avatar */}
-      <div className="v2-order-row__name">
-        <div className={`v2-avatar v2-avatar--${accent}`}>{getInitials(row.personName)}</div>
-        <span className="v2-order-row__name-text">{row.personName || "—"}</span>
-      </div>
+      {/* Avatar */}
+      <span
+        className="inline-flex items-center justify-center text-white font-semibold font-display shrink-0"
+        style={{ width: 34, height: 34, fontSize: 13, borderRadius: 999, background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
+      >
+        {getInitials(row.personName)}
+      </span>
 
-      {/* Col 2: Main dish */}
-      <div className="v2-order-row__main">
-        {row.mainItem ? (
-          <span>
-            {(row.mealCount || 1) > 1 && <strong>{row.mealCount}× </strong>}
-            {row.mainItem.code && <span className="menu-item-code">{row.mainItem.code}</span>}{" "}
-            {row.mainItem.name}
-            {row.extraMealItems.map((em, i) => (
-              <span key={i}>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
-                  {em.count > 1 && <strong>{em.count}× </strong>}
-                  {em.item.code && <span className="menu-item-code">{em.item.code}</span>}{" "}
-                  {em.item.name}
-                </span>
-              </span>
-            ))}
-          </span>
-        ) : (
-          <span className="v2-muted">—</span>
-        )}
-      </div>
-
-      {/* Col 3: Soup */}
-      <div className="v2-order-row__soup">
-        {row.soupItem ? (
-          <span>
-            {row.soupItem.code && <span className="menu-item-code">{row.soupItem.code}</span>}{" "}
-            {row.soupItem.name}
-            {row.soupItem2 && (
-              <>
-                <br />
-                <span style={{ color: "var(--v2-text-muted)", fontSize: "0.82em" }}>
-                  {row.soupItem2.code && <span className="menu-item-code">{row.soupItem2.code}</span>}{" "}
-                  {row.soupItem2.name}
-                </span>
-              </>
-            )}
-          </span>
-        ) : (
-          <span className="v2-muted">—</span>
-        )}
-      </div>
-
-      {/* Col 4: Extras chips + note */}
-      <div className="v2-order-row__extras">
-        {chips.map((c) => <span className="v2-chip" key={c}>{c}</span>)}
-        {row.note && <span className="v2-note-chip" title={row.note}>✎ {row.note}</span>}
-      </div>
-
-      {/* Col 5: Price */}
-      <div className="v2-order-row__price">
-        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="v2-muted">—</span>}
-      </div>
-
-      {/* Actions */}
-      {!isSent && (
-        <div className="v2-order-row__actions" onClick={(e) => e.stopPropagation()}>
-          <RowMenuButton onDelete={onDelete} onEdit={onEdit} />
+      {/* Body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-display font-semibold text-[13px] text-stone-900 leading-none">{row.personName || "—"}</span>
+          {row.note && (
+            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[120px] truncate" title={row.note}>
+              ✎ {row.note}
+            </span>
+          )}
         </div>
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
+          {row.mainItem && (
+            <span className="text-[11.5px] text-stone-600 leading-snug">
+              {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
+              {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
+              {row.mainItem.name}
+            </span>
+          )}
+          {row.extraMealItems.map((e, i) => (
+            <span key={i} className="text-[11.5px] text-stone-600 leading-snug">
+              <span className="text-stone-300 mx-0.5">+</span>
+              {e.count > 1 ? `${e.count}× ` : ""}
+              {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
+              {e.item.name}
+            </span>
+          ))}
+          {(row.mainItem || row.extraMealItems.length > 0) && row.soupItem && (
+            <span className="text-stone-300 text-[11px]">·</span>
+          )}
+          {row.soupItem && (
+            <span className="text-[11.5px] text-stone-500 leading-snug">
+              {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
+              {row.soupItem.name}
+            </span>
+          )}
+          {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
+          {row.soupItem2 && (
+            <span className="text-[11.5px] text-stone-500 leading-snug">
+              {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
+              {row.soupItem2.name}
+            </span>
+          )}
+          {!row.mainItem && !row.soupItem && <span className="text-[11.5px] text-stone-400">—</span>}
+          {chips.map((c) => (
+            <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-stone-500">{c}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Price */}
+      <div className="shrink-0 font-display font-bold text-[13px] text-stone-800">
+        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="text-stone-400 font-normal">—</span>}
+      </div>
+
+      {/* Delete button — always visible on mobile, hover-only on desktop */}
+      {!isSent && (
+        <button
+          type="button"
+          aria-label="Smazat"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="shrink-0 w-9 h-9 md:w-7 md:h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
+        >
+          <MIcon name="close" size={15} />
+        </button>
       )}
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────
 
 function pluralOrders(n: number): string {
   if (n === 1) return "objednávka";
@@ -468,16 +444,15 @@ function pluralOrders(n: number): string {
   return "objednávek";
 }
 
-export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+// ── Main component ────────────────────────────────────────
+
+export function DepartmentPanel({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deleteConfirmRowId, setDeleteConfirmRowId] = useState<number | null>(null);
-  const [savedRowId, setSavedRowId] = useState<number | null>(null);
-  const savedRowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const accent = data.accent;
-  const label = data.label;
+  const dc = DEPT_COLORS[data.accent] ?? DC_DEFAULT;
   const activeRows = data.rows.filter(hasOrderRowContent);
   const modalRow = modalState ? (data.rows.find((r) => r.id === modalState.rowId) ?? null) : null;
 
@@ -497,96 +472,85 @@ export function DepartmentPanel({ data, soups, meals, isSent, defaultSoupPrice, 
 
   return (
     <>
-      <section className={`v2-dept v2-dept--${accent}`}>
+      <section className="glass rounded-3xl overflow-hidden" style={{ borderColor: dc.border }}>
         {/* Header */}
-        <div className="v2-dept__head">
-          <div className="v2-dept__info">
-            <div className={`v2-dept-icon v2-dept-icon--${accent}`}>
-              <DeptIcon name={data.name} />
-            </div>
-            <div>
-              <h2 className="v2-dept__title">{label}</h2>
-              <span className="v2-dept__count">
-                {activeRows.length} {pluralOrders(activeRows.length)}
-                {data.subtotal > 0 && <> · <strong>{data.subtotal} Kč</strong></>}
-              </span>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
+          <div
+            className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0"
+            style={{ background: `${dc.icon}22` }}
+          >
+            <DeptIcon name={data.name} color={dc.icon} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
+            <div className="text-[11.5px] text-stone-500 mt-0.5">
+              {activeRows.length} {pluralOrders(activeRows.length)}
+              {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
             </div>
           </div>
           {!isSent && (
-            <button className="v2-add-btn" disabled={isAdding} onClick={handleAddAndOpen} type="button">
-              {isAdding ? "…" : "+ Přidat sebe"}
+            <button
+              type="button"
+              disabled={isAdding}
+              onClick={handleAddAndOpen}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+            >
+              <MIcon name="add" size={14} />
+              {isAdding ? "…" : "Přidat"}
             </button>
           )}
         </div>
 
         {addError && (
-          <div className="v2-alert v2-alert--warn" style={{ margin: "0 0 0.5rem" }}>{addError}</div>
-        )}
-
-        {/* Table header (desktop) */}
-        {activeRows.length > 0 && (
-          <div className="v2-cols-head" aria-hidden>
-            <span>Jméno</span>
-            <span>Hlavní jídlo</span>
-            <span>Polévka</span>
-            <span>Doplňky</span>
-            <span style={{ textAlign: "right" }}>Cena</span>
-            <span />
-          </div>
+          <div className="px-4 py-2 text-[12px] text-red-600">{addError}</div>
         )}
 
         {/* Rows */}
-        {activeRows.length === 0 ? (
-          <div className="v2-empty-state">
-            <svg aria-hidden className="v2-empty-state__icon" fill="none" height="32" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="32">
-              <path d="M3 11l1-7h16l1 7"/>
-              <path d="M3 11h18v2a9 9 0 01-18 0v-2z"/>
-              <path d="M12 11V4M8 11V6M16 11V6"/>
-            </svg>
-            <p className="v2-empty-state__text">Zatím nikdo neobjednal</p>
-            {!isSent && <p className="v2-empty-state__hint">Přidej svoji objednávku tlačítkem výše</p>}
-          </div>
-        ) : (
-          <div className="v2-dept__rows">
-            {activeRows.map((row) => (
-              <V2OrderRow
-                accent={accent}
-                isSaved={row.id === savedRowId}
-                isSent={isSent}
+        <div className={isSent ? "dept-rows-sent" : ""}>
+          {activeRows.length === 0 ? (
+            <div className="px-4 py-5 text-center text-[12.5px] text-stone-400">Zatím nikdo neobjednal.</div>
+          ) : (
+            activeRows.map((row) => (
+              <OrderRow
                 key={row.id}
-                onDelete={() => setDeleteConfirmRowId(row.id)}
-                onEdit={() => setModalState({ rowId: row.id, isNew: false })}
                 row={row}
+                accent={data.accent}
+                isSent={isSent}
+                onEdit={() => setModalState({ rowId: row.id, isNew: false })}
+                onDelete={() => setDeleteConfirmRowId(row.id)}
               />
-            ))}
+            ))
+          )}
+        </div>
+
+        {/* Sent lock badge */}
+        {isSent && activeRows.length > 0 && (
+          <div className="flex items-center gap-1.5 px-4 py-2 border-t border-white/30">
+            <MIcon name="lock" size={12} style={{ color: "#94a3b8" }} />
+            <span className="text-[11px] text-stone-400">Odesláno — pouze pro čtení</span>
           </div>
         )}
       </section>
 
-      {/* Modal */}
+      {/* Edit modal */}
       {modalRow && (
         <OrderEditModal
           defaultMealPrice={defaultMealPrice}
           defaultSoupPrice={defaultSoupPrice}
           ep={extrasPrices}
+          existingNames={existingNames}
           isNew={modalState!.isNew}
           meals={meals}
           onClose={() => setModalState(null)}
           onDelete={() => { onDeleteRow(modalState!.rowId); setModalState(null); }}
-          onSave={(updates) => {
-            const rowId = modalState!.rowId;
-            onUpdateRow(rowId, updates);
-            setModalState(null);
-            if (savedRowTimer.current) clearTimeout(savedRowTimer.current);
-            setSavedRowId(rowId);
-            savedRowTimer.current = setTimeout(() => setSavedRowId(null), 1800);
-          }}
+          onSave={(updates) => { onUpdateRow(modalState!.rowId, updates); setModalState(null); }}
           row={modalRow}
           soups={soups}
         />
       )}
 
-      {/* Confirm delete row */}
+      {/* Confirm delete */}
       {deleteConfirmRowId !== null && (
         <ConfirmModal
           message="Objednávka této osoby bude odstraněna."

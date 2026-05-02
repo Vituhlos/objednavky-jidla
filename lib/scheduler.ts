@@ -7,6 +7,7 @@ import { sendEmail, getOrderRecipients } from "./email";
 import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { hasOrderRowContent } from "./order-utils";
+import { getPragueNow } from "./time";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -55,7 +56,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   }
 
   console.log(`[scheduler] Automatické odesílání objednávky ${data.order.id}...`);
-  await sendOrder(data.order.id, data.order.extraEmail ?? "", "auto");
+  await sendOrder(data.order.id, "auto");
   console.log("[scheduler] Objednávka automaticky odeslána.");
 }
 
@@ -93,7 +94,7 @@ export function startScheduler(): void {
   cron.schedule("* * * * *", async () => {
     try {
       const s = getSettings();
-      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
+      const now = getPragueNow();
       const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       const jsDay = now.getDay();
 

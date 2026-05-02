@@ -13,7 +13,6 @@ import {
   updateOrderRow,
   deleteOrderRow,
   sendOrder as dbSendOrder,
-  updateExtraEmail,
   reopenOrder,
   clearOrderRows,
 } from "@/lib/orders";
@@ -76,21 +75,10 @@ export async function actionDeleteRow(rowId: number): Promise<void> {
   broadcast();
 }
 
-export async function actionSendOrder(
-  orderId: number,
-  extraEmail: string
-): Promise<void> {
-  await dbSendOrder(orderId, extraEmail);
+export async function actionSendOrder(orderId: number): Promise<void> {
+  await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
-}
-
-export async function actionUpdateExtraEmail(
-  orderId: number,
-  email: string
-): Promise<void> {
-  updateExtraEmail(orderId, email);
-  revalidatePath("/");
 }
 
 export async function actionConfirmMenuImport(
@@ -154,7 +142,10 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
-  return updatePizzaRow(rowId, updates);
+  const row = updatePizzaRow(rowId, updates);
+  revalidatePath("/pizza");
+  broadcast();
+  return row;
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {

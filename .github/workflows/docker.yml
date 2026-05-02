@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - v2
+      - v3
   workflow_dispatch:
 
 env:
@@ -40,6 +41,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=v2-beta,enable=${{ github.ref == 'refs/heads/v2' }}
+            type=raw,value=v3-beta,enable=${{ github.ref == 'refs/heads/v3' }}
             type=sha,prefix=sha-,format=short
 
       - name: Build and push

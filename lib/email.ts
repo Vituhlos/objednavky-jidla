@@ -1,13 +1,28 @@
 import nodemailer from "nodemailer";
 import { getSettings } from "./settings";
 
+export function parseEmailList(value?: string | null): string[] {
+  if (!value) return [];
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const part of value.split(/[\n,;]+/)) {
+    const email = part.trim();
+    if (!email) continue;
+    const normalized = email.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    emails.push(email);
+  }
+  return emails;
+}
+
 export function getOrderRecipients(extraEmail?: string | null): string[] {
   const settings = getSettings();
-  const recipients = [settings.orderEmailTo];
-  if (extraEmail?.trim()) {
-    recipients.push(extraEmail.trim());
-  }
-  return recipients;
+  return [
+    ...parseEmailList(settings.orderEmailTo),
+    ...parseEmailList(settings.orderExtraEmail),
+    ...parseEmailList(extraEmail),
+  ];
 }
 
 export async function sendEmail({
@@ -32,7 +47,11 @@ export async function sendEmail({
   const port = Number(s.smtpPort) || 587;
   const secure = s.smtpSecure === "true" || port === 465;
   const from = s.smtpFrom || s.smtpUser;
-  const replyTo = s.smtpReplyTo?.trim() || undefined;
+  const replyToList = parseEmailList(s.smtpReplyTo);
+  const replyTo = replyToList.length > 0 ? replyToList.join(", ") : undefined;
+  if (to.length === 0) {
+    throw new Error("Není nastaven žádný příjemce objednávek. Doplňte ho v Nastavení.");
+  }
 
   const transporter = nodemailer.createTransport({ host: s.smtpHost, port, secure, auth: { user: s.smtpUser, pass: s.smtpPass } });
 
