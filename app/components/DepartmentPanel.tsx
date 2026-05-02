@@ -36,6 +36,9 @@ interface Props {
   defaultMealPrice?: number;
   extrasPrices?: ExtrasPrices;
   suggestions?: { personName: string; lastOrderedAt: string }[];
+  currentUserId?: number;
+  isAdmin?: boolean;
+  currentUserName?: string;
   onAddRow: (department: Department) => Promise<number>;
   onAddRowWithName?: (department: Department, personName: string) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
@@ -248,11 +251,12 @@ function MenuSelect({
 // ── Edit modal ────────────────────────────────────────────
 
 function OrderEditModal({
-  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, existingNames, onSave, onClose, onDelete,
+  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, existingNames, initialPersonName, onSave, onClose, onDelete,
 }: {
   row: OrderRowEnriched; soups: import("@/lib/types").MenuItem[]; meals: import("@/lib/types").MenuItem[];
   isNew: boolean; defaultSoupPrice?: number; defaultMealPrice?: number; ep: ExtrasPrices;
   existingNames: string[];
+  initialPersonName?: string;
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
   const [firstName, setFirstName] = useState(() => {
@@ -586,18 +590,19 @@ function getExtraChips(row: OrderRowEnriched): ExtraChip[] {
   return out;
 }
 
-function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; isCurrentUser: boolean; onEdit: () => void; onDelete: () => void;
+function OrderRow({ row, accent, isSent, isCurrentUser, isEditable = true, onEdit, onDelete }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean; isCurrentUser: boolean; isEditable?: boolean; onEdit: () => void; onDelete: () => void;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
   const extras = getExtraChips(row);
   const hasFood = !!row.mainItem || !!row.soupItem || !!row.soupItem2 || row.extraMealItems.length > 0 || extras.length > 0;
+  const canInteract = !isSent && isEditable;
 
   return (
     <div
-      className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${canInteract ? "hover:bg-white/60 cursor-pointer active:scale-[0.995]" : ""} ${!isEditable && !isSent ? "opacity-60" : ""}`}
       style={isCurrentUser ? { background: "rgba(254,243,199,0.4)", borderColor: "rgba(245,158,11,0.35)" } : undefined}
-      onClick={!isSent ? onEdit : undefined}
+      onClick={canInteract ? onEdit : undefined}
     >
       {/* Avatar */}
       <span
@@ -674,7 +679,7 @@ function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
       )}
 
       {/* Delete button — always visible on mobile, hover-only on desktop */}
-      {!isSent && (
+      {canInteract && (
         <button
           type="button"
           aria-label="Smazat"
@@ -683,6 +688,10 @@ function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
         >
           <MIcon name="close" size={14} />
         </button>
+      )}
+      {/* Lock icon for rows owned by other users */}
+      {!isSent && !isEditable && (
+        <MIcon name="lock" size={13} style={{ color: "#d4c5b5", flexShrink: 0 }} />
       )}
     </div>
   );
@@ -743,7 +752,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], currentUserId, isAdmin = false, currentUserName, onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -845,17 +854,22 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
               }}
             />
           ) : (
-            activeRows.map((row) => (
-              <OrderRow
-                key={row.id}
-                row={row}
-                accent={data.accent}
-                isSent={isSent}
-                isCurrentUser={!!myName && normalizeName(row.personName) === normalizeName(myName)}
-                onEdit={() => setModalState({ rowId: row.id, isNew: false })}
-                onDelete={() => setDeleteConfirmRowId(row.id)}
-              />
-            ))
+            activeRows.map((row) => {
+              const editable = isAdmin || row.userId === null || row.userId === currentUserId;
+              return (
+                <OrderRow
+                  key={row.id}
+                  row={row}
+                  accent={data.accent}
+                  isSent={isSent}
+                  isCurrentUser={!!myName && normalizeName(row.personName) === normalizeName(myName)}
+                  isEditable={editable}
+                  onEdit={() => editable && setModalState({ rowId: row.id, isNew: false })}
+                  onDelete={() => editable && setDeleteConfirmRowId(row.id)}
+                />
+              );
+            })
+
           )}
         </div>
 
@@ -875,6 +889,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
           defaultSoupPrice={defaultSoupPrice}
           ep={extrasPrices}
           existingNames={existingNames}
+          initialPersonName={modalState!.isNew ? currentUserName : undefined}
           isNew={modalState!.isNew}
           meals={meals}
           onClose={() => setModalState(null)}

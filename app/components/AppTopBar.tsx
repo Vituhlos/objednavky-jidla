@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
 
@@ -33,6 +33,50 @@ const SidebarClock = memo(function SidebarClock() {
     </div>
   );
 });
+
+function UserBadge() {
+  const router = useRouter();
+  const [user, setUser] = useState<{ firstName: string; lastName: string; role: string } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setUser(d))
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="glass-soft rounded-2xl p-3">
+      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Přihlášen</div>
+      <div className="font-display font-bold text-[13px] text-stone-900 leading-none">{user.firstName} {user.lastName}</div>
+      {user.role === "admin" && (
+        <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Admin</div>
+      )}
+      <button
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="mt-2 w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-stone-500 glass-btn transition hover:text-stone-700"
+      >
+        <MIcon name="logout" size={13} />
+        {loggingOut ? "Odhlašuji…" : "Odhlásit se"}
+      </button>
+    </div>
+  );
+}
 
 export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
   const pathname = usePathname();
@@ -89,7 +133,8 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
           })}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-2">
+          <UserBadge />
           <SidebarClock />
         </div>
       </aside>

@@ -325,6 +325,9 @@ export default function OrderPage({
   suggestions = {},
   prefillMain = null,
   prefillSoup = null,
+  currentUserId,
+  isAdmin = false,
+  currentUserName,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -343,6 +346,9 @@ export default function OrderPage({
   suggestions?: Record<string, DeptSuggestion[]>;
   prefillMain?: number | null;
   prefillSoup?: number | null;
+  currentUserId?: number;
+  isAdmin?: boolean;
+  currentUserName?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -1264,11 +1270,14 @@ export default function OrderPage({
               <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
                 {departments.map((dept) => (
                   <DepartmentPanel
+                    currentUserId={currentUserId}
+                    currentUserName={currentUserName}
                     data={dept}
                     defaultMealPrice={defaultMealPrice}
                     defaultSoupPrice={defaultSoupPrice}
                     existingNames={existingNames}
                     extrasPrices={extrasPrices}
+                    isAdmin={isAdmin}
                     isSent={isSent}
                     key={dept.name}
                     meals={allMeals}

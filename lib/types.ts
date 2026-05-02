@@ -26,6 +26,7 @@ export interface OrderRow {
   department: Department;
   sortOrder: number;
   personName: string;
+  userId: number | null;
   soupItemId: number | null;
   soupItemId2: number | null;
   mainItemId: number | null;

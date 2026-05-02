@@ -28,6 +28,9 @@ import {
   getSettingsHealth,
   type SettingsHealth,
   type HealthStatus,
+  actionGetUsers,
+  actionSetUserRole,
+  actionSetUserActive,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
@@ -344,12 +347,13 @@ const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, isAdmin = false,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
+  isAdmin?: boolean;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("objednavka");
@@ -476,6 +480,22 @@ export default function SettingsPage({
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [restoreError, setRestoreError] = useState("");
   const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  type UserRow = { id: number; email: string; firstName: string; lastName: string; role: string; active: number; createdAt: string };
+  const [users, setUsers] = useState<UserRow[] | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const result = await actionGetUsers();
+      setUsers(result);
+    } catch {
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1684,6 +1704,80 @@ export default function SettingsPage({
                 )}
               </div>
             </Section>
+
+                {/* User management (admin only) — z v4 */}
+                {isAdmin && (
+                  <Section icon="group" title="Správa uživatelů">
+                    <p className="text-[12.5px] text-stone-500">Přehled registrovaných uživatelů. Můžete měnit role nebo deaktivovat účty.</p>
+                    {users === null ? (
+                      <button
+                        className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                        disabled={usersLoading}
+                        onClick={loadUsers}
+                        type="button"
+                      >
+                        <MIcon name="refresh" size={14} /> {usersLoading ? "Načítám…" : "Načíst uživatele"}
+                      </button>
+                    ) : (
+                      <div className="overflow-x-auto -mx-4 -mb-4">
+                        <table className="w-full text-[12px]">
+                          <thead>
+                            <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                              <th className="text-left px-4 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Uživatel</th>
+                              <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">E-mail</th>
+                              <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Role</th>
+                              <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Stav</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {users.map((u) => (
+                              <tr key={u.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
+                                <td className="px-4 py-2.5 font-medium text-stone-800">{u.firstName} {u.lastName}</td>
+                                <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{u.email}</td>
+                                <td className="px-3 py-2.5">
+                                  <select
+                                    className="k-select text-[11.5px]"
+                                    style={{ padding: "4px 28px 4px 8px", borderRadius: 8 }}
+                                    value={u.role}
+                                    onChange={async (e) => {
+                                      await actionSetUserRole(u.id, e.target.value as "user" | "admin");
+                                      setUsers((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x) : prev);
+                                    }}
+                                  >
+                                    <option value="user">Uživatel</option>
+                                    <option value="admin">Admin</option>
+                                  </select>
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <button
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${u.active ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-red-50 hover:text-red-600 hover:border-red-200" : "bg-stone-100 text-stone-500 border border-stone-200/80 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"}`}
+                                    onClick={async () => {
+                                      await actionSetUserActive(u.id, !u.active);
+                                      setUsers((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, active: x.active ? 0 : 1 } : x) : prev);
+                                    }}
+                                    type="button"
+                                  >
+                                    <MIcon name={u.active ? "check_circle" : "block"} size={11} fill />
+                                    {u.active ? "Aktivní" : "Deaktivován"}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="px-4 py-2.5 flex justify-end">
+                          <button
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 hover:text-stone-600 transition"
+                            onClick={loadUsers}
+                            type="button"
+                          >
+                            <MIcon name="refresh" size={12} /> Obnovit
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </Section>
+                )}
 
                 <Section icon="history" title="Historie změn" action={
                   initialAuditLog.length > 0 ? (
