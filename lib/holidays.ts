@@ -1,3 +1,19 @@
+const HOLIDAY_DESCRIPTIONS: Record<string, string> = {
+  "Nový rok": "Oslavy příchodu nového roku a výročí vzniku samostatné České republiky v roce 1993.",
+  "Svátek práce": "Mezinárodní den práce připomínající boj za práva pracujících od 19. století.",
+  "Den vítězství": "Výročí konce druhé světové války v Evropě — kapitulace Německa 8. května 1945.",
+  "Den slovanských věrozvěstů Cyrila a Metoděje": "Příchod soluňských bratří na Velkou Moravu v roce 863, kteří přinesli písmo a přeložili bohoslužebné texty do slovanštiny.",
+  "Den upálení mistra Jana Husa": "Upálení českého náboženského reformátora Jana Husa na kostnickém koncilu 6. července 1415.",
+  "Den české státnosti": "Svátek sv. Václava, knížete a patrona českých zemí, symbol české státnosti.",
+  "Den vzniku samostatného Československa": "Vznik samostatného Československa 28. října 1918 po rozpadu Rakouska-Uherska.",
+  "Den boje za svobodu a demokracii": "Výročí sametové revoluce z 17. listopadu 1989 a připomínka násilného potlačení studentské demonstrace v roce 1939.",
+  "Velký pátek": "Den ukřižování Ježíše Krista — den smutku, postu a rozjímání.",
+  "Velikonoční pondělí": "Oslava vzkříšení Ježíše Krista, největší křesťanský svátek.",
+  "Štědrý den": "Vánoční štědrý večer plný tradic — ryba, cukroví, koledy a rozdávání dárků.",
+  "1. svátek vánoční": "Slavnost narození Ježíše Krista, den klidu a setkání s rodinou.",
+  "2. svátek vánoční": "Pokračování vánočních oslav, den sv. Štěpána.",
+};
+
 const FIXED: Record<string, string> = {
   "01-01": "Nový rok",
   "05-01": "Svátek práce",
@@ -68,4 +84,9 @@ export function getHolidayEmoji(name: string | null): string {
   };
 
   return EMOJI_MAP[name] ?? "☺";
+}
+
+export function getHolidayDescription(name: string | null): string | null {
+  if (!name) return null;
+  return HOLIDAY_DESCRIPTIONS[name] ?? null;
 }

@@ -74,6 +74,7 @@ export default function OrderPage({
   selectedDate,
   todayDate,
   holidayName,
+  holidayDescription,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -85,6 +86,7 @@ export default function OrderPage({
   selectedDate?: string;
   todayDate?: string;
   holidayName?: string | null;
+  holidayDescription?: string | null;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -578,66 +580,41 @@ export default function OrderPage({
 
           {noMenu ? (
             /* ── Closed / no-menu banner ── */
-            <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: "rgba(245,158,11,0.18)" }}>
-              <div className="h-[3px]" style={{ background: "linear-gradient(90deg,#F59E0B,#EA580C)" }} />
-              <div
-                className="flex items-center gap-3 px-4 py-3 border-b border-white/40"
-                style={{ background: "rgba(245,158,11,0.08)" }}
-              >
-                <div
-                  className="w-10 h-10 rounded-xl inline-flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(245,158,11,0.14)" }}
-                >
-                  {holidayName ? (
-                    <span className="text-[20px] leading-none">{holidayEmoji}</span>
-                  ) : (
-                    <MIcon
-                      name="event_busy"
-                      size={20}
-                      fill
-                      style={{ color: "#D97706" }}
-                    />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-display font-bold text-[14px] text-stone-900 leading-none">
-                    {holidayName ? "Svátek / zavřeno" : "Jídelníček není k dispozici"}
-                  </div>
-                  <div className="text-[11.5px] text-stone-500 mt-0.5">
-                    {holidayName ? "V tento den se objednávky nevytvářejí." : "Pro vybraný den nejsou dostupné žádné položky menu."}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center text-center px-6 py-10 md:py-12 gap-4">
+            <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
+              <div className="h-[3px]" style={{ background: holidayName ? "linear-gradient(90deg,#F59E0B,#EA580C)" : "linear-gradient(90deg,#94a3b8,#cbd5e1)" }} />
+              <div className="flex flex-col items-center text-center px-6 py-8 md:py-10 gap-3">
                 <div
                   className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.5)" }}
+                  style={holidayName
+                    ? { background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.45)" }
+                    : { background: "rgba(148,163,184,0.18)", border: "1px solid rgba(148,163,184,0.25)" }
+                  }
                 >
                   {holidayName ? (
-                    <span className="text-[28px] leading-none text-white">{holidayEmoji}</span>
+                    <span className="text-[28px] leading-none">{holidayEmoji}</span>
                   ) : (
-                    <MIcon
-                      name="no_meals"
-                      size={28}
-                      fill
-                      style={{ color: "white" }}
-                    />
+                    <MIcon name="no_meals" size={28} fill style={{ color: "#94a3b8" }} />
                   )}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <div className="font-display font-bold text-[21px] text-stone-900 leading-tight">
+                <div className="flex flex-col gap-0.5">
+                  <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
                     {holidayName ?? "Jídelníček není k dispozici"}
                   </div>
                   {formattedClosedDate && (
                     <div className="text-[13px] text-stone-500">{formattedClosedDate}</div>
                   )}
                 </div>
+                {holidayDescription && (
+                  <p className="text-[13px] text-stone-500 leading-relaxed max-w-sm">
+                    {holidayDescription}
+                  </p>
+                )}
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-medium text-stone-600"
-                  style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(245,158,11,0.14)" }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500 mt-1"
+                  style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
                 >
-                  <MIcon name="info" size={14} style={{ color: "#D97706" }} />
-                  <span>{holidayName ? "Objednávková stránka je pro tento den pouze informativní." : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}</span>
+                  <MIcon name="info" size={13} style={{ color: "#D97706" }} />
+                  <span>{holidayName ? "V tento den se objednávky nevytvářejí." : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}</span>
                 </div>
               </div>
             </div>
