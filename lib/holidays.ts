@@ -1,15 +1,15 @@
 const FIXED: Record<string, string> = {
   "01-01": "Nový rok",
   "05-01": "Svátek práce",
-  "08-05": "Den vítězství",
-  "05-07": "Den slovanských věrozvěstů Cyrila a Metoděje",
-  "06-07": "Den upálení mistra Jana Husa",
-  "28-09": "Den české státnosti",
-  "28-10": "Den vzniku samostatného Československa",
-  "17-11": "Den boje za svobodu a demokracii",
-  "24-12": "Štědrý den",
-  "25-12": "1. svátek vánoční",
-  "26-12": "2. svátek vánoční",
+  "05-08": "Den vítězství",
+  "07-05": "Den slovanských věrozvěstů Cyrila a Metoděje",
+  "07-06": "Den upálení mistra Jana Husa",
+  "09-28": "Den české státnosti",
+  "10-28": "Den vzniku samostatného Československa",
+  "11-17": "Den boje za svobodu a demokracii",
+  "12-24": "Štědrý den",
+  "12-25": "1. svátek vánoční",
+  "12-26": "2. svátek vánoční",
 };
 
 function easterSunday(year: number): Date {
