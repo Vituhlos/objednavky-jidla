@@ -71,6 +71,7 @@ export default function AppTopBar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition ${isActive ? "sidebar-item-active" : "hover:bg-white/60"}`}
               >
                 <MIcon
@@ -101,6 +102,7 @@ export default function AppTopBar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? "page" : undefined}
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >

@@ -70,9 +70,9 @@ function ModalStepper({
       <span className="modal-stepper__label">{label}</span>
       <span className="modal-stepper__price">{price} Kč/ks</span>
       <div className="modal-stepper__controls">
-        <button className="stepper-btn" disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))} type="button">−</button>
-        <span className="stepper-count">{value}</span>
-        <button className="stepper-btn" onClick={() => onChange(value + 1)} type="button">+</button>
+        <button aria-label={`Ubrat ${label}`} className="stepper-btn" disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))} type="button">−</button>
+        <span aria-label={`Počet: ${value}`} className="stepper-count">{value}</span>
+        <button aria-label={`Přidat ${label}`} className="stepper-btn" onClick={() => onChange(value + 1)} type="button">+</button>
       </div>
     </div>
   );

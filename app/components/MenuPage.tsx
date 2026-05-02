@@ -207,7 +207,7 @@ function WeekGrid({
                 )}
               </div>
             ) : !hasItems && !editMode ? (
-              <div className="px-3 py-5 text-[11.5px] text-stone-300 text-center">–</div>
+              <div className="px-3 py-5 text-[11.5px] text-stone-400 text-center">Jídla ještě nebyla zadána</div>
             ) : (
               <div className="px-3 py-2.5 space-y-3">
                 {/* Soups */}
