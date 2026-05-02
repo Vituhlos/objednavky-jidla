@@ -10,6 +10,8 @@ import {
   actionAddMenuItem,
   actionUpdateMenuItem,
   actionDeleteMenuItem,
+  actionCloseDay,
+  actionOpenDay,
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import AppTopBar from "./AppTopBar";
@@ -127,7 +129,7 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, onAdd, onDelete, onUpdate,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onDelete, onUpdate, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -135,9 +137,12 @@ function WeekGrid({
   holidayNames: Record<string, string | null>;
   editMode: boolean;
   disabled: boolean;
+  weekStart: string;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
   onDelete: (id: number) => void;
   onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+  onCloseDay: (day: string) => void;
+  onOpenDay: (day: string) => void;
 }) {
   return (
     <div className="grid grid-cols-5 gap-3 items-start">
@@ -196,13 +201,23 @@ function WeekGrid({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center py-2.5">
+                  <div className="flex flex-col items-center gap-2 py-2.5">
                     <span
                       className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-stone-400"
                       style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.08)" }}
                     >
                       Zavřeno
                     </span>
+                    {editMode && (
+                      <button
+                        className="text-[10.5px] font-semibold px-2.5 py-1 rounded-xl glass-btn text-stone-600"
+                        disabled={disabled}
+                        onClick={() => onOpenDay(day)}
+                        type="button"
+                      >
+                        Otevřít den
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -254,6 +269,18 @@ function WeekGrid({
                       <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
                     ))}
                     {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
+                  </div>
+                )}
+                {editMode && (
+                  <div className="pt-1.5 pb-0.5">
+                    <button
+                      className="w-full text-[10.5px] font-semibold py-1.5 rounded-xl glass-btn-danger text-red-600"
+                      disabled={disabled}
+                      onClick={() => onCloseDay(day)}
+                      type="button"
+                    >
+                      Uzavřít den
+                    </button>
                   </div>
                 )}
               </div>
@@ -731,9 +758,16 @@ export default function MenuPage({
           holidayNames={activeHolidayNames}
           menu={activeMenu}
           onAdd={(day, type) => handleAdd(day, type)}
+          onCloseDay={(day) => {
+            startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
+          }}
           onDelete={(id) => setConfirmDeleteItemId(id)}
+          onOpenDay={(day) => {
+            startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
+          }}
           onUpdate={handleUpdate}
           todayCode={visibleTodayCode}
+          weekStart={activeWeekStart}
         />
       </div>
 
@@ -771,7 +805,7 @@ export default function MenuPage({
                   </div>
                 </div>
               </div>
-              <div className="px-4 py-6 text-center">
+              <div className="px-4 py-4 flex flex-col items-center gap-3">
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-medium text-stone-600"
                   style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(245,158,11,0.14)" }}
@@ -779,6 +813,16 @@ export default function MenuPage({
                   <MIcon name="info" size={14} style={{ color: "#D97706" }} />
                   <span>{activeHolidayName ? "V tento den se jídla nevydávají." : "Zkuste jiný den nebo doplnit menu v editaci."}</span>
                 </div>
+                {!isReadOnly && editMode && (
+                  <button
+                    className="text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                    disabled={isPending}
+                    onClick={() => startTransition(async () => { await actionOpenDay(activeDay, activeWeekStart); router.refresh(); })}
+                    type="button"
+                  >
+                    Otevřít den
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -809,6 +853,16 @@ export default function MenuPage({
                 onUpdate={handleUpdate}
                 title="Jídla"
               />
+              {!isReadOnly && editMode && (
+                <button
+                  className="w-full text-[12px] font-semibold py-2 rounded-2xl glass-btn-danger text-red-600"
+                  disabled={isPending}
+                  onClick={() => startTransition(async () => { await actionCloseDay(activeDay, activeWeekStart); router.refresh(); })}
+                  type="button"
+                >
+                  Uzavřít den
+                </button>
+              )}
             </>
           )}
         </div>

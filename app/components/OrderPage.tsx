@@ -482,6 +482,11 @@ export default function OrderPage({
             </span>
           )}
         </div>
+        {activeOrderCount > 0 && (
+          <span className="text-[12px] text-stone-500 shrink-0">
+            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
+          </span>
+        )}
         {!isSent && !isFutureDay && !noMenu && (
           <div className="flex items-center gap-2 shrink-0">
             <button
