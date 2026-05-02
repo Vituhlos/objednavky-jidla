@@ -325,6 +325,18 @@ export function deleteMenuItem(id: number): void {
   getDb().prepare("DELETE FROM menu_items WHERE id = ?").run(id);
 }
 
+export function closeDay(dayCode: string, weekStart: string): void {
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ?").run(dayCode, weekStart);
+    db.prepare("INSERT INTO menu_items (week_start, day, type, code, name, price) VALUES (?, ?, 'Jídlo', '0', 'Zavřeno', 0)").run(weekStart, dayCode);
+  })();
+}
+
+export function openDay(dayCode: string, weekStart: string): void {
+  getDb().prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ? AND name = 'Zavřeno'").run(dayCode, weekStart);
+}
+
 // Keep replaceMenu for backward compatibility (replaces current week)
 export function replaceMenu(
   weekLabel: string,

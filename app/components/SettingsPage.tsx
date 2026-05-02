@@ -12,6 +12,7 @@ import {
   actionDeleteDepartment,
   actionReorderDepartments,
   actionReopenOrder,
+  actionResendOrder,
 } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
@@ -48,6 +49,7 @@ const ACTION_LABELS: Record<string, string> = {
   order_reopen: "Znovuotevření",
   order_clear: "Vymazání objednávky",
   auto_send: "Auto-odeslání",
+  menu_reminder: "Upozornění na chybějící menu",
 };
 
 function formatTs(ts: string): string {
@@ -239,6 +241,7 @@ export default function SettingsPage({
   const [newDeptAccent, setNewDeptAccent] = useState("blue");
   const [showAddDept, setShowAddDept] = useState(false);
   const [reopenDone, setReopenDone] = useState(false);
+  const [resendStatus, setResendStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
   const formRef = useRef<HTMLFormElement>(null);
 
   // Restore state
@@ -512,21 +515,50 @@ export default function SettingsPage({
             {todayOrder && (todayOrder.status === "sent" || reopenDone) && (
               <Section icon="lock_open" title="Dnešní objednávka">
                 {todayOrder.status === "sent" && !reopenDone ? (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-[12.5px] text-stone-500 flex-1">Objednávka je odeslána. Znovu otevřít ji půjde znovu upravovat a odeslat.</p>
-                    <button
-                      className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-                      disabled={isPending}
-                      onClick={() => {
-                        startTransition(async () => {
-                          await actionReopenOrder(todayOrder.id);
-                          setReopenDone(true);
-                        });
-                      }}
-                      type="button"
-                    >
-                      <MIcon name="lock_open" size={14} /> Znovu otevřít
-                    </button>
+                  <div className="flex flex-col gap-3">
+                    <p className="text-[12.5px] text-stone-500">Objednávka je odeslána.</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                        disabled={isPending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            await actionReopenOrder(todayOrder.id);
+                            setReopenDone(true);
+                          });
+                        }}
+                        type="button"
+                      >
+                        <MIcon name="lock_open" size={14} /> Znovu otevřít
+                      </button>
+                      <button
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                        disabled={isPending || resendStatus === "pending"}
+                        onClick={() => {
+                          setResendStatus("pending");
+                          startTransition(async () => {
+                            try {
+                              await actionResendOrder(todayOrder.id);
+                              setResendStatus("done");
+                              setTimeout(() => setResendStatus("idle"), 4000);
+                            } catch {
+                              setResendStatus("error");
+                            }
+                          });
+                        }}
+                        type="button"
+                      >
+                        <MIcon name="send" size={14} /> {resendStatus === "pending" ? "Odesílám..." : "Znovu odeslat email"}
+                      </button>
+                    </div>
+                    {resendStatus === "done" && (
+                      <p className="text-[12px] text-green-700 inline-flex items-center gap-1.5">
+                        <MIcon name="check_circle" size={13} fill /> Email byl znovu odeslán.
+                      </p>
+                    )}
+                    {resendStatus === "error" && (
+                      <p className="text-[12px] text-red-500">Chyba při odesílání. Zkontrolujte SMTP nastavení.</p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-[12.5px] text-green-700 inline-flex items-center gap-1.5">

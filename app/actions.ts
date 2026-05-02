@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO } from "@/lib/menu";
+import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
 import fs from "fs";
@@ -15,6 +15,7 @@ import {
   sendOrder as dbSendOrder,
   reopenOrder,
   clearOrderRows,
+  resendOrderEmail,
 } from "@/lib/orders";
 import type { Department, OrderRowEnriched, MealEntry } from "@/lib/types";
 import {
@@ -165,6 +166,22 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
   broadcast();
+}
+
+export async function actionResendOrder(orderId: number): Promise<void> {
+  await resendOrderEmail(orderId);
+}
+
+export async function actionCloseDay(dayCode: string, weekStart: string): Promise<void> {
+  closeDay(dayCode, weekStart);
+  revalidatePath("/jidelnicek");
+  revalidatePath("/");
+}
+
+export async function actionOpenDay(dayCode: string, weekStart: string): Promise<void> {
+  openDay(dayCode, weekStart);
+  revalidatePath("/jidelnicek");
+  revalidatePath("/");
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {

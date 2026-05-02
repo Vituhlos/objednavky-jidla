@@ -448,6 +448,25 @@ export function getOrderList(): OrderSummary[] {
   }));
 }
 
+export async function resendOrderEmail(orderId: number): Promise<void> {
+  const db = getDb();
+  const current = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId) as Record<string, unknown> | undefined;
+  if (!current) throw new Error("Objednávka nebyla nalezena.");
+  const currentOrder = mapOrder(current);
+  const configuredExtraEmail = getSettings().orderExtraEmail.trim();
+  const normalizedExtraEmail = configuredExtraEmail || currentOrder.extraEmail || null;
+  const orderData = getOrderData(orderId);
+  const activeDepartments = orderData.departments.filter(isDepartmentSubmitted);
+  if (activeDepartments.length === 0) throw new Error("Objednávka neobsahuje žádná data k odeslání.");
+  const recipients = getOrderRecipients(normalizedExtraEmail);
+  const email = buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail: normalizedExtraEmail } });
+  const attachments = await Promise.all(
+    activeDepartments.map((dept) => buildDepartmentPdfAttachment(dept, orderData.order.date))
+  );
+  await sendEmail({ to: recipients, subject: email.subject, html: email.html, text: email.text, attachments });
+  logAudit({ action: "order_send", orderId, details: "Znovu odesláno" });
+}
+
 export function clearOrderRows(orderId: number): void {
   getDb().prepare("DELETE FROM order_rows WHERE order_id = ?").run(orderId);
   logAudit({ action: "order_clear", orderId });

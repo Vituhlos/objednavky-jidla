@@ -93,6 +93,13 @@ export default function AppTopBar() {
         </div>
       </aside>
 
+      {/* ── Mobile bottom fade (masks background bleed under nav) ── */}
+      <div
+        aria-hidden="true"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
+        style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
+      />
+
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
       <nav aria-label="Navigace" className="md:hidden fixed bottom-2 left-2 right-2 z-40">
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
