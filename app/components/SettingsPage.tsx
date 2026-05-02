@@ -49,6 +49,7 @@ const ACTION_LABELS: Record<string, string> = {
   order_reopen: "Znovuotevření",
   order_clear: "Vymazání objednávky",
   auto_send: "Auto-odeslání",
+  menu_reminder: "Upozornění na chybějící menu",
 };
 
 function formatTs(ts: string): string {

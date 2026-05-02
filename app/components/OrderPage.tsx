@@ -512,7 +512,12 @@ export default function OrderPage({
       {/* ── Mobile info strip ── */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
         <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-        <span className="flex-1 text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
+        <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
+        {activeOrderCount > 0 && (
+          <span className="text-[11px] text-stone-500 shrink-0">
+            {activeOrderCount} · {totalPrice} Kč
+          </span>
+        )}
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
