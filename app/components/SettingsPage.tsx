@@ -51,7 +51,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function formatTs(ts: string): string {
-  const d = new Date(ts + "Z");
+  const d = new Date(ts.replace(" ", "T") + "Z");
   return d.toLocaleString("cs-CZ", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
