@@ -13,6 +13,7 @@ import {
   seedMenuIfEmpty,
   getWeekLabel,
 } from "./menu";
+import { getPragueISODate } from "./time";
 import type {
   Order,
   DepartmentData,
@@ -110,7 +111,7 @@ function getOrCreateOrderForDate(date: string): Order {
 
 function getOrCreateTodayOrder(): Order {
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getPragueISODate();
   let order = db
     .prepare("SELECT * FROM orders WHERE date = ?")
     .get(today) as Record<string, unknown> | undefined;

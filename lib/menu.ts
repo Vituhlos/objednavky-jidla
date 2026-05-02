@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { getSettings } from "./settings";
+import { getPragueNow, toLocalISODate } from "./time";
 import type { MenuItem, DayCode } from "./types";
 
 const JS_DAY_TO_CODE: Record<number, DayCode> = {
@@ -11,7 +12,7 @@ const JS_DAY_TO_CODE: Record<number, DayCode> = {
 };
 
 export function getTodayDayCode(): DayCode | null {
-  const day = new Date().getDay();
+  const day = getPragueNow().getDay();
   return JS_DAY_TO_CODE[day] ?? null;
 }
 
@@ -40,17 +41,17 @@ export function getMenuDates(): string[] {
 }
 
 // ISO date of Monday of the week containing `date`
-export function getMondayISO(date: Date = new Date()): string {
+export function getMondayISO(date: Date = getPragueNow()): string {
   const d = new Date(date);
   const day = d.getDay(); // 0=Sun
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 
 // ISO date of next week's Monday
 export function getNextMondayISO(): string {
-  const d = new Date();
+  const d = getPragueNow();
   d.setDate(d.getDate() + 7);
   return getMondayISO(d);
 }
@@ -94,7 +95,7 @@ export function getMenuItemById(id: number): MenuItem | null {
 }
 
 export function getWeekLabel(): string {
-  const now = new Date();
+  const now = getPragueNow();
   const day = now.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);

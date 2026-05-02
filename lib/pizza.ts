@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { computePizzaTotals } from "./pizza-utils";
+import { getPragueISODate } from "./time";
 export { PIZZA_BOX_FEE, PIZZA_DELIVERY, computePizzaTotals } from "./pizza-utils";
 export type { PizzaTotals } from "./pizza-utils";
 
@@ -72,7 +73,7 @@ function enrichRow(row: Record<string, unknown>, items: PizzaItem[]): PizzaOrder
 
 function getOrCreateTodayOrder(): PizzaOrder {
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getPragueISODate();
   let order = db
     .prepare("SELECT * FROM pizza_orders WHERE date = ?")
     .get(today) as Record<string, unknown> | undefined;

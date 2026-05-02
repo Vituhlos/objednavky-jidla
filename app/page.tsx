@@ -2,26 +2,19 @@ import { getOrderDataForDate } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
+import { getPragueNow, toLocalISODate } from "@/lib/time";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
 
-function getPragueNow(): Date {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-}
-
-function dateToISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const params = await searchParams;
   const pragueNow = getPragueNow();
-  const todayISO = dateToISO(pragueNow);
+  const todayISO = toLocalISODate(pragueNow);
 
   const tomorrowDate = new Date(pragueNow);
   tomorrowDate.setDate(pragueNow.getDate() + 1);
-  const tomorrowISO = dateToISO(tomorrowDate);
+  const tomorrowISO = toLocalISODate(tomorrowDate);
 
   const menuDates = getMenuDates();
   const allDates = [...new Set([todayISO, ...menuDates.filter((d) => d >= todayISO)])].sort();
