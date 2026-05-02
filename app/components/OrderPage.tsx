@@ -497,16 +497,6 @@ export default function OrderPage({
             Odešle se automaticky v den samotný
           </span>
         )}
-        {isSent && (
-          <button
-            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
-            disabled={isPending}
-            onClick={handleReopen}
-            type="button"
-          >
-            {isPending ? "…" : "Znovu otevřít"}
-          </button>
-        )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
       </div>
 
@@ -725,16 +715,6 @@ export default function OrderPage({
                     type="button"
                   >
                     Smazat
-                  </button>
-                )}
-                {isSent && (
-                  <button
-                    className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
-                    disabled={isPending}
-                    onClick={handleReopen}
-                    type="button"
-                  >
-                    {isPending ? "…" : "Znovu otevřít"}
                   </button>
                 )}
               </div>

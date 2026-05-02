@@ -11,6 +11,7 @@ import {
   actionUpdateDepartment,
   actionDeleteDepartment,
   actionReorderDepartments,
+  actionReopenOrder,
 } from "@/app/actions";
 import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
@@ -209,11 +210,12 @@ function DeptRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
+  todayOrder?: { id: number; status: string };
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [pin, setPin] = useState("");
@@ -228,6 +230,7 @@ export default function SettingsPage({
   const [newDeptLabel, setNewDeptLabel] = useState("");
   const [newDeptAccent, setNewDeptAccent] = useState("blue");
   const [showAddDept, setShowAddDept] = useState(false);
+  const [reopenDone, setReopenDone] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -673,6 +676,36 @@ export default function SettingsPage({
                 ↓ Stáhnout zálohu
               </a>
             </Section>
+
+            {/* Reopen order */}
+            {todayOrder && (
+              <Section icon="lock_open" title="Dnešní objednávka">
+                {todayOrder.status === "sent" && !reopenDone ? (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="text-[12.5px] text-stone-500 flex-1">Objednávka je odeslána. Znovu otevřít ji půjde znovu upravovat a odeslat.</p>
+                    <button
+                      className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                      disabled={isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          await actionReopenOrder(todayOrder.id);
+                          setReopenDone(true);
+                        });
+                      }}
+                      type="button"
+                    >
+                      <MIcon name="lock_open" size={14} /> Znovu otevřít
+                    </button>
+                  </div>
+                ) : reopenDone ? (
+                  <p className="text-[12.5px] text-green-700 inline-flex items-center gap-1.5">
+                    <MIcon name="check_circle" size={14} fill /> Objednávka byla znovu otevřena.
+                  </p>
+                ) : (
+                  <p className="text-[12.5px] text-stone-400">Objednávka ještě nebyla odeslána.</p>
+                )}
+              </Section>
+            )}
 
             {/* Audit log */}
             <Section icon="history" title="Historie změn">
