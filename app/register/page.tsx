@@ -46,7 +46,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto" }}>
+      <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
       <div className="glass scale-in" style={{ width: "100%", maxWidth: 420, borderRadius: 24, padding: "2rem", position: "relative", zIndex: 10 }}>
         {/* Logo */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "1.75rem", gap: 10 }}>
@@ -136,6 +137,7 @@ export default function RegisterPage() {
           Již máte účet?{" "}
           <Link href="/login" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>Přihlásit se</Link>
         </p>
+      </div>
       </div>
     </div>
   );
