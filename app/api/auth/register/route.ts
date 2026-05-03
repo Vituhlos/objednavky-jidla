@@ -34,14 +34,17 @@ export async function POST(req: NextRequest) {
   const existingInactive = db.prepare("SELECT id FROM users WHERE email = ? AND active = 0").get(normalizedEmail) as { id: number } | undefined;
 
   let userId: number;
+  let role: string;
   if (existingInactive) {
+    const existing = db.prepare("SELECT role FROM users WHERE id = ?").get(existingInactive.id) as { role: string };
+    role = existing.role;
     db.prepare(
       "UPDATE users SET first_name = ?, last_name = ?, password_hash = ?, active = 1 WHERE id = ?"
     ).run(firstName.trim(), lastName.trim(), hashPassword(password), existingInactive.id);
     userId = existingInactive.id;
   } else {
     const { count } = db.prepare("SELECT COUNT(*) as count FROM users WHERE active = 1").get() as { count: number };
-    const role = count === 0 ? "admin" : "user";
+    role = count === 0 ? "admin" : "user";
     const result = db.prepare(
       "INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)"
     ).run(normalizedEmail, firstName.trim(), lastName.trim(), hashPassword(password), role);
