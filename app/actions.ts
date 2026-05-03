@@ -53,6 +53,18 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 
+async function requireAuth() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Musíte být přihlášeni.");
+  return user;
+}
+
+async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") throw new Error("Tato akce vyžaduje oprávnění správce.");
+  return user;
+}
+
 export async function actionAddRow(
   orderId: number,
   department: Department,
@@ -90,15 +102,15 @@ export async function actionUpdateRow(
   }>,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  const user = await getCurrentUser();
-  const row = updateOrderRow(rowId, updates, pushEndpoint, user?.id, user?.role === "admin");
+  const user = await requireAuth();
+  const row = updateOrderRow(rowId, updates, pushEndpoint, user.id, user.role === "admin");
   broadcast();
   return row;
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
-  const user = await getCurrentUser();
-  deleteOrderRow(rowId, user?.id, user?.role === "admin");
+  const user = await requireAuth();
+  deleteOrderRow(rowId, user.id, user.role === "admin");
   revalidatePath("/");
   broadcast();
 }
@@ -187,6 +199,7 @@ export async function getSettingsHealth(): Promise<SettingsHealth> {
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
+  await requireAdmin();
   await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
@@ -210,6 +223,7 @@ export async function actionConfirmMenuImport(
   items: ParsedMenuItem[],
   tmpPdfName?: string
 ): Promise<void> {
+  await requireAdmin();
   setMenuForWeek(weekStart, weekLabel, items);
   if (tmpPdfName) {
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
@@ -224,6 +238,7 @@ export async function actionConfirmMenuImport(
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
+  await requireAdmin();
   deleteMenuForWeek(weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
@@ -241,6 +256,7 @@ export async function actionAddMenuItem(item: {
   price: number;
   weekStart?: string;
 }): Promise<MenuItem> {
+  await requireAdmin();
   return addMenuItem(item);
 }
 
@@ -248,16 +264,19 @@ export async function actionUpdateMenuItem(
   id: number,
   updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): Promise<MenuItem> {
+  await requireAdmin();
   return updateMenuItem(id, updates);
 }
 
 export async function actionDeleteMenuItem(id: number): Promise<void> {
+  await requireAdmin();
   deleteMenuItem(id);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
+  await requireAuth();
   const row = addPizzaRow(orderId);
   revalidatePath("/pizza");
   return row;
@@ -267,6 +286,7 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
+  await requireAuth();
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
   broadcast();
@@ -274,6 +294,7 @@ export async function actionUpdatePizzaRow(
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
+  await requireAuth();
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
 }
@@ -281,12 +302,14 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
 ): Promise<{ id: number; code: number; name: string; price: number }[]> {
+  await requireAdmin();
   const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
   return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
+  await requireAdmin();
   reopenOrder(orderId);
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
@@ -294,22 +317,26 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
+  await requireAdmin();
   await resendOrderEmail(orderId);
 }
 
 export async function actionCloseDay(dayCode: string, weekStart: string): Promise<void> {
+  await requireAdmin();
   closeDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionOpenDay(dayCode: string, weekStart: string): Promise<void> {
+  await requireAdmin();
   openDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
+  await requireAdmin();
   clearOrderRows(orderId);
   revalidatePath("/");
   broadcast();
@@ -322,6 +349,7 @@ export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
 export async function actionAddDepartment(data: {
   name: string; label: string; emailLabel: string; accent: string;
 }): Promise<DepartmentInfo> {
+  await requireAdmin();
   const dept = addDepartment(data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -332,6 +360,7 @@ export async function actionUpdateDepartment(
   id: number,
   data: Partial<{ label: string; emailLabel: string; accent: string }>
 ): Promise<DepartmentInfo> {
+  await requireAdmin();
   const dept = updateDepartment(id, data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -339,12 +368,14 @@ export async function actionUpdateDepartment(
 }
 
 export async function actionDeleteDepartment(id: number): Promise<void> {
+  await requireAdmin();
   deleteDepartment(id);
   revalidatePath("/");
   revalidatePath("/nastaveni");
 }
 
 export async function actionReorderDepartments(orderedIds: number[]): Promise<void> {
+  await requireAdmin();
   reorderDepartments(orderedIds);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -357,6 +388,7 @@ export async function actionCheckPin(pin: string): Promise<boolean> {
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
+  await requireAdmin();
   if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
   saveSettings(updates);
   revalidatePath("/nastaveni");
