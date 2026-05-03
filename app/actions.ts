@@ -496,7 +496,11 @@ export async function actionSetUserActive(userId: number, active: boolean): Prom
   const user = await getCurrentUser();
   if (user?.role !== "admin") throw new Error("Nemáte oprávnění.");
   const { getDb } = await import("@/lib/db");
-  getDb().prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, userId);
+  const db = getDb();
+  db.prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, userId);
+  if (!active) {
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+  }
   revalidatePath("/nastaveni");
 }
 

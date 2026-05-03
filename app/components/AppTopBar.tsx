@@ -48,17 +48,11 @@ function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: 
   );
 }
 
-function UserBadge() {
-  const router = useRouter();
-  const [user, setUser] = useState<{ firstName: string; lastName: string; role: string } | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
+type UserInfo = { firstName: string; lastName: string; role: string } | null;
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setUser(d))
-      .catch(() => {});
-  }, []);
+function UserBadge({ user }: { user: UserInfo }) {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -99,16 +93,12 @@ function UserBadge() {
   );
 }
 
-export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
+export default function AppTopBar({ pizzaEnabled = true, initialUser }: { pizzaEnabled?: boolean; initialUser?: UserInfo }) {
   const pathname = usePathname();
-  const [currentRole, setCurrentRole] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.ok ? r.json() : null).then((d) => d && setCurrentRole(d.role)).catch(() => {});
-  }, []);
 
   if (pathname === "/login" || pathname === "/register" || pathname === "/zapomenute-heslo" || pathname.startsWith("/reset-hesla")) return null;
 
-  const isAdmin = currentRole === "admin";
+  const isAdmin = initialUser?.role === "admin";
   const filterPizza = (n: { href: string }) => pizzaEnabled || n.href !== "/pizza";
 
   // Mobile nav: non-admins see profile instead of settings
@@ -119,6 +109,8 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
 
   // Desktop sidebar nav: just the main 5 (filtered podle pizzaEnabled) — profil přístupný přes UserBadge link
   const desktopNav = MAIN_NAV.filter(filterPizza);
+
+  if (pathname === "/login" || pathname === "/register") return null;
 
   return (
     <>
@@ -172,7 +164,7 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
         </div>
 
         <div className="mt-auto flex flex-col gap-2">
-          <UserBadge />
+          <UserBadge user={initialUser ?? null} />
           <SidebarClock />
         </div>
       </aside>
