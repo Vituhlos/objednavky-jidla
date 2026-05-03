@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@/lib/auth";
 import type { DepartmentInfo } from "@/lib/departments";
 import { actionUpdateProfile, actionChangePassword, actionGetMyHistory } from "@/app/actions";
@@ -72,7 +73,20 @@ export default function ProfilePage({
   departments: DepartmentInfo[];
   stats: Stats;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   // Profile form
   const [firstName, setFirstName] = useState(user.firstName);
@@ -182,7 +196,7 @@ export default function ProfilePage({
                 {user.firstName} {user.lastName}
               </div>
               <div className="text-[13px] text-stone-500 mt-0.5">{user.email}</div>
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {user.role === "admin" && (
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#D97706" }}>
                     Admin
@@ -195,6 +209,15 @@ export default function ProfilePage({
                 )}
               </div>
             </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[12px] font-semibold text-stone-500 glass-btn transition hover:text-stone-700 disabled:opacity-50"
+              title="Odhlásit se"
+            >
+              <MIcon name="logout" size={15} />
+              <span className="hidden sm:inline">{loggingOut ? "Odhlašuji…" : "Odhlásit"}</span>
+            </button>
           </div>
 
           {/* Stats row */}
