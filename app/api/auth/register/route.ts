@@ -19,19 +19,31 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email.trim().toLowerCase());
-  if (existing) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const existingActive = db.prepare("SELECT id FROM users WHERE email = ? AND active = 1").get(normalizedEmail);
+  if (existingActive) {
     return NextResponse.json({ error: "Tento e-mail je již registrovaný." }, { status: 409 });
   }
 
-  const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
-  const role = count === 0 ? "admin" : "user";
+  const existingInactive = db.prepare("SELECT id FROM users WHERE email = ? AND active = 0").get(normalizedEmail) as { id: number } | undefined;
 
-  const result = db.prepare(
-    "INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)"
-  ).run(email.trim().toLowerCase(), firstName.trim(), lastName.trim(), hashPassword(password), role);
+  let userId: number;
+  if (existingInactive) {
+    db.prepare(
+      "UPDATE users SET first_name = ?, last_name = ?, password_hash = ?, active = 1 WHERE id = ?"
+    ).run(firstName.trim(), lastName.trim(), hashPassword(password), existingInactive.id);
+    userId = existingInactive.id;
+  } else {
+    const { count } = db.prepare("SELECT COUNT(*) as count FROM users WHERE active = 1").get() as { count: number };
+    const role = count === 0 ? "admin" : "user";
+    const result = db.prepare(
+      "INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)"
+    ).run(normalizedEmail, firstName.trim(), lastName.trim(), hashPassword(password), role);
+    userId = result.lastInsertRowid as number;
+  }
 
-  const token = createSession(result.lastInsertRowid as number);
+  const token = createSession(userId);
   const res = NextResponse.json({ ok: true, role });
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
