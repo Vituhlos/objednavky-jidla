@@ -118,18 +118,7 @@ function OrderEditModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNew]);
 
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
+  // body má overflow:hidden globálně — žádný scroll lock nutný
 
   const hasFood =
     soupIds.some((id) => id != null) ||

@@ -52,7 +52,13 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function formatTs(ts: string): string {
-  const d = new Date(ts.replace(" ", "T") + "Z");
+  if (!ts) return "—";
+  const normalized =
+    ts.includes("T") && (ts.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(ts))
+      ? ts
+      : ts.replace(" ", "T") + "Z";
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return ts;
   return d.toLocaleString("cs-CZ", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
@@ -148,11 +154,11 @@ function DeptRow({
         <span className="text-[11px] text-stone-400 hidden sm:inline shrink-0">({dept.name})</span>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            className="hidden sm:inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            className="inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
             disabled={isFirst} onClick={() => onMoveUp(dept.id)} title="Nahoru" type="button"
           >↑</button>
           <button
-            className="hidden sm:inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            className="inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
             disabled={isLast} onClick={() => onMoveDown(dept.id)} title="Dolů" type="button"
           >↓</button>
           <button

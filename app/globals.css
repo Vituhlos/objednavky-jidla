@@ -254,7 +254,7 @@ body {
 .modal-sheet {
   background: rgba(255,255,255,0.92);
   border-radius: 24px 24px 0 0;
-  width: 100%; max-height: 92dvh;
+  width: 100%; max-height: 92vh; max-height: 92dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
   animation: sheetUp .28s cubic-bezier(.2,.8,.2,1) both;
@@ -266,7 +266,7 @@ body {
 @media (min-width: 640px) {
   .modal-sheet {
     border-radius: 24px;
-    width: 460px; max-height: 88dvh;
+    width: 460px; max-height: 88vh; max-height: 88dvh;
     padding-bottom: 0;
     align-self: auto;
     animation: scaleIn .22s ease both;

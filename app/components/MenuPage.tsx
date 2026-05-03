@@ -327,7 +327,7 @@ function WeekItem({
           type="number"
         />
         <button
-          className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100 shrink-0"
+          className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 transition shrink-0"
           disabled={disabled}
           onClick={() => onDelete(item.id)}
           type="button"
