@@ -37,7 +37,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto" }}>
+      <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
       {/* Card */}
       <div className="glass scale-in" style={{ width: "100%", maxWidth: 400, borderRadius: 24, padding: "2rem", position: "relative", zIndex: 10 }}>
         {/* Logo */}
@@ -115,6 +116,7 @@ export default function LoginPage() {
             Registrovat se
           </Link>
         </p>
+      </div>
       </div>
     </div>
   );
