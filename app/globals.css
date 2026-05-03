@@ -285,6 +285,14 @@ body {
     animation: scaleIn .22s ease both;
   }
 }
+.modal-sheet__drag-handle {
+  width: 36px; height: 4px;
+  background: rgba(26,18,8,0.12);
+  border-radius: 9999px;
+  margin: 8px auto 0;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) { .modal-sheet__drag-handle { display: none; } }
 .modal-sheet__header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 1.25rem 1.25rem 0.75rem;
