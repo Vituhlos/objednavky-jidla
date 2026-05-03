@@ -110,7 +110,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: 13, color: "#9b8474" }}>
+        <p style={{ textAlign: "center", marginTop: "1rem", fontSize: 13, color: "#9b8474" }}>
+          <Link href="/zapomenute-heslo" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>
+            Zapomněli jste heslo?
+          </Link>
+        </p>
+        <p style={{ textAlign: "center", marginTop: "0.5rem", fontSize: 13, color: "#9b8474" }}>
           Ještě nemáte účet?{" "}
           <Link href="/register" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>
             Registrovat se

@@ -467,3 +467,89 @@ export async function actionSetUserActive(userId: number, active: boolean): Prom
   getDb().prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, userId);
   revalidatePath("/nastaveni");
 }
+
+export async function actionUpdateProfile(data: {
+  firstName: string;
+  lastName: string;
+  defaultDepartment: string | null;
+}): Promise<void> {
+  const user = await requireAuth();
+  const { firstName, lastName, defaultDepartment } = data;
+  if (!firstName.trim() || !lastName.trim()) throw new Error("Jméno a příjmení jsou povinné.");
+  const { getDb } = await import("@/lib/db");
+  getDb()
+    .prepare("UPDATE users SET first_name = ?, last_name = ?, default_department = ? WHERE id = ?")
+    .run(firstName.trim(), lastName.trim(), defaultDepartment || null, user.id);
+  revalidatePath("/profil");
+  revalidatePath("/");
+}
+
+export async function actionChangePassword(oldPassword: string, newPassword: string): Promise<void> {
+  const user = await requireAuth();
+  if (newPassword.length < 6) throw new Error("Nové heslo musí mít alespoň 6 znaků.");
+  const { getDb } = await import("@/lib/db");
+  const { verifyPassword, hashPassword } = await import("@/lib/auth");
+  const row = getDb()
+    .prepare("SELECT password_hash FROM users WHERE id = ?")
+    .get(user.id) as { password_hash: string } | undefined;
+  if (!row || !verifyPassword(oldPassword, row.password_hash)) {
+    throw new Error("Stávající heslo je nesprávné.");
+  }
+  getDb().prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(newPassword), user.id);
+}
+
+export async function actionGetMyHistory(): Promise<Array<{
+  date: string;
+  department: string;
+  soupName: string | null;
+  mainName: string | null;
+  rollCount: number;
+  breadDumplingCount: number;
+  potatoDumplingCount: number;
+  mealCount: number;
+}>> {
+  const user = await requireAuth();
+  const { getDb } = await import("@/lib/db");
+  const rows = getDb().prepare(`
+    SELECT o.date, r.department,
+      mi1.name AS soup_name, mi2.name AS main_name,
+      r.roll_count, r.bread_dumpling_count, r.potato_dumpling_count,
+      COALESCE(r.meal_count, 1) AS meal_count
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    LEFT JOIN menu_items mi1 ON mi1.id = r.soup_item_id
+    LEFT JOIN menu_items mi2 ON mi2.id = r.main_item_id
+    WHERE r.user_id = ?
+      AND (r.soup_item_id IS NOT NULL OR r.main_item_id IS NOT NULL OR r.roll_count > 0)
+    ORDER BY o.date DESC
+    LIMIT 50
+  `).all(user.id) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    date: r.date as string,
+    department: r.department as string,
+    soupName: r.soup_name as string | null,
+    mainName: r.main_name as string | null,
+    rollCount: r.roll_count as number,
+    breadDumplingCount: r.bread_dumpling_count as number,
+    potatoDumplingCount: r.potato_dumpling_count as number,
+    mealCount: r.meal_count as number,
+  }));
+}
+
+export async function actionAdminSendPasswordReset(userId: number): Promise<void> {
+  await requireAdmin();
+  const { getDb } = await import("@/lib/db");
+  const { createPasswordResetToken } = await import("@/lib/auth");
+  const { sendPasswordResetEmail } = await import("@/lib/email");
+  const user = getDb()
+    .prepare("SELECT id, email, first_name FROM users WHERE id = ? AND active = 1")
+    .get(userId) as { id: number; email: string; first_name: string } | undefined;
+  if (!user) throw new Error("Uživatel nenalezen.");
+  const token = createPasswordResetToken(user.id);
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const resetUrl = `${proto}://${host}/reset-hesla?token=${token}`;
+  await sendPasswordResetEmail(user.email, resetUrl, user.first_name);
+}
+

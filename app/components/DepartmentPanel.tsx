@@ -38,6 +38,7 @@ interface Props {
   suggestions?: { personName: string; lastOrderedAt: string }[];
   currentUserId?: number;
   isAdmin?: boolean;
+  isDefault?: boolean;
   currentUserName?: string;
   onAddRow: (department: Department) => Promise<number>;
   onAddRowWithName?: (department: Department, personName: string) => Promise<number>;
@@ -752,7 +753,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], currentUserId, isAdmin = false, currentUserName, onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], currentUserId, isAdmin = false, isDefault = false, currentUserName, onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -801,7 +802,10 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
             <DeptIcon name={data.name} color={dc.icon} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
+            <div className="flex items-center gap-1.5">
+              <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
+              {isDefault && <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#D97706" }}>moje</span>}
+            </div>
             <div className="text-[11.5px] text-stone-500 mt-0.5">
               {activeRows.length > 0 ? (
                 <>

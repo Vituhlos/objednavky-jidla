@@ -31,6 +31,7 @@ import {
   actionGetUsers,
   actionSetUserRole,
   actionSetUserActive,
+  actionAdminSendPasswordReset,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
@@ -343,6 +344,36 @@ const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: 
   { tab: "system",     field: "field-restore",          label: "Obnova",                 keywords: "restore obnova import" },
   { tab: "system",     field: "field-auditLog",         label: "Audit log",              keywords: "audit log historie změny" },
 ];
+
+// ── Admin: send password reset email ─────────────────────────────────────────
+
+function ResetButton({ userId }: { userId: number }) {
+  const [status, setStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const handle = async () => {
+    setStatus("pending");
+    try {
+      await actionAdminSendPasswordReset(userId);
+      setStatus("done");
+      setTimeout(() => setStatus("idle"), 4000);
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 4000);
+    }
+  };
+  return (
+    <button
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-stone-400 hover:text-amber-700 transition disabled:opacity-50"
+      style={{ background: "rgba(0,0,0,0.04)" }}
+      disabled={status === "pending"}
+      onClick={handle}
+      title="Poslat e-mail s odkazem na reset hesla"
+      type="button"
+    >
+      <MIcon name={status === "done" ? "check" : status === "error" ? "error" : "key"} size={12} />
+      {status === "pending" ? "Odesílám…" : status === "done" ? "Odesláno" : status === "error" ? "Chyba" : "Reset"}
+    </button>
+  );
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 

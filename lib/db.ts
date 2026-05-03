@@ -192,6 +192,19 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
+  // Profil + reset hesla (z v4)
+  try { db.exec("ALTER TABLE users ADD COLUMN default_department TEXT"); } catch {}
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT    NOT NULL UNIQUE,
+      expires_at TEXT    NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
   db.prepare(`
     CREATE TABLE IF NOT EXISTS menu_day_closed (
       week_start TEXT NOT NULL,
@@ -206,6 +219,7 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date);
     CREATE INDEX IF NOT EXISTS idx_menu_items_day_week ON menu_items(week_start, day);
     CREATE INDEX IF NOT EXISTS idx_audit_log_ts ON audit_log(ts DESC);
+    CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token);
   `);
 
   // Add department column to pizza_order_rows (idempotent)

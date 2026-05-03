@@ -69,6 +69,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       currentUserId={currentUser?.id}
       isAdmin={currentUser?.role === "admin"}
       currentUserName={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : undefined}
+      defaultDepartment={currentUser?.defaultDepartment ?? null}
     />
   );
 }
