@@ -1423,6 +1423,13 @@ body {
 
 
 /* ── Auth pages ── */
+.auth-label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: #7a6552;
+  margin-bottom: 5px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
 .auth-input {
   width: 100%;
   background: rgba(255,255,255,0.6);
@@ -1430,17 +1437,29 @@ body {
   border: 1px solid rgba(255,255,255,0.65);
   border-radius: 14px;
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: var(--font-inter);
   color: var(--ink);
   outline: none;
   box-shadow: 0 1px 0 rgba(255,255,255,0.82) inset, 0 4px 12px -6px rgba(26,18,8,0.08);
   transition: border-color .15s, box-shadow .15s;
 }
+@media (min-width: 640px) {
+  .auth-input { font-size: 14px; }
+}
 .auth-input::placeholder { color: var(--muted); }
 .auth-input:focus {
   border-color: rgba(245,158,11,0.5);
   box-shadow: 0 1px 0 rgba(255,255,255,0.82) inset, 0 0 0 3px rgba(245,158,11,0.15);
+}
+.auth-input--error {
+  border-color: rgba(220,38,38,0.5) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.82) inset, 0 0 0 3px rgba(220,38,38,0.12) !important;
+}
+.auth-field-error {
+  font-size: 11px; font-weight: 500;
+  color: #b91c1c;
+  margin-top: 4px;
 }
 .auth-btn {
   width: 100%;

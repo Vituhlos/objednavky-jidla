@@ -65,9 +65,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#7a6552", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              E-mail
-            </label>
+            <label className="auth-label">E-mail</label>
             <input
               autoComplete="email"
               className="auth-input"
@@ -80,9 +78,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#7a6552", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Heslo
-            </label>
+            <label className="auth-label">Heslo</label>
             <input
               autoComplete="current-password"
               className="auth-input"
