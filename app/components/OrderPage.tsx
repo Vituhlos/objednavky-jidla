@@ -1229,6 +1229,7 @@ export default function OrderPage({
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* Prefill banner (sekce 6.6) */}
               {prefillItem && (
                 <div
@@ -1241,6 +1242,22 @@ export default function OrderPage({
                     style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                   >
                     <MIcon name="add_shopping_cart" size={15} fill className="text-white" />
+=======
+              {/* Login banner for unauthenticated users — mobile only (desktop uses sidebar) */}
+              {currentUserId === undefined && !isAdmin && (
+                <div className="md:hidden glass rounded-2xl px-4 py-3 flex items-center gap-3" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }}>
+                  <MIcon name="person" size={20} fill style={{ color: "#D97706" }} />
+                  <span className="text-[13px] text-stone-700 flex-1 leading-snug">
+                    Pro přidání vlastní objednávky se přihlaste.
+                  </span>
+                  <div className="flex gap-2 shrink-0">
+                    <Link href="/login" className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
+                      Přihlásit se
+                    </Link>
+                    <Link href="/register" className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-white transition hover:opacity-[0.88] no-underline" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
+                      Registrovat
+                    </Link>
+>>>>>>> bf84e81 (Login karta v sidebaru na desktopu, banner jen na mobilu)
                   </div>
                   <div className="flex-1 min-w-0 leading-snug">
                     <div>
