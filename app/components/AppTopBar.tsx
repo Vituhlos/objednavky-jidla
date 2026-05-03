@@ -51,7 +51,12 @@ function UserBadge({ user }: { user: UserInfo }) {
     }
   };
 
-  if (!user) return null;
+  if (!user) return (
+    <Link href="/login" className="glass-soft rounded-2xl p-3 flex items-center gap-2 text-[12px] font-semibold text-stone-500 hover:text-stone-700 transition no-underline">
+      <MIcon name="login" size={15} />
+      Přihlásit se
+    </Link>
+  );
 
   return (
     <div className="glass-soft rounded-2xl p-3">
