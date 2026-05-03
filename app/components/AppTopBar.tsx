@@ -120,8 +120,8 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
     ? [...MAIN_NAV, PROFILE_NAV]
     : [...MAIN_NAV.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV];
 
-  // Desktop sidebar nav: always all 5 + profile
-  const desktopNav = [...MAIN_NAV, PROFILE_NAV];
+  // Desktop sidebar nav: just the main 5 — profile is accessible via the UserBadge name link
+  const desktopNav = MAIN_NAV;
 
   return (
     <>
