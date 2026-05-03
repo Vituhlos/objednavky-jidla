@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry, MenuItem } from "@/lib/types";
 import type { DeptSuggestion } from "@/lib/orders";
