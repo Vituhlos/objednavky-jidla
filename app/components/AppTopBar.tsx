@@ -117,8 +117,8 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
     : [...MAIN_NAV.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV]
   ).filter(filterPizza);
 
-  // Desktop sidebar nav: always all 5 + profile (pizza dle settings)
-  const desktopNav = [...MAIN_NAV, PROFILE_NAV].filter(filterPizza);
+  // Desktop sidebar nav: just the main 5 (filtered podle pizzaEnabled) — profil přístupný přes UserBadge link
+  const desktopNav = MAIN_NAV.filter(filterPizza);
 
   return (
     <>
