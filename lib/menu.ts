@@ -65,6 +65,7 @@ function mapRow(row: Record<string, unknown>): MenuItem {
     code: row.code as string,
     name: row.name as string,
     price: row.price as number,
+    allergens: (row.allergens as string | null) ?? "",
   };
 }
 
@@ -313,10 +314,10 @@ export function addMenuItem(item: {
 
 export function updateMenuItem(
   id: number,
-  updates: Partial<{ code: string; name: string; price: number }>
+  updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): MenuItem {
   const db = getDb();
-  const fieldMap: Record<string, string> = { code: "code", name: "name", price: "price" };
+  const fieldMap: Record<string, string> = { code: "code", name: "name", price: "price", allergens: "allergens" };
   const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
   if (entries.length > 0) {
     const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");

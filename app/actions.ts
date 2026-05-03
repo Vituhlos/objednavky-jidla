@@ -143,7 +143,7 @@ export async function actionAddMenuItem(item: {
 
 export async function actionUpdateMenuItem(
   id: number,
-  updates: Partial<{ code: string; name: string; price: number }>
+  updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): Promise<MenuItem> {
   await requireAdmin();
   return updateMenuItem(id, updates);

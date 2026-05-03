@@ -55,7 +55,7 @@ function DayPickerScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => { update(); }, [update]);
 
   return (
-    <div className="relative rounded-2xl" style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}>
+    <div className="relative rounded-2xl md:w-fit" style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}>
       <div ref={scrollRef} onScroll={update} className="overflow-x-auto no-scrollbar">
         <div className="flex p-1 gap-0.5" style={{ width: "max-content", minWidth: "100%" }}>
           {children}

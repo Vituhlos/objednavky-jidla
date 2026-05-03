@@ -140,7 +140,7 @@ function WeekGrid({
   weekStart: string;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
   onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
   onCloseDay: (day: string) => void;
   onOpenDay: (day: string) => void;
 }) {
@@ -292,6 +292,31 @@ function WeekGrid({
   );
 }
 
+const ALLERGEN_NAMES: Record<number, string> = {
+  1: "Lepek", 2: "Korýši", 3: "Vejce", 4: "Ryby", 5: "Arašídy",
+  6: "Sója", 7: "Mléko", 8: "Ořechy", 9: "Celer", 10: "Hořčice",
+  11: "Sezam", 12: "Siřičitany", 13: "Vlčí bob", 14: "Měkkýši",
+};
+
+function AllergenBadges({ allergens }: { allergens: string }) {
+  const nums = allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
+  if (nums.length === 0) return null;
+  return (
+    <span className="inline-flex flex-wrap gap-0.5 mt-0.5">
+      {nums.map((n) => (
+        <span
+          key={n}
+          title={ALLERGEN_NAMES[n]}
+          className="inline-block text-[9.5px] font-semibold leading-none px-1 py-0.5 rounded"
+          style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
+        >
+          {n}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function WeekItem({
   item, editMode, disabled, onDelete, onUpdate,
 }: {
@@ -299,49 +324,62 @@ function WeekItem({
   editMode: boolean;
   disabled: boolean;
   onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
 }) {
   if (editMode) {
     return (
-      <div className="group flex items-center gap-1 py-0.5">
+      <div className="group py-0.5 space-y-0.5">
+        <div className="flex items-center gap-1">
+          <input
+            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] font-mono w-7 shrink-0 text-center outline-none focus:border-amber-400/60"
+            defaultValue={item.code}
+            disabled={disabled}
+            onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
+            title="Kód"
+          />
+          <input
+            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-stone-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
+            defaultValue={item.name}
+            disabled={disabled}
+            onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
+            title="Název"
+          />
+          <input
+            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
+            defaultValue={item.price}
+            disabled={disabled}
+            min={0}
+            onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
+            title="Cena Kč"
+            type="number"
+          />
+          <button
+            className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100 shrink-0"
+            disabled={disabled}
+            onClick={() => onDelete(item.id)}
+            type="button"
+          >
+            <MIcon name="close" size={10} />
+          </button>
+        </div>
         <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] font-mono w-7 shrink-0 text-center outline-none focus:border-amber-400/60"
-          defaultValue={item.code}
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[10px] text-stone-600 w-full outline-none focus:border-amber-400/60"
+          defaultValue={item.allergens}
           disabled={disabled}
-          onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
-          title="Kód"
+          onBlur={(e) => { if (e.target.value !== item.allergens) onUpdate(item.id, { allergens: e.target.value }); }}
+          placeholder="Alergeny: 1, 3, 7…"
+          title="Čísla alergenů oddělená čárkou (1–14)"
         />
-        <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-stone-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
-          defaultValue={item.name}
-          disabled={disabled}
-          onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
-          title="Název"
-        />
-        <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
-          defaultValue={item.price}
-          disabled={disabled}
-          min={0}
-          onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
-          title="Cena Kč"
-          type="number"
-        />
-        <button
-          className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100 shrink-0"
-          disabled={disabled}
-          onClick={() => onDelete(item.id)}
-          type="button"
-        >
-          <MIcon name="close" size={10} />
-        </button>
       </div>
     );
   }
   return (
     <div className="flex items-start gap-1.5 py-1">
       <span className="font-mono text-[10.5px] text-stone-400 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
-      <span className="flex-1 min-w-0 text-[12.5px] font-medium text-stone-800 leading-snug">{item.name}</span>
+      <span className="flex-1 min-w-0 text-[12.5px] font-medium text-stone-800 leading-snug">
+        {item.name}
+        {item.allergens && <AllergenBadges allergens={item.allergens} />}
+      </span>
       <span className="shrink-0 text-[11.5px] font-semibold text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
     </div>
   );
@@ -372,7 +410,7 @@ function MenuSection({
   emptyLabel: string;
   onAdd?: () => void;
   onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number }>) => void;
+  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
 }) {
   return (
     <div className="glass rounded-3xl overflow-hidden">
@@ -430,6 +468,14 @@ function MenuSection({
                   <MIcon name="close" size={13} />
                 </button>
               </div>
+              <input
+                className="bg-white/50 border border-white/60 rounded-lg py-1 px-2 text-[11px] text-stone-600 w-full outline-none focus:border-amber-400/60"
+                defaultValue={item.allergens}
+                disabled={disabled}
+                onBlur={(e) => { if (e.target.value !== item.allergens) onUpdate(item.id, { allergens: e.target.value }); }}
+                placeholder="Alergeny: 1, 3, 7…"
+                title="Čísla alergenů oddělená čárkou (1–14)"
+              />
             </div>
           ))}
         </div>
@@ -437,11 +483,14 @@ function MenuSection({
         items.map((item, i) => (
           <div
             key={item.id}
-            className={`flex items-baseline gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
+            className={`flex items-start gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
           >
-            <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right">{item.code}</span>
-            <span className="flex-1 text-[13px] text-stone-800 leading-snug">{item.name}</span>
-            <span className="shrink-0 font-semibold text-[12.5px] text-stone-500 tabular-nums">{item.price} Kč</span>
+            <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
+            <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
+              {item.name}
+              {item.allergens && <AllergenBadges allergens={item.allergens} />}
+            </span>
+            <span className="shrink-0 font-semibold text-[12.5px] text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
           </div>
         ))
       )}
@@ -551,7 +600,7 @@ export default function MenuPage({
 
   // ── Edit mode ─────────────────────────────────────────────────────────────
 
-  const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number }>) => {
+  const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => {
     setCurrentMenu((prev) => {
       const next = { ...prev };
       for (const day of Object.keys(next)) {

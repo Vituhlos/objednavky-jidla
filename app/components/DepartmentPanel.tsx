@@ -7,6 +7,31 @@ import { hasOrderRowContent } from "@/lib/order-utils";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
+const ALLERGEN_NAMES: Record<number, string> = {
+  1: "Lepek", 2: "Korýši", 3: "Vejce", 4: "Ryby", 5: "Arašídy",
+  6: "Sója", 7: "Mléko", 8: "Ořechy", 9: "Celer", 10: "Hořčice",
+  11: "Sezam", 12: "Siřičitany", 13: "Vlčí bob", 14: "Měkkýši",
+};
+
+function AllergenBadges({ allergens }: { allergens: string }) {
+  const nums = allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
+  if (nums.length === 0) return null;
+  return (
+    <span className="inline-flex flex-wrap gap-0.5 ml-1">
+      {nums.map((n) => (
+        <span
+          key={n}
+          title={ALLERGEN_NAMES[n]}
+          className="inline-block text-[9px] font-semibold leading-none px-1 py-0.5 rounded"
+          style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
+        >
+          {n}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 type RowUpdates = Partial<{
   personName: string;
   soupItemId: number | null;
@@ -390,6 +415,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
               {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
               {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
               {row.mainItem.name}
+              {row.mainItem.allergens && <AllergenBadges allergens={row.mainItem.allergens} />}
             </span>
           )}
           {row.extraMealItems.map((e, i) => (
@@ -398,6 +424,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
               {e.count > 1 ? `${e.count}× ` : ""}
               {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
               {e.item.name}
+              {e.item.allergens && <AllergenBadges allergens={e.item.allergens} />}
             </span>
           ))}
           {(row.mainItem || row.extraMealItems.length > 0) && row.soupItem && (
@@ -407,6 +434,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
             <span className="text-[11.5px] text-stone-500 leading-snug">
               {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
               {row.soupItem.name}
+              {row.soupItem.allergens && <AllergenBadges allergens={row.soupItem.allergens} />}
             </span>
           )}
           {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
@@ -414,6 +442,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
             <span className="text-[11.5px] text-stone-500 leading-snug">
               {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
               {row.soupItem2.name}
+              {row.soupItem2.allergens && <AllergenBadges allergens={row.soupItem2.allergens} />}
             </span>
           )}
           {!row.mainItem && !row.soupItem && <span className="text-[11.5px] text-stone-400">—</span>}
