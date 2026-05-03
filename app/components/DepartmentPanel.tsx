@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -108,6 +109,8 @@ function OrderEditModal({
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
 
@@ -162,7 +165,9 @@ function OrderEditModal({
     });
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="modal-overlay" onClick={handleCancel}>
       <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-sheet__header">
@@ -315,7 +320,8 @@ function OrderEditModal({
           title="Smazat objednávku"
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
