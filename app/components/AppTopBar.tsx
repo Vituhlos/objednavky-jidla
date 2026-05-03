@@ -66,20 +66,10 @@ function UserBadge({ user }: { user: UserInfo }) {
   };
 
   if (!user) return (
-    <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Účet</div>
-      <div className="text-[12px] text-stone-500 leading-snug mb-2.5">Přihlaste se pro přidání objednávky.</div>
-      <div className="flex flex-col gap-1.5">
-        <Link href="/login" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
-          <MIcon name="login" size={13} />
-          Přihlásit se
-        </Link>
-        <Link href="/register" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
-          <MIcon name="person_add" size={13} />
-          Vytvořit účet
-        </Link>
-      </div>
-    </div>
+    <Link href="/login" className="glass-soft rounded-2xl p-3 flex items-center gap-2 text-[12px] font-semibold text-stone-500 hover:text-stone-700 transition no-underline">
+      <MIcon name="login" size={15} />
+      Přihlásit se
+    </Link>
   );
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -817,7 +817,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
               )}
             </div>
           </div>
-          {!isSent && (
+          {!isSent && (currentUserId !== undefined || isAdmin ? (
             <button
               type="button"
               disabled={isAdding}
@@ -830,7 +830,15 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
                 : <MIcon name="add" size={14} />}
               {isAdding ? "Přidávám" : "Přidat"}
             </button>
-          )}
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-stone-500 shrink-0 hover:text-stone-700 transition glass-btn no-underline"
+            >
+              <MIcon name="login" size={13} />
+              Přihlásit se
+            </Link>
+          ))}
         </div>
 
         {addError && (
@@ -859,7 +867,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
             />
           ) : (
             activeRows.map((row) => {
-              const editable = isAdmin || row.userId === null || row.userId === currentUserId;
+              const editable = (currentUserId !== undefined || isAdmin) && (isAdmin || row.userId === null || row.userId === currentUserId);
               return (
                 <OrderRow
                   key={row.id}

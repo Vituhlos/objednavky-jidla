@@ -4,7 +4,6 @@ import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
 import { getCurrentUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +27,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
   const currentUser = await getCurrentUser();
-  if (!currentUser) redirect("/login");
 
   const suggestions: Record<string, DeptSuggestion[]> = Object.fromEntries(
     data.departments.map((d) => [d.name, getDeptSuggestions(d.name, 4)])

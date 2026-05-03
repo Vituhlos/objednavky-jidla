@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE_NAME = "session_token";
+const PROTECTED_PATHS = ["/nastaveni"];
 
 // Vše ostatní vyžaduje přihlášení — přidej sem pouze skutečně veřejné cesty
 const PUBLIC_PATHS = [
@@ -17,9 +18,8 @@ const GUEST_PATHS = ["/jidelnicek", "/api/sse", "/api/order-refresh"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  if (isPublic) return NextResponse.next();
+  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
+  if (!isProtected) return NextResponse.next();
 
   // Hlavní stránka a jídelníček jsou přístupné i bez přihlášení
   if (pathname === "/" || GUEST_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next();
