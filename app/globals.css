@@ -37,14 +37,6 @@ body {
 .orb-sky   { background: #fed7aa; opacity: 0.6;  top: -100px;    left: -100px;  width: 400px; height: 400px; }
 .orb-amber { background: #fde68a; opacity: 0.5;  bottom: -120px; right: -80px;  width: 440px; height: 440px; }
 .orb-mint  { background: #bbf7d0; opacity: 0.32; top: 35%;       right: 18%;    width: 260px; height: 260px; }
-/* Na mobilu redukovat GPU-náročné blur efekty */
-@media (max-width: 767px) {
-  .orb { filter: none; }
-  .glass { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-  .glass-soft, .glass-btn, .glass-btn-danger, .glass-dim {
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  }
-}
 
 /* ── Liquid Glass ── */
 .glass {
