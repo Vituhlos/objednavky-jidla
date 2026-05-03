@@ -72,21 +72,63 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string, first
     to: [to],
     subject: "Obnovení hesla — Kantýna",
     text: `Dobrý den ${firstName},\n\nPro obnovení hesla klikněte na odkaz:\n${resetUrl}\n\nOdkaz je platný 1 hodinu.\n\nPokud jste o obnovení hesla nežádali, tento e-mail ignorujte.`,
-    html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#fffdf8;border-radius:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#F59E0B,#EA580C);display:flex;align-items:center;justify-content:center">
-          <span style="color:white;font-size:20px">🍽</span>
-        </div>
-        <span style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#D97706,#EA580C);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Kantýna</span>
-      </div>
-      <h2 style="color:#1c1917;font-size:18px;margin:0 0 8px">Obnovení hesla</h2>
-      <p style="color:#57534e;font-size:14px;line-height:1.6">Dobrý den <strong>${firstName}</strong>,</p>
-      <p style="color:#57534e;font-size:14px;line-height:1.6">Pro obnovení hesla klikněte na tlačítko níže. Odkaz je platný <strong>1 hodinu</strong>.</p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${resetUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#F59E0B,#EA580C);color:white;text-decoration:none;border-radius:12px;font-weight:600;font-size:15px;box-shadow:0 6px 16px -6px rgba(245,158,11,0.5)">Obnovit heslo</a>
-      </div>
-      <p style="color:#a8a29e;font-size:12px">Pokud jste o obnovení hesla nežádali, tento e-mail ignorujte.</p>
-    </div>`,
+    html: `<!DOCTYPE html>
+<html lang="cs">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f5f0e8;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f0e8;padding:32px 16px">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden">
+
+        <!-- Header -->
+        <tr>
+          <td style="background-color:#EA580C;padding:20px 32px">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="width:36px;height:36px;background-color:#ffffff;border-radius:8px;text-align:center;vertical-align:middle">
+                  <span style="font-size:20px;line-height:36px;display:block">&#127859;</span>
+                </td>
+                <td style="padding-left:12px">
+                  <span style="font-size:20px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif">Kantýna</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px">
+            <h2 style="margin:0 0 16px 0;font-size:22px;font-weight:bold;color:#1c1917;font-family:Arial,Helvetica,sans-serif">Obnovení hesla</h2>
+            <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:#57534e;font-family:Arial,Helvetica,sans-serif">Dobrý den <strong>${firstName}</strong>,</p>
+            <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#57534e;font-family:Arial,Helvetica,sans-serif">Pro obnovení hesla klikněte na tlačítko níže. Odkaz je platný <strong>1&nbsp;hodinu</strong>.</p>
+
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td align="center" style="padding-bottom:28px">
+                  <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;background-color:#EA580C;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;font-family:Arial,Helvetica,sans-serif">Obnovit heslo</a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 16px 0;font-size:13px;color:#a8a29e;font-family:Arial,Helvetica,sans-serif">Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:</p>
+            <p style="margin:0;font-size:12px;color:#a8a29e;word-break:break-all;font-family:Arial,Helvetica,sans-serif">${resetUrl}</p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #f0ebe3">
+            <p style="margin:0;font-size:12px;color:#c4b8a8;font-family:Arial,Helvetica,sans-serif">Pokud jste o obnovení hesla nežádali, tento e-mail ignorujte. Váš účet je v bezpečí.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
   });
 }
 
