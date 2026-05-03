@@ -215,11 +215,11 @@ export function setMenuForWeek(
     db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
 
     const insert = db.prepare(
-      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
     for (const item of items) {
       const price = item.type === "Polévka" ? soupPrice : mealPrice;
-      insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price);
+      insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price, item.allergens ?? "");
     }
 
     // Re-link order rows: match by (day, code, name) — fall back to (day, code) first match

@@ -330,6 +330,22 @@ export async function actionUpdateProfile(data: {
   revalidatePath("/");
 }
 
+export async function actionChangeEmail(newEmail: string, currentPassword: string): Promise<void> {
+  const user = await requireAuth();
+  const trimmed = newEmail.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) throw new Error("Neplatná e-mailová adresa.");
+  const { getDb } = await import("@/lib/db");
+  const { verifyPassword } = await import("@/lib/auth");
+  const db = getDb();
+  const row = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(user.id) as { password_hash: string } | undefined;
+  if (!row || !verifyPassword(currentPassword, row.password_hash)) throw new Error("Stávající heslo je nesprávné.");
+  const existing = db.prepare("SELECT id FROM users WHERE email = ? AND id != ?").get(trimmed, user.id);
+  if (existing) throw new Error("Tato e-mailová adresa je již obsazena.");
+  db.prepare("UPDATE users SET email = ? WHERE id = ?").run(trimmed, user.id);
+  revalidatePath("/profil");
+  revalidatePath("/");
+}
+
 export async function actionChangePassword(oldPassword: string, newPassword: string): Promise<void> {
   const user = await requireAuth();
   if (newPassword.length < 6) throw new Error("Nové heslo musí mít alespoň 6 znaků.");

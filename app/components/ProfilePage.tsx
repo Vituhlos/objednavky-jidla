@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@/lib/auth";
 import type { DepartmentInfo } from "@/lib/departments";
-import { actionUpdateProfile, actionChangePassword, actionGetMyHistory } from "@/app/actions";
+import { actionUpdateProfile, actionChangePassword, actionChangeEmail, actionGetMyHistory } from "@/app/actions";
 import MIcon from "./MIcon";
 
 type HistoryRow = {
@@ -98,6 +98,31 @@ export default function ProfilePage({
   const [emailOrderConfirmation, setEmailOrderConfirmation] = useState(user.emailOrderConfirmation);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Email change form
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const handleChangeEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailSaved(false);
+    startTransition(async () => {
+      try {
+        await actionChangeEmail(newEmail, emailPassword);
+        setEmailSaved(true);
+        setNewEmail("");
+        setEmailPassword("");
+        setTimeout(() => setEmailSaved(false), 3000);
+        router.refresh();
+      } catch (err) {
+        setEmailError(err instanceof Error ? err.message : "Chyba při změně e-mailu.");
+      }
+    });
+  };
 
   // Password form
   const [oldPassword, setOldPassword] = useState("");
@@ -270,7 +295,10 @@ export default function ProfilePage({
 
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">E-mail</span>
-              <div className="modal-input text-stone-400 select-none">{user.email}</div>
+              <div className="modal-input text-stone-400 select-none flex items-center justify-between gap-2">
+                <span>{user.email}</span>
+                <span className="text-[10.5px] text-stone-300 shrink-0">změnit níže</span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -322,6 +350,64 @@ export default function ProfilePage({
               {profileSaved && (
                 <span className="text-[12px] text-green-700 inline-flex items-center gap-1">
                   <MIcon name="check_circle" size={13} fill /> Uloženo
+                </span>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* Email change */}
+        <div className="glass rounded-3xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
+            <MIcon name="mail" size={17} fill style={{ color: "#D97706" }} />
+            <span className="font-display font-bold text-[13.5px] text-stone-900">Změna e-mailu</span>
+          </div>
+          <form onSubmit={handleChangeEmail} className="p-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11.5px] font-semibold text-stone-600">Nový e-mail</span>
+              <input
+                className="modal-input"
+                required
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                autoComplete="email"
+                placeholder={user.email}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11.5px] font-semibold text-stone-600">Potvrdit heslem</span>
+              <div className="relative">
+                <input
+                  className="modal-input w-full pr-9"
+                  required
+                  type={showEmailPassword ? "text" : "password"}
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="Vaše současné heslo"
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowEmailPassword((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label={showEmailPassword ? "Skrýt heslo" : "Zobrazit heslo"}>
+                  <MIcon name={showEmailPassword ? "visibility_off" : "visibility"} size={16} />
+                </button>
+              </div>
+            </div>
+
+            {emailError && (
+              <p className="text-[12px] text-red-500">{emailError}</p>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                className="modal-btn modal-btn--primary"
+                disabled={isPending}
+                type="submit"
+              >
+                {isPending ? "Ukládám…" : "Změnit e-mail"}
+              </button>
+              {emailSaved && (
+                <span className="text-[12px] text-green-700 inline-flex items-center gap-1">
+                  <MIcon name="check_circle" size={13} fill /> E-mail změněn
                 </span>
               )}
             </div>

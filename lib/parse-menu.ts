@@ -3,6 +3,7 @@ export interface ParsedMenuItem {
   type: "Polévka" | "Jídlo";
   code: string;
   name: string;
+  allergens: string;
 }
 
 export interface ParseResult {
@@ -41,9 +42,20 @@ function shouldSkip(line: string): boolean {
   return SKIP_RE.some((re) => re.test(line));
 }
 
-// Strip allergen codes from end of line, e.g. "(1a/b,3,7)" or "(1a,3,7,9)"
-function stripAlergeny(text: string): string {
-  return text.replace(/\s*\([\d,/ab]+\)\s*$/i, "").trim();
+// Extract allergen numbers from end of line, e.g. "(1a/b,3,7)" → "1,3,7"
+// Returns { name: cleaned string, allergens: comma-separated numbers }
+function extractAllergens(text: string): { name: string; allergens: string } {
+  const m = text.match(/\s*\(([\d,/a-z]+)\)\s*$/i);
+  if (!m) return { name: text.trim(), allergens: "" };
+  const raw = m[1].split(",").map((s) => {
+    const num = parseInt(s.trim(), 10);
+    return !isNaN(num) && num >= 1 && num <= 14 ? num : null;
+  }).filter((n): n is number => n !== null);
+  const unique = [...new Set(raw)].sort((a, b) => a - b);
+  return {
+    name: text.slice(0, text.length - m[0].length).trim(),
+    allergens: unique.join(","),
+  };
 }
 
 // Merge continuation lines back into single logical items.
@@ -201,24 +213,23 @@ export function parseMenuText(rawText: string): ParseResult {
     if (!currentDay) continue;
 
     if (line.includes("Zavřeno")) {
-      items.push({ day: currentDay, type: "Jídlo", code: "-", name: "Zavřeno" });
+      items.push({ day: currentDay, type: "Jídlo", code: "-", name: "Zavřeno", allergens: "" });
       continue;
     }
 
     let m = line.match(/^([AB])\s+(.+)$/);
     if (m) {
-      const cleaned = stripAlergeny(m[2]);
-      // Soups don't have variants worth splitting
-      items.push({ day: currentDay, type: "Polévka", code: m[1], name: cleaned });
+      const { name, allergens } = extractAllergens(m[2]);
+      items.push({ day: currentDay, type: "Polévka", code: m[1], name, allergens });
       continue;
     }
 
     m = line.match(/^(\d+)\s+(.+)$/);
     if (m) {
-      const cleaned = stripAlergeny(m[2]);
+      const { name: cleaned, allergens } = extractAllergens(m[2]);
       const expanded = expandVariants(m[1], normalizeCommaAlts(cleaned));
       for (const variant of expanded) {
-        items.push({ day: currentDay, type: "Jídlo", code: variant.code, name: variant.name });
+        items.push({ day: currentDay, type: "Jídlo", code: variant.code, name: variant.name, allergens });
       }
     }
   }
