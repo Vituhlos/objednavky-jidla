@@ -594,15 +594,16 @@ export default function OrderPage({
 
           {showDayPicker && (
             <div
-              className="flex overflow-x-auto no-scrollbar p-1 rounded-2xl gap-0.5 w-full"
+              className="overflow-x-auto no-scrollbar rounded-2xl"
               style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
             >
+              <div className="flex p-1 gap-0.5" style={{ width: "max-content", minWidth: "100%" }}>
               {availableDates!.map((date) => {
                 const isActive = date === selectedDate;
                 return (
                   <button
                     key={date}
-                    className={`flex-shrink-0 flex-1 min-w-0 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                       isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                     }`}
                     onClick={() => router.push(`/?date=${date}`)}
@@ -617,6 +618,7 @@ export default function OrderPage({
                   </button>
                 );
               })}
+              </div>
             </div>
           )}
 
