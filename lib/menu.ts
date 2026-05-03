@@ -94,6 +94,15 @@ export function getMenuItemById(id: number): MenuItem | null {
   return row ? mapRow(row) : null;
 }
 
+export function getMenuItemsByIds(ids: number[]): Map<number, MenuItem> {
+  if (ids.length === 0) return new Map();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = getDb()
+    .prepare(`SELECT * FROM menu_items WHERE id IN (${placeholders})`)
+    .all(...ids) as Record<string, unknown>[];
+  return new Map(rows.map((row) => [row.id as number, mapRow(row)]));
+}
+
 export function getWeekLabel(): string {
   const now = getPragueNow();
   const day = now.getDay();

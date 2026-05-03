@@ -14,7 +14,6 @@ import {
   actionOpenDay,
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
@@ -629,7 +628,6 @@ export default function MenuPage({
 
   return (
     <div className="k-shell">
-      <AppTopBar />
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">

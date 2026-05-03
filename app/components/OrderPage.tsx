@@ -7,7 +7,6 @@ import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
-import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import {
@@ -431,7 +430,6 @@ export default function OrderPage({
 
   return (
     <div className="k-shell">
-      <AppTopBar />
 
       {/* ── Toasts & banners (fixed/absolute) ── */}
       {justSent && (

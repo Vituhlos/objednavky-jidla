@@ -6,6 +6,7 @@ import { getOrderRecipients, sendEmail } from "./email";
 import { getSettings } from "./settings";
 import {
   getMenuItemById,
+  getMenuItemsByIds,
   getMenuItemsForDay,
   getTodayDayCode,
   getDayCodeForISO,
@@ -13,6 +14,7 @@ import {
   seedMenuIfEmpty,
   getWeekLabel,
 } from "./menu";
+import type { MenuItem } from "./types";
 import { getPragueISODate } from "./time";
 import type {
   Order,
@@ -82,13 +84,24 @@ function readDefaultPrices(): { soupPrice: number; mealPrice: number; ep: Extras
   };
 }
 
-function enrichRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: ExtrasPrices): OrderRowEnriched {
-  const soup = row.soupItemId ? getMenuItemById(row.soupItemId) : null;
-  const soup2 = row.soupItemId2 ? getMenuItemById(row.soupItemId2) : null;
-  const main = row.mainItemId ? getMenuItemById(row.mainItemId) : null;
+function collectItemIds(rows: OrderRow[]): number[] {
+  const ids = new Set<number>();
+  for (const r of rows) {
+    if (r.soupItemId) ids.add(r.soupItemId);
+    if (r.soupItemId2) ids.add(r.soupItemId2);
+    if (r.mainItemId) ids.add(r.mainItemId);
+    for (const e of r.extraMeals) ids.add(e.itemId);
+  }
+  return [...ids];
+}
+
+function enrichRow(row: OrderRow, lookup: Map<number, MenuItem>, soupPrice: number, mealPrice: number, ep: ExtrasPrices): OrderRowEnriched {
+  const soup = row.soupItemId ? (lookup.get(row.soupItemId) ?? null) : null;
+  const soup2 = row.soupItemId2 ? (lookup.get(row.soupItemId2) ?? null) : null;
+  const main = row.mainItemId ? (lookup.get(row.mainItemId) ?? null) : null;
   const extraMealItems = row.extraMeals
-    .map((e) => ({ item: getMenuItemById(e.itemId), count: e.count }))
-    .filter((e): e is { item: NonNullable<typeof e.item>; count: number } => e.item != null);
+    .map((e) => ({ item: lookup.get(e.itemId) ?? null, count: e.count }))
+    .filter((e): e is { item: MenuItem; count: number } => e.item != null);
   return {
     ...row,
     soupItem: soup,
@@ -97,6 +110,11 @@ function enrichRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: Extr
     extraMealItems,
     rowPrice: computeRowPrice(row, soup, soup2, main, extraMealItems, soupPrice, mealPrice, ep),
   };
+}
+
+function enrichSingleRow(row: OrderRow, soupPrice: number, mealPrice: number, ep: ExtrasPrices): OrderRowEnriched {
+  const lookup = getMenuItemsByIds(collectItemIds([row]));
+  return enrichRow(row, lookup, soupPrice, mealPrice, ep);
 }
 
 function getOrCreateOrderForDate(date: string): Order {
@@ -143,7 +161,9 @@ export function getTodayOrderData(): OrderData {
     )
     .all(order.id) as Record<string, unknown>[];
 
-  const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
+  const orderRows = rawRows.map(mapOrderRow);
+  const lookup = getMenuItemsByIds(collectItemIds(orderRows));
+  const rows = orderRows.map((r) => enrichRow(r, lookup, soupPrice, mealPrice, ep));
 
   const depts = getDepartments();
   const departments: DepartmentData[] = depts.map((dept) => {
@@ -176,7 +196,9 @@ export function getOrderDataForDate(date: string): OrderData {
   const rawRows = db
     .prepare("SELECT * FROM order_rows WHERE order_id = ? ORDER BY department, sort_order, id")
     .all(order.id) as Record<string, unknown>[];
-  const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
+  const orderRows = rawRows.map(mapOrderRow);
+  const lookup = getMenuItemsByIds(collectItemIds(orderRows));
+  const rows = orderRows.map((r) => enrichRow(r, lookup, soupPrice, mealPrice, ep));
 
   const depts = getDepartments();
   const departments: DepartmentData[] = depts.map((dept) => {
@@ -218,7 +240,9 @@ export function getOrderData(orderId: number): OrderData {
     )
     .all(order.id) as Record<string, unknown>[];
 
-  const rows = rawRows.map((r) => enrichRow(mapOrderRow(r), soupPrice, mealPrice, ep));
+  const orderRows = rawRows.map(mapOrderRow);
+  const lookup = getMenuItemsByIds(collectItemIds(orderRows));
+  const rows = orderRows.map((r) => enrichRow(r, lookup, soupPrice, mealPrice, ep));
   const activeDepts = getDepartments();
   const activeDeptNames = new Set(activeDepts.map((d) => d.name));
 
@@ -266,7 +290,7 @@ export function addOrderRow(
     .prepare("SELECT * FROM order_rows WHERE id = ?")
     .get(result.lastInsertRowid) as Record<string, unknown>;
   const { soupPrice, mealPrice, ep } = readDefaultPrices();
-  const enriched = enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+  const enriched = enrichSingleRow(mapOrderRow(row), soupPrice, mealPrice, ep);
   logAudit({ action: "row_add", orderId, department });
   return enriched;
 }
@@ -324,7 +348,7 @@ export function updateOrderRow(
       .prepare("SELECT * FROM order_rows WHERE id = ?")
       .get(rowId) as Record<string, unknown> | undefined;
     if (!row) throw new Error(`Řádek objednávky ${rowId} nenalezen.`);
-    const enriched = enrichRow(mapOrderRow(row), soupPrice, mealPrice, ep);
+    const enriched = enrichSingleRow(mapOrderRow(row), soupPrice, mealPrice, ep);
     const significantFields = ["personName", "soupItemId", "soupItemId2", "mainItemId", "extraMeals"];
     if (Object.keys(updates).some((k) => significantFields.includes(k))) {
       logAudit({

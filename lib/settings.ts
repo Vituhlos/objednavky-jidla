@@ -102,11 +102,11 @@ function setSetting(key: string, value: string): void {
 export function getSettings(): AppSettings {
   const defaults = envDefaults();
   const result = { ...defaults };
+  const rows = getDb().prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
+  const dbMap = new Map(rows.map((r) => [r.key, r.value]));
   for (const [field, dbKey] of Object.entries(KEY_MAP) as [keyof AppSettings, string][]) {
-    const stored = getSetting(dbKey);
-    if (stored !== null) {
-      result[field] = stored;
-    }
+    const stored = dbMap.get(dbKey);
+    if (stored !== undefined) result[field] = stored;
   }
   return result;
 }

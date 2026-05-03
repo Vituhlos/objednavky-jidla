@@ -137,4 +137,12 @@ function migrate(db: Database.Database): void {
       details     TEXT
     );
   `);
+
+  // Performance indexes
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);
+    CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date);
+    CREATE INDEX IF NOT EXISTS idx_menu_items_day_week ON menu_items(week_start, day);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_ts ON audit_log(ts DESC);
+  `);
 }

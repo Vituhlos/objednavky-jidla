@@ -11,7 +11,6 @@ import {
   actionDeletePizzaRow,
   actionUpdatePizzaPrices,
 } from "@/app/actions";
-import AppTopBar from "./AppTopBar";
 import { ConfirmModal } from "./ConfirmModal";
 
 function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] {
@@ -99,7 +98,6 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
 
   return (
     <div className="k-shell">
-      <AppTopBar />
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">

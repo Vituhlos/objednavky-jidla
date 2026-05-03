@@ -5,7 +5,6 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
-import AppTopBar from "./AppTopBar";
 import MIcon from "./MIcon";
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
@@ -125,7 +124,6 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
 
   return (
     <div className="k-shell">
-      <AppTopBar />
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">

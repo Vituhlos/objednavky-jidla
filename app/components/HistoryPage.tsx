@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
 import Link from "next/link";
-import AppTopBar from "./AppTopBar";
 import MIcon from "./MIcon";
 
 function formatDate(iso: string): string {
@@ -67,7 +66,6 @@ export default function HistoryPage({
 
   return (
     <div className="k-shell">
-      <AppTopBar />
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
