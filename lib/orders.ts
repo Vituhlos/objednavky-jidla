@@ -2,7 +2,7 @@ import { getDb } from "./db";
 import { buildOrderEmail } from "./order-email";
 import { buildDepartmentPdfAttachment } from "./order-pdf";
 import { computeRowPrice, type ExtrasPrices } from "./pricing";
-import { getOrderRecipients, sendEmail } from "./email";
+import { getOrderRecipients, sendEmail, sendOrderConfirmationEmail } from "./email";
 import { getSettings } from "./settings";
 import {
   getMenuItemById,
@@ -444,6 +444,48 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     .prepare("SELECT * FROM orders WHERE id = ?")
     .get(orderId) as Record<string, unknown>;
   logAudit({ action: source === "auto" ? "auto_send" : "order_send", orderId });
+
+  // Send individual confirmation emails to users who opted in
+  try {
+    type ConfirmRow = {
+      email: string; first_name: string;
+      soup_name: string | null; main_name: string | null;
+      roll_count: number; bread_dumpling_count: number; potato_dumpling_count: number;
+      meal_count: number; department: string;
+    };
+    const confirmRows = db.prepare(`
+      SELECT u.email, u.first_name,
+        mi1.name AS soup_name, mi2.name AS main_name,
+        r.roll_count, r.bread_dumpling_count, r.potato_dumpling_count,
+        COALESCE(r.meal_count, 1) AS meal_count, r.department
+      FROM order_rows r
+      JOIN users u ON u.id = r.user_id
+      LEFT JOIN menu_items mi1 ON mi1.id = r.soup_item_id
+      LEFT JOIN menu_items mi2 ON mi2.id = r.main_item_id
+      WHERE r.order_id = ? AND u.email_order_confirmation = 1
+        AND (r.soup_item_id IS NOT NULL OR r.main_item_id IS NOT NULL OR r.roll_count > 0)
+    `).all(orderId) as ConfirmRow[];
+
+    // Group by user email
+    const byUser = new Map<string, { firstName: string; items: Array<{ department: string; description: string }> }>();
+    for (const row of confirmRows) {
+      if (!byUser.has(row.email)) byUser.set(row.email, { firstName: row.first_name, items: [] });
+      const parts: string[] = [];
+      if (row.soup_name) parts.push(`Polévka: ${row.soup_name}`);
+      if (row.main_name) parts.push(`${row.meal_count > 1 ? `${row.meal_count}× ` : ""}${row.main_name}`);
+      if (row.roll_count > 0) parts.push(`${row.roll_count}× rohlík`);
+      if (row.bread_dumpling_count > 0) parts.push(`${row.bread_dumpling_count}× houska kned.`);
+      if (row.potato_dumpling_count > 0) parts.push(`${row.potato_dumpling_count}× bram. kned.`);
+      byUser.get(row.email)!.items.push({ department: row.department, description: parts.join(", ") });
+    }
+    const dateStr = (order as Record<string, unknown>).date as string;
+    await Promise.allSettled(
+      Array.from(byUser.entries()).map(([email, { firstName, items }]) =>
+        sendOrderConfirmationEmail(email, firstName, dateStr, items)
+      )
+    );
+  } catch { /* confirmation emails are best-effort */ }
+
   return mapOrder(order);
 }
 

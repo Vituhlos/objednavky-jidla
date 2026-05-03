@@ -317,14 +317,15 @@ export async function actionUpdateProfile(data: {
   firstName: string;
   lastName: string;
   defaultDepartment: string | null;
+  emailOrderConfirmation: boolean;
 }): Promise<void> {
   const user = await requireAuth();
-  const { firstName, lastName, defaultDepartment } = data;
+  const { firstName, lastName, defaultDepartment, emailOrderConfirmation } = data;
   if (!firstName.trim() || !lastName.trim()) throw new Error("Jméno a příjmení jsou povinné.");
   const { getDb } = await import("@/lib/db");
   getDb()
-    .prepare("UPDATE users SET first_name = ?, last_name = ?, default_department = ? WHERE id = ?")
-    .run(firstName.trim(), lastName.trim(), defaultDepartment || null, user.id);
+    .prepare("UPDATE users SET first_name = ?, last_name = ?, default_department = ?, email_order_confirmation = ? WHERE id = ?")
+    .run(firstName.trim(), lastName.trim(), defaultDepartment || null, emailOrderConfirmation ? 1 : 0, user.id);
   revalidatePath("/profil");
   revalidatePath("/");
 }
@@ -352,10 +353,15 @@ export async function actionGetMyHistory(): Promise<Array<{
   breadDumplingCount: number;
   potatoDumplingCount: number;
   mealCount: number;
+  type: "lunch" | "pizza";
+  pizzaName: string | null;
+  pizzaCount: number;
 }>> {
   const user = await requireAuth();
   const { getDb } = await import("@/lib/db");
-  const rows = getDb().prepare(`
+  const db = getDb();
+
+  const lunchRows = db.prepare(`
     SELECT o.date, r.department,
       mi1.name AS soup_name, mi2.name AS main_name,
       r.roll_count, r.bread_dumpling_count, r.potato_dumpling_count,
@@ -369,7 +375,18 @@ export async function actionGetMyHistory(): Promise<Array<{
     ORDER BY o.date DESC
     LIMIT 50
   `).all(user.id) as Record<string, unknown>[];
-  return rows.map((r) => ({
+
+  const pizzaRows = db.prepare(`
+    SELECT po.date, pi.name AS pizza_name, COALESCE(pr.count, 1) AS pizza_count
+    FROM pizza_order_rows pr
+    JOIN pizza_orders po ON po.id = pr.order_id
+    LEFT JOIN pizza_items pi ON pi.id = pr.pizza_item_id
+    WHERE pr.user_id = ? AND pr.pizza_item_id IS NOT NULL
+    ORDER BY po.date DESC
+    LIMIT 50
+  `).all(user.id) as Record<string, unknown>[];
+
+  const lunch = lunchRows.map((r) => ({
     date: r.date as string,
     department: r.department as string,
     soupName: r.soup_name as string | null,
@@ -378,7 +395,26 @@ export async function actionGetMyHistory(): Promise<Array<{
     breadDumplingCount: r.bread_dumpling_count as number,
     potatoDumplingCount: r.potato_dumpling_count as number,
     mealCount: r.meal_count as number,
+    type: "lunch" as const,
+    pizzaName: null,
+    pizzaCount: 0,
   }));
+
+  const pizza = pizzaRows.map((r) => ({
+    date: r.date as string,
+    department: "Pizza",
+    soupName: null,
+    mainName: null,
+    rollCount: 0,
+    breadDumplingCount: 0,
+    potatoDumplingCount: 0,
+    mealCount: 0,
+    type: "pizza" as const,
+    pizzaName: r.pizza_name as string | null,
+    pizzaCount: r.pizza_count as number,
+  }));
+
+  return [...lunch, ...pizza].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
 }
 
 export async function actionAdminSendPasswordReset(userId: number): Promise<void> {

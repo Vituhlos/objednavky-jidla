@@ -13,6 +13,8 @@ export default function RegisterPage() {
   const [emailConfirm, setEmailConfirm] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -105,20 +107,31 @@ export default function RegisterPage() {
 
           <div>
             <label className="auth-label">Heslo</label>
-            <input autoComplete="new-password" className="auth-input" onChange={(e) => setPassword(e.target.value)} placeholder="Alespoň 6 znaků" required type="password" value={password} />
+            <div style={{ position: "relative" }}>
+              <input autoComplete="new-password" className="auth-input" onChange={(e) => setPassword(e.target.value)} placeholder="Alespoň 6 znaků" required type={showPassword ? "text" : "password"} value={password} style={{ paddingRight: "2.5rem" }} />
+              <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} style={{ position: "absolute", right: "0.65rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "0.25rem", color: "#9b8474" }} aria-label={showPassword ? "Skrýt heslo" : "Zobrazit heslo"}>
+                <MIcon name={showPassword ? "visibility_off" : "visibility"} size={17} />
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="auth-label">Heslo znovu</label>
-            <input
-              autoComplete="new-password"
-              className={`auth-input${passwordMismatch ? " auth-input--error" : ""}`}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              placeholder="Zopakujte heslo"
-              required
-              type="password"
-              value={passwordConfirm}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                autoComplete="new-password"
+                className={`auth-input${passwordMismatch ? " auth-input--error" : ""}`}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                placeholder="Zopakujte heslo"
+                required
+                type={showPasswordConfirm ? "text" : "password"}
+                value={passwordConfirm}
+                style={{ paddingRight: "2.5rem" }}
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPasswordConfirm((s) => !s)} style={{ position: "absolute", right: "0.65rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "0.25rem", color: "#9b8474" }} aria-label={showPasswordConfirm ? "Skrýt heslo" : "Zobrazit heslo"}>
+                <MIcon name={showPasswordConfirm ? "visibility_off" : "visibility"} size={17} />
+              </button>
+            </div>
             {passwordMismatch && <p className="auth-field-error">Hesla se neshodují.</p>}
           </div>
 

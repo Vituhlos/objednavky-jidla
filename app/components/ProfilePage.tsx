@@ -16,6 +16,9 @@ type HistoryRow = {
   breadDumplingCount: number;
   potatoDumplingCount: number;
   mealCount: number;
+  type: "lunch" | "pizza";
+  pizzaName: string | null;
+  pizzaCount: number;
 };
 
 type Stats = {
@@ -92,6 +95,7 @@ export default function ProfilePage({
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [defaultDepartment, setDefaultDepartment] = useState(user.defaultDepartment ?? "");
+  const [emailOrderConfirmation, setEmailOrderConfirmation] = useState(user.emailOrderConfirmation);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -99,6 +103,9 @@ export default function ProfilePage({
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showNewPasswordConfirm, setShowNewPasswordConfirm] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const passwordMismatch = newPasswordConfirm.length > 0 && newPassword !== newPasswordConfirm;
@@ -117,6 +124,7 @@ export default function ProfilePage({
           firstName,
           lastName,
           defaultDepartment: defaultDepartment || null,
+          emailOrderConfirmation,
         });
         setProfileSaved(true);
         setTimeout(() => setProfileSaved(false), 3000);
@@ -280,6 +288,25 @@ export default function ProfilePage({
               </select>
             </div>
 
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div
+                onClick={() => setEmailOrderConfirmation((v) => !v)}
+                className={`relative w-10 h-5.5 rounded-full transition-colors flex-shrink-0 ${emailOrderConfirmation ? "bg-amber-500" : "bg-stone-300"}`}
+                style={{ width: 40, height: 22 }}
+                role="switch"
+                aria-checked={emailOrderConfirmation}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform"
+                  style={{ width: 18, height: 18, transform: emailOrderConfirmation ? "translateX(18px)" : "translateX(0)" }}
+                />
+              </div>
+              <div>
+                <div className="text-[12.5px] font-semibold text-stone-700">E-mail při odeslání objednávky</div>
+                <div className="text-[10.5px] text-stone-400">Dostanete potvrzení e-mailem, co jste si objednali</div>
+              </div>
+            </label>
+
             {profileError && (
               <p className="text-[12px] text-red-500">{profileError}</p>
             )}
@@ -310,40 +337,55 @@ export default function ProfilePage({
           <form onSubmit={handleChangePassword} className="p-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">Stávající heslo</span>
-              <input
-                className="modal-input"
-                required
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                autoComplete="current-password"
-                placeholder="Vaše současné heslo"
-              />
+              <div className="relative">
+                <input
+                  className="modal-input w-full pr-9"
+                  required
+                  type={showOldPassword ? "text" : "password"}
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="Vaše současné heslo"
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowOldPassword((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label={showOldPassword ? "Skrýt heslo" : "Zobrazit heslo"}>
+                  <MIcon name={showOldPassword ? "visibility_off" : "visibility"} size={16} />
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">Nové heslo</span>
-              <input
-                className="modal-input"
-                required
-                minLength={6}
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-                placeholder="Alespoň 6 znaků"
-              />
+              <div className="relative">
+                <input
+                  className="modal-input w-full pr-9"
+                  required
+                  minLength={6}
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Alespoň 6 znaků"
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowNewPassword((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label={showNewPassword ? "Skrýt heslo" : "Zobrazit heslo"}>
+                  <MIcon name={showNewPassword ? "visibility_off" : "visibility"} size={16} />
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">Nové heslo znovu</span>
-              <input
-                className={`modal-input${passwordMismatch ? " border-red-400" : ""}`}
-                required
-                type="password"
-                value={newPasswordConfirm}
-                onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                autoComplete="new-password"
-                placeholder="Zopakujte nové heslo"
-              />
+              <div className="relative">
+                <input
+                  className={`modal-input w-full pr-9${passwordMismatch ? " border-red-400" : ""}`}
+                  required
+                  type={showNewPasswordConfirm ? "text" : "password"}
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Zopakujte nové heslo"
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowNewPasswordConfirm((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label={showNewPasswordConfirm ? "Skrýt heslo" : "Zobrazit heslo"}>
+                  <MIcon name={showNewPasswordConfirm ? "visibility_off" : "visibility"} size={16} />
+                </button>
+              </div>
               {passwordMismatch && <p className="text-[11px] text-red-500">Hesla se neshodují.</p>}
             </div>
 
@@ -410,8 +452,8 @@ export default function ProfilePage({
                     <div className="flex flex-col gap-1.5">
                       {rows.map((row, i) => (
                         <div key={i} className="glass-soft rounded-2xl px-3 py-2.5 flex items-start gap-3">
-                          <div className="shrink-0 mt-0.5">
-                            <div className="w-2 h-2 rounded-full mt-1" style={{ background: "#F59E0B" }} />
+                          <div className="shrink-0 mt-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ background: row.type === "pizza" ? "#EA580C" : "#F59E0B" }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-[11.5px] font-semibold text-stone-700 leading-none">
@@ -419,12 +461,18 @@ export default function ProfilePage({
                               <span className="ml-2 font-normal text-stone-400">· {row.department}</span>
                             </div>
                             <div className="text-[11.5px] text-stone-500 mt-1 leading-snug">
-                              {row.soupName && <span>🍲 {row.soupName}</span>}
-                              {row.soupName && row.mainName && <span className="mx-1.5 text-stone-300">·</span>}
-                              {row.mainName && <span>{row.mealCount > 1 ? `${row.mealCount}× ` : ""}{row.mainName}</span>}
-                              {row.rollCount > 0 && <span className="ml-1.5 text-stone-400">{row.rollCount}× rohlík</span>}
-                              {row.breadDumplingCount > 0 && <span className="ml-1.5 text-stone-400">{row.breadDumplingCount}× houska kned.</span>}
-                              {row.potatoDumplingCount > 0 && <span className="ml-1.5 text-stone-400">{row.potatoDumplingCount}× bram. kned.</span>}
+                              {row.type === "pizza" ? (
+                                <span>{row.pizzaCount > 1 ? `${row.pizzaCount}× ` : ""}{row.pizzaName ?? "Pizza"}</span>
+                              ) : (
+                                <>
+                                  {row.soupName && <span>🍲 {row.soupName}</span>}
+                                  {row.soupName && row.mainName && <span className="mx-1.5 text-stone-300">·</span>}
+                                  {row.mainName && <span>{row.mealCount > 1 ? `${row.mealCount}× ` : ""}{row.mainName}</span>}
+                                  {row.rollCount > 0 && <span className="ml-1.5 text-stone-400">{row.rollCount}× rohlík</span>}
+                                  {row.breadDumplingCount > 0 && <span className="ml-1.5 text-stone-400">{row.breadDumplingCount}× houska kned.</span>}
+                                  {row.potatoDumplingCount > 0 && <span className="ml-1.5 text-stone-400">{row.potatoDumplingCount}× bram. kned.</span>}
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

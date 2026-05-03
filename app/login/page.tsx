@@ -9,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -80,15 +81,27 @@ export default function LoginPage() {
 
           <div>
             <label className="auth-label">Heslo</label>
-            <input
-              autoComplete="current-password"
-              className="auth-input"
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Vaše heslo"
-              required
-              type="password"
-              value={password}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                autoComplete="current-password"
+                className="auth-input"
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Vaše heslo"
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+                style={{ paddingRight: "2.5rem" }}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword((s) => !s)}
+                style={{ position: "absolute", right: "0.65rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "0.25rem", color: "#9b8474" }}
+                aria-label={showPassword ? "Skrýt heslo" : "Zobrazit heslo"}
+              >
+                <MIcon name={showPassword ? "visibility_off" : "visibility"} size={17} />
+              </button>
+            </div>
           </div>
 
           {error && (

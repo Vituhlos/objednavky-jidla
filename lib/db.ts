@@ -163,6 +163,7 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)"); } catch {}
   try { db.exec("ALTER TABLE pizza_order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)"); } catch {}
   try { db.exec("ALTER TABLE users ADD COLUMN default_department TEXT"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN email_order_confirmation INTEGER NOT NULL DEFAULT 0"); } catch {}
 
   // Password reset tokens
   db.exec(`

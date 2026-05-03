@@ -10,6 +10,7 @@ export interface User {
   role: "user" | "admin";
   active: number;
   defaultDepartment: string | null;
+  emailOrderConfirmation: boolean;
 }
 
 export const COOKIE_NAME = "session_token";
@@ -39,7 +40,7 @@ export function createSession(userId: number): string {
 export function getSessionUser(token: string): User | null {
   const db = getDb();
   const row = db.prepare(
-    `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.active, u.default_department
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.active, u.default_department, u.email_order_confirmation
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token = ? AND s.expires_at > datetime('now') AND u.active = 1`
@@ -53,6 +54,7 @@ export function getSessionUser(token: string): User | null {
     role: row.role as "user" | "admin",
     active: row.active as number,
     defaultDepartment: row.default_department as string | null,
+    emailOrderConfirmation: Boolean(row.email_order_confirmation),
   };
 }
 

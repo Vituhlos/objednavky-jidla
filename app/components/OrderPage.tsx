@@ -466,6 +466,27 @@ export default function OrderPage({
         </div>
       )}
 
+      {/* ── Urgency countdown banner (< 30 min) ── */}
+      {!isSent && !isPastCutoff && countdownMins !== null && countdownMins <= 30 && (
+        <div
+          aria-live="polite"
+          role="status"
+          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-white text-[12.5px] font-semibold"
+          style={{
+            background: countdownMins <= 10
+              ? "linear-gradient(90deg,#dc2626,#b91c1c)"
+              : "linear-gradient(90deg,#EA580C,#D97706)",
+          }}
+        >
+          <MIcon name="timer" size={15} className="shrink-0" />
+          <span>
+            {countdownMins <= 10
+              ? `Zbývá jen ${countdownMins} min — objednávka se brzy uzavře!`
+              : `Uzávěrka za ${countdownMins} min (${cutoffTime}) — nezapomeň objednat.`}
+          </span>
+        </div>
+      )}
+
       {/* ── Desktop info strip ── */}
       <div className="hidden md:flex px-5 py-2 border-b border-white/50 items-center gap-4 topbar shrink-0">
         <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-600">

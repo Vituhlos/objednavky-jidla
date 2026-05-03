@@ -132,6 +132,74 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string, first
   });
 }
 
+export async function sendOrderConfirmationEmail(
+  to: string,
+  firstName: string,
+  date: string,
+  items: Array<{ department: string; description: string }>,
+): Promise<void> {
+  const [y, m, d] = date.split("-").map(Number);
+  const dateFormatted = new Date(y, m - 1, d).toLocaleDateString("cs-CZ", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  }).replace(/^\w/, (c) => c.toUpperCase());
+
+  const itemRows = items
+    .map((it) => `  - ${it.department}: ${it.description}`)
+    .join("\n");
+  const text = `Dobrý den ${firstName},\n\nVaše objednávka na ${dateFormatted} byla odeslána.\n\n${itemRows}\n\nKantýna`;
+
+  const itemsHtml = items.map((it) => `
+    <tr>
+      <td style="padding:6px 0;border-bottom:1px solid #f5f0e8;font-size:13px;color:#57534e;font-family:Arial,Helvetica,sans-serif">
+        <span style="font-weight:600;color:#1c1917">${it.department}</span>
+        <span style="margin-left:8px;color:#78716c">${it.description}</span>
+      </td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="cs">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f5f0e8;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f0e8;padding:32px 16px">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden">
+        <tr>
+          <td style="background-color:#EA580C;padding:20px 32px">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="width:36px;height:36px;background-color:#ffffff;border-radius:8px;text-align:center;vertical-align:middle">
+                  <span style="font-size:20px;line-height:36px;display:block">&#127859;</span>
+                </td>
+                <td style="padding-left:12px">
+                  <span style="font-size:20px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif">Kantýna</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <h2 style="margin:0 0 8px 0;font-size:20px;font-weight:bold;color:#1c1917;font-family:Arial,Helvetica,sans-serif">Objednávka potvrzena</h2>
+            <p style="margin:0 0 20px 0;font-size:14px;color:#78716c;font-family:Arial,Helvetica,sans-serif">Dobrý den <strong>${firstName}</strong>, vaše objednávka na <strong>${dateFormatted}</strong> byla úspěšně odeslána.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              ${itemsHtml}
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #f0ebe3">
+            <p style="margin:0;font-size:12px;color:#c4b8a8;font-family:Arial,Helvetica,sans-serif">Potvrzení objednávky — Kantýna. Tuto zprávu lze vypnout v nastavení profilu.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  await sendEmail({ to: [to], subject: `Potvrzení objednávky — ${dateFormatted}`, html, text });
+}
+
 export async function testSmtpConnectionWith(config: {
   host: string; port: string; user: string; pass: string; secure: string;
 }): Promise<void> {
