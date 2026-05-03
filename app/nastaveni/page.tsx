@@ -10,7 +10,7 @@ import SettingsPage from "@/app/components/SettingsPage";
 
 export default async function Page() {
   const currentUser = await getCurrentUser();
-  if (!currentUser) redirect("/login");
+  if (!currentUser || currentUser.role !== "admin") redirect("/");
   const settings = getSettings();
   const departments = getDepartments();
   const auditLog = getRecentAuditLog(200);

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
 import {
-  actionCheckPin,
   actionSaveSettings,
   actionAddDepartment,
   actionUpdateDepartment,
@@ -222,18 +221,7 @@ export default function SettingsPage({
   todayOrder?: { id: number; status: string };
   isAdmin?: boolean;
 }) {
-  const [unlocked, setUnlocked] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const pinInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!unlocked) {
-      const t = setTimeout(() => pinInputRef.current?.focus(), 150);
-      return () => clearTimeout(t);
-    }
-  }, [unlocked]);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
@@ -334,16 +322,6 @@ export default function SettingsPage({
   const backupDepts = Array.isArray((restoreFile as Record<string, unknown> | null)?.departments)
     ? ((restoreFile as Record<string, unknown>).departments as unknown[]).length : 0;
   const backupHasSettings = typeof (restoreFile as Record<string, unknown> | null)?.settings === "object";
-
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError(false);
-    startTransition(async () => {
-      const ok = await actionCheckPin(pin);
-      if (ok) setUnlocked(true);
-      else { setPinError(true); setPin(""); }
-    });
-  };
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -481,7 +459,7 @@ export default function SettingsPage({
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <MIcon name="settings" size={16} fill style={{ color: "#D97706" }} />
         <span className="font-display font-bold text-[15px] text-stone-900">Nastavení</span>
-        <span className="text-[12px] text-stone-500">SMTP, příjemci, kopie, čas uzávěrky, PIN</span>
+        <span className="text-[12px] text-stone-500">SMTP, příjemci, kopie, čas uzávěrky</span>
       </div>
 
       {/* Mobile topbar */}
@@ -490,45 +468,7 @@ export default function SettingsPage({
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
-        {!unlocked ? (
-          /* PIN lock */
-          <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
-            <div className="flex flex-col items-center gap-4 p-8">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(234,88,12,0.15))" }}>
-                <MIcon name="lock" size={28} fill style={{ color: "#EA580C" }} />
-              </div>
-              <div className="text-center">
-                <p className="font-display font-bold text-[17px] text-stone-900">Přístup chráněn PINem</p>
-                <p className="text-[12.5px] text-stone-500 mt-1">Zadejte PIN pro zobrazení nastavení</p>
-              </div>
-              <form className="w-full flex flex-col gap-3" onSubmit={handlePinSubmit}>
-                <input
-                  ref={pinInputRef}
-                  className="modal-input text-center tracking-[0.5em] font-display font-bold"
-                  inputMode="numeric"
-                  maxLength={8}
-                  onChange={(e) => setPin(e.target.value)}
-                  pattern="[0-9]*"
-                  placeholder="••••"
-                  style={{ fontSize: "20px" }}
-                  type="password"
-                  value={pin}
-                />
-                {pinError && (
-                  <p className="text-[12px] text-red-500 text-center -mt-1">Nesprávný PIN. Zkuste to znovu.</p>
-                )}
-                <button
-                  className="modal-btn modal-btn--primary w-full"
-                  disabled={isPending || pin.length === 0}
-                  type="submit"
-                >
-                  {isPending ? "Ověřuji..." : "Odemknout"}
-                </button>
-              </form>
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
             {/* Reopen order — nahoře, aby k tomu nebylo třeba scrollovat */}
             {todayOrder && (todayOrder.status === "sent" || reopenDone) && (
               <Section icon="lock_open" title="Dnešní objednávka">
@@ -1015,8 +955,7 @@ export default function SettingsPage({
                 </div>
               )}
             </Section>
-          </>
-        )}
+        </>
       </main>
     </div>
   );
