@@ -595,7 +595,12 @@ export default function OrderPage({
           {showDayPicker && (
             <div
               className="overflow-x-auto no-scrollbar rounded-2xl"
-              style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+              style={{
+                background: "rgba(26,18,8,0.06)",
+                border: "1px solid rgba(255,255,255,0.55)",
+                WebkitMaskImage: "linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent)",
+                maskImage: "linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent)",
+              }}
             >
               <div className="flex p-1 gap-0.5" style={{ width: "max-content", minWidth: "100%" }}>
               {availableDates!.map((date) => {
