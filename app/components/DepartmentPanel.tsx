@@ -160,14 +160,19 @@ function OrderEditModal({
     mealEntries.some((e) => e.itemId != null) ||
     rollCount > 0 || breadDumplingCount > 0 || potatoDumplingCount > 0;
 
+  const normalizeName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
   const isDuplicateName =
     personName.trim() !== "" &&
-    personName.trim().toLowerCase() !== row.personName.trim().toLowerCase() &&
-    existingNames.some((n) => n.toLowerCase() === personName.trim().toLowerCase());
+    normalizeName(personName) !== normalizeName(row.personName) &&
+    existingNames.some((n) => normalizeName(n) === normalizeName(personName));
 
   const handleSave = () => {
     if (!personName.trim()) {
       setValidationError("Zadejte jméno osoby.");
+      return;
+    }
+    if (personName.trim().split(/\s+/).length < 2) {
+      setValidationError("Zadejte jméno i příjmení.");
       return;
     }
     if (!hasFood) {
