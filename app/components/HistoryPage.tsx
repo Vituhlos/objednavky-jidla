@@ -135,7 +135,7 @@ export default function HistoryPage({
                       <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
                       <td className="px-3 py-2.5 text-stone-500 hidden md:table-cell">{order.extraEmail ?? "–"}</td>
                       <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/${order.id}`}>
+                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition py-2 inline-block" href={`/historie/${order.id}`}>
                           Detail →
                         </Link>
                       </td>
@@ -178,7 +178,7 @@ export default function HistoryPage({
                       <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
                       <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
                       <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/pizza/${order.id}`}>
+                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition py-2 inline-block" href={`/historie/pizza/${order.id}`}>
                           Detail →
                         </Link>
                       </td>

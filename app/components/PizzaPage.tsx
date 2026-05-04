@@ -178,7 +178,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             <div className="flex flex-col items-center gap-2 px-4 py-8 text-stone-400">
               <MIcon name="local_pizza" size={32} fill />
               <p className="text-[13px]">Zatím nikdo neobjednal</p>
-              <p className="text-[11.5px]">Přidej první osobu tlačítkem výše</p>
+              <p className="text-[12px]">Přidejte první osobu tlačítkem výše</p>
             </div>
           ) : (
             <>
@@ -337,12 +337,12 @@ function PizzaRow({
           </div>
           <span className="text-[11px] text-stone-500">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
           <button
-            className="w-6 h-6 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
+            className="w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
             disabled={isPending}
             onClick={() => onDelete(row.id)}
             type="button"
           >
-            <MIcon name="close" size={13} />
+            <MIcon name="close" size={16} />
           </button>
         </div>
       </div>
@@ -377,12 +377,12 @@ function PizzaRow({
         <span className="text-[12.5px] text-stone-500 text-right">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
         <span className="text-[12.5px] font-semibold text-stone-800 text-right">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : "–"}</span>
         <button
-          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 active:text-red-400 hover:bg-red-50/80 transition"
+          className="w-8 h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 active:text-red-400 hover:bg-red-50/80 transition"
           disabled={isPending}
           onClick={() => onDelete(row.id)}
           type="button"
         >
-          <MIcon name="close" size={14} />
+          <MIcon name="close" size={15} />
         </button>
       </div>
     </div>

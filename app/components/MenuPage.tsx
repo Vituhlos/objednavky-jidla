@@ -232,10 +232,10 @@ function WeekGrid({
                       <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Polévky</span>
                       {editMode && (
                         <button
-                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          className="ml-auto w-6 h-6 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 12 }}
                           title="Přidat polévku"
                           type="button"
                         >+</button>
@@ -255,10 +255,10 @@ function WeekGrid({
                       <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Jídla</span>
                       {editMode && (
                         <button
-                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          className="ml-auto w-6 h-6 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 12 }}
                           title="Přidat jídlo"
                           type="button"
                         >+</button>
@@ -327,12 +327,12 @@ function WeekItem({
           type="number"
         />
         <button
-          className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 transition shrink-0"
+          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 transition shrink-0"
           disabled={disabled}
           onClick={() => onDelete(item.id)}
           type="button"
         >
-          <MIcon name="close" size={10} />
+          <MIcon name="close" size={13} />
         </button>
       </div>
     );
@@ -421,12 +421,12 @@ function MenuSection({
                   type="number"
                 />
                 <button
-                  className="ml-auto w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition shrink-0"
+                  className="ml-auto w-9 h-9 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition shrink-0"
                   disabled={disabled}
                   onClick={() => onDelete(item.id)}
                   type="button"
                 >
-                  <MIcon name="close" size={13} />
+                  <MIcon name="close" size={15} />
                 </button>
               </div>
             </div>

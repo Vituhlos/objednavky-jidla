@@ -85,7 +85,7 @@ function Section({ title, icon, children }: { title: string; icon?: string; chil
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[11.5px] font-semibold text-stone-600">{label}</span>
+      <span className="text-[12px] font-semibold text-stone-600">{label}</span>
       {hint && <span className="text-[10.5px] text-stone-400 -mt-0.5">{hint}</span>}
       {children}
     </div>
@@ -155,11 +155,11 @@ function DeptRow({
         <span className="text-[11px] text-stone-400 hidden sm:inline shrink-0">({dept.name})</span>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            className="inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            className="inline-flex w-8 h-8 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
             disabled={isFirst} onClick={() => onMoveUp(dept.id)} title="Nahoru" type="button"
           >↑</button>
           <button
-            className="inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            className="inline-flex w-8 h-8 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
             disabled={isLast} onClick={() => onMoveDown(dept.id)} title="Dolů" type="button"
           >↓</button>
           <button

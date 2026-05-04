@@ -102,6 +102,7 @@ body {
 }
 .glass-btn:not(:disabled):active { transform: scale(0.97); box-shadow: 0 1px 3px rgba(26,18,8,0.08), 0 1px 0 rgba(255,255,255,0.9) inset; }
 .glass-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.glass-btn:focus-visible { outline: 2px solid rgba(245,158,11,0.65); outline-offset: 2px; }
 
 .glass-btn-danger {
   position: relative;
@@ -120,6 +121,7 @@ body {
 }
 .glass-btn-danger:not(:disabled):active { transform: scale(0.97); box-shadow: 0 1px 3px rgba(220,38,38,0.1), 0 1px 0 rgba(255,255,255,0.9) inset; }
 .glass-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+.glass-btn-danger:focus-visible { outline: 2px solid rgba(220,38,38,0.55); outline-offset: 2px; }
 
 .glass-dim {
   position: relative;
