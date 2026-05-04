@@ -443,15 +443,12 @@ export default function OrderPage({
 
       {/* ── Desktop info strip ── */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-600">
-          <span className="inline-flex items-center gap-1.5">
-            <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-            <span className="font-medium">{dayStr}</span>
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-              title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-            />
-          </span>
+        <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
+          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+        />
+        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
           {!isSent && !isPastCutoff && countdown && (
             <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
               <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime})
@@ -467,12 +464,12 @@ export default function OrderPage({
               <MIcon name="check_circle" size={13} fill /> Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
+          {activeOrderCount > 0 && (
+            <span className="text-stone-400">
+              {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
+            </span>
+          )}
         </div>
-        {activeOrderCount > 0 && (
-          <span className="text-[12px] text-stone-500 shrink-0">
-            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
-          </span>
-        )}
         {!isSent && !isFutureDay && !noMenu && (
           <div className="flex items-center gap-2 shrink-0">
             <button
