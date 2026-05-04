@@ -534,7 +534,7 @@ export default function OrderPage({
             style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             type="button"
           >
-            {isPending ? "…" : "Odeslat"}
+            {isPending ? "Odesílám…" : "Odeslat"}
           </button>
         )}
         {isFutureDay && !isSent && !noMenu && (
@@ -550,32 +550,36 @@ export default function OrderPage({
         <div className="flex flex-col gap-4 pb-28 md:pb-6">
 
           {showDayPicker && (
-            <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
-              <div
-                className="flex p-1 rounded-2xl gap-0.5"
-                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
-              >
-                {availableDates!.map((date) => {
-                  const isActive = date === selectedDate;
-                  return (
-                    <button
-                      key={date}
-                      className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                        isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
-                      }`}
-                      onClick={() => router.push(`/?date=${date}`)}
-                      style={isActive ? {
-                        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                        color: "white",
-                        boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                      } : {}}
-                      type="button"
-                    >
-                      {getDayLabel(date, todayDate!)}
-                    </button>
-                  );
-                })}
+            <div className="relative -mx-4">
+              <div className="overflow-x-auto no-scrollbar px-4">
+                <div
+                  className="flex p-1 rounded-2xl gap-0.5"
+                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+                >
+                  {availableDates!.map((date) => {
+                    const isActive = date === selectedDate;
+                    return (
+                      <button
+                        key={date}
+                        className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                        }`}
+                        onClick={() => router.push(`/?date=${date}`)}
+                        style={isActive ? {
+                          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                          color: "white",
+                          boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                        } : {}}
+                        type="button"
+                      >
+                        {getDayLabel(date, todayDate!)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+              <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
+                style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
             </div>
           )}
 
@@ -679,7 +683,7 @@ export default function OrderPage({
                   ) : (
                     <>
                       <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávku po uzávěrce odešle správce.</span>
+                      <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
                     </>
                   )}
                 </div>

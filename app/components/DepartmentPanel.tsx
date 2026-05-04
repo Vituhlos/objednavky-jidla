@@ -371,7 +371,11 @@ function OrderEditModal({
           </div>
         </div>
         {validationError && (
-          <div className="px-4 pb-2 text-[12px] text-red-600 font-medium">{validationError}</div>
+          <div className="mx-4 mb-2 px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
+            style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+            <MIcon name="warning" size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
+            {validationError}
+          </div>
         )}
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
@@ -432,23 +436,23 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
       {/* Body */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display font-semibold text-[13px] text-stone-900 leading-none">{row.personName || "—"}</span>
+          <span className="font-display font-semibold text-[14px] text-stone-900 leading-none">{row.personName || "—"}</span>
           {row.note && (
-            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[120px] truncate" title={row.note}>
+            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px] truncate" title={row.note}>
               ✎ {row.note}
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
           {row.mainItem && (
-            <span className="text-[11.5px] text-stone-600 leading-snug">
+            <span className="text-[12.5px] text-stone-600 leading-snug">
               {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
               {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
               {row.mainItem.name}
             </span>
           )}
           {row.extraMealItems.map((e, i) => (
-            <span key={i} className="text-[11.5px] text-stone-600 leading-snug">
+            <span key={i} className="text-[12.5px] text-stone-600 leading-snug">
               <span className="text-stone-300 mx-0.5">+</span>
               {e.count > 1 ? `${e.count}× ` : ""}
               {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
@@ -459,19 +463,19 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
             <span className="text-stone-300 text-[11px]">·</span>
           )}
           {row.soupItem && (
-            <span className="text-[11.5px] text-stone-500 leading-snug">
+            <span className="text-[12.5px] text-stone-500 leading-snug">
               {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
               {row.soupItem.name}
             </span>
           )}
           {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
           {row.soupItem2 && (
-            <span className="text-[11.5px] text-stone-500 leading-snug">
+            <span className="text-[12.5px] text-stone-500 leading-snug">
               {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
               {row.soupItem2.name}
             </span>
           )}
-          {!row.mainItem && !row.soupItem && <span className="text-[11.5px] text-stone-400">—</span>}
+          {!row.mainItem && !row.soupItem && <span className="text-[12.5px] text-stone-400">—</span>}
           {chips.map((c) => (
             <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-stone-500">{c}</span>
           ))}
@@ -489,7 +493,7 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
           type="button"
           aria-label="Smazat"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="shrink-0 w-11 h-11 md:w-7 md:h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
+          className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
         >
           <MIcon name="close" size={15} />
         </button>
@@ -546,8 +550,14 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
           <div className="flex-1 min-w-0">
             <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
             <div className="text-[11.5px] text-stone-500 mt-0.5">
-              {activeRows.length} {pluralOrders(activeRows.length)}
-              {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
+              {activeRows.length > 0 ? (
+                <>
+                  {activeRows.length} {pluralOrders(activeRows.length)}
+                  {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
+                </>
+              ) : (
+                <span className="text-stone-400">Zatím prázdné</span>
+              )}
             </div>
           </div>
           {!isSent && (
@@ -558,8 +568,10 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             >
-              <MIcon name="add" size={14} />
-              {isAdding ? "…" : "Přidat"}
+              {isAdding
+                ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />
+                : <MIcon name="add" size={14} />}
+              {isAdding ? "Přidávám" : "Přidat"}
             </button>
           )}
         </div>
@@ -571,7 +583,12 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
         {/* Rows */}
         <div className={isSent ? "dept-rows-sent" : ""}>
           {activeRows.length === 0 ? (
-            <div className="px-4 py-5 text-center text-[12.5px] text-stone-400">Zatím nikdo neobjednal.</div>
+            <div className="px-4 py-6 flex flex-col items-center gap-1.5 text-center">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(148,163,184,0.1)" }}>
+                <MIcon name="groups" size={18} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="text-[12px] text-stone-400">Nikdo zatím neobjednal</p>
+            </div>
           ) : (
             activeRows.map((row) => (
               <OrderRow
