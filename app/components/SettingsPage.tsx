@@ -425,9 +425,14 @@ export default function SettingsPage({
   const handleImapCheck = () => {
     setImapCheckStatus("pending");
     setImapCheckMsg("Připojuji se k poštovní schránce...");
+    const timeout = setTimeout(() => {
+      setImapCheckStatus("error");
+      setImapCheckMsg("Časový limit vypršel — zkontroluj nastavení IMAP (host, port, heslo).");
+    }, 25000);
     startTransition(async () => {
       try {
         const result = await actionCheckImap();
+        clearTimeout(timeout);
         if (result.found) {
           setImapCheckStatus("found");
           setImapCheckMsg(`Importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
@@ -439,6 +444,7 @@ export default function SettingsPage({
           setImapCheckMsg("Žádný nový mail s jídelníčkem nebyl nalezen.");
         }
       } catch {
+        clearTimeout(timeout);
         setImapCheckStatus("error");
         setImapCheckMsg("Nepodařilo se připojit k poštovní schránce.");
       }

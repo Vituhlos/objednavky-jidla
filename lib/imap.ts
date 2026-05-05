@@ -27,6 +27,9 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     secure: true,
     auth: { user: s.imapUser, pass: s.imapPass },
     logger: false,
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
   });
 
   try {
