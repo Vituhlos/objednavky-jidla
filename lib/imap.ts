@@ -69,14 +69,15 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     const firstUid = (uids as number[])[0];
     console.log(`[imap] Stahuji strukturu mailu UID ${firstUid}...`);
     const msgInfo = await client.fetchOne(String(firstUid), { uid: true, envelope: true, bodyStructure: true }, { uid: true });
-    console.log(`[imap] Struktura stažena, subject: ${msgInfo?.envelope?.subject ?? "(bez předmětu)"}`);
+    if (!msgInfo) { await client.logout(); return { found: false, error: "Mail nenalezen." }; }
+    console.log(`[imap] Struktura stažena, subject: ${msgInfo.envelope?.subject ?? "(bez předmětu)"}`);
 
-    if (!msgInfo?.bodyStructure) {
+    if (!msgInfo.bodyStructure) {
       await client.logout();
       return { found: false, error: "Mail neobsahuje žádnou strukturu těla." };
     }
 
-    const parts = flattenParts(msgInfo.bodyStructure as unknown as Record<string, unknown>);
+    const parts = flattenParts(msgInfo.bodyStructure! as unknown as Record<string, unknown>);
     console.log(`[imap] Části mailu: ${parts.map(p => `${p.type}/${p.subtype}(${p.disposition ?? "-"})`).join(", ")}`);
 
     const pdfPart = parts.find(
