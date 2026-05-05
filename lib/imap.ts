@@ -39,9 +39,9 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     auth: { user: s.imapUser, pass: s.imapPass },
     logger: false,
     tls: { servername: s.imapHost },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 60000,
   });
 
   // Zachytíme error eventy které imapflow emituje mimo try/catch (např. socket timeout)
