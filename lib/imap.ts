@@ -2,6 +2,7 @@ import { ImapFlow } from "imapflow";
 import pdfParse from "pdf-parse";
 import path from "path";
 import fs from "fs";
+import { resolve4 } from "dns/promises";
 import { getSettings } from "./settings";
 import { parseMenuText } from "./parse-menu";
 import { setMenuForWeek } from "./menu";
@@ -21,12 +22,20 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
   if (s.imapEnabled !== "true") return { found: false, error: "IMAP není zapnuto." };
   if (!s.imapHost || !s.imapUser || !s.imapPass) return { found: false, error: "IMAP přihlašovací údaje nejsou nastaveny." };
 
+  // Vynutíme IPv4 — imapflow jinak zkouší IPv6 první, které na Unraidu nefunguje
+  let resolvedHost = s.imapHost;
+  try {
+    const [ipv4] = await resolve4(s.imapHost);
+    resolvedHost = ipv4;
+  } catch { /* pokud DNS selže, zkusíme hostname přímo */ }
+
   const client = new ImapFlow({
-    host: s.imapHost,
+    host: resolvedHost,
     port: parseInt(s.imapPort) || 993,
     secure: true,
     auth: { user: s.imapUser, pass: s.imapPass },
     logger: false,
+    tls: { servername: s.imapHost },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 30000,
