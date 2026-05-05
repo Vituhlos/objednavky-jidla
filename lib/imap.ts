@@ -32,8 +32,13 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     socketTimeout: 30000,
   });
 
+  // Zachytíme error eventy které imapflow emituje mimo try/catch (např. socket timeout)
+  let earlyError: Error | null = null;
+  client.on("error", (err: Error) => { earlyError = err; });
+
   try {
     await client.connect();
+    if (earlyError) throw earlyError;
     await client.mailboxOpen("INBOX");
 
     // Hledáme nepřečtené maily s PDF přílohou
