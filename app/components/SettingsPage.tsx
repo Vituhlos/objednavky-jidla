@@ -69,13 +69,29 @@ function formatTs(ts: string): string {
 
 // ── Section card ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon, children }: { title: string; icon?: string; children: React.ReactNode }) {
+function Section({ title, icon, children, helpContent }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode }) {
+  const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="glass rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
         {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
-        <span className="font-display font-bold text-[13.5px] text-stone-900">{title}</span>
+        <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
+        {helpContent && (
+          <button
+            type="button"
+            onClick={() => setShowHelp((v) => !v)}
+            aria-label="Nápověda"
+            className="w-7 h-7 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
+          >
+            <MIcon name="info" size={15} />
+          </button>
+        )}
       </div>
+      {helpContent && showHelp && (
+        <div className="px-4 pt-3 pb-1 border-b border-white/40 flex flex-col gap-2" style={{ background: "rgba(245,158,11,0.04)" }}>
+          {helpContent}
+        </div>
+      )}
       <div className="p-4 flex flex-col gap-3">{children}</div>
     </div>
   );
@@ -758,7 +774,17 @@ export default function SettingsPage({
                   </Field>
                 </Section>
 
-                <Section icon="menu_book" title="Automatický import jídelníčku">
+                <Section icon="menu_book" title="Automatický import jídelníčku" helpContent={
+                  <div className="space-y-2.5 text-[12px] text-stone-600 pb-2">
+                    <p className="font-semibold text-stone-800 text-[12.5px]">Jak nastavit automatický import z Gmailu</p>
+                    <div className="space-y-1.5">
+                      <p><span className="font-semibold text-stone-700">1. Zapni IMAP v Gmailu</span><br />Gmail → Nastavení (ozubené kolo) → Zobrazit všechna nastavení → záložka <em>Přesměrování a POP/IMAP</em> → sekce IMAP → vyber <strong>Zapnout IMAP</strong> → Uložit.</p>
+                      <p><span className="font-semibold text-stone-700">2. Vytvoř App Password</span><br />Gmail normální heslo nefunguje — potřebuješ speciální. Jdi na <strong>myaccount.google.com/apppasswords</strong>, přihlas se, vytvoř nové heslo (název např. „Kantyna"). Google vygeneruje 16 znaků — zkopíruj je <strong>bez mezer</strong> a vlož sem jako heslo.</p>
+                      <p><span className="font-semibold text-stone-700">3. Filtr odesílatele</span><br />Zadej e-mailovou adresu od které LIMA posílá jídelníčky (najdeš ji v hlavičce příchozího mailu). Tím se zajistí, že se nezpracuje žádný jiný mail.</p>
+                      <p><span className="font-semibold text-stone-700">4. Jak to funguje</span><br />Každý pracovní den v nastavený čas appka zkontroluje schránku, najde nepřečtený mail s PDF od LIMY, importuje jídelníček a mail označí jako přečtený.</p>
+                    </div>
+                  </div>
+                }>
                   <p className="text-[12.5px] text-stone-500">
                     Appka se každé ráno připojí k e-mailové schránce a automaticky importuje jídelníček z PDF přílohy od LIMY.
                   </p>
