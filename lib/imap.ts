@@ -65,31 +65,41 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
       return { found: false };
     }
 
-    const messages = client.fetch(uids as number[], { uid: true, envelope: true, bodyStructure: true }, { uid: true });
+    // Stáhneme bodyStructure prvního mailu
+    const firstUid = (uids as number[])[0];
+    console.log(`[imap] Stahuji strukturu mailu UID ${firstUid}...`);
+    const msgInfo = await client.fetchOne(String(firstUid), { uid: true, envelope: true, bodyStructure: true }, { uid: true });
+    console.log(`[imap] Struktura stažena, subject: ${msgInfo?.envelope?.subject ?? "(bez předmětu)"}`);
 
-    let pdfBuffer: Buffer | null = null;
-    let processedUid: number | null = null;
-
-    for await (const msg of messages) {
-      if (!msg.bodyStructure) continue;
-      const parts = flattenParts(msg.bodyStructure as unknown as Record<string, unknown>);
-      const pdfPart = parts.find(
-        (p) => p.type === "application" && (p.subtype === "pdf" || p.subtype === "octet-stream")
-          || (p.disposition === "attachment" && p.dispositionParameters?.filename?.toLowerCase().endsWith(".pdf"))
-      );
-      if (!pdfPart) continue;
-
-      const partData = await client.download(String(msg.uid), pdfPart.part ?? "1", { uid: true });
-      const chunks: Buffer[] = [];
-      for await (const chunk of partData.content) chunks.push(chunk);
-      pdfBuffer = Buffer.concat(chunks);
-      processedUid = msg.uid;
-      break;
+    if (!msgInfo?.bodyStructure) {
+      await client.logout();
+      return { found: false, error: "Mail neobsahuje žádnou strukturu těla." };
     }
 
-    if (!pdfBuffer || processedUid === null) {
+    const parts = flattenParts(msgInfo.bodyStructure as unknown as Record<string, unknown>);
+    console.log(`[imap] Části mailu: ${parts.map(p => `${p.type}/${p.subtype}(${p.disposition ?? "-"})`).join(", ")}`);
+
+    const pdfPart = parts.find(
+      (p) => (p.type === "application" && (p.subtype === "pdf" || p.subtype === "octet-stream"))
+        || (p.disposition === "attachment" && p.dispositionParameters?.filename?.toLowerCase().endsWith(".pdf"))
+    );
+
+    if (!pdfPart) {
       await client.logout();
-      return { found: false };
+      return { found: false, error: "Mail byl nalezen, ale neobsahuje PDF přílohu." };
+    }
+
+    console.log(`[imap] PDF příloha nalezena (part: ${pdfPart.part}), stahuji...`);
+    const partData = await client.download(String(firstUid), pdfPart.part ?? "1", { uid: true });
+    const chunks: Buffer[] = [];
+    for await (const chunk of partData.content) chunks.push(chunk);
+    const pdfBuffer = Buffer.concat(chunks);
+    const processedUid = firstUid;
+    console.log(`[imap] PDF staženo (${pdfBuffer.length} B).`);
+
+    if (!pdfBuffer.length) {
+      await client.logout();
+      return { found: false, error: "PDF příloha je prázdná." };
     }
 
     // Parsujeme PDF
