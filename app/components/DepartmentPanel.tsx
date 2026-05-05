@@ -299,7 +299,8 @@ function OrderEditModal({
           ))}
           {soupIds.length < 2 && (
             <button className="modal-add-second" onClick={() => setSoupIds((prev) => [...prev, null])} type="button">
-              + Přidat druhou polévku
+              <MIcon name="add" size={14} style={{ color: "#D97706" }} />
+              Přidat druhou polévku
             </button>
           )}
 
@@ -350,8 +351,14 @@ function OrderEditModal({
               </div>
             </div>
           ))}
+          {mealEntries.length === 1 && mealEntries[0].itemId !== null && (
+            <p className="text-[11.5px] text-stone-400 -mt-1">
+              Chceš víc jídel v jedné objednávce? Přidej je tlačítkem níže.
+            </p>
+          )}
           <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
-            + Přidat další jídlo
+            <MIcon name="add" size={14} style={{ color: "#D97706" }} />
+            Přidat další jídlo
           </button>
 
           <div className="modal-field">
