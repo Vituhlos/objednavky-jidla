@@ -75,20 +75,39 @@ function extractWeekLabel(rawText: string): string | null {
   return m[1].replace(/\s+/g, "").replace(/[–]/g, "-");
 }
 
-// "30.3.-3.4.2026" → ISO date of the Monday of that week
-// Normalises to Monday so PDFs starting on Tue/Wed still match the week correctly.
+// Podporuje dvě varianty:
+//   "30.3.-3.4.2026"  — různé měsíce, start má den i měsíc
+//   "4.-8.5.2026"     — stejný měsíc, start má jen den (měsíc se bere z konce)
 function parseWeekStart(weekLabel: string): string | null {
-  const dayMonth = weekLabel.match(/^(\d{1,2})\.(\d{1,2})\./);
   const year = weekLabel.match(/(\d{4})$/);
-  if (!dayMonth || !year) return null;
-  const d = new Date(
-    parseInt(year[1], 10),
-    parseInt(dayMonth[2], 10) - 1,
-    parseInt(dayMonth[1], 10)
-  );
-  const dow = d.getDay(); // 0 = Sun
-  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (!year) return null;
+  const y = parseInt(year[1], 10);
+
+  // Formát A: startDen.startMesic.-...
+  const fullStart = weekLabel.match(/^(\d{1,2})\.(\d{1,2})\./);
+  if (fullStart) {
+    const d = new Date(y, parseInt(fullStart[2], 10) - 1, parseInt(fullStart[1], 10));
+    const dow = d.getDay();
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Formát B: startDen.-endDen.endMesic.rok — měsíc start == měsíc end (nebo o 1 méně)
+  const endPart = weekLabel.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const dayOnly = weekLabel.match(/^(\d{1,2})\.-/);
+  if (dayOnly && endPart) {
+    const startDay = parseInt(dayOnly[1], 10);
+    const endDay = parseInt(endPart[1], 10);
+    let startMonth = parseInt(endPart[2], 10);
+    if (startDay > endDay) startMonth = startMonth <= 1 ? 12 : startMonth - 1;
+    const startYear = startMonth === 12 && endPart[2] === "1" ? y - 1 : y;
+    const d = new Date(startYear, startMonth - 1, startDay);
+    const dow = d.getDay();
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  return null;
 }
 
 // Single-word Czech přílohy that LIMA sometimes separates with commas instead
