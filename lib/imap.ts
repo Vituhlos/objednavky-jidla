@@ -27,7 +27,10 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
   try {
     const [ipv4] = await resolve4(s.imapHost);
     resolvedHost = ipv4;
-  } catch { /* pokud DNS selže, zkusíme hostname přímo */ }
+    console.log(`[imap] Připojuji na ${ipv4} (${s.imapHost})`);
+  } catch (e) {
+    console.warn(`[imap] DNS resolve4 selhalo, zkouším hostname přímo: ${e instanceof Error ? e.message : e}`);
+  }
 
   const client = new ImapFlow({
     host: resolvedHost,
@@ -111,7 +114,9 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
 
   } catch (err) {
     try { await client.logout(); } catch { /* ignore */ }
-    const msg = err instanceof Error ? err.message : String(err);
+    // earlyError je původní příčina — "Connection not available" ji jinak přepíše
+    const rootErr = earlyError ?? err;
+    const msg = rootErr instanceof Error ? rootErr.message : String(rootErr);
     console.error("[imap] Chyba:", msg);
     return { found: false, error: msg };
   }
