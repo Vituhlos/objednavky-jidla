@@ -29,6 +29,13 @@ export interface AppSettings {
   autoSendTime: string;
   autoSendDays: string;
   autoSendMinOrders: string;
+  imapEnabled: string;
+  imapHost: string;
+  imapPort: string;
+  imapUser: string;
+  imapPass: string;
+  imapSender: string;
+  imapCheckTime: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -55,6 +62,13 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   autoSendTime: "auto_send_time",
   autoSendDays: "auto_send_days",
   autoSendMinOrders: "auto_send_min_orders",
+  imapEnabled: "imap_enabled",
+  imapHost: "imap_host",
+  imapPort: "imap_port",
+  imapUser: "imap_user",
+  imapPass: "imap_pass",
+  imapSender: "imap_sender",
+  imapCheckTime: "imap_check_time",
 };
 
 function envDefaults(): AppSettings {
@@ -83,6 +97,13 @@ function envDefaults(): AppSettings {
     autoSendTime: "08:00",
     autoSendDays: "Po,Út,St,Čt,Pá",
     autoSendMinOrders: "1",
+    imapEnabled: "false",
+    imapHost: "imap.gmail.com",
+    imapPort: "993",
+    imapUser: "",
+    imapPass: "",
+    imapSender: "",
+    imapCheckTime: "07:00",
   };
 }
 

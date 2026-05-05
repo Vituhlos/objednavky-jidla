@@ -14,6 +14,7 @@ import {
   actionReopenOrder,
   actionResendOrder,
   actionClearOrder,
+  actionCheckImap,
 } from "@/app/actions";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -243,6 +244,8 @@ export default function SettingsPage({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
+  const [imapCheckStatus, setImapCheckStatus] = useState<"idle" | "pending" | "found" | "notfound" | "error">("idle");
+  const [imapCheckMsg, setImapCheckMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
   const [newDeptName, setNewDeptName] = useState("");
@@ -367,6 +370,13 @@ export default function SettingsPage({
       autoSendTime: fd.get("autoSendTime") as string,
       autoSendDays,
       autoSendMinOrders: fd.get("autoSendMinOrders") as string,
+      imapEnabled: fd.get("imapEnabled") === "on" ? "true" : "false",
+      imapHost: fd.get("imapHost") as string,
+      imapPort: fd.get("imapPort") as string,
+      imapUser: fd.get("imapUser") as string,
+      imapPass: fd.get("imapPass") as string,
+      imapSender: fd.get("imapSender") as string,
+      imapCheckTime: fd.get("imapCheckTime") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -408,6 +418,29 @@ export default function SettingsPage({
       } catch {
         setSmtpTestStatus("error");
         setSmtpTestMsg("Síťová chyba při testu.");
+      }
+    });
+  };
+
+  const handleImapCheck = () => {
+    setImapCheckStatus("pending");
+    setImapCheckMsg("Připojuji se k poštovní schránce...");
+    startTransition(async () => {
+      try {
+        const result = await actionCheckImap();
+        if (result.found) {
+          setImapCheckStatus("found");
+          setImapCheckMsg(`Importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
+        } else if (result.error) {
+          setImapCheckStatus("error");
+          setImapCheckMsg(result.error);
+        } else {
+          setImapCheckStatus("notfound");
+          setImapCheckMsg("Žádný nový mail s jídelníčkem nebyl nalezen.");
+        }
+      } catch {
+        setImapCheckStatus("error");
+        setImapCheckMsg("Nepodařilo se připojit k poštovní schránce.");
       }
     });
   };
@@ -717,6 +750,52 @@ export default function SettingsPage({
                       ))}
                     </div>
                   </Field>
+                </Section>
+
+                <Section icon="menu_book" title="Automatický import jídelníčku">
+                  <p className="text-[12.5px] text-stone-500">
+                    Appka se každé ráno připojí k e-mailové schránce a automaticky importuje jídelníček z PDF přílohy od LIMY.
+                  </p>
+                  <Toggle defaultChecked={settings.imapEnabled === "true"} label="Zapnout automatický import" name="imapEnabled" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="např. imap.gmail.com" label="IMAP server">
+                      <input className="modal-input" defaultValue={settings.imapHost} name="imapHost" type="text" />
+                    </Field>
+                    <Field hint="obvykle 993 pro SSL" label="Port">
+                      <input className="modal-input w-24" defaultValue={settings.imapPort} min="1" name="imapPort" type="number" />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="Gmail adresa schránky" label="Uživatel (e-mail)">
+                      <input className="modal-input" defaultValue={settings.imapUser} name="imapUser" type="email" />
+                    </Field>
+                    <Field hint="Google App Password (16 znaků)" label="Heslo">
+                      <input className="modal-input" defaultValue={settings.imapPass} name="imapPass" type="password" autoComplete="new-password" />
+                    </Field>
+                  </div>
+                  <Field hint="e-mail od kterého chodí jídelníčky, např. info@lima.cz — prázdné = všechny nepřečtené maily" label="Filtr odesílatele">
+                    <input className="modal-input" defaultValue={settings.imapSender} name="imapSender" placeholder="info@lima.cz" type="email" />
+                  </Field>
+                  <Field hint="čas kdy se každý pracovní den provede kontrola schránky" label="Čas kontroly">
+                    <input className="modal-input w-32" defaultValue={settings.imapCheckTime} name="imapCheckTime" type="time" />
+                  </Field>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      disabled={isPending}
+                      onClick={handleImapCheck}
+                      type="button"
+                    >
+                      <MIcon name="refresh" size={16} />
+                      Zkontrolovat schránku teď
+                    </button>
+                    {imapCheckStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${imapCheckStatus === "found" ? "text-green-600" : imapCheckStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+                        {imapCheckStatus === "found" && "✓ "}
+                        {imapCheckMsg}
+                      </span>
+                    )}
+                  </div>
                 </Section>
 
                 <Section icon="restaurant" title="Ceník jídel">

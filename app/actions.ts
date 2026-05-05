@@ -27,6 +27,8 @@ import {
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
+import { checkImapForMenu } from "@/lib/imap";
+import type { ImapCheckResult } from "@/lib/imap";
 import { broadcast } from "@/lib/sse-broadcast";
 import {
   getDepartments,
@@ -234,5 +236,9 @@ export async function actionCheckPin(pin: string): Promise<boolean> {
 export async function actionSaveSettings(updates: Partial<AppSettings>): Promise<void> {
   saveSettings(updates);
   revalidatePath("/nastaveni");
+}
+
+export async function actionCheckImap(): Promise<ImapCheckResult> {
+  return checkImapForMenu();
 }
 

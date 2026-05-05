@@ -8,7 +8,8 @@ export type AuditAction =
   | "order_reopen"
   | "order_clear"
   | "auto_send"
-  | "menu_reminder";
+  | "menu_reminder"
+  | "menu_imap_import";
 
 export interface AuditEntry {
   id: number;

@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { getSettings } from "./settings";
 import type { AppSettings } from "./settings";
+import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
 import { getMenuItemsForDay } from "./menu";
 import { sendEmail, getOrderRecipients } from "./email";
@@ -90,6 +91,22 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
 }
 
+async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (s.imapEnabled !== "true") return;
+  if (currentTime !== s.imapCheckTime) return;
+  if (jsDay === 0 || jsDay === 6) return; // víkend
+
+  console.log("[scheduler] Kontrola IMAP pro jídelníček...");
+  const result = await checkImapForMenu();
+  if (result.found) {
+    console.log(`[scheduler] IMAP: importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
+  } else if (result.error) {
+    console.warn(`[scheduler] IMAP: ${result.error}`);
+  } else {
+    console.log("[scheduler] IMAP: žádný nový mail s jídelníčkem.");
+  }
+}
+
 export function startScheduler(): void {
   cron.schedule("* * * * *", async () => {
     try {
@@ -100,6 +117,7 @@ export function startScheduler(): void {
 
       await checkAutoSend(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
+      await checkImapImport(s, currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }
