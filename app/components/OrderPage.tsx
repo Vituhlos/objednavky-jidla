@@ -33,7 +33,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       num: "①",
       title: "Přidej se",
       body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.',
-      icon: "person_add",
+      icon: "groups",
     },
     {
       num: "②",
@@ -53,12 +53,12 @@ function HelpModal({ onClose }: { onClose: () => void }) {
     {
       title: "Dvě různé polévky nebo jídla",
       body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.',
-      icon: "add_circle",
+      icon: "add",
     },
     {
       title: "Víc porcí stejného jídla",
       body: "Nastav počet porcí přímo u daného jídla.",
-      icon: "exposure_plus_1",
+      icon: "receipt_long",
     },
     {
       title: "Přílohy a omáčky",
@@ -615,7 +615,7 @@ export default function OrderPage({
           onClick={() => setShowHelp(true)}
           type="button"
         >
-          <MIcon name="help_outline" size={16} />
+          <MIcon name="info" size={16} />
         </button>
       </div>
 
@@ -673,7 +673,7 @@ export default function OrderPage({
           onClick={() => setShowHelp(true)}
           type="button"
         >
-          <MIcon name="help_outline" size={17} />
+          <MIcon name="info" size={17} />
         </button>
       </div>
 
