@@ -53,11 +53,19 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     if (earlyError) throw earlyError;
     await client.mailboxOpen("INBOX");
 
-    // Hledáme nepřečtené maily s PDF přílohou
-    const searchCriteria: Record<string, unknown> = { seen: false };
-    if (s.imapSender) searchCriteria.from = s.imapSender;
+    // Najdeme nepřečtené maily — search() vrátí UIDs, fetch() pak stáhne detaily
+    const searchQuery: Record<string, unknown> = { seen: false };
+    if (s.imapSender) searchQuery.from = s.imapSender;
 
-    const messages = client.fetch(searchCriteria, { uid: true, envelope: true, bodyStructure: true });
+    const uids = (await client.search(searchQuery as Parameters<typeof client.search>[0], { uid: true })) || [];
+    console.log(`[imap] Nalezeno ${uids.length} nepřečtených mailů.`);
+
+    if (uids.length === 0) {
+      await client.logout();
+      return { found: false };
+    }
+
+    const messages = client.fetch(uids as number[], { uid: true, envelope: true, bodyStructure: true }, { uid: true });
 
     let pdfBuffer: Buffer | null = null;
     let processedUid: number | null = null;
