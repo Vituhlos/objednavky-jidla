@@ -120,9 +120,10 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
 
         const rawResult = await pdfParse(pdfBuffer);
         const parsed = parseMenuText(rawResult.text);
+        console.log(`[imap] PDF text preview: ${rawResult.text.slice(0, 300).replace(/\n/g, " | ")}`);
 
         if (parsed.items.length === 0 || !parsed.weekStart || !parsed.weekLabel) {
-          console.log(`[imap] PDF z mailu UID ${uid} není jídelníček, přeskakuji.`);
+          console.log(`[imap] PDF z mailu UID ${uid} není jídelníček (items: ${parsed.items.length}, weekStart: ${parsed.weekStart}), přeskakuji.`);
           continue;
         }
 
