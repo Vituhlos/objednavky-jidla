@@ -52,7 +52,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   const advanced_items = [
     {
       title: "Dvě různé polévky nebo jídla",
-      body: "Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.",
+      body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.',
       icon: "add_circle",
     },
     {
