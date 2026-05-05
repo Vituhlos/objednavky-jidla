@@ -32,7 +32,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
     {
       num: "①",
       title: "Přidej se",
-      body: "Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.",
+      body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.',
       icon: "person_add",
     },
     {
