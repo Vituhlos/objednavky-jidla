@@ -37,7 +37,7 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
     port: parseInt(s.imapPort) || 993,
     secure: true,
     auth: { user: s.imapUser, pass: s.imapPass },
-    logger: false,
+    logger: { debug: () => {}, info: (obj: Record<string,unknown>) => console.log("[imap]", obj.msg), warn: (obj: Record<string,unknown>) => console.warn("[imap]", obj.msg), error: (obj: Record<string,unknown>) => console.error("[imap]", obj.msg) },
     tls: { servername: s.imapHost },
     connectionTimeout: 20000,
     greetingTimeout: 20000,
