@@ -36,6 +36,7 @@ export interface AppSettings {
   imapPass: string;
   imapSender: string;
   imapCheckTime: string;
+  imapCheckDays: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -69,6 +70,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   imapPass: "imap_pass",
   imapSender: "imap_sender",
   imapCheckTime: "imap_check_time",
+  imapCheckDays: "imap_check_days",
 };
 
 function envDefaults(): AppSettings {
@@ -104,6 +106,7 @@ function envDefaults(): AppSettings {
     imapPass: "",
     imapSender: "",
     imapCheckTime: "07:00",
+    imapCheckDays: "Po,Út,St,Čt,Pá",
   };
 }
 

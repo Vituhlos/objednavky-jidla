@@ -94,7 +94,11 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
 async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
   if (s.imapEnabled !== "true") return;
   if (currentTime !== s.imapCheckTime) return;
-  if (jsDay === 0 || jsDay === 6) return; // víkend
+  const allowedDays = s.imapCheckDays
+    .split(",")
+    .map((d) => DAY_CODE_TO_JS[d.trim()])
+    .filter((n) => n !== undefined);
+  if (!allowedDays.includes(jsDay)) return;
 
   console.log("[scheduler] Kontrola IMAP pro jídelníček...");
   const result = await checkImapForMenu();

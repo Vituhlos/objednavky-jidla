@@ -393,6 +393,10 @@ export default function SettingsPage({
       imapPass: fd.get("imapPass") as string,
       imapSender: fd.get("imapSender") as string,
       imapCheckTime: fd.get("imapCheckTime") as string,
+      imapCheckDays: DAY_OPTIONS
+        .filter((d) => fd.get(`imapCheckDay_${d.code}`) === "on")
+        .map((d) => d.code)
+        .join(","),
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -520,6 +524,7 @@ export default function SettingsPage({
   };
 
   const activeDays = settings.autoSendDays.split(",").map((d) => d.trim());
+  const activeImapDays = settings.imapCheckDays.split(",").map((d) => d.trim());
 
   return (
     <div className="k-shell">
@@ -808,9 +813,30 @@ export default function SettingsPage({
                   <Field hint="e-mail od kterého chodí jídelníčky, např. info@lima.cz — prázdné = všechny nepřečtené maily" label="Filtr odesílatele">
                     <input className="modal-input" defaultValue={settings.imapSender} name="imapSender" placeholder="info@lima.cz" type="email" />
                   </Field>
-                  <Field hint="čas kdy se každý pracovní den provede kontrola schránky" label="Čas kontroly">
-                    <input className="modal-input w-32" defaultValue={settings.imapCheckTime} name="imapCheckTime" type="time" />
-                  </Field>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="čas kdy se provede kontrola schránky" label="Čas kontroly">
+                      <input className="modal-input w-32" defaultValue={settings.imapCheckTime} name="imapCheckTime" type="time" />
+                    </Field>
+                    <Field label="Kontrolovat ve dny">
+                      <div className="flex gap-3 flex-wrap mt-0.5">
+                        {DAY_OPTIONS.map((d) => (
+                          <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
+                            <div className="relative shrink-0">
+                              <input
+                                className="peer sr-only"
+                                defaultChecked={activeImapDays.includes(d.code)}
+                                name={`imapCheckDay_${d.code}`}
+                                type="checkbox"
+                              />
+                              <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                              <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                            </div>
+                            <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <button
                       className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
