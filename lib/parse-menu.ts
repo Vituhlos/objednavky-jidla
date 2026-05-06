@@ -158,12 +158,18 @@ function splitVariants(text: string): string[] {
     // Comma before slash → all variants are self-contained completions after the comma
     const base = text.slice(0, baseEnd).trim();
     const variantsPart = text.slice(baseEnd + 1).trim();
-    const parts = variantsPart
-      .split("/")
-      .map((v) => v.trim())
-      .filter(Boolean);
-    if (parts.length < 2) return [text];
-    return parts.flatMap((v) => splitVariants(`${base}, ${v}`));
+    const rawParts = variantsPart.split("/").map((v) => v.trim()).filter(Boolean);
+    if (rawParts.length < 2) return [text];
+    // Suffix po posledním lomítku (např. ", dip" v "grenaille/mačkané brambory, dip")
+    // patří ke všem variantám, ne jen té poslední.
+    let suffix = "";
+    const lastPart = rawParts[rawParts.length - 1];
+    const suffixComma = lastPart.indexOf(",");
+    if (suffixComma !== -1) {
+      suffix = lastPart.slice(suffixComma);
+      rawParts[rawParts.length - 1] = lastPart.slice(0, suffixComma).trim();
+    }
+    return rawParts.flatMap((v) => splitVariants(`${base}, ${v}${suffix}`));
   }
 
   // No comma before slash → adjective/noun variant

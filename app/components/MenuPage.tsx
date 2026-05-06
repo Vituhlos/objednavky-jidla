@@ -497,7 +497,7 @@ export default function MenuPage({
 
   const handleWeekSwitch = (week: "current" | "next") => {
     setActiveWeek(week);
-    if (week === "next" && editMode) setEditMode(false);
+    setEditMode(false);
     setConfirmDeleteNext(false);
   };
 
@@ -644,15 +644,13 @@ export default function MenuPage({
           </a>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {activeWeek === "current" && (
-            <button
-              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-              onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
-              type="button"
-            >
-              {editMode ? "Zavřít úpravu" : "Upravit ručně"}
-            </button>
-          )}
+          <button
+            className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
+            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+            type="button"
+          >
+            {editMode ? "Zavřít úpravu" : "Upravit ručně"}
+          </button>
           {activeWeek === "next" && hasNextWeek && (
             <button
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
