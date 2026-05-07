@@ -9,6 +9,7 @@ import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { hasOrderRowContent } from "./order-utils";
 import { getPragueNow } from "./time";
+import { broadcast } from "./sse-broadcast";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -58,6 +59,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
 
   console.log(`[scheduler] Automatické odesílání objednávky ${data.order.id}...`);
   await sendOrder(data.order.id, "auto");
+  broadcast();
   console.log("[scheduler] Objednávka automaticky odeslána.");
 }
 
