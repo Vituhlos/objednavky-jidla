@@ -264,7 +264,7 @@ body {
   background: rgba(26,18,8,0.38);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Modal sheet (bottom sheet on mobile, centered on desktop) */
