@@ -19,6 +19,19 @@ import {
 
 // ── Help modal ────────────────────────────────────────────
 
+const HELP_STEPS = [
+  { num: "①", title: "Přidej se", body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.', icon: "groups" },
+  { num: "②", title: "Vyber jídlo", body: "Zvol polévku a hlavní jídlo z dnešního menu. Cena se spočítá automaticky.", icon: "restaurant_menu" },
+  { num: "③", title: "Hotovo — objednávka se odešle sama", body: "V čas uzávěrky (vidíš ho v horní liště) se objednávka automaticky odešle do LIMA. Nic víc dělat nemusíš.", icon: "check_circle" },
+] as const;
+
+const HELP_ADVANCED = [
+  { title: "Dvě různé polévky nebo jídla", body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.', icon: "add" },
+  { title: "Víc porcí stejného jídla", body: "Nastav počet porcí přímo u daného jídla.", icon: "receipt_long" },
+  { title: "Přílohy a omáčky", body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.", icon: "lunch_dining" },
+  { title: "Pizza", body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.", icon: "local_pizza" },
+] as const;
+
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
 
@@ -38,50 +51,6 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       window.scrollTo(0, scrollY);
     };
   }, [onClose]);
-
-  const steps = [
-    {
-      num: "①",
-      title: "Přidej se",
-      body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.',
-      icon: "groups",
-    },
-    {
-      num: "②",
-      title: "Vyber jídlo",
-      body: "Zvol polévku a hlavní jídlo z dnešního menu. Cena se spočítá automaticky.",
-      icon: "restaurant_menu",
-    },
-    {
-      num: "③",
-      title: "Hotovo — objednávka se odešle sama",
-      body: "V čas uzávěrky (vidíš ho v horní liště) se objednávka automaticky odešle do LIMA. Nic víc dělat nemusíš.",
-      icon: "check_circle",
-    },
-  ] as const;
-
-  const advanced_items = [
-    {
-      title: "Dvě různé polévky nebo jídla",
-      body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.',
-      icon: "add",
-    },
-    {
-      title: "Víc porcí stejného jídla",
-      body: "Nastav počet porcí přímo u daného jídla.",
-      icon: "receipt_long",
-    },
-    {
-      title: "Přílohy a omáčky",
-      body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.",
-      icon: "lunch_dining",
-    },
-    {
-      title: "Pizza",
-      body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.",
-      icon: "local_pizza",
-    },
-  ] as const;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -103,7 +72,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           >×</button>
         </div>
         <div className="modal-sheet__body space-y-3">
-          {steps.map((s) => (
+          {HELP_STEPS.map((s) => (
             <div key={s.num} className="flex gap-3 p-3 rounded-2xl" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
               <div
                 className="w-9 h-9 rounded-xl shrink-0 inline-flex items-center justify-center"
@@ -129,7 +98,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
 
           {advanced && (
             <div className="space-y-2">
-              {advanced_items.map((item) => (
+              {HELP_ADVANCED.map((item) => (
                 <div key={item.title} className="flex gap-3 px-3 py-2.5 rounded-2xl glass-soft">
                   <MIcon name={item.icon} size={18} fill style={{ color: "#94a3b8", flexShrink: 0, marginTop: 1 }} />
                   <div className="min-w-0">
@@ -286,23 +255,26 @@ export default function OrderPage({
 
   const handlePushToggle = useCallback(async () => {
     if (pushState === "unsupported" || pushState === "denied") return;
-    const reg = await navigator.serviceWorker.ready;
-    if (pushState === "subscribed") {
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
-        await sub.unsubscribe();
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (pushState === "subscribed") {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+        }
+        setPushState("unsubscribed");
+        return;
       }
-      setPushState("unsubscribed");
-      return;
+      const { publicKey } = await fetch("/api/push").then((r) => r.json());
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: publicKey });
+      const res = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+      if (!res.ok) { await sub.unsubscribe(); return; }
+      setPushState("subscribed");
+    } catch {
+      // Uživatel odmítl oprávnění nebo selhal server — nic nezměníme
+      if (Notification.permission === "denied") setPushState("denied");
     }
-    const { publicKey } = await fetch("/api/push").then((r) => r.json());
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: publicKey,
-    });
-    await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
-    setPushState("subscribed");
   }, [pushState]);
   const [hasEverConnected, setHasEverConnected] = useState(false);
   const isPendingRef = useRef(isPending);
@@ -459,7 +431,7 @@ export default function OrderPage({
         }
       });
     },
-    [defaultMealPrice, defaultSoupPrice, extrasPrices, initialData.todayMenu, router]
+    [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, router]
   );
 
   const handleReopen = useCallback(() => {
