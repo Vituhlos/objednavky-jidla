@@ -7,7 +7,6 @@ import { getMenuItemsForDay } from "./menu";
 import { sendEmail, getOrderRecipients } from "./email";
 import { logAudit } from "./audit";
 import { getDb } from "./db";
-import { hasOrderRowContent } from "./order-utils";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 
@@ -50,7 +49,11 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     return;
   }
 
-  const activeCount = data.departments.flatMap((d) => d.rows).filter(hasOrderRowContent).length;
+  const activeCount = data.departments.flatMap((d) => d.rows).reduce((sum, row) => {
+    const main = row.mainItem ? row.mealCount : 0;
+    const extra = row.extraMealItems.reduce((s, e) => s + e.count, 0);
+    return sum + main + extra;
+  }, 0);
   const minOrders = parseInt(s.autoSendMinOrders) || 1;
   if (activeCount < minOrders) {
     console.log(`[scheduler] Auto-send přeskočen — pouze ${activeCount} objednávek (min. ${minOrders}).`);
