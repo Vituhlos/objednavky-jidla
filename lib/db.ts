@@ -138,6 +138,17 @@ function migrate(db: Database.Database): void {
     );
   `);
 
+  // Push subscriptions
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      endpoint   TEXT    NOT NULL UNIQUE,
+      p256dh     TEXT    NOT NULL,
+      auth       TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
   // Performance indexes
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);

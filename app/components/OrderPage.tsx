@@ -262,6 +262,42 @@ export default function OrderPage({
 
   // ── Real-time sync via SSE ────────────────────────────────
   const [sseConnected, setSseConnected] = useState(false);
+
+  // ── Push notifikace ───────────────────────────────────────
+  const [pushState, setPushState] = useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">("unsubscribed");
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushState("unsupported");
+      return;
+    }
+    if (Notification.permission === "denied") { setPushState("denied"); return; }
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const existing = await reg.pushManager.getSubscription();
+      setPushState(existing ? "subscribed" : "unsubscribed");
+    });
+  }, []);
+
+  const handlePushToggle = useCallback(async () => {
+    if (pushState === "unsupported" || pushState === "denied") return;
+    const reg = await navigator.serviceWorker.ready;
+    if (pushState === "subscribed") {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await sub.unsubscribe();
+      }
+      setPushState("unsubscribed");
+      return;
+    }
+    const { publicKey } = await fetch("/api/push").then((r) => r.json());
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: publicKey,
+    });
+    await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+    setPushState("subscribed");
+  }, [pushState]);
   const [hasEverConnected, setHasEverConnected] = useState(false);
   const isPendingRef = useRef(isPending);
   useEffect(() => { isPendingRef.current = isPending; }, [isPending]);
@@ -659,6 +695,16 @@ export default function OrderPage({
           <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-semibold shrink-0">
             <MIcon name="check_circle" size={12} fill /> Odesláno
           </span>
+        )}
+        {pushState !== "unsupported" && pushState !== "denied" && (
+          <button
+            onClick={handlePushToggle}
+            title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
+            className={`shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
+            type="button"
+          >
+            <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
+          </button>
         )}
         {!isSent && !isFutureDay && !noMenu && (
           <button

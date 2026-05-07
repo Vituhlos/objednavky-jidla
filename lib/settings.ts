@@ -37,6 +37,8 @@ export interface AppSettings {
   imapSender: string;
   imapCheckTime: string;
   imapCheckDays: string;
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -71,6 +73,8 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   imapSender: "imap_sender",
   imapCheckTime: "imap_check_time",
   imapCheckDays: "imap_check_days",
+  vapidPublicKey: "vapid_public_key",
+  vapidPrivateKey: "vapid_private_key",
 };
 
 function envDefaults(): AppSettings {
@@ -107,6 +111,8 @@ function envDefaults(): AppSettings {
     imapSender: "",
     imapCheckTime: "07:00",
     imapCheckDays: "Po,Út,St,Čt,Pá",
+    vapidPublicKey: "",
+    vapidPrivateKey: "",
   };
 }
 

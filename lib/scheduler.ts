@@ -9,6 +9,7 @@ import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
+import { sendPushToAll, getAllSubscriptions } from "./push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -96,6 +97,28 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
 }
 
+async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (!JS_TO_DAY_CODE[jsDay]) return; // víkend
+  const [h, m] = s.cutoffTime.split(":").map(Number);
+  const reminderMinutes = h * 60 + m - 20;
+  if (reminderMinutes < 0) return;
+  const reminderTime = `${String(Math.floor(reminderMinutes / 60)).padStart(2, "0")}:${String(reminderMinutes % 60).padStart(2, "0")}`;
+  if (currentTime !== reminderTime) return;
+
+  if (getAllSubscriptions().length === 0) return;
+
+  const data = getTodayOrderData();
+  if (data.order.status === "sent") return;
+  if (isTodayClosed(data)) return;
+
+  console.log("[scheduler] Odesílám push upozornění na uzávěrku...");
+  await sendPushToAll(
+    "Nezapomeň objednat! 🍽️",
+    `Uzávěrka objednávek je v ${s.cutoffTime} — zbývá 20 minut.`,
+    "/",
+  );
+}
+
 async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
   if (s.imapEnabled !== "true") return;
   if (currentTime !== s.imapCheckTime) return;
@@ -126,6 +149,7 @@ export function startScheduler(): void {
 
       await checkAutoSend(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
+      await checkPushReminder(s, currentTime, jsDay);
       await checkImapImport(s, currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
