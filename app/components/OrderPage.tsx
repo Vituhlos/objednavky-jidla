@@ -273,12 +273,31 @@ export default function OrderPage({
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
 
+  const doRefresh = useCallback(() => {
+    if (isPendingRef.current) return;
+    if (isFutureDayRef.current) return;
+    const params = new URLSearchParams();
+    if (selectedDateRef.current) params.set("date", selectedDateRef.current);
+    const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
+    fetch(refreshUrl)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
+        if (!data) return;
+        setDepartments(data.departments);
+        setOrderStatus(data.status as "draft" | "sent");
+        if (data.sentAt) setSentAt(data.sentAt);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     originalTitle.current = document.title;
     const resetTitle = () => {
       if (tabNotifCount.current > 0) {
         tabNotifCount.current = 0;
         document.title = originalTitle.current;
+        doRefresh();
       }
     };
     const onVisibility = () => { if (!document.hidden) resetTitle(); };
@@ -289,7 +308,7 @@ export default function OrderPage({
       document.removeEventListener("visibilitychange", onVisibility);
       document.title = originalTitle.current;
     };
-  }, []);
+  }, [doRefresh]);
 
   useEffect(() => {
     const es = new EventSource("/api/sse");
@@ -299,27 +318,13 @@ export default function OrderPage({
       setSseConnected(true);
       if (document.hidden) {
         tabNotifCount.current += 1;
-        document.title = `(${tabNotifCount.current}) Nová objednávka`;
+        document.title = `(${tabNotifCount.current}) Změna v objednávce`;
         return;
       }
-      if (isPendingRef.current) return;
-      if (isFutureDayRef.current) return;
-      const params = new URLSearchParams();
-      if (selectedDateRef.current) params.set("date", selectedDateRef.current);
-      const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
-      fetch(refreshUrl)
-        .then((r) => r.ok ? r.json() : null)
-        .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
-          if (!data) return;
-          setDepartments(data.departments);
-          setOrderStatus(data.status as "draft" | "sent");
-          if (data.sentAt) setSentAt(data.sentAt);
-        })
-        .catch(() => {});
+      doRefresh();
     });
     return () => es.close();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [doRefresh]);
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
