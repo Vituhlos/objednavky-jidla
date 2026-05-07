@@ -39,6 +39,7 @@ export interface AppSettings {
   imapCheckDays: string;
   vapidPublicKey: string;
   vapidPrivateKey: string;
+  pushReminderMinutes: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -75,6 +76,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   imapCheckDays: "imap_check_days",
   vapidPublicKey: "vapid_public_key",
   vapidPrivateKey: "vapid_private_key",
+  pushReminderMinutes: "push_reminder_minutes",
 };
 
 function envDefaults(): AppSettings {
@@ -113,6 +115,7 @@ function envDefaults(): AppSettings {
     imapCheckDays: "Po,Út,St,Čt,Pá",
     vapidPublicKey: "",
     vapidPrivateKey: "",
+    pushReminderMinutes: "20",
   };
 }
 

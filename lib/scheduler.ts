@@ -9,7 +9,8 @@ import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
-import { sendPushToAll, getAllSubscriptions } from "./push";
+import { sendPushToAll, getAllSubscriptions, deleteSubscription } from "./push";
+import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -99,23 +100,53 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
 
 async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
   if (!JS_TO_DAY_CODE[jsDay]) return; // víkend
+  const minutes = parseInt(s.pushReminderMinutes) || 20;
   const [h, m] = s.cutoffTime.split(":").map(Number);
-  const reminderMinutes = h * 60 + m - 20;
-  if (reminderMinutes < 0) return;
-  const reminderTime = `${String(Math.floor(reminderMinutes / 60)).padStart(2, "0")}:${String(reminderMinutes % 60).padStart(2, "0")}`;
+  const reminderTotal = h * 60 + m - minutes;
+  if (reminderTotal < 0) return;
+  const reminderTime = `${String(Math.floor(reminderTotal / 60)).padStart(2, "0")}:${String(reminderTotal % 60).padStart(2, "0")}`;
   if (currentTime !== reminderTime) return;
 
-  if (getAllSubscriptions().length === 0) return;
+  const allSubs = getAllSubscriptions();
+  if (allSubs.length === 0) return;
 
   const data = getTodayOrderData();
   if (data.order.status === "sent") return;
   if (isTodayClosed(data)) return;
 
-  console.log("[scheduler] Odesílám push upozornění na uzávěrku...");
-  await sendPushToAll(
-    "Nezapomeň objednat! 🍽️",
-    `Uzávěrka objednávek je v ${s.cutoffTime} — zbývá 20 minut.`,
-    "/",
+  // Zjisti které endpointy mají v dnešní objednávce neprázdný řádek
+  const activeEndpoints = new Set(
+    data.departments
+      .flatMap((d) => d.rows)
+      .filter((r) => r.mainItem || r.soupItem || r.extraMealItems.length > 0)
+      .map((r) => (r as unknown as { pushEndpoint?: string }).pushEndpoint)
+      .filter(Boolean) as string[]
+  );
+
+  // Pošli jen těm, kdo ještě neobjednali
+  const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));
+  if (pending.length === 0) {
+    console.log("[scheduler] Push přeskočen — všichni už objednali.");
+    return;
+  }
+
+  console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům...`);
+  const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
+  if (!publicKey || !privateKey) { console.warn("[scheduler] VAPID klíče nejsou nastaveny, push přeskočen."); return; }
+
+  webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
+  const payload = JSON.stringify({ title: "Nezapomeň objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime} — zbývá ${minutes} minut.`, url: "/" });
+
+  await Promise.allSettled(
+    pending.map(async (row) => {
+      try {
+        await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
+      } catch (err: unknown) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) deleteSubscription(row.endpoint);
+        else console.warn("[push] Chyba:", (err as Error).message);
+      }
+    })
   );
 }
 

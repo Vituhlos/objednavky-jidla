@@ -362,10 +362,18 @@ export default function OrderPage({
     return () => es.close();
   }, [doRefresh]);
 
+  const getPushEndpoint = useCallback(async (): Promise<string | undefined> => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return undefined;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub?.endpoint ?? undefined;
+  }, []);
+
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
       try {
-        const newRow = await actionAddRow(orderId, department);
+        const pushEndpoint = await getPushEndpoint();
+        const newRow = await actionAddRow(orderId, department, pushEndpoint);
         setDepartments((prev) =>
           recalcDepartments(
             prev.map((d) =>
@@ -436,7 +444,8 @@ export default function OrderPage({
       });
       startTransition(async () => {
         try {
-          const updated = await actionUpdateRow(rowId, updates);
+          const pushEndpoint = await getPushEndpoint();
+          const updated = await actionUpdateRow(rowId, updates, pushEndpoint);
           setDepartments((prev) => patchRow(prev, rowId, updated));
         } catch {
           setSendError("Nepodařilo se uložit změny. Zkuste to znovu.");

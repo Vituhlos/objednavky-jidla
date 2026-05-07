@@ -148,6 +148,7 @@ function migrate(db: Database.Database): void {
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
 
   // Performance indexes
   db.exec(`

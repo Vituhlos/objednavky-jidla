@@ -15,6 +15,7 @@ import {
   actionResendOrder,
   actionClearOrder,
   actionCheckImap,
+  actionSendTestPush,
 } from "@/app/actions";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -262,6 +263,8 @@ export default function SettingsPage({
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
   const [imapCheckStatus, setImapCheckStatus] = useState<"idle" | "pending" | "found" | "notfound" | "error">("idle");
   const [imapCheckMsg, setImapCheckMsg] = useState("");
+  const [pushTestStatus, setPushTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
   const [newDeptName, setNewDeptName] = useState("");
@@ -397,6 +400,7 @@ export default function SettingsPage({
         .filter((d) => fd.get(`imapCheckDay_${d.code}`) === "on")
         .map((d) => d.code)
         .join(","),
+      pushReminderMinutes: fd.get("pushReminderMinutes") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -467,6 +471,21 @@ export default function SettingsPage({
         clearTimeout(timeout);
         setImapCheckStatus("error");
         setImapCheckMsg("Nepodařilo se připojit k poštovní schránce.");
+      }
+    });
+  };
+
+  const handleTestPush = () => {
+    setPushTestStatus("pending");
+    setPushTestMsg("Odesílám...");
+    startTransition(async () => {
+      try {
+        const result = await actionSendTestPush();
+        if (result.error) { setPushTestStatus("error"); setPushTestMsg(result.error); }
+        else { setPushTestStatus("ok"); setPushTestMsg(`Notifikace odeslána do ${result.sent} prohlížeče/ů.`); }
+      } catch {
+        setPushTestStatus("error");
+        setPushTestMsg("Nepodařilo se odeslat testovací notifikaci.");
       }
     });
   };
@@ -851,6 +870,32 @@ export default function SettingsPage({
                       <span className={`text-[12px] font-medium ${imapCheckStatus === "found" ? "text-green-600" : imapCheckStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
                         {imapCheckStatus === "found" && "✓ "}
                         {imapCheckMsg}
+                      </span>
+                    )}
+                  </div>
+                </Section>
+
+                <Section icon="notifications" title="Push notifikace">
+                  <p className="text-[12.5px] text-stone-500">
+                    Upozornění do prohlížeče před uzávěrkou. Každý si je povolí sám tlačítkem 🔔 na hlavní stránce.
+                  </p>
+                  <Field hint="kolik minut před uzávěrkou přijde upozornění" label="Upozornit před uzávěrkou (min)">
+                    <input className="modal-input w-24" defaultValue={settings.pushReminderMinutes} min="1" max="120" name="pushReminderMinutes" type="number" />
+                  </Field>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      disabled={isPending}
+                      onClick={handleTestPush}
+                      type="button"
+                    >
+                      <MIcon name="send" size={16} />
+                      Odeslat testovací notifikaci
+                    </button>
+                    {pushTestStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${pushTestStatus === "ok" ? "text-green-600" : pushTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+                        {pushTestStatus === "ok" && "✓ "}
+                        {pushTestMsg}
                       </span>
                     )}
                   </div>

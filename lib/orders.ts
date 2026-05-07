@@ -271,7 +271,8 @@ export function getOrderData(orderId: number): OrderData {
 
 export function addOrderRow(
   orderId: number,
-  department: Department
+  department: Department,
+  pushEndpoint?: string,
 ): OrderRowEnriched {
   const db = getDb();
   const { m } = db
@@ -282,9 +283,9 @@ export function addOrderRow(
 
   const result = db
     .prepare(
-      "INSERT INTO order_rows (order_id, department, sort_order) VALUES (?, ?, ?)"
+      "INSERT INTO order_rows (order_id, department, sort_order, push_endpoint) VALUES (?, ?, ?, ?)"
     )
-    .run(orderId, department, m + 1);
+    .run(orderId, department, m + 1, pushEndpoint ?? null);
 
   const row = db
     .prepare("SELECT * FROM order_rows WHERE id = ?")
@@ -311,9 +312,15 @@ export function updateOrderRow(
     tatarkaCount: number;
     bbqCount: number;
     note: string;
-  }>
+  }>,
+  pushEndpoint?: string,
 ): OrderRowEnriched {
   const db = getDb();
+
+  if (pushEndpoint) {
+    db.prepare("UPDATE order_rows SET push_endpoint = ? WHERE id = ? AND push_endpoint IS NULL")
+      .run(pushEndpoint, rowId);
+  }
 
   const fieldMap: Record<string, string> = {
     personName: "person_name",

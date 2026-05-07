@@ -29,6 +29,7 @@ import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
+import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
 import { broadcast } from "@/lib/sse-broadcast";
 import {
   getDepartments,
@@ -41,9 +42,10 @@ import type { DepartmentInfo } from "@/lib/departments";
 
 export async function actionAddRow(
   orderId: number,
-  department: Department
+  department: Department,
+  pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  const row = addOrderRow(orderId, department);
+  const row = addOrderRow(orderId, department, pushEndpoint);
   revalidatePath("/");
   broadcast();
   return row;
@@ -65,9 +67,10 @@ export async function actionUpdateRow(
     tatarkaCount: number;
     bbqCount: number;
     note: string;
-  }>
+  }>,
+  pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  const row = updateOrderRow(rowId, updates);
+  const row = updateOrderRow(rowId, updates, pushEndpoint);
   broadcast();
   return row;
 }
@@ -240,5 +243,12 @@ export async function actionSaveSettings(updates: Partial<AppSettings>): Promise
 
 export async function actionCheckImap(): Promise<ImapCheckResult> {
   return checkImapForMenu();
+}
+
+export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
+  const subs = getAllSubscriptions();
+  if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
+  await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
+  return { sent: subs.length };
 }
 
