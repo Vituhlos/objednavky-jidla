@@ -75,8 +75,14 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   const dayCode = JS_TO_DAY_CODE[jsDay];
   if (!dayCode) return; // víkend
 
-  const menu = getMenuItemsForDay(dayCode);
-  if (menu.soups.length > 0 || menu.meals.length > 0) return; // jídelníček je v pořádku
+  // Stačí, že JAKÝKOLIV pracovní den tohoto týdne má položky — jídelníček byl importován
+  // (LIMA posílá PDF od středy, takže Po/Út v PDF chybí, ale menu pro týden existuje)
+  const weekDays = ["Po", "Út", "St", "Čt", "Pá"] as const;
+  const anyDayHasMenu = weekDays.some((d) => {
+    const m = getMenuItemsForDay(d);
+    return m.soups.length > 0 || m.meals.length > 0;
+  });
+  if (anyDayHasMenu) return;
 
   // Zkontroluj jestli upozornění nebylo dnes už odesláno
   const alreadySent = getDb()
@@ -84,14 +90,16 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     .get();
   if (alreadySent) return;
 
-  const recipients = getOrderRecipients();
+  const recipients = s.reminderEmailTo
+    ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
+    : getOrderRecipients();
   await sendEmail({
     to: recipients,
     subject: "Chybí jídelníček LIMA",
     html: `<p>Dobrý den,</p>
-<p>Jídelníček LIMA pro dnešní den (<strong>${dayCode}</strong>) není naplněný a uzávěrka objednávek je v <strong>${s.cutoffTime}</strong>.</p>
+<p>Jídelníček LIMA pro tento týden ještě není importovaný a uzávěrka objednávek je v <strong>${s.cutoffTime}</strong>.</p>
 <p>Přejděte do aplikace a importujte PDF nebo přidejte položky ručně.</p>`,
-    text: `Jídelníček LIMA pro dnešní den (${dayCode}) není naplněný. Uzávěrka je v ${s.cutoffTime}. Přejděte do aplikace a importujte jídelníček.`,
+    text: `Jídelníček LIMA pro tento týden ještě není importovaný. Uzávěrka je v ${s.cutoffTime}. Přejděte do aplikace a importujte jídelníček.`,
   });
 
   logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });

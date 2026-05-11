@@ -40,6 +40,7 @@ export interface AppSettings {
   vapidPublicKey: string;
   vapidPrivateKey: string;
   pushReminderMinutes: string;
+  reminderEmailTo: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -77,6 +78,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   vapidPublicKey: "vapid_public_key",
   vapidPrivateKey: "vapid_private_key",
   pushReminderMinutes: "push_reminder_minutes",
+  reminderEmailTo: "reminder_email_to",
 };
 
 function envDefaults(): AppSettings {
@@ -116,6 +118,7 @@ function envDefaults(): AppSettings {
     vapidPublicKey: "",
     vapidPrivateKey: "",
     pushReminderMinutes: "20",
+    reminderEmailTo: "",
   };
 }
 

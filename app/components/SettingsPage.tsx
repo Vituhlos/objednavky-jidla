@@ -376,6 +376,7 @@ export default function SettingsPage({
       orderEmailTo: fd.get("orderEmailTo") as string,
       orderExtraEmail: fd.get("orderExtraEmail") as string,
       smtpReplyTo: fd.get("smtpReplyTo") as string,
+      reminderEmailTo: fd.get("reminderEmailTo") as string,
       cutoffTime: fd.get("cutoffTime") as string,
       defaultSoupPrice: fd.get("defaultSoupPrice") as string,
       defaultMealPrice: fd.get("defaultMealPrice") as string,
@@ -753,6 +754,13 @@ export default function SettingsPage({
                         defaultValue={settings.smtpReplyTo}
                         name="smtpReplyTo"
                         placeholder="jiri@example.com, objednavky@firma.cz"
+                      />
+                    </Field>
+                    <Field hint="kam chodí upozornění na chybějící jídelníček; pokud prázdné, použijí se příjemci objednávky" label="Příjemci upozornění (jídelníček)">
+                      <EmailListInput
+                        defaultValue={settings.reminderEmailTo}
+                        name="reminderEmailTo"
+                        placeholder="vedouci@firma.cz"
                       />
                     </Field>
                   </div>
