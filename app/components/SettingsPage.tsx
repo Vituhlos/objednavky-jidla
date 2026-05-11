@@ -236,6 +236,18 @@ function DeptRow({
   );
 }
 
+// ── Tabs ─────────────────────────────────────────────────
+
+type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system";
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "objednavka", label: "Objednávka", icon: "assignment" },
+  { id: "email",      label: "E-mail & IMAP", icon: "mail" },
+  { id: "ceny",       label: "Ceny",       icon: "payments" },
+  { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
+  { id: "system",     label: "Systém",     icon: "build" },
+];
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
@@ -247,6 +259,7 @@ export default function SettingsPage({
   todayOrder?: { id: number; status: string };
 }) {
   const [unlocked, setUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("objednavka");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -582,7 +595,6 @@ export default function SettingsPage({
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <MIcon name="settings" size={16} fill style={{ color: "#D97706" }} />
         <span className="font-display font-bold text-[15px] text-stone-900">Nastavení</span>
-        <span className="text-[12px] text-stone-500">SMTP, příjemci, kopie, čas uzávěrky, PIN</span>
       </div>
 
       {/* Mobile topbar */}
@@ -630,8 +642,27 @@ export default function SettingsPage({
           </div>
         ) : (
           <>
-            {/* Reopen order — nahoře, aby k tomu nebylo třeba scrollovat */}
-            {todayOrder && (
+            {/* Tab bar */}
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12.5px] font-semibold transition-all ${
+                    activeTab === tab.id ? "text-white shadow-sm" : "glass-btn text-stone-600 hover:text-stone-800"
+                  }`}
+                  style={activeTab === tab.id ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
+                >
+                  <MIcon name={tab.icon as "settings"} size={14} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* ── Objednávka — non-form sections ── */}
+            {activeTab === "objednavka" && todayOrder && (
               <Section icon="lock_open" title="Dnešní objednávka">
                 {todayOrder.status === "sent" && !reopenDone ? (
                   <div className="flex flex-col gap-3">
@@ -721,8 +752,120 @@ export default function SettingsPage({
               />
             )}
 
+            {/* ── Oddělení tab ── */}
+            {activeTab === "oddeleni" && (
+              <Section icon="groups" title="Oddělení">
+                <p className="text-[12.5px] text-stone-500">
+                  Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
+                </p>
+                {deptError && (
+                  <p className="text-[12px] text-red-500">{deptError}</p>
+                )}
+                <div className="flex flex-col gap-2">
+                  {departments.map((dept, idx) => (
+                    <DeptRow
+                      dept={dept}
+                      isFirst={idx === 0}
+                      isLast={idx === departments.length - 1}
+                      key={dept.id}
+                      onDelete={handleDeptDelete}
+                      onMoveDown={(id) => handleDeptMove(id, "down")}
+                      onMoveUp={(id) => handleDeptMove(id, "up")}
+                      onSave={handleDeptSave}
+                    />
+                  ))}
+                </div>
+                {showAddDept ? (
+                  <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Field hint="interní klíč (nelze měnit)" label="Kód oddělení">
+                        <input className="modal-input" onChange={(e) => setNewDeptName(e.target.value)} placeholder="např. Sklad" value={newDeptName} />
+                      </Field>
+                      <Field hint="zobrazovaný název" label="Název">
+                        <input className="modal-input" onChange={(e) => setNewDeptLabel(e.target.value)} placeholder="např. Sklad" value={newDeptLabel} />
+                      </Field>
+                      <Field label="Barva">
+                        <select className="k-select" onChange={(e) => setNewDeptAccent(e.target.value)} value={newDeptAccent}>
+                          {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="modal-btn modal-btn--primary"
+                        disabled={isPending || !newDeptName.trim() || !newDeptLabel.trim()}
+                        onClick={handleAddDept}
+                        type="button"
+                      >Přidat</button>
+                      <button
+                        className="modal-btn modal-btn--secondary"
+                        onClick={() => { setShowAddDept(false); setNewDeptName(""); setNewDeptLabel(""); }}
+                        type="button"
+                      >Zrušit</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+                    onClick={() => setShowAddDept(true)}
+                    type="button"
+                  >
+                    <MIcon name="add" size={14} /> Přidat oddělení
+                  </button>
+                )}
+              </Section>
+            )}
+
+            {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
             <form id="settings-form" onSubmit={handleSave} ref={formRef}>
-              <div className="flex flex-col gap-4">
+
+              {/* Objednávka tab: Provoz + AutoSend */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "objednavka" ? "flex" : "none" }}>
+
+                <Section icon="schedule" title="Provoz">
+                  <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
+                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
+                  </Field>
+                </Section>
+
+                <Section icon="schedule" title="Automatické odeslání">
+                  <p className="text-[12.5px] text-stone-500">
+                    Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
+                  </p>
+                  <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
+                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
+                    </Field>
+                    <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
+                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
+                    </Field>
+                  </div>
+                  <Field label="Dny odeslání">
+                    <div className="flex gap-3 flex-wrap mt-0.5">
+                      {DAY_OPTIONS.map((d) => (
+                        <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
+                          <div className="relative shrink-0">
+                            <input
+                              className="peer sr-only"
+                              defaultChecked={activeDays.includes(d.code)}
+                              name={`autoSendDay_${d.code}`}
+                              type="checkbox"
+                            />
+                            <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                            <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                          </div>
+                          <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </Field>
+                </Section>
+
+              </div>
+
+              {/* E-mail & IMAP tab */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "email" ? "flex" : "none" }}>
 
                 <Section icon="send" title="SMTP – odchozí pošta">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -765,74 +908,18 @@ export default function SettingsPage({
                 <Section icon="send" title="E-mail objednávky">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field hint="můžete zadat více adres oddělených čárkou, středníkem nebo novým řádkem" label="Příjemci objednávky (To)">
-                      <EmailListInput
-                        defaultValue={settings.orderEmailTo}
-                        name="orderEmailTo"
-                        placeholder="vedouci@firma.cz, kuchyne@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.orderEmailTo} name="orderEmailTo" placeholder="vedouci@firma.cz, kuchyne@firma.cz" />
                     </Field>
                     <Field hint="uloží se k objednávce jako kopie a použije se při ručním i automatickém odeslání" label="Doplňkové kopie objednávky">
-                      <EmailListInput
-                        defaultValue={settings.orderExtraEmail}
-                        name="orderExtraEmail"
-                        placeholder="obchod@firma.cz; sklad@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.orderExtraEmail} name="orderExtraEmail" placeholder="obchod@firma.cz; sklad@firma.cz" />
                     </Field>
                     <Field hint="pokud prázdné, Reply-To se nenastavuje; více adres je podporováno" label="Adresa pro odpovědi (Reply-To)">
-                      <EmailListInput
-                        defaultValue={settings.smtpReplyTo}
-                        name="smtpReplyTo"
-                        placeholder="jiri@example.com, objednavky@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.smtpReplyTo} name="smtpReplyTo" placeholder="jiri@example.com, objednavky@firma.cz" />
                     </Field>
                     <Field hint="kam chodí upozornění na chybějící jídelníček; pokud prázdné, použijí se příjemci objednávky" label="Příjemci upozornění (jídelníček)">
-                      <EmailListInput
-                        defaultValue={settings.reminderEmailTo}
-                        name="reminderEmailTo"
-                        placeholder="vedouci@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.reminderEmailTo} name="reminderEmailTo" placeholder="vedouci@firma.cz" />
                     </Field>
                   </div>
-                </Section>
-
-                <Section icon="schedule" title="Provoz">
-                  <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
-                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
-                  </Field>
-                </Section>
-
-                <Section icon="schedule" title="Automatické odeslání">
-                  <p className="text-[12.5px] text-stone-500">
-                    Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
-                  </p>
-                  <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
-                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
-                    </Field>
-                    <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
-                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
-                    </Field>
-                  </div>
-                  <Field label="Dny odeslání">
-                    <div className="flex gap-3 flex-wrap mt-0.5">
-                      {DAY_OPTIONS.map((d) => (
-                        <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
-                          <div className="relative shrink-0">
-                            <input
-                              className="peer sr-only"
-                              defaultChecked={activeDays.includes(d.code)}
-                              name={`autoSendDay_${d.code}`}
-                              type="checkbox"
-                            />
-                            <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-                            <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
-                          </div>
-                          <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
                 </Section>
 
                 <Section icon="menu_book" title="Automatický import jídelníčku" helpContent={
@@ -938,6 +1025,11 @@ export default function SettingsPage({
                   </div>
                 </Section>
 
+              </div>
+
+              {/* Ceny tab */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
+
                 <Section icon="restaurant" title="Ceník jídel">
                   <p className="text-[12.5px] text-stone-500">
                     Výchozí ceny používané při importu jídelního lístku z webu. Existující položky v menu se nemění.
@@ -978,6 +1070,11 @@ export default function SettingsPage({
                   </div>
                 </Section>
 
+              </div>
+
+              {/* Systém tab — form part (PIN only) */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
+
                 <Section icon="lock" title="Zabezpečení">
                   <Field hint="nechte prázdné pro zachování stávajícího PINu" label="Nový PIN (číslice)">
                     <input className="modal-input w-36" inputMode="numeric" maxLength={8} name="newPin" pattern="[0-9]*" placeholder="ponechte prázdné" type="password" />
@@ -985,90 +1082,13 @@ export default function SettingsPage({
                 </Section>
 
               </div>
+
             </form>
 
-            {/* Departments — outside the form to avoid accidental submit */}
-            <Section icon="groups" title="Oddělení">
-              <p className="text-[12.5px] text-stone-500">
-                Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
-              </p>
-              {deptError && (
-                <p className="text-[12px] text-red-500">{deptError}</p>
-              )}
-              <div className="flex flex-col gap-2">
-                {departments.map((dept, idx) => (
-                  <DeptRow
-                    dept={dept}
-                    isFirst={idx === 0}
-                    isLast={idx === departments.length - 1}
-                    key={dept.id}
-                    onDelete={handleDeptDelete}
-                    onMoveDown={(id) => handleDeptMove(id, "down")}
-                    onMoveUp={(id) => handleDeptMove(id, "up")}
-                    onSave={handleDeptSave}
-                  />
-                ))}
-              </div>
-              {showAddDept ? (
-                <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <Field hint="interní klíč (nelze měnit)" label="Kód oddělení">
-                      <input className="modal-input" onChange={(e) => setNewDeptName(e.target.value)} placeholder="např. Sklad" value={newDeptName} />
-                    </Field>
-                    <Field hint="zobrazovaný název" label="Název">
-                      <input className="modal-input" onChange={(e) => setNewDeptLabel(e.target.value)} placeholder="např. Sklad" value={newDeptLabel} />
-                    </Field>
-                    <Field label="Barva">
-                      <select className="k-select" onChange={(e) => setNewDeptAccent(e.target.value)} value={newDeptAccent}>
-                        {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="modal-btn modal-btn--primary"
-                      disabled={isPending || !newDeptName.trim() || !newDeptLabel.trim()}
-                      onClick={handleAddDept}
-                      type="button"
-                    >Přidat</button>
-                    <button
-                      className="modal-btn modal-btn--secondary"
-                      onClick={() => { setShowAddDept(false); setNewDeptName(""); setNewDeptLabel(""); }}
-                      type="button"
-                    >Zrušit</button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
-                  onClick={() => setShowAddDept(true)}
-                  type="button"
-                >
-                  <MIcon name="add" size={14} /> Přidat oddělení
-                </button>
-              )}
-            </Section>
-
-            {/* Save button */}
-            <div className="flex items-center justify-end gap-3 pt-1">
-              {saveStatus === "saved" && (
-                <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
-              )}
-              {saveStatus === "error" && (
-                <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
-              )}
-              <button
-                className="modal-btn modal-btn--primary"
-                disabled={isPending}
-                form="settings-form"
-                type="submit"
-              >
-                {isPending ? "Ukládám..." : "Uložit nastavení"}
-              </button>
-            </div>
-
-            {/* Backup & Restore */}
-            <Section icon="build" title="Záloha a obnova dat">
+            {/* ── Systém — non-form sections ── */}
+            {activeTab === "system" && (
+              <>
+                <Section icon="build" title="Záloha a obnova dat">
               <p className="text-[12.5px] text-stone-500">
                 Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
               </p>
@@ -1155,37 +1175,58 @@ export default function SettingsPage({
               </div>
             </Section>
 
-            {/* Audit log */}
-            <Section icon="history" title="Historie změn">
-              {initialAuditLog.length === 0 ? (
-                <p className="text-[12.5px] text-stone-400 text-center py-2">Zatím žádné záznamy.</p>
-              ) : (
-                <div className="overflow-x-auto -mx-4 -mb-4">
-                  <table className="w-full text-[12px]">
-                    <thead>
-                      <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                        <th className="text-left px-4 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Čas</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Akce</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {initialAuditLog.map((entry) => (
-                        <tr key={entry.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                          <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTs(entry.ts)}</td>
-                          <td className="px-3 py-2 font-medium text-stone-700">{ACTION_LABELS[entry.action] ?? entry.action}</td>
-                          <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.department ?? "—"}</td>
-                          <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.personName ?? "—"}</td>
-                          <td className="px-3 py-2 text-stone-400 hidden md:table-cell">{entry.details ?? ""}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Section>
+                <Section icon="history" title="Historie změn">
+                  {initialAuditLog.length === 0 ? (
+                    <p className="text-[12.5px] text-stone-400 text-center py-2">Zatím žádné záznamy.</p>
+                  ) : (
+                    <div className="overflow-x-auto -mx-4 -mb-4">
+                      <table className="w-full text-[12px]">
+                        <thead>
+                          <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                            <th className="text-left px-4 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Čas</th>
+                            <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Akce</th>
+                            <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
+                            <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
+                            <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {initialAuditLog.map((entry) => (
+                            <tr key={entry.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
+                              <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTs(entry.ts)}</td>
+                              <td className="px-3 py-2 font-medium text-stone-700">{ACTION_LABELS[entry.action] ?? entry.action}</td>
+                              <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.department ?? "—"}</td>
+                              <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.personName ?? "—"}</td>
+                              <td className="px-3 py-2 text-stone-400 hidden md:table-cell">{entry.details ?? ""}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Section>
+              </>
+            )}
+
+            {/* ── Save button (all tabs except Oddělení) ── */}
+            {activeTab !== "oddeleni" && (
+              <div className="flex items-center justify-end gap-3 pt-1">
+                {saveStatus === "saved" && (
+                  <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
+                )}
+                {saveStatus === "error" && (
+                  <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
+                )}
+                <button
+                  className="modal-btn modal-btn--primary"
+                  disabled={isPending}
+                  form="settings-form"
+                  type="submit"
+                >
+                  {isPending ? "Ukládám..." : "Uložit nastavení"}
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>
