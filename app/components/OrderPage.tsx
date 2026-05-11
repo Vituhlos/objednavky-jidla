@@ -696,7 +696,7 @@ export default function OrderPage({
           <button
             onClick={handlePushToggle}
             title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
-            className={`shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
+            className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
             type="button"
           >
             <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
@@ -728,6 +728,12 @@ export default function OrderPage({
           <MIcon name="info" size={17} />
         </button>
       </div>
+      {sendError && (
+        <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
+          <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
+          {sendError}
+        </div>
+      )}
 
       {/* ── Scrollable main content ── */}
       <main className="flex-1 overflow-y-auto scroll-area p-4">
@@ -745,7 +751,7 @@ export default function OrderPage({
                     return (
                       <button
                         key={date}
-                        className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                        className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
                         onClick={() => router.push(`/?date=${date}`)}

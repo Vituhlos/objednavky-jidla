@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
@@ -11,7 +11,6 @@ import {
   actionDeletePizzaRow,
   actionUpdatePizzaPrices,
 } from "@/app/actions";
-import { ConfirmModal } from "./ConfirmModal";
 
 function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] {
   return rows.map((r) => {
@@ -20,14 +19,21 @@ function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] 
   });
 }
 
+type PizzaPendingDelete = { rowId: number; rowData: PizzaOrderRow };
+
 export default function PizzaPage({ initialData }: { initialData: PizzaOrderData }) {
   const [rows, setRows] = useState(initialData.rows);
   const [pizzaItems, setPizzaItems] = useState(initialData.pizzaItems);
   const [orderId] = useState(initialData.order.id);
   const [isPending, startTransition] = useTransition();
+  const [isAddingRow, setIsAddingRow] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [scrapeStatus, setScrapeStatus] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
+  const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
+  const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totals = computePizzaTotals(rows);
   const totalCount = rows.reduce((s, r) => s + r.count, 0);
@@ -40,10 +46,29 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
     }
   }
 
+  const commitDelete = useCallback((rowId: number) => {
+    pendingDeleteTimer.current = null;
+    actionDeletePizzaRow(rowId).catch(() => {});
+    setPendingDelete(null);
+    pendingDeleteRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
+      if (scrapeStatusTimer.current) clearTimeout(scrapeStatusTimer.current);
+    };
+  }, []);
+
   const handleAddRow = useCallback(() => {
+    setIsAddingRow(true);
     startTransition(async () => {
-      const newRow = await actionAddPizzaRow(orderId);
-      setRows((prev) => recalcRows([...prev, newRow], pizzaItems));
+      try {
+        const newRow = await actionAddPizzaRow(orderId);
+        setRows((prev) => recalcRows([...prev, newRow], pizzaItems));
+      } finally {
+        setIsAddingRow(false);
+      }
     });
   }, [orderId, pizzaItems]);
 
@@ -59,11 +84,31 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
   );
 
   const handleDeleteRow = useCallback((rowId: number) => {
-    startTransition(async () => {
-      await actionDeletePizzaRow(rowId);
-      setRows((prev) => prev.filter((r) => r.id !== rowId));
+    if (pendingDeleteTimer.current && pendingDeleteRef.current) {
+      clearTimeout(pendingDeleteTimer.current);
+      commitDelete(pendingDeleteRef.current.rowId);
+    }
+    let rowData: PizzaOrderRow | undefined;
+    setRows((prev) => {
+      rowData = prev.find((r) => r.id === rowId);
+      return prev.filter((r) => r.id !== rowId);
     });
-  }, []);
+    if (!rowData) { actionDeletePizzaRow(rowId).catch(() => {}); return; }
+    const info: PizzaPendingDelete = { rowId, rowData };
+    pendingDeleteRef.current = info;
+    setPendingDelete(info);
+    pendingDeleteTimer.current = setTimeout(() => commitDelete(rowId), 5000);
+  }, [commitDelete]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!pendingDeleteTimer.current || !pendingDeleteRef.current) return;
+    clearTimeout(pendingDeleteTimer.current);
+    pendingDeleteTimer.current = null;
+    const { rowData } = pendingDeleteRef.current;
+    pendingDeleteRef.current = null;
+    setRows((prev) => recalcRows([...prev, rowData].sort((a, b) => a.sortOrder - b.sortOrder), pizzaItems));
+    setPendingDelete(null);
+  }, [pizzaItems]);
 
   const handleScrape = () => {
     setScrapeError(null);
@@ -87,7 +132,9 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         const saved = await actionUpdatePizzaPrices(json.items!);
         setPizzaItems(saved);
         setRows((prev) => recalcRows(prev, saved));
+        if (scrapeStatusTimer.current) clearTimeout(scrapeStatusTimer.current);
         setScrapeStatus(`Ceník aktualizován – ${saved.length} pizz načteno.`);
+        scrapeStatusTimer.current = setTimeout(() => setScrapeStatus(null), 5000);
       } catch (e) {
         setScrapeError(`Nepodařilo se načíst ceník: ${e instanceof Error ? e.message : "neznámá chyba"}`);
         setScrapeStatus(null);
@@ -97,6 +144,12 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
 
   return (
     <div className="k-shell">
+      {pendingDelete && (
+        <div aria-live="polite" role="status" className="k-toast">
+          <span>Řádek smazán</span>
+          <button className="k-toast__undo" onClick={handleUndoDelete} type="button">Zpět</button>
+        </div>
+      )}
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
@@ -165,11 +218,14 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             <button
               className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-              disabled={isPending}
+              disabled={isAddingRow || isPending}
               onClick={handleAddRow}
               type="button"
             >
-              <MIcon name="add" size={13} /> Přidat
+              {isAddingRow
+                ? <MIcon name="refresh" size={13} style={{ animation: "k-spin 0.8s linear infinite" }} />
+                : <MIcon name="add" size={13} />}
+              {isAddingRow ? "Přidávám" : "Přidat"}
             </button>
           </div>
 
@@ -195,21 +251,13 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
                   idx={idx}
                   isPending={isPending}
                   key={row.id}
-                  onDelete={(id) => setDeleteConfirmId(id)}
+                  onDelete={handleDeleteRow}
                   onUpdate={handleUpdateRow}
                   pizzaItems={pizzaItems}
                   pricePerPizza={totals.pricePerPizza}
                   row={row}
                 />
               ))}
-              {deleteConfirmId !== null && (
-                <ConfirmModal
-                  message="Tento řádek objednávky pizzy bude odstraněn."
-                  onClose={() => setDeleteConfirmId(null)}
-                  onConfirm={() => { handleDeleteRow(deleteConfirmId); setDeleteConfirmId(null); }}
-                  title="Smazat řádek"
-                />
-              )}
             </>
           )}
         </section>

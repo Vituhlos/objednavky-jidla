@@ -41,9 +41,13 @@ interface Props {
 // ── Department colors (matches template) ─────────────────
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
-  blue:  { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
-  rust:  { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
-  green: { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
+  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
+  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#F59E0B", grad: "linear-gradient(135deg,#fcd34d,#F59E0B)" },
+  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
+  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
+  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
@@ -386,7 +390,7 @@ function OrderEditModal({
           </div>
         </div>
         {validationError && (
-          <div className="mx-4 mb-2 px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
+          <div role="alert" className="mx-4 mb-2 px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
             style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
             <MIcon name="warning" size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
             {validationError}
@@ -456,8 +460,9 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-display font-semibold text-[14px] text-stone-900 leading-none">{row.personName || "—"}</span>
           {row.note && (
-            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px] truncate" title={row.note}>
-              ✎ {row.note}
+            <span className="inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px]" title={row.note}>
+              <MIcon name="edit" size={11} style={{ flexShrink: 0 }} />
+              <span className="truncate min-w-0">{row.note}</span>
             </span>
           )}
         </div>
@@ -595,7 +600,10 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
         </div>
 
         {addError && (
-          <div className="px-4 py-2 text-[12px] text-red-600">{addError}</div>
+          <div role="alert" className="px-4 py-2 flex items-center gap-1.5 text-[12px] text-red-600">
+            <MIcon name="warning" size={13} style={{ flexShrink: 0, color: "#dc2626" }} />
+            {addError}
+          </div>
         )}
 
         {/* Rows */}
