@@ -52,14 +52,18 @@ export default function HistoryPage({
   pizzaOrders: PizzaOrderSummary[];
 }) {
   const [search, setSearch] = useState("");
+  const [hideEmpty, setHideEmpty] = useState(true);
   const q = search.trim().toLowerCase();
 
+  const visibleOrders = hideEmpty ? orders.filter((o) => o.status === "sent" || o.rowCount > 0) : orders;
+  const visiblePizza = hideEmpty ? pizzaOrders.filter((o) => o.status === "sent" || o.rowCount > 0) : pizzaOrders;
+
   const filteredOrders = q
-    ? orders.filter((o) => formatDate(o.date).includes(q) || (o.extraEmail ?? "").toLowerCase().includes(q))
-    : orders;
+    ? visibleOrders.filter((o) => formatDate(o.date).includes(q) || (o.extraEmail ?? "").toLowerCase().includes(q))
+    : visibleOrders;
   const filteredPizza = q
-    ? pizzaOrders.filter((o) => formatDate(o.date).includes(q))
-    : pizzaOrders;
+    ? visiblePizza.filter((o) => formatDate(o.date).includes(q))
+    : visiblePizza;
 
   const sentCount = orders.filter((o) => o.status === "sent").length;
   const pizzaSentCount = pizzaOrders.filter((o) => o.status === "sent").length;
@@ -74,6 +78,14 @@ export default function HistoryPage({
           <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
           <strong className="text-stone-700">{pizzaSentCount}</strong> pizz
         </span>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <div className="relative shrink-0">
+            <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
+            <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+            <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+          </div>
+          <span className="text-[12px] text-stone-600">Skrýt prázdné koncepty</span>
+        </label>
         <input
           className="modal-input !py-1.5 !text-[12px] w-56"
           onChange={(e) => setSearch(e.target.value)}
@@ -87,7 +99,14 @@ export default function HistoryPage({
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
-          <span className="text-[11px] text-stone-500">{sentCount} obědů · {pizzaSentCount} pizz</span>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <div className="relative shrink-0">
+              <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
+              <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+              <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+            </div>
+            <span className="text-[11px] text-stone-600">Skrýt prázdné</span>
+          </label>
         </div>
         <div className="px-4 pb-2.5">
           <input
@@ -107,7 +126,7 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
             <MIcon name="restaurant_menu" size={17} fill style={{ color: "#3B82F6" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Obědy LIMA</span>
-            <span className="text-[11px] text-stone-500">{orders.length} záznamů · {sentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visibleOrders.length} záznamů · {sentCount} odesláno</span>
           </div>
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
@@ -153,7 +172,7 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Pizza</span>
-            <span className="text-[11px] text-stone-500">{pizzaOrders.length} záznamů · {pizzaSentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visiblePizza.length} záznamů · {pizzaSentCount} odesláno</span>
           </div>
           {filteredPizza.length === 0 ? (
             <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
