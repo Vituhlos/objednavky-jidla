@@ -179,9 +179,9 @@ export function startScheduler(): void {
       const jsDay = now.getDay();
 
       await checkAutoSend(s, currentTime, jsDay);
+      await checkImapImport(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
       await checkPushReminder(s, currentTime, jsDay);
-      await checkImapImport(s, currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }
