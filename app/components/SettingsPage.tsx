@@ -276,6 +276,7 @@ export default function SettingsPage({
   const [clearConfirm, setClearConfirm] = useState(false);
   const [clearDone, setClearDone] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const confirmedPinRef = useRef("");
   const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
 
@@ -356,7 +357,7 @@ export default function SettingsPage({
     setPinError(false);
     startTransition(async () => {
       const ok = await actionCheckPin(pin);
-      if (ok) setUnlocked(true);
+      if (ok) { setUnlocked(true); confirmedPinRef.current = pin; }
       else { setPinError(true); setPin(""); }
     });
   };
@@ -411,7 +412,7 @@ export default function SettingsPage({
     setSaveStatus("idle");
     startTransition(async () => {
       try {
-        await actionSaveSettings(updates);
+        await actionSaveSettings(updates, confirmedPinRef.current);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 3000);
       } catch {

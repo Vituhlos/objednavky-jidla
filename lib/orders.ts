@@ -229,9 +229,10 @@ export function getOrderData(orderId: number): OrderData {
   }
 
   const order = mapOrder(orderRaw);
-  const dayCode = getTodayDayCode();
+  const dayCode = getDayCodeForISO(order.date);
+  const weekStart = getMondayISO(new Date(`${order.date}T12:00:00`));
   const todayMenu = dayCode
-    ? getMenuItemsForDay(dayCode)
+    ? getMenuItemsForDay(dayCode, weekStart)
     : { soups: [], meals: [] };
 
   const rawRows = db

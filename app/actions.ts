@@ -237,7 +237,8 @@ export async function actionCheckPin(pin: string): Promise<boolean> {
   return checkPin(pin);
 }
 
-export async function actionSaveSettings(updates: Partial<AppSettings>): Promise<void> {
+export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
+  if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
   saveSettings(updates);
   revalidatePath("/nastaveni");
 }
