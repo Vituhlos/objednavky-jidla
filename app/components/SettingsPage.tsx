@@ -251,6 +251,27 @@ export default function SettingsPage({
   const [pinError, setPinError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const pinInputRef = useRef<HTMLInputElement>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+  const resetSessionTimer = () => {
+    if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+    sessionTimerRef.current = setTimeout(() => {
+      setUnlocked(false);
+      confirmedPinRef.current = "";
+      sessionTimerRef.current = null;
+    }, SESSION_TIMEOUT_MS);
+  };
+
+  useEffect(() => {
+    if (unlocked) resetSessionTimer();
+    else {
+      if (sessionTimerRef.current) { clearTimeout(sessionTimerRef.current); sessionTimerRef.current = null; }
+    }
+    return () => { if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked]);
 
   useEffect(() => {
     if (!unlocked) {
@@ -413,6 +434,7 @@ export default function SettingsPage({
     startTransition(async () => {
       try {
         await actionSaveSettings(updates, confirmedPinRef.current);
+        resetSessionTimer();
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 3000);
       } catch {

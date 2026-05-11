@@ -25,7 +25,7 @@ import type {
   Department,
   MealEntry,
 } from "./types";
-import { getDepartments, getDepartmentByName } from "./departments";
+import { getDepartments, getDepartmentsByNames } from "./departments";
 import { logAudit } from "./audit";
 import { isDepartmentSubmitted } from "./order-utils";
 
@@ -249,10 +249,10 @@ export function getOrderData(orderId: number): OrderData {
 
   // Include inactive departments that still have rows in this order
   const orphanNames = [...new Set(rows.map((r) => r.department))].filter((n) => !activeDeptNames.has(n));
-  const orphanDepts = orphanNames.map((name) => {
-    const info = getDepartmentByName(name);
-    return info ?? { id: -1, name, label: name, emailLabel: name, accent: "blue" as const, sortOrder: 999, active: false };
-  });
+  const orphanLookup = getDepartmentsByNames(orphanNames);
+  const orphanDepts = orphanNames.map((name) =>
+    orphanLookup.get(name) ?? { id: -1, name, label: name, emailLabel: name, accent: "blue" as const, sortOrder: 999, active: false }
+  );
 
   const allDepts = [...activeDepts, ...orphanDepts];
   const departments: DepartmentData[] = allDepts.map((dept) => {

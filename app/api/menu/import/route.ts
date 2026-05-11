@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   try {
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
     fs.mkdirSync(pdfsDir, { recursive: true });
-    tmpPdfName = `tmp_${Date.now()}.pdf`;
+    tmpPdfName = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.pdf`;
     fs.writeFileSync(path.join(pdfsDir, tmpPdfName), buffer);
   } catch {
     // Non-fatal — PDF storage is best-effort

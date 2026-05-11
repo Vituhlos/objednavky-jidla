@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
@@ -33,7 +33,7 @@ interface Props {
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
   extrasPrices?: ExtrasPrices;
-  onAddRow: () => Promise<number>;
+  onAddRow: (department: Department) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
   onDeleteRow: (rowId: number) => void;
 }
@@ -535,7 +535,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-export function DepartmentPanel({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -550,7 +550,7 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
     setIsAdding(true);
     setAddError(null);
     try {
-      const rowId = await onAddRow();
+      const rowId = await onAddRow(data.name);
       setModalState({ rowId, isNew: true });
     } catch {
       setAddError("Nepodařilo se přidat řádek.");
@@ -667,3 +667,5 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
     </>
   );
 }
+
+export const DepartmentPanel = memo(DepartmentPanelInner);

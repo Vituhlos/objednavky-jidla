@@ -334,19 +334,45 @@ export default function OrderPage({
   }, [doRefresh]);
 
   useEffect(() => {
-    const es = new EventSource("/api/sse");
-    es.addEventListener("open", () => { setSseConnected(true); setHasEverConnected(true); });
-    es.addEventListener("error", () => setSseConnected(false));
-    es.addEventListener("change", () => {
-      setSseConnected(true);
-      if (document.hidden) {
-        tabNotifCount.current += 1;
-        document.title = `(${tabNotifCount.current}) Změna v objednávce`;
-        return;
-      }
-      doRefresh();
-    });
-    return () => es.close();
+    let es: EventSource | null = null;
+    let reconnectDelay = 1000;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let unmounted = false;
+
+    function connect() {
+      es = new EventSource("/api/sse");
+      es.addEventListener("open", () => {
+        reconnectDelay = 1000;
+        setSseConnected(true);
+        setHasEverConnected(true);
+      });
+      es.addEventListener("error", () => {
+        setSseConnected(false);
+        es?.close();
+        es = null;
+        if (unmounted) return;
+        reconnectTimer = setTimeout(() => {
+          reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
+          connect();
+        }, reconnectDelay);
+      });
+      es.addEventListener("change", () => {
+        setSseConnected(true);
+        if (document.hidden) {
+          tabNotifCount.current += 1;
+          document.title = `(${tabNotifCount.current}) Změna v objednávce`;
+          return;
+        }
+        doRefresh();
+      });
+    }
+
+    connect();
+    return () => {
+      unmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      es?.close();
+    };
   }, [doRefresh]);
 
   const getPushEndpoint = useCallback(async (): Promise<string | undefined> => {
@@ -839,7 +865,7 @@ export default function OrderPage({
                     isSent={isSent}
                     key={dept.name}
                     meals={allMeals}
-                    onAddRow={() => handleAddRow(dept.name)}
+                    onAddRow={handleAddRow}
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
                     soups={allSoups}
