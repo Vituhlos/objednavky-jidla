@@ -84,11 +84,10 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           setScrapeStatus(null);
           return;
         }
-        const items = json.items!;
-        await actionUpdatePizzaPrices(items);
-        setPizzaItems(items.map((it, idx) => ({ id: idx + 1, ...it })));
-        setRows((prev) => recalcRows(prev, items.map((it, idx) => ({ id: idx + 1, ...it }))));
-        setScrapeStatus(`Ceník aktualizován – ${items.length} pizz načteno.`);
+        const saved = await actionUpdatePizzaPrices(json.items!);
+        setPizzaItems(saved);
+        setRows((prev) => recalcRows(prev, saved));
+        setScrapeStatus(`Ceník aktualizován – ${saved.length} pizz načteno.`);
       } catch (e) {
         setScrapeError(`Nepodařilo se načíst ceník: ${e instanceof Error ? e.message : "neznámá chyba"}`);
         setScrapeStatus(null);

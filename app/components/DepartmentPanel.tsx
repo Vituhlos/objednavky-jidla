@@ -121,6 +121,8 @@ function OrderEditModal({
   const dragState = useRef<{ startY: number; currentY: number } | null>(null);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
+  const handleCancelRef = useRef(handleCancel);
+  useEffect(() => { handleCancelRef.current = handleCancel; });
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const body = sheetRef.current?.querySelector(".modal-sheet__body") as HTMLElement | null;
@@ -144,7 +146,7 @@ function OrderEditModal({
     if (currentY > 80) {
       sheetRef.current.style.transition = "transform 0.25s ease-in";
       sheetRef.current.style.transform = "translateY(110%)";
-      setTimeout(handleCancel, 220);
+      setTimeout(() => handleCancelRef.current(), 220);
     } else {
       sheetRef.current.style.transition = "transform 0.3s cubic-bezier(.2,.8,.2,1)";
       sheetRef.current.style.transform = "";
@@ -152,11 +154,10 @@ function OrderEditModal({
   };
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancel(); };
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelRef.current(); };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew]);
+  }, []);
 
   // body má overflow:hidden globálně — žádný scroll lock nutný
 

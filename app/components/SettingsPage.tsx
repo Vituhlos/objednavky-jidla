@@ -276,6 +276,8 @@ export default function SettingsPage({
   const [clearConfirm, setClearConfirm] = useState(false);
   const [clearDone, setClearDone] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
 
   // Restore state
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
@@ -448,16 +450,20 @@ export default function SettingsPage({
   };
 
   const handleImapCheck = () => {
+    if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current);
     setImapCheckStatus("pending");
     setImapCheckMsg("Připojuji se k poštovní schránce...");
-    const timeout = setTimeout(() => {
+    imapTimeoutRef.current = setTimeout(() => {
+      imapTimeoutRef.current = null;
       setImapCheckStatus("error");
       setImapCheckMsg("Časový limit vypršel — zkontroluj nastavení IMAP (host, port, heslo).");
     }, 25000);
     startTransition(async () => {
       try {
         const result = await actionCheckImap();
-        clearTimeout(timeout);
+        if (!imapTimeoutRef.current) return; // timeout already fired
+        clearTimeout(imapTimeoutRef.current);
+        imapTimeoutRef.current = null;
         if (result.found) {
           setImapCheckStatus("found");
           setImapCheckMsg(`Importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
@@ -469,7 +475,7 @@ export default function SettingsPage({
           setImapCheckMsg("Žádný nový mail s jídelníčkem nebyl nalezen.");
         }
       } catch {
-        clearTimeout(timeout);
+        if (imapTimeoutRef.current) { clearTimeout(imapTimeoutRef.current); imapTimeoutRef.current = null; }
         setImapCheckStatus("error");
         setImapCheckMsg("Nepodařilo se připojit k poštovní schránce.");
       }

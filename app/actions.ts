@@ -161,9 +161,10 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
-): Promise<void> {
-  replacePizzaItems(items);
+): Promise<{ id: number; code: number; name: string; price: number }[]> {
+  const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
+  return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {

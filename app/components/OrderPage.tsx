@@ -217,6 +217,15 @@ export default function OrderPage({
     setSentAt(initialData.order.sentAt);
     setJustSent(false);
     setSendError(null);
+    if (justSentTimer.current) { clearTimeout(justSentTimer.current); justSentTimer.current = null; }
+    if (pendingDeleteTimer.current) {
+      clearTimeout(pendingDeleteTimer.current);
+      pendingDeleteTimer.current = null;
+      if (pendingDeleteRef.current) {
+        actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
+        pendingDeleteRef.current = null;
+      }
+    }
     setPendingDelete(null);
   }
 
