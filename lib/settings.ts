@@ -41,6 +41,7 @@ export interface AppSettings {
   vapidPrivateKey: string;
   pushReminderMinutes: string;
   reminderEmailTo: string;
+  autoSendFailureEmail: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -79,6 +80,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   vapidPrivateKey: "vapid_private_key",
   pushReminderMinutes: "push_reminder_minutes",
   reminderEmailTo: "reminder_email_to",
+  autoSendFailureEmail: "auto_send_failure_email",
 };
 
 function envDefaults(): AppSettings {
@@ -119,6 +121,7 @@ function envDefaults(): AppSettings {
     vapidPrivateKey: "",
     pushReminderMinutes: "20",
     reminderEmailTo: "",
+    autoSendFailureEmail: "",
   };
 }
 

@@ -63,9 +63,33 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   }
 
   console.log(`[scheduler] Automatické odesílání objednávky ${data.order.id}...`);
-  await sendOrder(data.order.id, "auto");
-  broadcast();
-  console.log("[scheduler] Objednávka automaticky odeslána.");
+  try {
+    await sendOrder(data.order.id, "auto");
+    broadcast();
+    console.log("[scheduler] Objednávka automaticky odeslána.");
+  } catch (err) {
+    console.error("[scheduler] Auto-send selhal:", err);
+    const recipients = (s.autoSendFailureEmail || s.reminderEmailTo)
+      .split(",").map((e) => e.trim()).filter(Boolean);
+    if (recipients.length > 0) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
+      try {
+        await sendEmail({
+          to: recipients,
+          subject: `Selhání automatického odesílání objednávky (${dateStr})`,
+          html: `<p>Dobrý den,</p>
+<p>Automatické odesílání objednávky pro <strong>${dateStr}</strong> selhalo.</p>
+<p><strong>Chyba:</strong> <code>${errMsg}</code></p>
+<p>Objednávka zůstala ve stavu <em>rozepsaná</em>. Přihlaste se do aplikace a odešlete ji ručně.</p>`,
+          text: `Automatické odesílání objednávky pro ${dateStr} selhalo.\n\nChyba: ${errMsg}\n\nObjednávka zůstala ve stavu rozepsaná. Přihlaste se do aplikace a odešlete ji ručně.`,
+        });
+        console.log("[scheduler] Upozornění na selhání auto-send odesláno.");
+      } catch (mailErr) {
+        console.error("[scheduler] Nepodařilo se odeslat upozornění na selhání:", mailErr);
+      }
+    }
+  }
 }
 
 async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {

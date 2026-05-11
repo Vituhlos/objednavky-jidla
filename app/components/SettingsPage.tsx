@@ -427,6 +427,7 @@ export default function SettingsPage({
       autoSendTime: fd.get("autoSendTime") as string,
       autoSendDays,
       autoSendMinOrders: fd.get("autoSendMinOrders") as string,
+      autoSendFailureEmail: fd.get("autoSendFailureEmail") as string,
       imapEnabled: fd.get("imapEnabled") === "on" ? "true" : "false",
       imapHost: fd.get("imapHost") as string,
       imapPort: fd.get("imapPort") as string,
@@ -859,6 +860,9 @@ export default function SettingsPage({
                         </label>
                       ))}
                     </div>
+                  </Field>
+                  <Field hint="e-mail(y) kam přijde upozornění při selhání auto-send — prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
+                    <input className="modal-input" defaultValue={settings.autoSendFailureEmail} name="autoSendFailureEmail" placeholder="admin@firma.cz" type="email" />
                   </Field>
                 </Section>
 
