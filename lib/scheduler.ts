@@ -86,6 +86,17 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     .get();
   if (alreadySent) return;
 
+  // Double-check: ověř znovu po 100ms aby přechodný DB problém neodeslal planý mail
+  await new Promise((r) => setTimeout(r, 100));
+  const menuCheck = getMenuItemsForDay(dayCode);
+  if (menuCheck.soups.length > 0 || menuCheck.meals.length > 0) {
+    console.log(`[scheduler] Reminder zrušen — druhý check menu našel ${menuCheck.meals.length} jídel.`);
+    return;
+  }
+
+  // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
+  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
+
   const recipients = s.reminderEmailTo
     ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
     : getOrderRecipients();
@@ -97,8 +108,6 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
 <p>Přejděte do aplikace a importujte PDF nebo přidejte položky ručně.</p>`,
     text: `Jídelníček LIMA pro dnešní den (${dayCode}) není naplněný. Uzávěrka je v ${s.cutoffTime}. Přejděte do aplikace a importujte jídelníček.`,
   });
-
-  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
 }
 
