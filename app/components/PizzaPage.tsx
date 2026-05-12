@@ -441,20 +441,17 @@ function PizzaSelect({
         >
           <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
             <button data-idx="0" type="button" role="option" aria-selected={value === null}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "0.5rem 0.85rem", fontSize: "0.8rem", color: "#a8a29e", fontStyle: "italic", background: hlIdx === 0 ? "rgba(245,158,11,0.07)" : "transparent", border: "none", cursor: "default" }}
-              onMouseEnter={() => setHlIdx(0)} onClick={() => select(null)}
+              className="dropdown-item dropdown-item--placeholder"
+              data-hl={String(hlIdx === 0)}
+              onClick={() => select(null)}
             >— vyberte —</button>
             {items.map((item, i) => {
               const idx = i + 1;
               return (
                 <button key={item.id} data-idx={String(idx)} type="button" role="option" aria-selected={value === item.id}
-                  style={{
-                    display: "flex", alignItems: "baseline", gap: "0.4rem", width: "100%", textAlign: "left",
-                    padding: "0.5rem 0.85rem", fontSize: "0.8rem", border: "none", cursor: "default",
-                    background: hlIdx === idx ? "rgba(245,158,11,0.07)" : value === item.id ? "rgba(245,158,11,0.04)" : "transparent",
-                    fontWeight: value === item.id ? 600 : 400, color: "#1a1208",
-                  }}
-                  onMouseEnter={() => setHlIdx(idx)} onClick={() => select(item.id)}
+                  className="dropdown-item"
+                  data-hl={String(hlIdx === idx)}
+                  onClick={() => select(item.id)}
                 >
                   <span style={{ fontFamily: "monospace", fontSize: "0.7rem", color: "#d97706", flexShrink: 0 }}>{item.code}.</span>
                   <span style={{ flex: 1 }}>{item.name}</span>
