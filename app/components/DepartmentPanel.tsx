@@ -100,8 +100,12 @@ function MenuSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [hlIdx, setHlIdx] = useState(0);
-
   const [isMobile, setIsMobile] = useState(false);
+
+  const allCount = options.length + 1;
+
+  // ── všechny hooky musí být před jakýmkoliv conditional return ──
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
     setIsMobile(mq.matches);
@@ -109,26 +113,6 @@ function MenuSelect({
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
-
-  const allCount = options.length + 1;
-  const selectedOpt = value !== null ? options.find((o) => o.id === value) : null;
-
-  if (isMobile) {
-    return (
-      <select
-        id={id}
-        className="modal-select"
-        style={style}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>{o.code ? `${o.code} – ${o.name}` : o.name}</option>
-        ))}
-      </select>
-    );
-  }
 
   const openList = useCallback(() => {
     const el = triggerRef.current;
@@ -175,7 +159,7 @@ function MenuSelect({
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openList(); }
       return;
     }
-    if (e.key === "Escape") { e.preventDefault(); setOpen(false); triggerRef.current?.focus(); }
+    if (e.key === "Escape" || e.key === "Tab") { setOpen(false); }
     else if (e.key === "ArrowDown") { e.preventDefault(); setHlIdx((i) => Math.min(i + 1, allCount - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setHlIdx((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter") {
@@ -186,6 +170,25 @@ function MenuSelect({
   };
 
   const select = (v: number | null) => { onChange(v); setOpen(false); triggerRef.current?.focus(); };
+
+  const selectedOpt = value !== null ? options.find((o) => o.id === value) : null;
+
+  if (isMobile) {
+    return (
+      <select
+        id={id}
+        className="modal-select"
+        style={style}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.code ? `${o.code} – ${o.name}` : o.name}</option>
+        ))}
+      </select>
+    );
+  }
 
   return (
     <>
@@ -223,7 +226,7 @@ function MenuSelect({
         >
           <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
             <button data-idx="0" type="button" role="option" aria-selected={value === null}
-              className={`dropdown-item dropdown-item--placeholder${hlIdx === 0 ? " [data-hl=true]" : ""}`}
+              className="dropdown-item dropdown-item--placeholder"
               data-hl={String(hlIdx === 0)}
               onClick={() => select(null)}
             >{placeholder}</button>
