@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
-import Link from "next/link";
 import MIcon from "./MIcon";
 
 function formatDate(iso: string): string {
@@ -51,6 +51,7 @@ export default function HistoryPage({
   orders: OrderSummary[];
   pizzaOrders: PizzaOrderSummary[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [hideEmpty, setHideEmpty] = useState(true);
   const q = search.trim().toLowerCase();
@@ -142,25 +143,33 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
-                    <th className="px-3 py-2"></th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
+                    <th className="w-8 px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden md:table-cell">{order.extraEmail ?? "–"}</td>
-                      <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition py-3 inline-block" href={`/historie/${order.id}`}>
-                          Detail →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredOrders.map((order) => {
+                    const isDraft = order.status !== "sent";
+                    return (
+                      <tr
+                        key={order.id}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        onClick={() => router.push(`/historie/${order.id}`)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
+                        role="link"
+                        tabIndex={0}
+                      >
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
+                        <td className="px-3 py-3 text-stone-400">
+                          <MIcon name="chevron_right" size={16} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -188,23 +197,31 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="px-3 py-2"></th>
+                    <th className="w-8 px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPizza.map((order) => (
-                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                      <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition py-3 inline-block" href={`/historie/pizza/${order.id}`}>
-                          Detail →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredPizza.map((order) => {
+                    const isDraft = order.status !== "sent";
+                    return (
+                      <tr
+                        key={order.id}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        onClick={() => router.push(`/historie/pizza/${order.id}`)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
+                        role="link"
+                        tabIndex={0}
+                      >
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                        <td className="px-3 py-3 text-stone-400">
+                          <MIcon name="chevron_right" size={16} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
