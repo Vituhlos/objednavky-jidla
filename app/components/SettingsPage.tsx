@@ -1233,6 +1233,19 @@ export default function SettingsPage({
             )}
           </>
         )}
+
+        {/* Version info */}
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">
+          <span>Objednávky LIMA</span>
+          <span className="text-stone-300">·</span>
+          <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>
+          {process.env.NEXT_PUBLIC_COMMIT_SHA && (
+            <>
+              <span className="text-stone-300">·</span>
+              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA}</span>
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
