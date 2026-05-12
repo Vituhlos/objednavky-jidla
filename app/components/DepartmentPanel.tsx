@@ -118,13 +118,9 @@ function MenuSelect({
 
   useEffect(() => {
     if (!open) return;
-    const close = (e: Event) => {
-      if (listRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    window.addEventListener("scroll", close, true);
+    const close = () => setOpen(false);
     window.addEventListener("resize", close);
-    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+    return () => window.removeEventListener("resize", close);
   }, [open]);
 
   useEffect(() => {
