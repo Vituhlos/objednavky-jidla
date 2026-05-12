@@ -1242,7 +1242,7 @@ export default function SettingsPage({
           {process.env.NEXT_PUBLIC_COMMIT_SHA && (
             <>
               <span className="text-stone-300">·</span>
-              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA}</span>
+              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)}</span>
             </>
           )}
         </div>
