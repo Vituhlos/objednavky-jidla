@@ -101,8 +101,34 @@ function MenuSelect({
   const listRef = useRef<HTMLDivElement>(null);
   const [hlIdx, setHlIdx] = useState(0);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const allCount = options.length + 1;
   const selectedOpt = value !== null ? options.find((o) => o.id === value) : null;
+
+  if (isMobile) {
+    return (
+      <select
+        id={id}
+        className="modal-select"
+        style={style}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.code ? `${o.code} – ${o.name}` : o.name}</option>
+        ))}
+      </select>
+    );
+  }
 
   const openList = useCallback(() => {
     const el = triggerRef.current;
