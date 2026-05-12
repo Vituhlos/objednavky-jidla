@@ -291,7 +291,12 @@ export default function OrderPage({
   const isFutureDayRef = useRef(isFutureDay);
   useEffect(() => { isFutureDayRef.current = isFutureDay; }, [isFutureDay]);
   const selectedDateRef = useRef(selectedDate);
-  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    // Cancel any stale refresh for the previous date
+    refreshAbortRef.current?.abort();
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
@@ -299,13 +304,20 @@ export default function OrderPage({
   const doRefresh = useCallback(() => {
     if (isPendingRef.current) return;
     if (isFutureDayRef.current) return;
+    // Cancel any in-flight refresh for a previous date
+    refreshAbortRef.current?.abort();
+    const ac = new AbortController();
+    refreshAbortRef.current = ac;
+    const requestedDate = selectedDateRef.current;
     const params = new URLSearchParams();
-    if (selectedDateRef.current) params.set("date", selectedDateRef.current);
+    if (requestedDate) params.set("date", requestedDate);
     const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
-    fetch(refreshUrl)
+    fetch(refreshUrl, { signal: ac.signal })
       .then((r) => r.ok ? r.json() : null)
       .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
         if (!data) return;
+        // Discard response if the user navigated to a different day while this was in flight
+        if (requestedDate !== selectedDateRef.current) return;
         setDepartments(data.departments);
         setOrderStatus(data.status as "draft" | "sent");
         if (data.sentAt) setSentAt(data.sentAt);
@@ -801,7 +813,7 @@ export default function OrderPage({
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
-                        onClick={() => router.push(`/?date=${date}`)}
+                        onClick={() => startTransition(() => { router.push(`/?date=${date}`); })}
                         style={isActive ? {
                           background: "linear-gradient(135deg,#F59E0B,#EA580C)",
                           color: "white",
