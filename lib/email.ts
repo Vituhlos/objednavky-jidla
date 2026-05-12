@@ -1,13 +1,15 @@
 import nodemailer from "nodemailer";
 import { getSettings } from "./settings";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function parseEmailList(value?: string | null): string[] {
   if (!value) return [];
   const seen = new Set<string>();
   const emails: string[] = [];
   for (const part of value.split(/[\n,;]+/)) {
     const email = part.trim();
-    if (!email) continue;
+    if (!email || !EMAIL_RE.test(email)) continue;
     const normalized = email.toLowerCase();
     if (seen.has(normalized)) continue;
     seen.add(normalized);

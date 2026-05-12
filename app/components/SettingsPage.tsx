@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -16,6 +16,9 @@ import {
   actionSetUserRole,
   actionSetUserActive,
   actionAdminSendPasswordReset,
+  actionClearOrder,
+  actionCheckImap,
+  actionSendTestPush,
 } from "@/app/actions";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -55,7 +58,13 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function formatTs(ts: string): string {
-  const d = new Date(ts.replace(" ", "T") + "Z");
+  if (!ts) return "—";
+  const normalized =
+    ts.includes("T") && (ts.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(ts))
+      ? ts
+      : ts.replace(" ", "T") + "Z";
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return ts;
   return d.toLocaleString("cs-CZ", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
@@ -64,13 +73,29 @@ function formatTs(ts: string): string {
 
 // ── Section card ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon, children }: { title: string; icon?: string; children: React.ReactNode }) {
+function Section({ title, icon, children, helpContent }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode }) {
+  const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="glass rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
         {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
-        <span className="font-display font-bold text-[13.5px] text-stone-900">{title}</span>
+        <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
+        {helpContent && (
+          <button
+            type="button"
+            onClick={() => setShowHelp((v) => !v)}
+            aria-label="Nápověda"
+            className="w-7 h-7 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
+          >
+            <MIcon name="info" size={15} />
+          </button>
+        )}
       </div>
+      {helpContent && showHelp && (
+        <div className="px-4 pt-3 pb-1 border-b border-white/40 flex flex-col gap-2" style={{ background: "rgba(245,158,11,0.04)" }}>
+          {helpContent}
+        </div>
+      )}
       <div className="p-4 flex flex-col gap-3">{children}</div>
     </div>
   );
@@ -81,7 +106,7 @@ function Section({ title, icon, children }: { title: string; icon?: string; chil
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[11.5px] font-semibold text-stone-600">{label}</span>
+      <span className="text-[12px] font-semibold text-stone-600">{label}</span>
       {hint && <span className="text-[10.5px] text-stone-400 -mt-0.5">{hint}</span>}
       {children}
     </div>
@@ -151,19 +176,22 @@ function DeptRow({
         <span className="text-[11px] text-stone-400 hidden sm:inline shrink-0">({dept.name})</span>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            className="hidden sm:inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isFirst} onClick={() => onMoveUp(dept.id)} title="Nahoru" type="button"
+            aria-label={`Přesunout ${dept.label} nahoru`}
+            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            disabled={isFirst} onClick={() => onMoveUp(dept.id)} type="button"
           >↑</button>
           <button
-            className="hidden sm:inline-flex w-7 h-7 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isLast} onClick={() => onMoveDown(dept.id)} title="Dolů" type="button"
+            aria-label={`Přesunout ${dept.label} dolů`}
+            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
+            disabled={isLast} onClick={() => onMoveDown(dept.id)} type="button"
           >↓</button>
           <button
             className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg glass-btn text-stone-600"
             onClick={() => setEditing(true)} type="button"
           >Upravit</button>
           <button
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg text-red-600"
+            aria-label={`Smazat oddělení ${dept.label}`}
+            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg text-red-600 transition"
             style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}
             onClick={() => setConfirmDelete(true)} type="button"
           >Smazat</button>
@@ -241,6 +269,18 @@ function ResetButton({ userId }: { userId: number }) {
   );
 }
 
+// ── Tabs ─────────────────────────────────────────────────
+
+type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system";
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "objednavka", label: "Objednávka", icon: "assignment" },
+  { id: "email",      label: "E-mail & IMAP", icon: "mail" },
+  { id: "ceny",       label: "Ceny",       icon: "payments" },
+  { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
+  { id: "system",     label: "Systém",     icon: "build" },
+];
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
@@ -252,10 +292,15 @@ export default function SettingsPage({
   todayOrder?: { id: number; status: string };
   isAdmin?: boolean;
 }) {
+  const [activeTab, setActiveTab] = useState<Tab>("objednavka");
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
+  const [imapCheckStatus, setImapCheckStatus] = useState<"idle" | "pending" | "found" | "notfound" | "error">("idle");
+  const [imapCheckMsg, setImapCheckMsg] = useState("");
+  const [pushTestStatus, setPushTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
   const [newDeptName, setNewDeptName] = useState("");
@@ -264,7 +309,11 @@ export default function SettingsPage({
   const [showAddDept, setShowAddDept] = useState(false);
   const [reopenDone, setReopenDone] = useState(false);
   const [resendStatus, setResendStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearDone, setClearDone] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
 
   // Restore state
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
@@ -371,6 +420,7 @@ export default function SettingsPage({
       orderEmailTo: fd.get("orderEmailTo") as string,
       orderExtraEmail: fd.get("orderExtraEmail") as string,
       smtpReplyTo: fd.get("smtpReplyTo") as string,
+      reminderEmailTo: fd.get("reminderEmailTo") as string,
       cutoffTime: fd.get("cutoffTime") as string,
       defaultSoupPrice: fd.get("defaultSoupPrice") as string,
       defaultMealPrice: fd.get("defaultMealPrice") as string,
@@ -384,6 +434,19 @@ export default function SettingsPage({
       autoSendTime: fd.get("autoSendTime") as string,
       autoSendDays,
       autoSendMinOrders: fd.get("autoSendMinOrders") as string,
+      autoSendFailureEmail: fd.get("autoSendFailureEmail") as string,
+      imapEnabled: fd.get("imapEnabled") === "on" ? "true" : "false",
+      imapHost: fd.get("imapHost") as string,
+      imapPort: fd.get("imapPort") as string,
+      imapUser: fd.get("imapUser") as string,
+      imapPass: fd.get("imapPass") as string,
+      imapSender: fd.get("imapSender") as string,
+      imapCheckTime: fd.get("imapCheckTime") as string,
+      imapCheckDays: DAY_OPTIONS
+        .filter((d) => fd.get(`imapCheckDay_${d.code}`) === "on")
+        .map((d) => d.code)
+        .join(","),
+      pushReminderMinutes: fd.get("pushReminderMinutes") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -425,6 +488,54 @@ export default function SettingsPage({
       } catch {
         setSmtpTestStatus("error");
         setSmtpTestMsg("Síťová chyba při testu.");
+      }
+    });
+  };
+
+  const handleImapCheck = () => {
+    if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current);
+    setImapCheckStatus("pending");
+    setImapCheckMsg("Připojuji se k poštovní schránce...");
+    imapTimeoutRef.current = setTimeout(() => {
+      imapTimeoutRef.current = null;
+      setImapCheckStatus("error");
+      setImapCheckMsg("Časový limit vypršel — zkontroluj nastavení IMAP (host, port, heslo).");
+    }, 25000);
+    startTransition(async () => {
+      try {
+        const result = await actionCheckImap();
+        if (!imapTimeoutRef.current) return; // timeout already fired
+        clearTimeout(imapTimeoutRef.current);
+        imapTimeoutRef.current = null;
+        if (result.found) {
+          setImapCheckStatus("found");
+          setImapCheckMsg(`Importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
+        } else if (result.error) {
+          setImapCheckStatus("error");
+          setImapCheckMsg(result.error);
+        } else {
+          setImapCheckStatus("notfound");
+          setImapCheckMsg("Žádný nový mail s jídelníčkem nebyl nalezen.");
+        }
+      } catch {
+        if (imapTimeoutRef.current) { clearTimeout(imapTimeoutRef.current); imapTimeoutRef.current = null; }
+        setImapCheckStatus("error");
+        setImapCheckMsg("Nepodařilo se připojit k poštovní schránce.");
+      }
+    });
+  };
+
+  const handleTestPush = () => {
+    setPushTestStatus("pending");
+    setPushTestMsg("Odesílám...");
+    startTransition(async () => {
+      try {
+        const result = await actionSendTestPush();
+        if (result.error) { setPushTestStatus("error"); setPushTestMsg(result.error); }
+        else { setPushTestStatus("ok"); setPushTestMsg(`Notifikace odeslána do ${result.sent} prohlížeče/ů.`); }
+      } catch {
+        setPushTestStatus("error");
+        setPushTestMsg("Nepodařilo se odeslat testovací notifikaci.");
       }
     });
   };
@@ -482,6 +593,7 @@ export default function SettingsPage({
   };
 
   const activeDays = settings.autoSendDays.split(",").map((d) => d.trim());
+  const activeImapDays = settings.imapCheckDays.split(",").map((d) => d.trim());
 
   return (
     <div className="k-shell">
@@ -500,8 +612,27 @@ export default function SettingsPage({
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
         <>
-            {/* Reopen order — nahoře, aby k tomu nebylo třeba scrollovat */}
-            {todayOrder && (todayOrder.status === "sent" || reopenDone) && (
+            {/* Tab bar */}
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12.5px] font-semibold transition-all ${
+                    activeTab === tab.id ? "text-white shadow-sm" : "glass-btn text-stone-600 hover:text-stone-800"
+                  }`}
+                  style={activeTab === tab.id ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
+                >
+                  <MIcon name={tab.icon as "settings"} size={14} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* ── Objednávka — non-form sections ── */}
+            {activeTab === "objednavka" && todayOrder && (
               <Section icon="lock_open" title="Dnešní objednávka">
                 {todayOrder.status === "sent" && !reopenDone ? (
                   <div className="flex flex-col gap-3">
@@ -549,16 +680,165 @@ export default function SettingsPage({
                       <p className="text-[12px] text-red-500">Chyba při odesílání. Zkontrolujte SMTP nastavení.</p>
                     )}
                   </div>
-                ) : (
+                ) : reopenDone ? (
                   <p className="text-[12.5px] text-green-700 inline-flex items-center gap-1.5">
                     <MIcon name="check_circle" size={14} fill /> Objednávka byla znovu otevřena.
+                  </p>
+                ) : null}
+                {todayOrder.status === "draft" && !clearDone && (
+                  <div className="flex flex-col gap-2 pt-1 border-t border-white/40">
+                    <p className="text-[12.5px] text-stone-500">Objednávka je otevřená.</p>
+                    <button
+                      className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger"
+                      disabled={isPending}
+                      onClick={() => setClearConfirm(true)}
+                      type="button"
+                    >
+                      <MIcon name="delete" size={14} /> Smazat celou objednávku
+                    </button>
+                  </div>
+                )}
+                {clearDone && (
+                  <p className="text-[12.5px] text-stone-500 inline-flex items-center gap-1.5">
+                    <MIcon name="check_circle" size={14} fill style={{ color: "#94a3b8" }} /> Objednávka byla smazána.
                   </p>
                 )}
               </Section>
             )}
+            {clearConfirm && (
+              <ConfirmModal
+                confirmLabel="Smazat"
+                isPending={isPending}
+                message="Celá dnešní objednávka bude vymazána. Tuto akci nelze vrátit."
+                onClose={() => setClearConfirm(false)}
+                onConfirm={() => {
+                  startTransition(async () => {
+                    await actionClearOrder(todayOrder!.id);
+                    setClearConfirm(false);
+                    setClearDone(true);
+                  });
+                }}
+                title="Smazat objednávku"
+              />
+            )}
 
+            {/* ── Oddělení tab ── */}
+            {activeTab === "oddeleni" && (
+              <Section icon="groups" title="Oddělení">
+                <p className="text-[12.5px] text-stone-500">
+                  Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
+                </p>
+                {deptError && (
+                  <p className="text-[12px] text-red-500">{deptError}</p>
+                )}
+                <div className="flex flex-col gap-2">
+                  {departments.map((dept, idx) => (
+                    <DeptRow
+                      dept={dept}
+                      isFirst={idx === 0}
+                      isLast={idx === departments.length - 1}
+                      key={dept.id}
+                      onDelete={handleDeptDelete}
+                      onMoveDown={(id) => handleDeptMove(id, "down")}
+                      onMoveUp={(id) => handleDeptMove(id, "up")}
+                      onSave={handleDeptSave}
+                    />
+                  ))}
+                </div>
+                {showAddDept ? (
+                  <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Field hint="interní klíč (nelze měnit)" label="Kód oddělení">
+                        <input className="modal-input" onChange={(e) => setNewDeptName(e.target.value)} placeholder="např. Sklad" value={newDeptName} />
+                      </Field>
+                      <Field hint="zobrazovaný název" label="Název">
+                        <input className="modal-input" onChange={(e) => setNewDeptLabel(e.target.value)} placeholder="např. Sklad" value={newDeptLabel} />
+                      </Field>
+                      <Field label="Barva">
+                        <select className="k-select" onChange={(e) => setNewDeptAccent(e.target.value)} value={newDeptAccent}>
+                          {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="modal-btn modal-btn--primary"
+                        disabled={isPending || !newDeptName.trim() || !newDeptLabel.trim()}
+                        onClick={handleAddDept}
+                        type="button"
+                      >Přidat</button>
+                      <button
+                        className="modal-btn modal-btn--secondary"
+                        onClick={() => { setShowAddDept(false); setNewDeptName(""); setNewDeptLabel(""); }}
+                        type="button"
+                      >Zrušit</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+                    onClick={() => setShowAddDept(true)}
+                    type="button"
+                  >
+                    <MIcon name="add" size={14} /> Přidat oddělení
+                  </button>
+                )}
+              </Section>
+            )}
+
+            {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
             <form id="settings-form" onSubmit={handleSave} ref={formRef}>
-              <div className="flex flex-col gap-4">
+
+              {/* Objednávka tab: Provoz + AutoSend */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "objednavka" ? "flex" : "none" }}>
+
+                <Section icon="schedule" title="Provoz">
+                  <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
+                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
+                  </Field>
+                </Section>
+
+                <Section icon="schedule" title="Automatické odeslání">
+                  <p className="text-[12.5px] text-stone-500">
+                    Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
+                  </p>
+                  <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
+                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
+                    </Field>
+                    <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
+                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
+                    </Field>
+                  </div>
+                  <Field label="Dny odeslání">
+                    <div className="flex gap-3 flex-wrap mt-0.5">
+                      {DAY_OPTIONS.map((d) => (
+                        <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
+                          <div className="relative shrink-0">
+                            <input
+                              className="peer sr-only"
+                              defaultChecked={activeDays.includes(d.code)}
+                              name={`autoSendDay_${d.code}`}
+                              type="checkbox"
+                            />
+                            <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                            <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                          </div>
+                          <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field hint="e-mail(y) kam přijde upozornění při selhání auto-send — prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
+                    <input className="modal-input" defaultValue={settings.autoSendFailureEmail} name="autoSendFailureEmail" placeholder="admin@firma.cz" type="email" />
+                  </Field>
+                </Section>
+
+              </div>
+
+              {/* E-mail & IMAP tab */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "email" ? "flex" : "none" }}>
 
                 <Section icon="send" title="SMTP – odchozí pošta">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -601,68 +881,127 @@ export default function SettingsPage({
                 <Section icon="send" title="E-mail objednávky">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field hint="můžete zadat více adres oddělených čárkou, středníkem nebo novým řádkem" label="Příjemci objednávky (To)">
-                      <EmailListInput
-                        defaultValue={settings.orderEmailTo}
-                        name="orderEmailTo"
-                        placeholder="vedouci@firma.cz, kuchyne@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.orderEmailTo} name="orderEmailTo" placeholder="vedouci@firma.cz, kuchyne@firma.cz" />
                     </Field>
                     <Field hint="uloží se k objednávce jako kopie a použije se při ručním i automatickém odeslání" label="Doplňkové kopie objednávky">
-                      <EmailListInput
-                        defaultValue={settings.orderExtraEmail}
-                        name="orderExtraEmail"
-                        placeholder="obchod@firma.cz; sklad@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.orderExtraEmail} name="orderExtraEmail" placeholder="obchod@firma.cz; sklad@firma.cz" />
                     </Field>
                     <Field hint="pokud prázdné, Reply-To se nenastavuje; více adres je podporováno" label="Adresa pro odpovědi (Reply-To)">
-                      <EmailListInput
-                        defaultValue={settings.smtpReplyTo}
-                        name="smtpReplyTo"
-                        placeholder="jiri@example.com, objednavky@firma.cz"
-                      />
+                      <EmailListInput defaultValue={settings.smtpReplyTo} name="smtpReplyTo" placeholder="jiri@example.com, objednavky@firma.cz" />
+                    </Field>
+                    <Field hint="kam chodí upozornění na chybějící jídelníček; pokud prázdné, použijí se příjemci objednávky" label="Příjemci upozornění (jídelníček)">
+                      <EmailListInput defaultValue={settings.reminderEmailTo} name="reminderEmailTo" placeholder="vedouci@firma.cz" />
                     </Field>
                   </div>
                 </Section>
 
-                <Section icon="schedule" title="Provoz">
-                  <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
-                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
-                  </Field>
-                </Section>
-
-                <Section icon="schedule" title="Automatické odeslání">
-                  <p className="text-[12.5px] text-stone-500">
-                    Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
-                  </p>
-                  <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
-                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
-                    </Field>
-                    <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
-                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
-                    </Field>
-                  </div>
-                  <Field label="Dny odeslání">
-                    <div className="flex gap-3 flex-wrap mt-0.5">
-                      {DAY_OPTIONS.map((d) => (
-                        <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
-                          <div className="relative shrink-0">
-                            <input
-                              className="peer sr-only"
-                              defaultChecked={activeDays.includes(d.code)}
-                              name={`autoSendDay_${d.code}`}
-                              type="checkbox"
-                            />
-                            <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-                            <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
-                          </div>
-                          <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
-                        </label>
-                      ))}
+                <Section icon="menu_book" title="Automatický import jídelníčku" helpContent={
+                  <div className="space-y-2.5 text-[12px] text-stone-600 pb-2">
+                    <p className="font-semibold text-stone-800 text-[12.5px]">Jak nastavit automatický import z Gmailu</p>
+                    <div className="space-y-1.5">
+                      <p><span className="font-semibold text-stone-700">1. Zapni IMAP v Gmailu</span><br />Gmail → Nastavení (ozubené kolo) → Zobrazit všechna nastavení → záložka <em>Přesměrování a POP/IMAP</em> → sekce IMAP → vyber <strong>Zapnout IMAP</strong> → Uložit.</p>
+                      <p><span className="font-semibold text-stone-700">2. Vytvoř App Password</span><br />Gmail normální heslo nefunguje — potřebuješ speciální. Jdi na <strong>myaccount.google.com/apppasswords</strong>, přihlas se, vytvoř nové heslo (název např. „Kantyna&quot;). Google vygeneruje 16 znaků — zkopíruj je <strong>bez mezer</strong> a vlož sem jako heslo.</p>
+                      <p><span className="font-semibold text-stone-700">3. Filtr odesílatele</span><br />Zadej e-mailovou adresu od které LIMA posílá jídelníčky (najdeš ji v hlavičce příchozího mailu). Tím se zajistí, že se nezpracuje žádný jiný mail.</p>
+                      <p><span className="font-semibold text-stone-700">4. Jak to funguje</span><br />Každý pracovní den v nastavený čas appka zkontroluje schránku, najde nepřečtený mail s PDF od LIMY, importuje jídelníček a mail označí jako přečtený.</p>
                     </div>
+                  </div>
+                }>
+                  <p className="text-[12.5px] text-stone-500">
+                    Appka se každé ráno připojí k e-mailové schránce a automaticky importuje jídelníček z PDF přílohy od LIMY.
+                  </p>
+                  <Toggle defaultChecked={settings.imapEnabled === "true"} label="Zapnout automatický import" name="imapEnabled" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="např. imap.gmail.com" label="IMAP server">
+                      <input className="modal-input" defaultValue={settings.imapHost} name="imapHost" type="text" />
+                    </Field>
+                    <Field hint="obvykle 993 pro SSL" label="Port">
+                      <input className="modal-input w-24" defaultValue={settings.imapPort} min="1" name="imapPort" type="number" />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="Gmail adresa schránky" label="Uživatel (e-mail)">
+                      <input className="modal-input" defaultValue={settings.imapUser} name="imapUser" type="email" />
+                    </Field>
+                    <Field hint="Google App Password (16 znaků)" label="Heslo">
+                      <input className="modal-input" defaultValue={settings.imapPass} name="imapPass" type="password" autoComplete="new-password" />
+                    </Field>
+                  </div>
+                  <Field hint="e-mail od kterého chodí jídelníčky, např. info@lima.cz — prázdné = všechny nepřečtené maily" label="Filtr odesílatele">
+                    <input className="modal-input" defaultValue={settings.imapSender} name="imapSender" placeholder="info@lima.cz" type="email" />
                   </Field>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="čas kdy se provede kontrola schránky" label="Čas kontroly">
+                      <input className="modal-input w-32" defaultValue={settings.imapCheckTime} name="imapCheckTime" type="time" />
+                    </Field>
+                    <Field label="Kontrolovat ve dny">
+                      <div className="flex gap-3 flex-wrap mt-0.5">
+                        {DAY_OPTIONS.map((d) => (
+                          <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
+                            <div className="relative shrink-0">
+                              <input
+                                className="peer sr-only"
+                                defaultChecked={activeImapDays.includes(d.code)}
+                                name={`imapCheckDay_${d.code}`}
+                                type="checkbox"
+                              />
+                              <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                              <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                            </div>
+                            <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      disabled={isPending}
+                      onClick={handleImapCheck}
+                      type="button"
+                    >
+                      <MIcon name="refresh" size={16} />
+                      Zkontrolovat schránku teď
+                    </button>
+                    {imapCheckStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${imapCheckStatus === "found" ? "text-green-600" : imapCheckStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+                        {imapCheckStatus === "found" && "✓ "}
+                        {imapCheckMsg}
+                      </span>
+                    )}
+                  </div>
                 </Section>
+
+                <Section icon="notifications" title="Push notifikace">
+                  <p className="text-[12.5px] text-stone-500">
+                    Upozornění do prohlížeče před uzávěrkou. Každý si je povolí sám tlačítkem 🔔 na hlavní stránce.
+                  </p>
+                  <Field hint="kolik minut před uzávěrkou přijde upozornění" label="Upozornit před uzávěrkou (min)">
+                    <input className="modal-input w-24" defaultValue={settings.pushReminderMinutes} min="1" max="120" name="pushReminderMinutes" type="number" />
+                  </Field>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      disabled={isPending}
+                      onClick={handleTestPush}
+                      type="button"
+                    >
+                      <MIcon name="send" size={16} />
+                      Odeslat testovací notifikaci
+                    </button>
+                    {pushTestStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${pushTestStatus === "ok" ? "text-green-600" : pushTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+                        {pushTestStatus === "ok" && "✓ "}
+                        {pushTestMsg}
+                      </span>
+                    )}
+                  </div>
+                </Section>
+
+              </div>
+
+              {/* Ceny tab */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
 
                 <Section icon="restaurant" title="Ceník jídel">
                   <p className="text-[12.5px] text-stone-500">
@@ -704,6 +1043,11 @@ export default function SettingsPage({
                   </div>
                 </Section>
 
+              </div>
+
+              {/* Systém tab — form part (PIN only) */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
+
                 <Section icon="lock" title="Zabezpečení">
                   <Field hint="nechte prázdné pro zachování stávajícího PINu" label="Nový PIN (číslice)">
                     <input className="modal-input w-36" inputMode="numeric" maxLength={8} name="newPin" pattern="[0-9]*" placeholder="ponechte prázdné" type="password" />
@@ -711,90 +1055,13 @@ export default function SettingsPage({
                 </Section>
 
               </div>
+
             </form>
 
-            {/* Departments — outside the form to avoid accidental submit */}
-            <Section icon="groups" title="Oddělení">
-              <p className="text-[12.5px] text-stone-500">
-                Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
-              </p>
-              {deptError && (
-                <p className="text-[12px] text-red-500">{deptError}</p>
-              )}
-              <div className="flex flex-col gap-2">
-                {departments.map((dept, idx) => (
-                  <DeptRow
-                    dept={dept}
-                    isFirst={idx === 0}
-                    isLast={idx === departments.length - 1}
-                    key={dept.id}
-                    onDelete={handleDeptDelete}
-                    onMoveDown={(id) => handleDeptMove(id, "down")}
-                    onMoveUp={(id) => handleDeptMove(id, "up")}
-                    onSave={handleDeptSave}
-                  />
-                ))}
-              </div>
-              {showAddDept ? (
-                <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <Field hint="interní klíč (nelze měnit)" label="Kód oddělení">
-                      <input className="modal-input" onChange={(e) => setNewDeptName(e.target.value)} placeholder="např. Sklad" value={newDeptName} />
-                    </Field>
-                    <Field hint="zobrazovaný název" label="Název">
-                      <input className="modal-input" onChange={(e) => setNewDeptLabel(e.target.value)} placeholder="např. Sklad" value={newDeptLabel} />
-                    </Field>
-                    <Field label="Barva">
-                      <select className="k-select" onChange={(e) => setNewDeptAccent(e.target.value)} value={newDeptAccent}>
-                        {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="modal-btn modal-btn--primary"
-                      disabled={isPending || !newDeptName.trim() || !newDeptLabel.trim()}
-                      onClick={handleAddDept}
-                      type="button"
-                    >Přidat</button>
-                    <button
-                      className="modal-btn modal-btn--secondary"
-                      onClick={() => { setShowAddDept(false); setNewDeptName(""); setNewDeptLabel(""); }}
-                      type="button"
-                    >Zrušit</button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
-                  onClick={() => setShowAddDept(true)}
-                  type="button"
-                >
-                  <MIcon name="add" size={14} /> Přidat oddělení
-                </button>
-              )}
-            </Section>
-
-            {/* Save button */}
-            <div className="flex items-center justify-end gap-3 pt-1">
-              {saveStatus === "saved" && (
-                <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
-              )}
-              {saveStatus === "error" && (
-                <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
-              )}
-              <button
-                className="modal-btn modal-btn--primary"
-                disabled={isPending}
-                form="settings-form"
-                type="submit"
-              >
-                {isPending ? "Ukládám..." : "Uložit nastavení"}
-              </button>
-            </div>
-
-            {/* Backup & Restore */}
-            <Section icon="build" title="Záloha a obnova dat">
+            {/* ── Systém — non-form sections ── */}
+            {activeTab === "system" && (
+              <>
+                <Section icon="build" title="Záloha a obnova dat">
               <p className="text-[12.5px] text-stone-500">
                 Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
               </p>
@@ -990,7 +1257,29 @@ export default function SettingsPage({
                 </div>
               )}
             </Section>
-        </>
+              </>
+            )}
+
+            {/* ── Save button (all tabs except Oddělení) ── */}
+            {activeTab !== "oddeleni" && (
+              <div className="flex items-center justify-end gap-3 pt-1">
+                {saveStatus === "saved" && (
+                  <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
+                )}
+                {saveStatus === "error" && (
+                  <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
+                )}
+                <button
+                  className="modal-btn modal-btn--primary"
+                  disabled={isPending}
+                  form="settings-form"
+                  type="submit"
+                >
+                  {isPending ? "Ukládám..." : "Uložit nastavení"}
+                </button>
+              </div>
+            )}
+          </>
       </main>
     </div>
   );

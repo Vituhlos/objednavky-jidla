@@ -210,7 +210,7 @@ function WeekGrid({
                     </span>
                     {editMode && (
                       <button
-                        className="text-[10.5px] font-semibold px-2.5 py-1 rounded-xl glass-btn text-stone-600"
+                        className="text-[12px] font-semibold px-2.5 py-1 rounded-xl glass-btn text-stone-600"
                         disabled={disabled}
                         onClick={() => onOpenDay(day)}
                         type="button"
@@ -233,11 +233,11 @@ function WeekGrid({
                       <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Polévky</span>
                       {editMode && (
                         <button
-                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          aria-label="Přidat polévku"
+                          className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
-                          title="Přidat polévku"
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 14 }}
                           type="button"
                         >+</button>
                       )}
@@ -256,11 +256,11 @@ function WeekGrid({
                       <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Jídla</span>
                       {editMode && (
                         <button
-                          className="ml-auto w-4 h-4 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          aria-label="Přidat jídlo"
+                          className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 10 }}
-                          title="Přidat jídlo"
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 14 }}
                           type="button"
                         >+</button>
                       )}
@@ -370,6 +370,31 @@ function WeekItem({
           placeholder="Alergeny: 1, 3, 7…"
           title="Čísla alergenů oddělená čárkou (1–14)"
         />
+        <input
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-stone-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
+          defaultValue={item.name}
+          disabled={disabled}
+          onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
+          title="Název"
+        />
+        <input
+          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
+          defaultValue={item.price}
+          disabled={disabled}
+          min={0}
+          onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
+          title="Cena Kč"
+          type="number"
+        />
+        <button
+          aria-label="Smazat položku"
+          className="w-8 h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 transition shrink-0"
+          disabled={disabled}
+          onClick={() => onDelete(item.id)}
+          type="button"
+        >
+          <MIcon name="close" size={13} />
+        </button>
       </div>
     );
   }
@@ -460,12 +485,13 @@ function MenuSection({
                   type="number"
                 />
                 <button
-                  className="ml-auto w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition shrink-0"
+                  aria-label="Smazat položku"
+                  className="ml-auto w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition shrink-0"
                   disabled={disabled}
                   onClick={() => onDelete(item.id)}
                   type="button"
                 >
-                  <MIcon name="close" size={13} />
+                  <MIcon name="close" size={15} />
                 </button>
               </div>
               <input
@@ -546,7 +572,7 @@ export default function MenuPage({
 
   const handleWeekSwitch = (week: "current" | "next") => {
     setActiveWeek(week);
-    if (week === "next" && editMode) setEditMode(false);
+    setEditMode(false);
     setConfirmDeleteNext(false);
   };
 
@@ -949,15 +975,18 @@ export default function MenuPage({
         >
           <div
             className={`modal-sheet${importState.phase === "preview" ? " !w-full sm:!w-[760px]" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-sheet__header">
-              <h3 className="modal-sheet__title">
+              <h3 className="modal-sheet__title" id="import-modal-title">
                 {importState.phase === "preview" ? "Náhled importu" : "Importovat PDF jídelníčku"}
               </h3>
               <button
                 aria-label="Zavřít"
-                className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 font-bold"
+                className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 font-bold"
                 onClick={() => setImportState({ phase: "idle" })}
                 type="button"
               >

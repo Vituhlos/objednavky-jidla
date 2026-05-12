@@ -1,6 +1,8 @@
 import { getDb } from "./db";
 import { getPragueISODate } from "./time";
 
+const VALID_ACCENTS = new Set(["blue", "rust", "green", "amber", "navy", "orange", "red"]);
+
 export interface DepartmentInfo {
   id: number;
   name: string;
@@ -38,6 +40,15 @@ export function getDepartmentByName(name: string): DepartmentInfo | null {
   return r ? mapRow(r) : null;
 }
 
+export function getDepartmentsByNames(names: string[]): Map<string, DepartmentInfo> {
+  if (names.length === 0) return new Map();
+  const placeholders = names.map(() => "?").join(", ");
+  const rows = getDb()
+    .prepare(`SELECT * FROM departments WHERE name IN (${placeholders})`)
+    .all(...names) as Record<string, unknown>[];
+  return new Map(rows.map((r) => { const d = mapRow(r); return [d.name, d]; }));
+}
+
 export function addDepartment(data: {
   name: string;
   label: string;
@@ -45,6 +56,7 @@ export function addDepartment(data: {
   accent: string;
 }): DepartmentInfo {
   const db = getDb();
+  if (!VALID_ACCENTS.has(data.accent)) throw new Error(`Neplatná barva oddělení: ${data.accent}`);
   const { m } = db.prepare("SELECT COALESCE(MAX(sort_order), -1) as m FROM departments").get() as { m: number };
   const result = db
     .prepare("INSERT INTO departments (name, label, email_label, accent, sort_order) VALUES (?, ?, ?, ?, ?)")
@@ -63,7 +75,10 @@ export function updateDepartment(
   const values: unknown[] = [];
   if (data.label !== undefined) { fields.push("label = ?"); values.push(data.label.trim()); }
   if (data.emailLabel !== undefined) { fields.push("email_label = ?"); values.push(data.emailLabel.trim()); }
-  if (data.accent !== undefined) { fields.push("accent = ?"); values.push(data.accent); }
+  if (data.accent !== undefined) {
+    if (!VALID_ACCENTS.has(data.accent)) throw new Error(`Neplatná barva oddělení: ${data.accent}`);
+    fields.push("accent = ?"); values.push(data.accent);
+  }
   if (fields.length > 0) {
     db.prepare(`UPDATE departments SET ${fields.join(", ")} WHERE id = ?`).run(...values, id);
   }

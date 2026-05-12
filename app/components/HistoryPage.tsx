@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
-import Link from "next/link";
 import MIcon from "./MIcon";
 
 function formatDate(iso: string): string {
@@ -51,15 +51,20 @@ export default function HistoryPage({
   orders: OrderSummary[];
   pizzaOrders: PizzaOrderSummary[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
+  const [hideEmpty, setHideEmpty] = useState(true);
   const q = search.trim().toLowerCase();
 
+  const visibleOrders = hideEmpty ? orders.filter((o) => o.status === "sent" || o.rowCount > 0) : orders;
+  const visiblePizza = hideEmpty ? pizzaOrders.filter((o) => o.status === "sent" || o.rowCount > 0) : pizzaOrders;
+
   const filteredOrders = q
-    ? orders.filter((o) => formatDate(o.date).includes(q) || (o.extraEmail ?? "").toLowerCase().includes(q))
-    : orders;
+    ? visibleOrders.filter((o) => formatDate(o.date).includes(q) || (o.extraEmail ?? "").toLowerCase().includes(q))
+    : visibleOrders;
   const filteredPizza = q
-    ? pizzaOrders.filter((o) => formatDate(o.date).includes(q))
-    : pizzaOrders;
+    ? visiblePizza.filter((o) => formatDate(o.date).includes(q))
+    : visiblePizza;
 
   const sentCount = orders.filter((o) => o.status === "sent").length;
   const pizzaSentCount = pizzaOrders.filter((o) => o.status === "sent").length;
@@ -74,6 +79,14 @@ export default function HistoryPage({
           <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
           <strong className="text-stone-700">{pizzaSentCount}</strong> pizz
         </span>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <div className="relative shrink-0">
+            <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
+            <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+            <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+          </div>
+          <span className="text-[12px] text-stone-600">Skrýt prázdné koncepty</span>
+        </label>
         <input
           className="modal-input !py-1.5 !text-[12px] w-56"
           onChange={(e) => setSearch(e.target.value)}
@@ -87,7 +100,14 @@ export default function HistoryPage({
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
-          <span className="text-[11px] text-stone-500">{sentCount} obědů · {pizzaSentCount} pizz</span>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <div className="relative shrink-0">
+              <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
+              <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+              <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+            </div>
+            <span className="text-[11px] text-stone-600">Skrýt prázdné</span>
+          </label>
         </div>
         <div className="px-4 pb-2.5">
           <input
@@ -107,11 +127,12 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
             <MIcon name="restaurant_menu" size={17} fill style={{ color: "#3B82F6" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Obědy LIMA</span>
-            <span className="text-[11px] text-stone-500">{orders.length} záznamů · {sentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visibleOrders.length} záznamů · {sentCount} odesláno</span>
           </div>
           {filteredOrders.length === 0 ? (
-            <div className="px-4 py-6 text-[13px] text-stone-400 text-center">
-              {q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné objednávky v databázi."}
+            <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
+              <MIcon name="history" size={28} style={{ color: "#94a3b8" }} />
+              <p className="text-[13px] text-stone-400">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné objednávky v databázi."}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -122,25 +143,33 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden md:table-cell">Doplňkový e-mail</th>
-                    <th className="px-3 py-2"></th>
+                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
+                    <th className="w-8 px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden md:table-cell">{order.extraEmail ?? "–"}</td>
-                      <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/${order.id}`}>
-                          Detail →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredOrders.map((order) => {
+                    const isDraft = order.status !== "sent";
+                    return (
+                      <tr
+                        key={order.id}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        onClick={() => router.push(`/historie/${order.id}`)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
+                        role="link"
+                        tabIndex={0}
+                      >
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
+                        <td className="px-3 py-3 text-stone-400">
+                          <MIcon name="chevron_right" size={16} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -152,11 +181,12 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Pizza</span>
-            <span className="text-[11px] text-stone-500">{pizzaOrders.length} záznamů · {pizzaSentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visiblePizza.length} záznamů · {pizzaSentCount} odesláno</span>
           </div>
           {filteredPizza.length === 0 ? (
-            <div className="px-4 py-6 text-[13px] text-stone-400 text-center">
-              {q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné pizzové objednávky v databázi."}
+            <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
+              <MIcon name="local_pizza" size={28} style={{ color: "#94a3b8" }} />
+              <p className="text-[13px] text-stone-400">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné pizzové objednávky v databázi."}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -167,23 +197,31 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="px-3 py-2"></th>
+                    <th className="w-8 px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPizza.map((order) => (
-                    <tr key={order.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                      <td className="px-4 py-2.5 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                      <td className="px-3 py-2.5"><StatusBadge status={order.status} /></td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                      <td className="px-3 py-2.5 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                      <td className="px-3 py-2.5">
-                        <Link className="text-stone-600 hover:text-stone-900 font-semibold text-[12px] transition" href={`/historie/pizza/${order.id}`}>
-                          Detail →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredPizza.map((order) => {
+                    const isDraft = order.status !== "sent";
+                    return (
+                      <tr
+                        key={order.id}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        onClick={() => router.push(`/historie/pizza/${order.id}`)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
+                        role="link"
+                        tabIndex={0}
+                      >
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
+                        <td className="px-3 py-3 text-stone-400">
+                          <MIcon name="chevron_right" size={16} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

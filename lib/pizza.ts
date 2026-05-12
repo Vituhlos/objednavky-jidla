@@ -97,7 +97,7 @@ export function getPizzaItems(): PizzaItem[] {
 
 export function replacePizzaItems(
   items: Array<{ code: number; name: string; price: number }>
-): void {
+): PizzaItem[] {
   const db = getDb();
   db.transaction(() => {
     db.prepare("UPDATE pizza_order_rows SET pizza_item_id = NULL").run();
@@ -109,6 +109,7 @@ export function replacePizzaItems(
       stmt.run(item.code, item.name, item.price);
     }
   })();
+  return getPizzaItems();
 }
 
 export function getTodayPizzaOrderData(): PizzaOrderData {

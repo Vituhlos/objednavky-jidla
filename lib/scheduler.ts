@@ -1,13 +1,16 @@
 import cron from "node-cron";
 import { getSettings } from "./settings";
 import type { AppSettings } from "./settings";
+import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
-import { getMenuItemsForDay } from "./menu";
-import { sendEmail, getOrderRecipients } from "./email";
+import { getMenuItemsForDay, getMondayISO } from "./menu";
+import { sendEmail } from "./email";
 import { logAudit } from "./audit";
 import { getDb } from "./db";
-import { hasOrderRowContent } from "./order-utils";
 import { getPragueNow } from "./time";
+import { broadcast } from "./sse-broadcast";
+import { getAllSubscriptions, deleteSubscription } from "./push";
+import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -48,7 +51,11 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     return;
   }
 
-  const activeCount = data.departments.flatMap((d) => d.rows).filter(hasOrderRowContent).length;
+  const activeCount = data.departments.flatMap((d) => d.rows).reduce((sum, row) => {
+    const main = row.mainItem ? row.mealCount : 0;
+    const extra = row.extraMealItems.reduce((s, e) => s + e.count, 0);
+    return sum + main + extra;
+  }, 0);
   const minOrders = parseInt(s.autoSendMinOrders) || 1;
   if (activeCount < minOrders) {
     console.log(`[scheduler] Auto-send přeskočen — pouze ${activeCount} objednávek (min. ${minOrders}).`);
@@ -56,8 +63,33 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   }
 
   console.log(`[scheduler] Automatické odesílání objednávky ${data.order.id}...`);
-  await sendOrder(data.order.id, "auto");
-  console.log("[scheduler] Objednávka automaticky odeslána.");
+  try {
+    await sendOrder(data.order.id, "auto");
+    broadcast();
+    console.log("[scheduler] Objednávka automaticky odeslána.");
+  } catch (err) {
+    console.error("[scheduler] Auto-send selhal:", err);
+    const recipients = (s.autoSendFailureEmail || s.reminderEmailTo)
+      .split(",").map((e) => e.trim()).filter(Boolean);
+    if (recipients.length > 0) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
+      try {
+        await sendEmail({
+          to: recipients,
+          subject: `Selhání automatického odesílání objednávky (${dateStr})`,
+          html: `<p>Dobrý den,</p>
+<p>Automatické odesílání objednávky pro <strong>${dateStr}</strong> selhalo.</p>
+<p><strong>Chyba:</strong> <code>${errMsg}</code></p>
+<p>Objednávka zůstala ve stavu <em>rozepsaná</em>. Přihlaste se do aplikace a odešlete ji ručně.</p>`,
+          text: `Automatické odesílání objednávky pro ${dateStr} selhalo.\n\nChyba: ${errMsg}\n\nObjednávka zůstala ve stavu rozepsaná. Přihlaste se do aplikace a odešlete ji ručně.`,
+        });
+        console.log("[scheduler] Upozornění na selhání auto-send odesláno.");
+      } catch (mailErr) {
+        console.error("[scheduler] Nepodařilo se odeslat upozornění na selhání:", mailErr);
+      }
+    }
+  }
 }
 
 async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
@@ -67,8 +99,10 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   const dayCode = JS_TO_DAY_CODE[jsDay];
   if (!dayCode) return; // víkend
 
+  const weekStart = getMondayISO();
   const menu = getMenuItemsForDay(dayCode);
-  if (menu.soups.length > 0 || menu.meals.length > 0) return; // jídelníček je v pořádku
+  console.log(`[scheduler] Menu reminder check: day=${dayCode}, weekStart=${weekStart}, soups=${menu.soups.length}, meals=${menu.meals.length}`);
+  if (menu.soups.length > 0 || menu.meals.length > 0) return;
 
   // Zkontroluj jestli upozornění nebylo dnes už odesláno
   const alreadySent = getDb()
@@ -76,7 +110,36 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     .get();
   if (alreadySent) return;
 
-  const recipients = getOrderRecipients();
+  // Jídelníček chybí a upozornění ještě neodešlo — pokud je IMAP zapnutý, zkus import TEĎHNED
+  // jako poslední šanci. Řeší případ kdy reminder vypaluje dřív než naplánovaný IMAP check
+  // (např. IMAP jen ve středu v 16:00, ale upozornění vypaluje ráno v 07:30 — e-mail by odešel
+  // zbytečně, přestože se e-mail s jídelníčkem teprve zpracuje).
+  if (s.imapEnabled === "true") {
+    console.log("[scheduler] Menu chybí — zkouším IMAP import před odesláním upozornění...");
+    const imapResult = await checkImapForMenu();
+    if (imapResult.found) {
+      console.log(`[scheduler] Reminder zrušen — IMAP importoval jídelníček (${imapResult.weekLabel}, ${imapResult.itemCount} položek).`);
+      return;
+    }
+    const menuAfterImap = getMenuItemsForDay(dayCode);
+    if (menuAfterImap.soups.length > 0 || menuAfterImap.meals.length > 0) {
+      console.log(`[scheduler] Reminder zrušen — menu nalezeno po IMAP kontrole (${menuAfterImap.meals.length} jídel).`);
+      return;
+    }
+    console.log(`[scheduler] IMAP nic nenašel${imapResult.error ? ": " + imapResult.error : ""} — upozornění odejde.`);
+  }
+
+  const recipients = s.reminderEmailTo
+    ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
+    : [];
+  if (recipients.length === 0) {
+    console.warn("[scheduler] Upozornění na chybějící jídelníček NEODEŠLO — není nastaven 'E-mail pro upozornění' v Nastavení.");
+    return;
+  }
+
+  // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
+  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
+
   await sendEmail({
     to: recipients,
     subject: "Chybí jídelníček LIMA",
@@ -85,9 +148,79 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
 <p>Přejděte do aplikace a importujte PDF nebo přidejte položky ručně.</p>`,
     text: `Jídelníček LIMA pro dnešní den (${dayCode}) není naplněný. Uzávěrka je v ${s.cutoffTime}. Přejděte do aplikace a importujte jídelníček.`,
   });
-
-  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
+}
+
+async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (!JS_TO_DAY_CODE[jsDay]) return; // víkend
+  const minutes = parseInt(s.pushReminderMinutes) || 20;
+  const [h, m] = s.cutoffTime.split(":").map(Number);
+  const reminderTotal = h * 60 + m - minutes;
+  if (reminderTotal < 0) return;
+  const reminderTime = `${String(Math.floor(reminderTotal / 60)).padStart(2, "0")}:${String(reminderTotal % 60).padStart(2, "0")}`;
+  if (currentTime !== reminderTime) return;
+
+  const allSubs = getAllSubscriptions();
+  if (allSubs.length === 0) return;
+
+  const data = getTodayOrderData();
+  if (data.order.status === "sent") return;
+  if (isTodayClosed(data)) return;
+
+  // Zjisti které endpointy mají v dnešní objednávce neprázdný řádek
+  const activeEndpoints = new Set(
+    data.departments
+      .flatMap((d) => d.rows)
+      .filter((r) => r.mainItem || r.soupItem || r.extraMealItems.length > 0)
+      .map((r) => (r as unknown as { pushEndpoint?: string }).pushEndpoint)
+      .filter(Boolean) as string[]
+  );
+
+  // Pošli jen těm, kdo ještě neobjednali
+  const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));
+  if (pending.length === 0) {
+    console.log("[scheduler] Push přeskočen — všichni už objednali.");
+    return;
+  }
+
+  console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům...`);
+  const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
+  if (!publicKey || !privateKey) { console.warn("[scheduler] VAPID klíče nejsou nastaveny, push přeskočen."); return; }
+
+  webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
+  const payload = JSON.stringify({ title: "Nezapomeň objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime} — zbývá ${minutes} minut.`, url: "/" });
+
+  await Promise.allSettled(
+    pending.map(async (row) => {
+      try {
+        await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
+      } catch (err: unknown) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) deleteSubscription(row.endpoint);
+        else console.warn("[push] Chyba:", (err as Error).message);
+      }
+    })
+  );
+}
+
+async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (s.imapEnabled !== "true") return;
+  if (currentTime !== s.imapCheckTime) return;
+  const allowedDays = s.imapCheckDays
+    .split(",")
+    .map((d) => DAY_CODE_TO_JS[d.trim()])
+    .filter((n) => n !== undefined);
+  if (!allowedDays.includes(jsDay)) return;
+
+  console.log("[scheduler] Kontrola IMAP pro jídelníček...");
+  const result = await checkImapForMenu();
+  if (result.found) {
+    console.log(`[scheduler] IMAP: importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
+  } else if (result.error) {
+    console.warn(`[scheduler] IMAP: ${result.error}`);
+  } else {
+    console.log("[scheduler] IMAP: žádný nový mail s jídelníčkem.");
+  }
 }
 
 export function startScheduler(): void {
@@ -99,7 +232,9 @@ export function startScheduler(): void {
       const jsDay = now.getDay();
 
       await checkAutoSend(s, currentTime, jsDay);
+      await checkImapImport(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
+      await checkPushReminder(s, currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }

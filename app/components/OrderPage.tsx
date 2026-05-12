@@ -15,9 +15,107 @@ import {
   actionUpdateRow,
   actionDeleteRow,
   actionSendOrder,
-  actionClearOrder,
   actionReopenOrder,
+  actionClearOrder,
 } from "@/app/actions";
+
+// ── Help modal ────────────────────────────────────────────
+
+const HELP_STEPS = [
+  { num: "①", title: "Přidej se", body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.', icon: "groups" },
+  { num: "②", title: "Vyber jídlo", body: "Zvol polévku a hlavní jídlo z dnešního menu. Cena se spočítá automaticky.", icon: "restaurant_menu" },
+  { num: "③", title: "Hotovo — objednávka se odešle sama", body: "V čas uzávěrky (vidíš ho v horní liště) se objednávka automaticky odešle do LIMA. Nic víc dělat nemusíš.", icon: "check_circle" },
+] as const;
+
+const HELP_ADVANCED = [
+  { title: "Dvě různé polévky nebo jídla", body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.', icon: "add" },
+  { title: "Víc porcí stejného jídla", body: "Nastav počet porcí přímo u daného jídla.", icon: "receipt_long" },
+  { title: "Přílohy a omáčky", body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.", icon: "lunch_dining" },
+  { title: "Pizza", body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.", icon: "local_pizza" },
+] as const;
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+  const [advanced, setAdvanced] = useState(false);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    // iOS Safari: overflow:hidden on body doesn't prevent scroll — use position:fixed instead
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.removeEventListener("keydown", h);
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-modal-title"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 480 }}
+      >
+        <div className="modal-sheet__header">
+          <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
+          <button
+            aria-label="Zavřít"
+            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+            onClick={onClose}
+            type="button"
+          >×</button>
+        </div>
+        <div className="modal-sheet__body space-y-3">
+          {HELP_STEPS.map((s) => (
+            <div key={s.num} className="flex gap-3 p-3 rounded-2xl" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+              <div
+                className="w-9 h-9 rounded-xl shrink-0 inline-flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              >
+                <MIcon name={s.icon} size={18} fill className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-display font-bold text-[13px] text-stone-900 leading-snug">{s.title}</p>
+                <p className="text-[12.5px] text-stone-600 leading-snug mt-0.5">{s.body}</p>
+              </div>
+            </div>
+          ))}
+
+          <button
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl glass-btn text-stone-600 text-[12.5px] font-semibold"
+            onClick={() => setAdvanced((v) => !v)}
+            type="button"
+          >
+            <span>Pokročilé možnosti</span>
+            <MIcon name={advanced ? "expand_less" : "expand_more"} size={18} />
+          </button>
+
+          {advanced && (
+            <div className="space-y-2">
+              {HELP_ADVANCED.map((item) => (
+                <div key={item.title} className="flex gap-3 px-3 py-2.5 rounded-2xl glass-soft">
+                  <MIcon name={item.icon} size={18} fill style={{ color: "#94a3b8", flexShrink: 0, marginTop: 1 }} />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[12.5px] text-stone-800 leading-snug">{item.title}</p>
+                    <p className="text-[12px] text-stone-500 leading-snug mt-0.5">{item.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -142,10 +240,11 @@ export default function OrderPage({
   const [sentAt, setSentAt] = useState(initialData.order.sentAt);
   const [isPending, startTransition] = useTransition();
   const [sendError, setSendError] = useState<string | null>(null);
-  const [clearConfirm, setClearConfirm] = useState(false);
   const [justSent, setJustSent] = useState(false);
   const justSentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   type PendingDelete = { rowId: number; rowData: OrderRowEnriched; deptName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -162,6 +261,15 @@ export default function OrderPage({
     setSentAt(initialData.order.sentAt);
     setJustSent(false);
     setSendError(null);
+    if (justSentTimer.current) { clearTimeout(justSentTimer.current); justSentTimer.current = null; }
+    if (pendingDeleteTimer.current) {
+      clearTimeout(pendingDeleteTimer.current);
+      pendingDeleteTimer.current = null;
+      if (pendingDeleteRef.current) {
+        actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
+        pendingDeleteRef.current = null;
+      }
+    }
     setPendingDelete(null);
   }
 
@@ -182,6 +290,45 @@ export default function OrderPage({
 
   // ── Real-time sync via SSE ────────────────────────────────
   const [sseConnected, setSseConnected] = useState(false);
+
+  // ── Push notifikace ───────────────────────────────────────
+  const [pushState, setPushState] = useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">("unsubscribed");
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushState("unsupported");
+      return;
+    }
+    if (Notification.permission === "denied") { setPushState("denied"); return; }
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const existing = await reg.pushManager.getSubscription();
+      setPushState(existing ? "subscribed" : "unsubscribed");
+    });
+  }, []);
+
+  const handlePushToggle = useCallback(async () => {
+    if (pushState === "unsupported" || pushState === "denied") return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (pushState === "subscribed") {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+        }
+        setPushState("unsubscribed");
+        return;
+      }
+      const { publicKey } = await fetch("/api/push").then((r) => r.json());
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: publicKey });
+      const res = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+      if (!res.ok) { await sub.unsubscribe(); return; }
+      setPushState("subscribed");
+    } catch {
+      // Uživatel odmítl oprávnění nebo selhal server — nic nezměníme
+      if (Notification.permission === "denied") setPushState("denied");
+    }
+  }, [pushState]);
   const [hasEverConnected, setHasEverConnected] = useState(false);
   const isPendingRef = useRef(isPending);
   useEffect(() => { isPendingRef.current = isPending; }, [isPending]);
@@ -193,12 +340,31 @@ export default function OrderPage({
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
 
+  const doRefresh = useCallback(() => {
+    if (isPendingRef.current) return;
+    if (isFutureDayRef.current) return;
+    const params = new URLSearchParams();
+    if (selectedDateRef.current) params.set("date", selectedDateRef.current);
+    const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
+    fetch(refreshUrl)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
+        if (!data) return;
+        setDepartments(data.departments);
+        setOrderStatus(data.status as "draft" | "sent");
+        if (data.sentAt) setSentAt(data.sentAt);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     originalTitle.current = document.title;
     const resetTitle = () => {
       if (tabNotifCount.current > 0) {
         tabNotifCount.current = 0;
         document.title = originalTitle.current;
+        doRefresh();
       }
     };
     const onVisibility = () => { if (!document.hidden) resetTitle(); };
@@ -209,42 +375,62 @@ export default function OrderPage({
       document.removeEventListener("visibilitychange", onVisibility);
       document.title = originalTitle.current;
     };
-  }, []);
+  }, [doRefresh]);
 
   useEffect(() => {
-    const es = new EventSource("/api/sse");
-    es.addEventListener("open", () => { setSseConnected(true); setHasEverConnected(true); });
-    es.addEventListener("error", () => setSseConnected(false));
-    es.addEventListener("change", () => {
-      setSseConnected(true);
-      if (document.hidden) {
-        tabNotifCount.current += 1;
-        document.title = `(${tabNotifCount.current}) Nová objednávka`;
-        return;
-      }
-      if (isPendingRef.current) return;
-      if (isFutureDayRef.current) return;
-      const params = new URLSearchParams();
-      if (selectedDateRef.current) params.set("date", selectedDateRef.current);
-      const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
-      fetch(refreshUrl)
-        .then((r) => r.ok ? r.json() : null)
-        .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
-          if (!data) return;
-          setDepartments(data.departments);
-          setOrderStatus(data.status as "draft" | "sent");
-          setSentAt(data.sentAt);
-        })
-        .catch(() => {});
-    });
-    return () => es.close();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    let es: EventSource | null = null;
+    let reconnectDelay = 1000;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let unmounted = false;
+
+    function connect() {
+      es = new EventSource("/api/sse");
+      es.addEventListener("open", () => {
+        reconnectDelay = 1000;
+        setSseConnected(true);
+        setHasEverConnected(true);
+      });
+      es.addEventListener("error", () => {
+        setSseConnected(false);
+        es?.close();
+        es = null;
+        if (unmounted) return;
+        reconnectTimer = setTimeout(() => {
+          reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
+          connect();
+        }, reconnectDelay);
+      });
+      es.addEventListener("change", () => {
+        setSseConnected(true);
+        if (document.hidden) {
+          tabNotifCount.current += 1;
+          document.title = `(${tabNotifCount.current}) Změna v objednávce`;
+          return;
+        }
+        doRefresh();
+      });
+    }
+
+    connect();
+    return () => {
+      unmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      es?.close();
+    };
+  }, [doRefresh]);
+
+  const getPushEndpoint = useCallback(async (): Promise<string | undefined> => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return undefined;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub?.endpoint ?? undefined;
   }, []);
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
       try {
-        const newRow = await actionAddRow(orderId, department);
+        const pushEndpoint = await getPushEndpoint();
+        const newRow = await actionAddRow(orderId, department, pushEndpoint);
         setDepartments((prev) =>
           recalcDepartments(
             prev.map((d) =>
@@ -258,7 +444,7 @@ export default function OrderPage({
         throw new Error("add failed");
       }
     },
-    [orderId]
+    [getPushEndpoint, orderId]
   );
 
   const handleUpdateRow = useCallback(
@@ -315,7 +501,8 @@ export default function OrderPage({
       });
       startTransition(async () => {
         try {
-          const updated = await actionUpdateRow(rowId, updates);
+          const pushEndpoint = await getPushEndpoint();
+          const updated = await actionUpdateRow(rowId, updates, pushEndpoint);
           setDepartments((prev) => patchRow(prev, rowId, updated));
         } catch {
           setSendError("Nepodařilo se uložit změny. Zkuste to znovu.");
@@ -323,7 +510,7 @@ export default function OrderPage({
         }
       });
     },
-    [defaultMealPrice, defaultSoupPrice, extrasPrices, initialData.todayMenu, router]
+    [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, router]
   );
 
   const handleClear = useCallback(() => {
@@ -521,16 +708,13 @@ export default function OrderPage({
       )}
 
       {/* ── Desktop info strip ── */}
-      <div className="hidden md:flex px-5 py-2 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-600">
-          <span className="inline-flex items-center gap-1.5">
-            <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-            <span className="font-medium">{dayStr}</span>
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-              title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-            />
-          </span>
+      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+        <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
+          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+        />
+        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
           {!isSent && !isPastCutoff && countdown && (
             <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
               <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime})
@@ -546,16 +730,16 @@ export default function OrderPage({
               <MIcon name="check_circle" size={13} fill /> Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
+          {activeOrderCount > 0 && (
+            <span className="text-stone-400">
+              {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
+            </span>
+          )}
         </div>
-        {activeOrderCount > 0 && (
-          <span className="text-[12px] text-stone-500 shrink-0">
-            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
-          </span>
-        )}
         {isAdmin && !isSent && !isFutureDay && !noMenu && (
           <div className="flex items-center gap-2 shrink-0">
             <button
-              className="px-4 py-1.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+              className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               disabled={isPending}
               onClick={() => setShowSendConfirm(true)}
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
@@ -572,6 +756,14 @@ export default function OrderPage({
           </span>
         )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
+        <button
+          aria-label="Nápověda"
+          className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
+          onClick={() => setShowHelp(true)}
+          type="button"
+        >
+          <MIcon name="info" size={16} />
+        </button>
       </div>
 
       {/* ── Mobile info strip ── */}
@@ -584,7 +776,10 @@ export default function OrderPage({
           </span>
         )}
         <span
+          aria-label={sseConnected ? "Živé aktualizace aktivní" : "Připojování k živým aktualizacím…"}
+          aria-live="polite"
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
+          role="img"
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
         {!isSent && !isPastCutoff && countdown && (
@@ -602,15 +797,25 @@ export default function OrderPage({
             <MIcon name="check_circle" size={12} fill /> Odesláno
           </span>
         )}
+        {pushState !== "unsupported" && pushState !== "denied" && (
+          <button
+            onClick={handlePushToggle}
+            title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
+            className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
+            type="button"
+          >
+            <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
+          </button>
+        )}
         {isAdmin && !isSent && !isFutureDay && !noMenu && (
           <button
-            className="shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
+            className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
             disabled={isPending}
             onClick={() => setShowSendConfirm(true)}
             style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             type="button"
           >
-            {isPending ? "…" : "Odeslat"}
+            {isPending ? "Odesílám…" : "Odeslat"}
           </button>
         )}
         {isFutureDay && !isSent && !noMenu && (
@@ -619,11 +824,25 @@ export default function OrderPage({
             Auto
           </span>
         )}
+        <button
+          aria-label="Nápověda"
+          className="ml-auto w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
+          onClick={() => setShowHelp(true)}
+          type="button"
+        >
+          <MIcon name="info" size={17} />
+        </button>
       </div>
+      {sendError && (
+        <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
+          <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
+          {sendError}
+        </div>
+      )}
 
       {/* ── Scrollable main content ── */}
       <main className="flex-1 overflow-y-auto scroll-area p-4">
-        <div className="flex flex-col gap-4 pb-20">
+        <div className="flex flex-col gap-4 pb-28 md:pb-6">
 
           {showDayPicker && (
             <DayPickerScroll>
@@ -632,7 +851,7 @@ export default function OrderPage({
                 return (
                   <button
                     key={date}
-                    className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                    className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                       isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                     }`}
                     onClick={() => router.push(`/?date=${date}`)}
@@ -738,7 +957,7 @@ export default function OrderPage({
                     isSent={isSent}
                     key={dept.name}
                     meals={allMeals}
-                    onAddRow={() => handleAddRow(dept.name)}
+                    onAddRow={handleAddRow}
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
                     soups={allSoups}
@@ -772,7 +991,7 @@ export default function OrderPage({
                   ) : (
                     <>
                       <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávku po uzávěrce odešle správce.</span>
+                      <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
                     </>
                   )}
                 </div>
@@ -796,6 +1015,7 @@ export default function OrderPage({
       </main>
 
       {/* ── Modals ── */}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showSendConfirm && (
         <ConfirmModal
           confirmLabel="Odeslat"
@@ -820,8 +1040,9 @@ export default function OrderPage({
       {clearConfirm && (
         <ConfirmModal
           confirmLabel="Smazat"
+          confirmVariant="danger"
           isPending={isPending}
-          message="Celá dnešní objednávka bude vymazána. Tuto akci nelze vrátit."
+          message="Celá objednávka bude vymazána. Tuto akci nelze vrátit."
           onClose={() => setClearConfirm(false)}
           onConfirm={handleClear}
           title="Smazat objednávku"

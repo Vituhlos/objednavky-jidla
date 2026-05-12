@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
+import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -61,7 +62,7 @@ interface Props {
   isAdmin?: boolean;
   isDefault?: boolean;
   currentUserName?: string;
-  onAddRow: () => Promise<number>;
+  onAddRow: (department: Department) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
   onDeleteRow: (rowId: number) => void;
 }
@@ -69,9 +70,13 @@ interface Props {
 // ── Department colors (matches template) ─────────────────
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
-  blue:  { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
-  rust:  { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
-  green: { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
+  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
+  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#F59E0B", grad: "linear-gradient(135deg,#fcd34d,#F59E0B)" },
+  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
+  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
+  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
@@ -118,11 +123,17 @@ function OrderEditModal({
   initialPersonName?: string;
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
-  const [personName, setPersonName] = useState(() => {
-    if (row.personName) return row.personName;
-    if (isNew && initialPersonName) return initialPersonName;
-    try { return localStorage.getItem("lastPersonName") ?? ""; } catch { return ""; }
+  const [firstName, setFirstName] = useState(() => {
+    if (row.personName) return row.personName.trim().split(/\s+/)[0] ?? "";
+    if (isNew && initialPersonName) return initialPersonName.trim().split(/\s+/)[0] ?? "";
+    try { return localStorage.getItem("lastFirstName") ?? ""; } catch { return ""; }
   });
+  const [lastName, setLastName] = useState(() => {
+    if (row.personName) return row.personName.trim().split(/\s+/).slice(1).join(" ");
+    if (isNew && initialPersonName) return initialPersonName.trim().split(/\s+/).slice(1).join(" ");
+    try { return localStorage.getItem("lastLastName") ?? ""; } catch { return ""; }
+  });
+  const personName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
   const [soupIds, setSoupIds] = useState<(number | null)[]>(
     row.soupItemId2 != null ? [row.soupItemId, row.soupItemId2] : [row.soupItemId]
   );
@@ -139,42 +150,71 @@ function OrderEditModal({
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ startY: number; currentY: number } | null>(null);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
+  const handleCancelRef = useRef(handleCancel);
+  useEffect(() => { handleCancelRef.current = handleCancel; });
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const body = sheetRef.current?.querySelector(".modal-sheet__body") as HTMLElement | null;
+    if (body && body.scrollTop > 0) return;
+    dragState.current = { startY: e.touches[0].clientY, currentY: 0 };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!dragState.current || !sheetRef.current) return;
+    const delta = e.touches[0].clientY - dragState.current.startY;
+    if (delta <= 0) { dragState.current = null; sheetRef.current.style.transform = ""; return; }
+    dragState.current.currentY = delta;
+    sheetRef.current.style.transition = "none";
+    sheetRef.current.style.transform = `translateY(${delta}px)`;
+  };
+
+  const handleTouchEnd = () => {
+    if (!dragState.current || !sheetRef.current) return;
+    const { currentY } = dragState.current;
+    dragState.current = null;
+    if (currentY > 80) {
+      sheetRef.current.style.transition = "transform 0.25s ease-in";
+      sheetRef.current.style.transform = "translateY(110%)";
+      setTimeout(() => handleCancelRef.current(), 220);
+    } else {
+      sheetRef.current.style.transition = "transform 0.3s cubic-bezier(.2,.8,.2,1)";
+      sheetRef.current.style.transform = "";
+    }
+  };
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancel(); };
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelRef.current(); };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew]);
-
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
   }, []);
+
+  // body má overflow:hidden globálně — žádný scroll lock nutný
 
   const hasFood =
     soupIds.some((id) => id != null) ||
     mealEntries.some((e) => e.itemId != null) ||
     rollCount > 0 || breadDumplingCount > 0 || potatoDumplingCount > 0;
 
+  const normalizeName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
   const isDuplicateName =
     personName.trim() !== "" &&
-    personName.trim().toLowerCase() !== row.personName.trim().toLowerCase() &&
-    existingNames.some((n) => n.toLowerCase() === personName.trim().toLowerCase());
+    normalizeName(personName) !== normalizeName(row.personName) &&
+    existingNames.some((n) => normalizeName(n) === normalizeName(personName));
 
   const handleSave = () => {
-    if (!personName.trim()) {
-      setValidationError("Zadejte jméno osoby.");
+    if (!firstName.trim()) {
+      setValidationError("Zadejte křestní jméno.");
+      return;
+    }
+    if (!lastName.trim()) {
+      setValidationError("Zadejte příjmení.");
       return;
     }
     if (!hasFood) {
@@ -186,7 +226,7 @@ function OrderEditModal({
       return;
     }
     setValidationError(null);
-    try { localStorage.setItem("lastPersonName", personName.trim()); } catch { /* */ }
+    try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
       .slice(1)
@@ -204,32 +244,66 @@ function OrderEditModal({
     });
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-modal-title"
+        onClick={(e) => e.stopPropagation()}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        onTouchStart={handleTouchStart}
+        ref={sheetRef}
+      >
+        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title">{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
+          <h3 className="modal-sheet__title" id="edit-modal-title">{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
           <button
             aria-label="Zavřít"
-            className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
             onClick={handleCancel}
             type="button"
           >×</button>
         </div>
         <div className="modal-sheet__body">
           <div className="modal-field">
-            <label className="modal-label" htmlFor="modal-name">Jméno</label>
-            <input
-              autoFocus
-              className="modal-input"
-              id="modal-name"
-              onChange={(e) => { setPersonName(e.target.value); setValidationError(null); }}
-              placeholder="Jméno a příjmení..."
-              type="text"
-              value={personName}
-            />
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div style={{ flex: 1 }}>
+                <label className="modal-label" htmlFor="modal-firstname">Jméno</label>
+                <input
+                  autoFocus
+                  autoComplete="given-name"
+                  className="modal-input"
+                  id="modal-firstname"
+                  onChange={(e) => { setFirstName(e.target.value); setValidationError(null); }}
+                  placeholder="Jan"
+                  type="text"
+                  value={firstName}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label className="modal-label" htmlFor="modal-lastname">Příjmení</label>
+                <input
+                  autoComplete="family-name"
+                  className="modal-input"
+                  id="modal-lastname"
+                  onChange={(e) => { setLastName(e.target.value); setValidationError(null); }}
+                  placeholder="Novák"
+                  type="text"
+                  value={lastName}
+                />
+              </div>
+            </div>
             {isDuplicateName && (
-              <p className="text-[11.5px] text-amber-700 mt-1">⚠ Toto jméno už v objednávce je.</p>
+              <div className="mt-1 px-3 py-2 rounded-xl text-[12px] text-amber-700 font-medium flex items-center gap-1.5"
+                style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                <MIcon name="warning" size={13} style={{ color: "#d97706", flexShrink: 0 }} />
+                Toto jméno už v objednávce je.
+              </div>
             )}
           </div>
 
@@ -262,7 +336,8 @@ function OrderEditModal({
           ))}
           {soupIds.length < 2 && (
             <button className="modal-add-second" onClick={() => setSoupIds((prev) => [...prev, null])} type="button">
-              + Přidat druhou polévku
+              <MIcon name="add" size={14} style={{ color: "#D97706" }} />
+              Přidat druhou polévku
             </button>
           )}
 
@@ -313,8 +388,14 @@ function OrderEditModal({
               </div>
             </div>
           ))}
+          {mealEntries.length === 1 && mealEntries[0].itemId !== null && (
+            <p className="text-[11.5px] text-stone-400 -mt-1">
+              Chceš víc jídel v jedné objednávce? Přidej je tlačítkem níže.
+            </p>
+          )}
           <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
-            + Přidat další jídlo
+            <MIcon name="add" size={14} style={{ color: "#D97706" }} />
+            Přidat další jídlo
           </button>
 
           <div className="modal-field">
@@ -341,7 +422,11 @@ function OrderEditModal({
           </div>
         </div>
         {validationError && (
-          <div className="px-4 pb-2 text-[12px] text-red-600 font-medium">{validationError}</div>
+          <div role="alert" className="mx-4 mb-2 px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
+            style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+            <MIcon name="warning" size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
+            {validationError}
+          </div>
         )}
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
@@ -357,7 +442,8 @@ function OrderEditModal({
           title="Smazat objednávku"
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -390,6 +476,9 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
     <div
       className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition ${canInteract ? "hover:bg-white/50 active:bg-white/50 cursor-pointer active:scale-[0.995]" : ""} ${!isEditable && !isSent ? "opacity-60" : ""}`}
       onClick={canInteract ? onEdit : undefined}
+      role={canInteract ? "button" : undefined}
+      tabIndex={canInteract ? 0 : undefined}
+      onKeyDown={canInteract ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(); } } : undefined}
     >
       {/* Avatar */}
       <span
@@ -402,16 +491,17 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
       {/* Body */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display font-semibold text-[13px] text-stone-900 leading-none">{row.personName || "—"}</span>
+          <span className="font-display font-semibold text-[14px] text-stone-900 leading-none">{row.personName || "—"}</span>
           {row.note && (
-            <span className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[120px] truncate" title={row.note}>
-              ✎ {row.note}
+            <span className="inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px]" title={row.note}>
+              <MIcon name="edit" size={11} style={{ flexShrink: 0 }} />
+              <span className="truncate min-w-0">{row.note}</span>
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
           {row.mainItem && (
-            <span className="text-[11.5px] text-stone-600 leading-snug">
+            <span className="text-[12.5px] text-stone-600 leading-snug">
               {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
               {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
               {row.mainItem.name}
@@ -419,7 +509,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
             </span>
           )}
           {row.extraMealItems.map((e, i) => (
-            <span key={i} className="text-[11.5px] text-stone-600 leading-snug">
+            <span key={i} className="text-[12.5px] text-stone-600 leading-snug">
               <span className="text-stone-300 mx-0.5">+</span>
               {e.count > 1 ? `${e.count}× ` : ""}
               {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
@@ -431,7 +521,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
             <span className="text-stone-300 text-[11px]">·</span>
           )}
           {row.soupItem && (
-            <span className="text-[11.5px] text-stone-500 leading-snug">
+            <span className="text-[12.5px] text-stone-500 leading-snug">
               {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
               {row.soupItem.name}
               {row.soupItem.allergens && <AllergenBadges allergens={row.soupItem.allergens} />}
@@ -439,13 +529,13 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
           )}
           {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
           {row.soupItem2 && (
-            <span className="text-[11.5px] text-stone-500 leading-snug">
+            <span className="text-[12.5px] text-stone-500 leading-snug">
               {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
               {row.soupItem2.name}
               {row.soupItem2.allergens && <AllergenBadges allergens={row.soupItem2.allergens} />}
             </span>
           )}
-          {!row.mainItem && !row.soupItem && <span className="text-[11.5px] text-stone-400">—</span>}
+          {!row.mainItem && !row.soupItem && <span className="text-[12.5px] text-stone-400">—</span>}
           {chips.map((c) => (
             <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-stone-500">{c}</span>
           ))}
@@ -463,7 +553,7 @@ function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
           type="button"
           aria-label="Smazat"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="shrink-0 w-9 h-9 md:w-7 md:h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
+          className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
         >
           <MIcon name="close" size={15} />
         </button>
@@ -486,7 +576,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-export function DepartmentPanel({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, currentUserId, isAdmin = false, isDefault = false, currentUserName, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, currentUserId, isAdmin = false, isDefault = false, currentUserName, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -501,7 +591,7 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
     setIsAdding(true);
     setAddError(null);
     try {
-      const rowId = await onAddRow();
+      const rowId = await onAddRow(data.name);
       setModalState({ rowId, isNew: true });
     } catch {
       setAddError("Nepodařilo se přidat řádek.");
@@ -527,8 +617,14 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
               {isDefault && <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#D97706" }}>moje</span>}
             </div>
             <div className="text-[11.5px] text-stone-500 mt-0.5">
-              {activeRows.length} {pluralOrders(activeRows.length)}
-              {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
+              {activeRows.length > 0 ? (
+                <>
+                  {activeRows.length} {pluralOrders(activeRows.length)}
+                  {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
+                </>
+              ) : (
+                <span className="text-stone-400">Zatím prázdné</span>
+              )}
             </div>
           </div>
           {!isSent && (currentUserId !== undefined || isAdmin) && (
@@ -539,14 +635,19 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             >
-              <MIcon name="add" size={14} />
-              {isAdding ? "…" : "Přidat"}
+              {isAdding
+                ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />
+                : <MIcon name="add" size={14} />}
+              {isAdding ? "Přidávám" : "Přidat"}
             </button>
           )}
         </div>
 
         {addError && (
-          <div className="px-4 py-2 text-[12px] text-red-600">{addError}</div>
+          <div role="alert" className="px-4 py-2 flex items-center gap-1.5 text-[12px] text-red-600">
+            <MIcon name="warning" size={13} style={{ flexShrink: 0, color: "#dc2626" }} />
+            {addError}
+          </div>
         )}
 
         {/* Rows */}
@@ -632,3 +733,5 @@ export function DepartmentPanel({ data, soups, meals, isSent, existingNames = []
     </>
   );
 }
+
+export const DepartmentPanel = memo(DepartmentPanelInner);

@@ -1,15 +1,27 @@
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
+const SENSITIVE_KEYS = new Set(["smtpPass", "imapPass", "settingsPin", "vapidPrivateKey"]);
+
+export function GET(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`backup:${ip}`, 5, 3600_000)) {
+    return new Response("Příliš mnoho požadavků. Zkuste to za hodinu.", { status: 429 });
+  }
+
   const db = getDb();
   const orders = db.prepare("SELECT * FROM orders ORDER BY date DESC").all();
   const orderRows = db.prepare("SELECT * FROM order_rows").all();
   const menuItems = db.prepare("SELECT * FROM menu_items").all();
   const departments = db.prepare("SELECT * FROM departments ORDER BY sort_order").all();
-  const settings = getSettings();
+  const allSettings = getSettings();
+  const settings = Object.fromEntries(
+    Object.entries(allSettings).filter(([k]) => !SENSITIVE_KEYS.has(k))
+  );
 
   const payload = JSON.stringify(
     { exported_at: new Date().toISOString(), orders, order_rows: orderRows, menu_items: menuItems, departments, settings },

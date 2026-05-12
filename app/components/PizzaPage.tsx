@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
@@ -11,7 +11,6 @@ import {
   actionDeletePizzaRow,
   actionUpdatePizzaPrices,
 } from "@/app/actions";
-import { ConfirmModal } from "./ConfirmModal";
 
 function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] {
   return rows.map((r) => {
@@ -20,14 +19,21 @@ function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] 
   });
 }
 
+type PizzaPendingDelete = { rowId: number; rowData: PizzaOrderRow };
+
 export default function PizzaPage({ initialData, isAdmin }: { initialData: PizzaOrderData; isAdmin: boolean }) {
   const [rows, setRows] = useState(initialData.rows);
   const [pizzaItems, setPizzaItems] = useState(initialData.pizzaItems);
   const [orderId] = useState(initialData.order.id);
   const [isPending, startTransition] = useTransition();
+  const [isAddingRow, setIsAddingRow] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [scrapeStatus, setScrapeStatus] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
+  const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
+  const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totals = computePizzaTotals(rows);
   const totalCount = rows.reduce((s, r) => s + r.count, 0);
@@ -40,10 +46,29 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
     }
   }
 
+  const commitDelete = useCallback((rowId: number) => {
+    pendingDeleteTimer.current = null;
+    actionDeletePizzaRow(rowId).catch(() => {});
+    setPendingDelete(null);
+    pendingDeleteRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
+      if (scrapeStatusTimer.current) clearTimeout(scrapeStatusTimer.current);
+    };
+  }, []);
+
   const handleAddRow = useCallback(() => {
+    setIsAddingRow(true);
     startTransition(async () => {
-      const newRow = await actionAddPizzaRow(orderId);
-      setRows((prev) => recalcRows([...prev, newRow], pizzaItems));
+      try {
+        const newRow = await actionAddPizzaRow(orderId);
+        setRows((prev) => recalcRows([...prev, newRow], pizzaItems));
+      } finally {
+        setIsAddingRow(false);
+      }
     });
   }, [orderId, pizzaItems]);
 
@@ -59,11 +84,31 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
   );
 
   const handleDeleteRow = useCallback((rowId: number) => {
-    startTransition(async () => {
-      await actionDeletePizzaRow(rowId);
-      setRows((prev) => prev.filter((r) => r.id !== rowId));
+    if (pendingDeleteTimer.current && pendingDeleteRef.current) {
+      clearTimeout(pendingDeleteTimer.current);
+      commitDelete(pendingDeleteRef.current.rowId);
+    }
+    let rowData: PizzaOrderRow | undefined;
+    setRows((prev) => {
+      rowData = prev.find((r) => r.id === rowId);
+      return prev.filter((r) => r.id !== rowId);
     });
-  }, []);
+    if (!rowData) { actionDeletePizzaRow(rowId).catch(() => {}); return; }
+    const info: PizzaPendingDelete = { rowId, rowData };
+    pendingDeleteRef.current = info;
+    setPendingDelete(info);
+    pendingDeleteTimer.current = setTimeout(() => commitDelete(rowId), 5000);
+  }, [commitDelete]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!pendingDeleteTimer.current || !pendingDeleteRef.current) return;
+    clearTimeout(pendingDeleteTimer.current);
+    pendingDeleteTimer.current = null;
+    const { rowData } = pendingDeleteRef.current;
+    pendingDeleteRef.current = null;
+    setRows((prev) => recalcRows([...prev, rowData].sort((a, b) => a.sortOrder - b.sortOrder), pizzaItems));
+    setPendingDelete(null);
+  }, [pizzaItems]);
 
   const handleScrape = () => {
     setScrapeError(null);
@@ -84,11 +129,12 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
           setScrapeStatus(null);
           return;
         }
-        const items = json.items!;
-        await actionUpdatePizzaPrices(items);
-        setPizzaItems(items.map((it, idx) => ({ id: idx + 1, ...it })));
-        setRows((prev) => recalcRows(prev, items.map((it, idx) => ({ id: idx + 1, ...it }))));
-        setScrapeStatus(`Ceník aktualizován – ${items.length} pizz načteno.`);
+        const saved = await actionUpdatePizzaPrices(json.items!);
+        setPizzaItems(saved);
+        setRows((prev) => recalcRows(prev, saved));
+        if (scrapeStatusTimer.current) clearTimeout(scrapeStatusTimer.current);
+        setScrapeStatus(`Ceník aktualizován – ${saved.length} pizz načteno.`);
+        scrapeStatusTimer.current = setTimeout(() => setScrapeStatus(null), 5000);
       } catch (e) {
         setScrapeError(`Nepodařilo se načíst ceník: ${e instanceof Error ? e.message : "neznámá chyba"}`);
         setScrapeStatus(null);
@@ -98,6 +144,12 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
 
   return (
     <div className="k-shell">
+      {pendingDelete && (
+        <div aria-live="polite" role="status" className="k-toast">
+          <span>Řádek smazán</span>
+          <button className="k-toast__undo" onClick={handleUndoDelete} type="button">Zpět</button>
+        </div>
+      )}
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
@@ -153,7 +205,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
       {pizzaItems.length === 0 && (
         <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
           <strong>Ceník není načten.</strong>{" "}
-          Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
+          Klikněte na „Aktualizovat ceník&quot; pro načtení aktuálního ceníku z webu.
         </div>
       )}
 
@@ -171,11 +223,14 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
               <button
                 className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
                 style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-                disabled={isPending}
+                disabled={isAddingRow || isPending}
                 onClick={handleAddRow}
                 type="button"
               >
-                <MIcon name="add" size={13} /> Přidat
+                {isAddingRow
+                  ? <MIcon name="refresh" size={13} style={{ animation: "k-spin 0.8s linear infinite" }} />
+                  : <MIcon name="add" size={13} />}
+                {isAddingRow ? "Přidávám" : "Přidat"}
               </button>
             )}
           </div>
@@ -184,7 +239,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
             <div className="flex flex-col items-center gap-2 px-4 py-8 text-stone-400">
               <MIcon name="local_pizza" size={32} fill />
               <p className="text-[13px]">Zatím nikdo neobjednal</p>
-              <p className="text-[11.5px]">Přidej první osobu tlačítkem výše</p>
+              <p className="text-[12px]">Přidejte první osobu tlačítkem výše</p>
             </div>
           ) : (
             <>
@@ -202,21 +257,13 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
                   idx={idx}
                   isPending={isPending}
                   key={row.id}
-                  onDelete={(id) => setDeleteConfirmId(id)}
+                  onDelete={handleDeleteRow}
                   onUpdate={handleUpdateRow}
                   pizzaItems={pizzaItems}
                   pricePerPizza={totals.pricePerPizza}
                   row={row}
                 />
               ))}
-              {deleteConfirmId !== null && (
-                <ConfirmModal
-                  message="Tento řádek objednávky pizzy bude odstraněn."
-                  onClose={() => setDeleteConfirmId(null)}
-                  onConfirm={() => { handleDeleteRow(deleteConfirmId); setDeleteConfirmId(null); }}
-                  title="Smazat řádek"
-                />
-              )}
             </>
           )}
         </section>
@@ -337,18 +384,19 @@ function PizzaRow({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <div className="flex items-center gap-1">
-            <button className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
+            <button aria-label="Snížit počet" className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
             <span className="stepper-count">{row.count}</span>
-            <button className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
+            <button aria-label="Zvýšit počet" className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
           </div>
           <span className="text-[11px] text-stone-500">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
           <button
-            className="w-6 h-6 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
+            aria-label="Smazat řádek"
+            className="w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
             disabled={isPending}
             onClick={() => onDelete(row.id)}
             type="button"
           >
-            <MIcon name="close" size={13} />
+            <MIcon name="close" size={16} />
           </button>
         </div>
       </div>
@@ -376,19 +424,20 @@ function PizzaRow({
           ))}
         </select>
         <div className="flex items-center gap-1 justify-center">
-          <button className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
+          <button aria-label="Snížit počet" className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
           <span className="stepper-count">{row.count}</span>
-          <button className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
+          <button aria-label="Zvýšit počet" className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
         </div>
         <span className="text-[12.5px] text-stone-500 text-right">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
         <span className="text-[12.5px] font-semibold text-stone-800 text-right">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : "–"}</span>
         <button
-          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100"
+          aria-label="Smazat řádek"
+          className="w-10 h-10 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 active:text-red-400 hover:bg-red-50/80 transition"
           disabled={isPending}
           onClick={() => onDelete(row.id)}
           type="button"
         >
-          <MIcon name="close" size={14} />
+          <MIcon name="close" size={15} />
         </button>
       </div>
     </div>

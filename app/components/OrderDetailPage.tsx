@@ -18,9 +18,17 @@ const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; gr
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
+const DAYS_CS = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
+
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
+}
+
+function formatDateWithDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dow = DAYS_CS[new Date(y, m - 1, d).getDay()];
+  return `${dow} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
 function formatSentAt(iso: string | null): string {
@@ -64,7 +72,7 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
   return (
     <div className="flex items-start gap-3 px-4 py-3 border-b border-white/30 last:border-0">
       <div
-        className="w-7 h-7 rounded-xl flex items-center justify-center text-white text-[10px] font-display font-bold shrink-0 mt-0.5"
+        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-display font-bold shrink-0 mt-0.5"
         style={{ background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
       >
         {getInitials(row.personName)}
@@ -122,109 +130,115 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
 
   const sent = order.status === "sent";
 
+  const activeDepts = departments.filter((dept) =>
+    dept.rows.some((r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0)
+  );
+  const isEmpty = activeDepts.length === 0;
+
+  const BackButton = ({ mobile }: { mobile?: boolean }) => (
+    <Link
+      href="/historie"
+      className={`inline-flex items-center gap-1 font-semibold rounded-lg transition hover:bg-black/5 ${mobile ? "text-[13px] text-stone-500 px-1.5 py-1 -ml-1" : "text-[12px] text-stone-500 px-2 py-1"}`}
+    >
+      <MIcon name="arrow_back" size={mobile ? 16 : 14} />
+      {!mobile && <span>Historie</span>}
+    </Link>
+  );
+
+  const StatusBadge = () => (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+    >
+      {sent ? "Odesláno" : "Koncept"}
+    </span>
+  );
+
+  const ReopenBtn = ({ small }: { small?: boolean }) => canReopen ? (
+    <button
+      className={`inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
+      disabled={pending}
+      onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
+      type="button"
+    >
+      {pending ? "…" : "Znovu otevřít"}
+    </button>
+  ) : null;
+
   return (
     <div className="k-shell">
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">← Historie</Link>
-        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDate(order.date)}</span>
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-          style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-        >
-          {sent ? "Odesláno" : "Koncept"}
-        </span>
+        <BackButton />
+        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDateWithDay(order.date)}</span>
+        <StatusBadge />
         {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-        {order.extraEmail && <span className="text-[12px] text-stone-500">Kopie: {order.extraEmail}</span>}
+        {order.extraEmail && <span className="text-[12px] text-stone-500 hidden lg:inline">Kopie: {order.extraEmail}</span>}
         <div className="ml-auto flex items-center gap-3">
           {totalPrice > 0 && (
             <span className="font-display font-bold text-[16px] text-stone-900">{totalPrice} Kč</span>
           )}
-          {canReopen && (
-            <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-full glass-btn text-stone-600"
-              disabled={pending}
-              onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
-              type="button"
-            >
-              {pending ? "…" : "Znovu otevřít"}
-            </button>
-          )}
+          <ReopenBtn />
         </div>
       </div>
 
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">←</Link>
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <BackButton mobile />
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">
-            Objednávka {formatDate(order.date)}
+            {formatDateWithDay(order.date)}
           </span>
           {totalPrice > 0 && (
             <span className="font-display font-bold text-[14px] text-stone-900">{totalPrice} Kč</span>
           )}
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-            style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-          >
-            {sent ? "Odesláno" : "Koncept"}
-          </span>
+          <StatusBadge />
           {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-          {canReopen && (
-            <button
-              className="ml-auto text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
-              disabled={pending}
-              onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
-              type="button"
-            >
-              {pending ? "…" : "Znovu otevřít"}
-            </button>
-          )}
+          <ReopenBtn small />
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
-        {departments.every((dept) =>
-          dept.rows.every((r) => !r.personName && !r.soupItem && !r.mainItem && r.rollCount === 0)
-        ) && (
-          <div className="glass rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
-            Objednávka neobsahuje žádné položky.
-          </div>
-        )}
-        {departments.map((dept) => {
-          const activeRows = dept.rows.filter(
-            (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
-          );
-          if (activeRows.length === 0) return null;
-          const dc = DEPT_COLORS[dept.accent] ?? DC_DEFAULT;
-          return (
-            <section
-              className="glass rounded-3xl overflow-hidden"
-              key={dept.name}
-              style={{ borderColor: dc.border }}
-            >
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
-                <div
-                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: `${dc.icon}22` }}
-                >
-                  <MIcon name="groups" size={14} fill style={{ color: dc.icon }} />
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
+        <div className="grid md:grid-cols-3 gap-4">
+          {isEmpty && (
+            <div className="glass rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
+              Objednávka neobsahuje žádné položky.
+            </div>
+          )}
+          {activeDepts.map((dept) => {
+            const activeRows = dept.rows.filter(
+              (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
+            );
+            const dc = DEPT_COLORS[dept.accent] ?? DC_DEFAULT;
+            return (
+              <section
+                className="glass rounded-3xl overflow-hidden"
+                key={dept.name}
+                style={{ borderColor: dc.border }}
+              >
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
+                  <div
+                    className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: `${dc.icon}22` }}
+                  >
+                    <MIcon name="groups" size={14} fill style={{ color: dc.icon }} />
+                  </div>
+                  <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
+                  <span className="text-[11px] text-stone-500">
+                    {activeRows.length} {pluralOrders(activeRows.length)}
+                    {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
+                  </span>
                 </div>
-                <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
-                <span className="text-[11px] text-stone-500">
-                  {activeRows.length} {pluralOrders(activeRows.length)}
-                  {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
-                </span>
-              </div>
-              {activeRows.map((row) => (
-                <ReadOnlyRow dc={dc} key={row.id} row={row} />
-              ))}
-            </section>
-          );
-        })}
+                {activeRows.map((row) => (
+                  <ReadOnlyRow dc={dc} key={row.id} row={row} />
+                ))}
+              </section>
+            );
+          })}
+        </div>
       </main>
     </div>
   );

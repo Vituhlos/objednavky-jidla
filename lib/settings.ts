@@ -29,6 +29,19 @@ export interface AppSettings {
   autoSendTime: string;
   autoSendDays: string;
   autoSendMinOrders: string;
+  imapEnabled: string;
+  imapHost: string;
+  imapPort: string;
+  imapUser: string;
+  imapPass: string;
+  imapSender: string;
+  imapCheckTime: string;
+  imapCheckDays: string;
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  pushReminderMinutes: string;
+  reminderEmailTo: string;
+  autoSendFailureEmail: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -55,6 +68,19 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   autoSendTime: "auto_send_time",
   autoSendDays: "auto_send_days",
   autoSendMinOrders: "auto_send_min_orders",
+  imapEnabled: "imap_enabled",
+  imapHost: "imap_host",
+  imapPort: "imap_port",
+  imapUser: "imap_user",
+  imapPass: "imap_pass",
+  imapSender: "imap_sender",
+  imapCheckTime: "imap_check_time",
+  imapCheckDays: "imap_check_days",
+  vapidPublicKey: "vapid_public_key",
+  vapidPrivateKey: "vapid_private_key",
+  pushReminderMinutes: "push_reminder_minutes",
+  reminderEmailTo: "reminder_email_to",
+  autoSendFailureEmail: "auto_send_failure_email",
 };
 
 function envDefaults(): AppSettings {
@@ -83,6 +109,19 @@ function envDefaults(): AppSettings {
     autoSendTime: "08:00",
     autoSendDays: "Po,Út,St,Čt,Pá",
     autoSendMinOrders: "1",
+    imapEnabled: "false",
+    imapHost: "imap.gmail.com",
+    imapPort: "993",
+    imapUser: "",
+    imapPass: "",
+    imapSender: "",
+    imapCheckTime: "07:00",
+    imapCheckDays: "Po,Út,St,Čt,Pá",
+    vapidPublicKey: "",
+    vapidPrivateKey: "",
+    pushReminderMinutes: "20",
+    reminderEmailTo: "",
+    autoSendFailureEmail: "",
   };
 }
 

@@ -6,9 +6,12 @@ import { PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
 import type { PizzaTotals } from "@/lib/pizza-utils";
 
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
+const DAYS_CS = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
+
+function formatDateWithDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dow = DAYS_CS[new Date(y, m - 1, d).getDay()];
+  return `${dow} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
 }
 
 function formatSentAt(iso: string | null): string {
@@ -56,6 +59,25 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
   const pricePerPizza = totals.pricePerPizza;
   const sent = order.status === "sent";
 
+  const BackButton = ({ mobile }: { mobile?: boolean }) => (
+    <Link
+      href="/historie"
+      className={`inline-flex items-center gap-1 font-semibold rounded-lg transition hover:bg-black/5 ${mobile ? "text-[13px] text-stone-500 px-1.5 py-1 -ml-1" : "text-[12px] text-stone-500 px-2 py-1"}`}
+    >
+      <MIcon name="arrow_back" size={mobile ? 16 : 14} />
+      {!mobile && <span>Historie</span>}
+    </Link>
+  );
+
+  const StatusBadge = () => (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+    >
+      {sent ? "Odesláno" : "Koncept"}
+    </span>
+  );
+
   const pizzaCounts = new Map<string, number>();
   for (const r of rows) {
     if (r.pizzaItem) {
@@ -69,14 +91,9 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">← Historie</Link>
-        <span className="font-display font-bold text-[15px] text-stone-900">Pizza {formatDate(order.date)}</span>
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-          style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-        >
-          {sent ? "Odesláno" : "Koncept"}
-        </span>
+        <BackButton />
+        <span className="font-display font-bold text-[15px] text-stone-900">Pizza {formatDateWithDay(order.date)}</span>
+        <StatusBadge />
         {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         {totalCount > 0 && (
           <span className="ml-auto font-display font-bold text-[16px] text-stone-900">{totals.finalTotal} Kč</span>
@@ -85,25 +102,20 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
 
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <Link className="text-[12px] text-stone-400 hover:text-stone-600 transition" href="/historie">←</Link>
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza {formatDate(order.date)}</span>
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <BackButton mobile />
+          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza {formatDateWithDay(order.date)}</span>
           {totalCount > 0 && (
             <span className="font-display font-bold text-[14px] text-stone-900">{totals.finalTotal} Kč</span>
           )}
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-            style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-          >
-            {sent ? "Odesláno" : "Koncept"}
-          </span>
+          <StatusBadge />
           {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8 max-w-2xl mx-auto w-full">
         {/* Order rows */}
         <section className="glass rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>

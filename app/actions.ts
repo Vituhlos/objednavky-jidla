@@ -28,6 +28,9 @@ import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/auth";
+import { checkImapForMenu } from "@/lib/imap";
+import type { ImapCheckResult } from "@/lib/imap";
+import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
 import { broadcast } from "@/lib/sse-broadcast";
 import {
   getDepartments,
@@ -52,11 +55,12 @@ async function requireAdmin() {
 
 export async function actionAddRow(
   orderId: number,
-  department: Department
+  department: Department,
+  pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Pro přidání objednávky se musíte přihlásit.");
-  const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`);
+  const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`, pushEndpoint);
   revalidatePath("/");
   broadcast();
   return row;
@@ -78,10 +82,11 @@ export async function actionUpdateRow(
     tatarkaCount: number;
     bbqCount: number;
     note: string;
-  }>
+  }>,
+  pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
   const user = await requireAuth();
-  const row = updateOrderRow(rowId, updates, user.id, user.role === "admin");
+  const row = updateOrderRow(rowId, updates, user.id, user.role === "admin", pushEndpoint);
   broadcast();
   return row;
 }
@@ -184,10 +189,11 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
-): Promise<void> {
+): Promise<{ id: number; code: number; name: string; price: number }[]> {
   await requireAdmin();
-  replacePizzaItems(items);
+  const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
+  return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
@@ -448,5 +454,16 @@ export async function actionAdminSendPasswordReset(userId: number): Promise<void
   const proto = h.get("x-forwarded-proto") ?? "http";
   const resetUrl = `${proto}://${host}/reset-hesla?token=${token}`;
   await sendPasswordResetEmail(user.email, resetUrl, user.first_name);
+}
+
+export async function actionCheckImap(): Promise<ImapCheckResult> {
+  return checkImapForMenu();
+}
+
+export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
+  const subs = getAllSubscriptions();
+  if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
+  await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
+  return { sent: subs.length };
 }
 

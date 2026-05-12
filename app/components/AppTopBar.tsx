@@ -29,7 +29,7 @@ function SidebarClock() {
 
   return (
     <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Dnes</div>
+      <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Dnes</div>
       <div className="font-display font-bold text-[15px] text-stone-900">{timeStr}</div>
       <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
     </div>
@@ -188,7 +188,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
       />
 
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden fixed bottom-2 left-2 right-2 z-40">
+      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
           {mobileNav.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
@@ -206,7 +206,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
                   fill={isActive}
                   style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
                 />
-                <span className={`text-[9.5px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
+                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
                   {shortLabel}
                 </span>
                 {isActive && (
