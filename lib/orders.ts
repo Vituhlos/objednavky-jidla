@@ -1,6 +1,6 @@
 import { getDb } from "./db";
 import { buildOrderEmail } from "./order-email";
-import { buildDepartmentPdfAttachment } from "./order-pdf";
+import { buildOrderPdfAttachment } from "./order-pdf";
 import { computeRowPrice, type ExtrasPrices } from "./pricing";
 import { getOrderRecipients, sendEmail, sendOrderConfirmationEmail } from "./email";
 import { getSettings } from "./settings";
@@ -416,11 +416,7 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     ...orderData,
     order: { ...orderData.order, extraEmail: normalizedExtraEmail },
   });
-  const attachments = await Promise.all(
-    activeDepartments.map((department) =>
-      buildDepartmentPdfAttachment(department, orderData.order.date)
-    )
-  );
+  const attachments = [await buildOrderPdfAttachment(orderData)];
 
   // Atomic claim: only one concurrent caller wins — the one whose UPDATE touches a row.
   // WHERE status = 'draft' ensures a second caller (or retry) gets changes = 0 and throws.
@@ -548,9 +544,7 @@ export async function resendOrderEmail(orderId: number): Promise<void> {
   if (activeDepartments.length === 0) throw new Error("Objednávka neobsahuje žádná data k odeslání.");
   const recipients = getOrderRecipients(normalizedExtraEmail);
   const email = buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail: normalizedExtraEmail } });
-  const attachments = await Promise.all(
-    activeDepartments.map((dept) => buildDepartmentPdfAttachment(dept, orderData.order.date))
-  );
+  const attachments = [await buildOrderPdfAttachment(orderData)];
   await sendEmail({ to: recipients, subject: email.subject, html: email.html, text: email.text, attachments });
   logAudit({ action: "order_send", orderId, details: "Znovu odesláno" });
 }

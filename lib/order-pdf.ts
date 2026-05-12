@@ -4,7 +4,7 @@ import path from "path";
 const FONT = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans.ttf");
 const FONT_BOLD = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Bold.ttf");
 import { PassThrough } from "stream";
-import { type DepartmentData, type OrderRowEnriched } from "./types";
+import { type DepartmentData, type OrderData, type OrderRowEnriched } from "./types";
 import { getSubmittedRows } from "./order-utils";
 
 async function pdfToBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
@@ -145,6 +145,221 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
   }
 
   return y;
+}
+
+interface SummaryRow {
+  personName: string;
+  item: string;
+  count: string;
+  details: string;
+}
+
+interface SummaryColDef {
+  header: string;
+  width: number;
+  align: "left" | "center" | "right";
+  value: (row: SummaryRow, idx: number) => string;
+}
+
+const SUMMARY_COL_DEFS: SummaryColDef[] = [
+  { header: "#", width: 24, align: "center", value: (_, i) => String(i + 1) },
+  { header: "Jméno", width: 130, align: "left", value: (r) => r.personName || "–" },
+  { header: "Položka", width: 350, align: "left", value: (r) => r.item },
+  { header: "Počet", width: 55, align: "center", value: (r) => r.count },
+  { header: "Poznámka / přílohy", width: 210.89, align: "left", value: (r) => r.details },
+];
+
+function itemLabel(code: string | number | null | undefined, name: string): string {
+  return code ? `${code}  ${name}` : name;
+}
+
+function rowDetails(row: OrderRowEnriched): string {
+  return [extraCell(row), row.note].filter(Boolean).join("\n");
+}
+
+function toSummaryRows(row: OrderRowEnriched): SummaryRow[] {
+  const rows: SummaryRow[] = [];
+  const details = rowDetails(row);
+  let detailsUsed = false;
+  const add = (item: string, count: number | string) => {
+    rows.push({
+      personName: row.personName || "–",
+      item,
+      count: String(count),
+      details: detailsUsed ? "" : details,
+    });
+    detailsUsed = true;
+  };
+
+  if (row.soupItem) add(`Polévka ${itemLabel(row.soupItem.code, row.soupItem.name)}`, 1);
+  if (row.soupItem2) add(`Polévka ${itemLabel(row.soupItem2.code, row.soupItem2.name)}`, 1);
+  if (row.mainItem) add(itemLabel(row.mainItem.code, row.mainItem.name), row.mealCount || 1);
+  for (const { item, count } of row.extraMealItems) {
+    add(itemLabel(item.code, item.name), count);
+  }
+
+  if (rows.length === 0 && details) {
+    rows.push({
+      personName: row.personName || "–",
+      item: "Přílohy / poznámka",
+      count: "",
+      details,
+    });
+  }
+
+  return rows;
+}
+
+function calcSummaryRowHeight(doc: PDFKit.PDFDocument, row: SummaryRow, idx: number): number {
+  doc.font(FONT).fontSize(FONT_BODY);
+  let maxH = 0;
+  for (const col of SUMMARY_COL_DEFS) {
+    const text = col.value(row, idx);
+    const h = doc.heightOfString(text, { width: col.width - 6 });
+    if (h > maxH) maxH = h;
+  }
+  return Math.max(maxH + ROW_PAD, 20);
+}
+
+function drawSummaryHeader(doc: PDFKit.PDFDocument, y: number): number {
+  doc.rect(TABLE_X, y, TABLE_W, HEADER_H).fill("#2F4858");
+  let x = TABLE_X;
+  doc.font(FONT_BOLD).fontSize(FONT_HEADER).fillColor("#F5F1E8");
+  for (const col of SUMMARY_COL_DEFS) {
+    doc.text(col.header, x + 3, y + 8, { width: col.width - 6, align: col.align, lineBreak: false });
+    x += col.width;
+  }
+
+  doc.strokeColor("#C0B8A8").lineWidth(0.5);
+  doc.rect(TABLE_X, y, TABLE_W, HEADER_H).stroke();
+  let lineX = TABLE_X;
+  for (const col of SUMMARY_COL_DEFS) {
+    lineX += col.width;
+    if (lineX < TABLE_X + TABLE_W) {
+      doc.moveTo(lineX, y).lineTo(lineX, y + HEADER_H).stroke();
+    }
+  }
+
+  return y + HEADER_H;
+}
+
+function drawSummaryRow(doc: PDFKit.PDFDocument, row: SummaryRow, idx: number, y: number): number {
+  const rh = calcSummaryRowHeight(doc, row, idx);
+  const bg = idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8";
+  doc.rect(TABLE_X, y, TABLE_W, rh).fill(bg);
+
+  let x = TABLE_X;
+  doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A");
+  for (const col of SUMMARY_COL_DEFS) {
+    doc.text(col.value(row, idx), x + 3, y + 5, { width: col.width - 6, align: col.align });
+    x += col.width;
+  }
+
+  doc.strokeColor("#C0B8A8").lineWidth(0.5);
+  doc.rect(TABLE_X, y, TABLE_W, rh).stroke();
+  let lineX = TABLE_X;
+  for (const col of SUMMARY_COL_DEFS) {
+    lineX += col.width;
+    if (lineX < TABLE_X + TABLE_W) {
+      doc.moveTo(lineX, y).lineTo(lineX, y + rh).stroke();
+    }
+  }
+
+  return y + rh;
+}
+
+function ensureSpace(doc: PDFKit.PDFDocument, y: number, needed: number): number {
+  if (y + needed <= PAGE_H - MARGIN - 18) return y;
+  doc.addPage();
+  return MARGIN;
+}
+
+function drawSummarySection(
+  doc: PDFKit.PDFDocument,
+  department: DepartmentData,
+  startY: number
+): number {
+  const rows = getSubmittedRows(department.rows).flatMap(toSummaryRows);
+  if (rows.length === 0) return startY;
+
+  let y = ensureSpace(doc, startY, 56);
+  doc.font(FONT_BOLD).fontSize(13).fillColor("#B55233");
+  doc.text(department.emailLabel, MARGIN, y, { lineBreak: false });
+  y += 18;
+  y = drawSummaryHeader(doc, y);
+
+  rows.forEach((row, idx) => {
+    const rh = calcSummaryRowHeight(doc, row, idx);
+    if (y + rh > PAGE_H - MARGIN - 18) {
+      doc.addPage();
+      y = MARGIN;
+      doc.font(FONT_BOLD).fontSize(12).fillColor("#B55233");
+      doc.text(`${department.emailLabel} (pokračování)`, MARGIN, y, { lineBreak: false });
+      y += 17;
+      y = drawSummaryHeader(doc, y);
+    }
+    y = drawSummaryRow(doc, row, idx, y);
+  });
+
+  return y + 12;
+}
+
+export async function buildOrderPdfAttachment(
+  orderData: OrderData
+): Promise<{ filename: string; content: Buffer; contentType: string }> {
+  const activeDepartments = orderData.departments.filter((department) =>
+    getSubmittedRows(department.rows).length > 0
+  );
+
+  const doc = new PDFDocument({
+    size: [PAGE_W, PAGE_H],
+    margin: MARGIN,
+    info: {
+      Title: `Objednávka LIMA – ${formatDate(orderData.order.date)}`,
+      Author: "STROS – automat objednávek",
+    },
+  });
+
+  let y = MARGIN;
+
+  doc.font(FONT_BOLD).fontSize(16).fillColor("#2F4858");
+  doc.text("STROS – Sedlčanské strojírny, a.s.", MARGIN, y, { lineBreak: false });
+  y += 22;
+
+  doc.font(FONT_BOLD).fontSize(13).fillColor("#B55233");
+  doc.text("Objednávka LIMA – souhrn", MARGIN, y, { lineBreak: false });
+  y += 18;
+
+  doc.font(FONT).fontSize(10).fillColor("#30343A");
+  doc.text(`Datum: ${formatDate(orderData.order.date)}`, MARGIN, y, { lineBreak: false });
+  y += 18;
+
+  doc.strokeColor("#D8C3A5").lineWidth(1.5)
+    .moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+  y += 12;
+
+  if (activeDepartments.length === 0) {
+    doc.font(FONT).fontSize(11).fillColor("#888").text("Žádné aktivní řádky.", MARGIN, y);
+  } else {
+    for (const department of activeDepartments) {
+      y = drawSummarySection(doc, department, y);
+    }
+  }
+
+  doc.font(FONT).fontSize(8).fillColor("#888");
+  doc.text(
+    "Vygenerováno automaticky – automat objednávek STROS",
+    MARGIN,
+    PAGE_H - MARGIN - 10,
+    { lineBreak: false }
+  );
+
+  const content = await pdfToBuffer(doc);
+  return {
+    filename: `Objednavka_LIMA_${orderData.order.date}.pdf`,
+    content,
+    contentType: "application/pdf",
+  };
 }
 
 export async function buildDepartmentPdfAttachment(
