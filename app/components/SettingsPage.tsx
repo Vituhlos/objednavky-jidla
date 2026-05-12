@@ -1184,8 +1184,9 @@ export default function SettingsPage({
                                 style={{ padding: "4px 28px 4px 8px", borderRadius: 8 }}
                                 value={u.role}
                                 onChange={async (e) => {
-                                  await actionSetUserRole(u.id, e.target.value as "user" | "admin");
-                                  setUsers((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x) : prev);
+                                  const newRole = e.target.value as "user" | "admin";
+                                  await actionSetUserRole(u.id, newRole);
+                                  setUsers((prev) => prev ? prev.map((x) => x.id === u.id ? { ...x, role: newRole } : x) : prev);
                                 }}
                               >
                                 <option value="user">Uživatel</option>
