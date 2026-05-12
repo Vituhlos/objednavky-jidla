@@ -110,12 +110,23 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     .get();
   if (alreadySent) return;
 
-  // Double-check: ověř znovu po 100ms aby přechodný DB problém neodeslal planý mail
-  await new Promise((r) => setTimeout(r, 100));
-  const menuCheck = getMenuItemsForDay(dayCode);
-  if (menuCheck.soups.length > 0 || menuCheck.meals.length > 0) {
-    console.log(`[scheduler] Reminder zrušen — druhý check menu našel ${menuCheck.meals.length} jídel.`);
-    return;
+  // Jídelníček chybí a upozornění ještě neodešlo — pokud je IMAP zapnutý, zkus import TEĎHNED
+  // jako poslední šanci. Řeší případ kdy reminder vypaluje dřív než naplánovaný IMAP check
+  // (např. IMAP jen ve středu v 16:00, ale upozornění vypaluje ráno v 07:30 — e-mail by odešel
+  // zbytečně, přestože se e-mail s jídelníčkem teprve zpracuje).
+  if (s.imapEnabled === "true") {
+    console.log("[scheduler] Menu chybí — zkouším IMAP import před odesláním upozornění...");
+    const imapResult = await checkImapForMenu();
+    if (imapResult.found) {
+      console.log(`[scheduler] Reminder zrušen — IMAP importoval jídelníček (${imapResult.weekLabel}, ${imapResult.itemCount} položek).`);
+      return;
+    }
+    const menuAfterImap = getMenuItemsForDay(dayCode);
+    if (menuAfterImap.soups.length > 0 || menuAfterImap.meals.length > 0) {
+      console.log(`[scheduler] Reminder zrušen — menu nalezeno po IMAP kontrole (${menuAfterImap.meals.length} jídel).`);
+      return;
+    }
+    console.log(`[scheduler] IMAP nic nenašel${imapResult.error ? ": " + imapResult.error : ""} — upozornění odejde.`);
   }
 
   // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
