@@ -4,12 +4,12 @@ import type { AppSettings } from "./settings";
 import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
 import { getMenuItemsForDay, getMondayISO } from "./menu";
-import { sendEmail, getOrderRecipients } from "./email";
+import { sendEmail } from "./email";
 import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
-import { sendPushToAll, getAllSubscriptions, deleteSubscription } from "./push";
+import { getAllSubscriptions, deleteSubscription } from "./push";
 import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
