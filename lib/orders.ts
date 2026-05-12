@@ -1,11 +1,10 @@
 import { getDb } from "./db";
 import { buildOrderEmail } from "./order-email";
-import { buildDepartmentPdfAttachment } from "./order-pdf";
+import { buildOrderPdfAttachment } from "./order-pdf";
 import { computeRowPrice, type ExtrasPrices } from "./pricing";
 import { getOrderRecipients, sendEmail } from "./email";
 import { getSettings } from "./settings";
 import {
-  getMenuItemById,
   getMenuItemsByIds,
   getMenuItemsForDay,
   getTodayDayCode,
@@ -119,28 +118,18 @@ function enrichSingleRow(row: OrderRow, soupPrice: number, mealPrice: number, ep
 
 function getOrCreateOrderForDate(date: string): Order {
   const db = getDb();
-  let order = db.prepare("SELECT * FROM orders WHERE date = ?").get(date) as Record<string, unknown> | undefined;
-  if (!order) {
-    const result = db.prepare("INSERT INTO orders (date, status) VALUES (?, 'draft')").run(date);
-    order = db.prepare("SELECT * FROM orders WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>;
-  }
+  db.prepare("INSERT OR IGNORE INTO orders (date, status) VALUES (?, 'draft')").run(date);
+  const order = db.prepare("SELECT * FROM orders WHERE date = ?").get(date) as Record<string, unknown>;
   return mapOrder(order);
 }
 
 function getOrCreateTodayOrder(): Order {
   const db = getDb();
   const today = getPragueISODate();
-  let order = db
+  db.prepare("INSERT OR IGNORE INTO orders (date, status) VALUES (?, 'draft')").run(today);
+  const order = db
     .prepare("SELECT * FROM orders WHERE date = ?")
-    .get(today) as Record<string, unknown> | undefined;
-  if (!order) {
-    const result = db
-      .prepare("INSERT INTO orders (date, status) VALUES (?, 'draft')")
-      .run(today);
-    order = db
-      .prepare("SELECT * FROM orders WHERE id = ?")
-      .get(result.lastInsertRowid) as Record<string, unknown>;
-  }
+    .get(today) as Record<string, unknown>;
   return mapOrder(order);
 }
 
@@ -402,11 +391,7 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     ...orderData,
     order: { ...orderData.order, extraEmail: normalizedExtraEmail },
   });
-  const attachments = await Promise.all(
-    activeDepartments.map((department) =>
-      buildDepartmentPdfAttachment(department, orderData.order.date)
-    )
-  );
+  const attachments = [await buildOrderPdfAttachment(orderData)];
 
   // Atomic claim: only one concurrent caller wins — the one whose UPDATE touches a row.
   // WHERE status = 'draft' ensures a second caller (or retry) gets changes = 0 and throws.
@@ -492,9 +477,7 @@ export async function resendOrderEmail(orderId: number): Promise<void> {
   if (activeDepartments.length === 0) throw new Error("Objednávka neobsahuje žádná data k odeslání.");
   const recipients = getOrderRecipients(normalizedExtraEmail);
   const email = buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail: normalizedExtraEmail } });
-  const attachments = await Promise.all(
-    activeDepartments.map((dept) => buildDepartmentPdfAttachment(dept, orderData.order.date))
-  );
+  const attachments = [await buildOrderPdfAttachment(orderData)];
   await sendEmail({ to: recipients, subject: email.subject, html: email.html, text: email.text, attachments });
   logAudit({ action: "order_send", orderId, details: "Znovu odesláno" });
 }

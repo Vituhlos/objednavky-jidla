@@ -65,6 +65,7 @@ function mapRow(row: Record<string, unknown>): MenuItem {
     code: row.code as string,
     name: row.name as string,
     price: row.price as number,
+    allergens: (row.allergens as string | null) ?? "",
   };
 }
 
@@ -214,11 +215,11 @@ export function setMenuForWeek(
     db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
 
     const insert = db.prepare(
-      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
     for (const item of items) {
       const price = item.type === "Polévka" ? soupPrice : mealPrice;
-      insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price);
+      insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price, item.allergens ?? "");
     }
 
     // Re-link order rows: match by (day, code, name) — fall back to (day, code) first match
@@ -303,9 +304,9 @@ export function addMenuItem(item: {
     .get(ws) as { week_label: string | null } | undefined;
   const result = db
     .prepare(
-      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
-    .run(ws, labelRow?.week_label ?? null, item.day, item.type, item.code, item.name, item.price);
+    .run(ws, labelRow?.week_label ?? null, item.day, item.type, item.code, item.name, item.price, "");
   return mapRow(
     db.prepare("SELECT * FROM menu_items WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>
   );
@@ -313,10 +314,10 @@ export function addMenuItem(item: {
 
 export function updateMenuItem(
   id: number,
-  updates: Partial<{ code: string; name: string; price: number }>
+  updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): MenuItem {
   const db = getDb();
-  const fieldMap: Record<string, string> = { code: "code", name: "name", price: "price" };
+  const fieldMap: Record<string, string> = { code: "code", name: "name", price: "price", allergens: "allergens" };
   const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
   if (entries.length > 0) {
     const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");

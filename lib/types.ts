@@ -12,6 +12,7 @@ export interface MenuItem {
   code: string;
   name: string;
   price: number;
+  allergens: string;
 }
 
 export interface MealEntry {

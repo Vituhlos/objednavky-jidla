@@ -149,6 +149,7 @@ function migrate(db: Database.Database): void {
     );
   `);
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
+  try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
   // Performance indexes
   db.exec(`
