@@ -202,7 +202,7 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
-        <div className={`mx-auto ${activeDepts.length > 1 ? "grid grid-cols-1 md:grid-cols-2 gap-4 items-start" : "max-w-2xl space-y-4"}`}>
+        <div className="grid md:grid-cols-3 gap-4">
           {isEmpty && (
             <div className="glass rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
               Objednávka neobsahuje žádné položky.
