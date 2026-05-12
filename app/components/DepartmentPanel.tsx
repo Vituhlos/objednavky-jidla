@@ -118,9 +118,16 @@ function MenuSelect({
 
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
+    const close = (e: Event) => {
+      if (listRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
-    return () => window.removeEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
   }, [open]);
 
   useEffect(() => {
