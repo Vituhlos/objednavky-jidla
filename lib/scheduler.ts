@@ -129,12 +129,17 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     console.log(`[scheduler] IMAP nic nenašel${imapResult.error ? ": " + imapResult.error : ""} — upozornění odejde.`);
   }
 
+  const recipients = s.reminderEmailTo
+    ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
+    : [];
+  if (recipients.length === 0) {
+    console.warn("[scheduler] Upozornění na chybějící jídelníček NEODEŠLO — není nastaven 'E-mail pro upozornění' v Nastavení.");
+    return;
+  }
+
   // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
   logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
 
-  const recipients = s.reminderEmailTo
-    ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
-    : getOrderRecipients();
   await sendEmail({
     to: recipients,
     subject: "Chybí jídelníček LIMA",
