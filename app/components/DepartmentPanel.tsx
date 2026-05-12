@@ -183,9 +183,10 @@ function MenuSelect({
           ref={listRef} role="listbox"
           style={{
             position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
-            background: "rgba(252,249,245,0.98)", backdropFilter: "blur(32px) saturate(180%)",
-            border: "1px solid rgba(255,255,255,0.7)", borderRadius: 16,
-            boxShadow: "0 8px 40px -4px rgba(0,0,0,0.18), 0 2px 8px -2px rgba(0,0,0,0.1)", overflow: "hidden",
+            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
+            border: "1px solid rgba(255,255,255,0.68)", borderRadius: 16,
+            boxShadow: "0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08)",
+            overflow: "hidden",
           }}
         >
           <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
@@ -201,7 +202,7 @@ function MenuSelect({
                     display: "flex", alignItems: "baseline", gap: "0.5rem", width: "100%", textAlign: "left",
                     padding: "0.5rem 0.85rem", fontSize: "0.8rem", border: "none", cursor: "default",
                     background: hlIdx === idx ? "rgba(245,158,11,0.07)" : value === opt.id ? "rgba(245,158,11,0.04)" : "transparent",
-                    fontWeight: value === opt.id ? 600 : 400, color: "#292524",
+                    fontWeight: value === opt.id ? 600 : 400, color: "#1a1208",
                   }}
                   onMouseEnter={() => setHlIdx(idx)} onClick={() => select(opt.id)}
                 >
