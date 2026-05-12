@@ -121,28 +121,16 @@ function enrichSingleRow(row: OrderRow, soupPrice: number, mealPrice: number, ep
 
 function getOrCreateOrderForDate(date: string): Order {
   const db = getDb();
-  let order = db.prepare("SELECT * FROM orders WHERE date = ?").get(date) as Record<string, unknown> | undefined;
-  if (!order) {
-    const result = db.prepare("INSERT INTO orders (date, status) VALUES (?, 'draft')").run(date);
-    order = db.prepare("SELECT * FROM orders WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>;
-  }
+  db.prepare("INSERT OR IGNORE INTO orders (date, status) VALUES (?, 'draft')").run(date);
+  const order = db.prepare("SELECT * FROM orders WHERE date = ?").get(date) as Record<string, unknown>;
   return mapOrder(order);
 }
 
 function getOrCreateTodayOrder(): Order {
   const db = getDb();
   const today = getPragueISODate();
-  let order = db
-    .prepare("SELECT * FROM orders WHERE date = ?")
-    .get(today) as Record<string, unknown> | undefined;
-  if (!order) {
-    const result = db
-      .prepare("INSERT INTO orders (date, status) VALUES (?, 'draft')")
-      .run(today);
-    order = db
-      .prepare("SELECT * FROM orders WHERE id = ?")
-      .get(result.lastInsertRowid) as Record<string, unknown>;
-  }
+  db.prepare("INSERT OR IGNORE INTO orders (date, status) VALUES (?, 'draft')").run(today);
+  const order = db.prepare("SELECT * FROM orders WHERE date = ?").get(today) as Record<string, unknown>;
   return mapOrder(order);
 }
 
@@ -325,7 +313,7 @@ export function updateOrderRow(
   const db = getDb();
 
   const existing = db.prepare("SELECT user_id FROM order_rows WHERE id = ?").get(rowId) as { user_id: number | null } | undefined;
-  if (existing && existing.user_id !== null && !isAdmin && existing.user_id !== currentUserId) {
+  if (existing && !isAdmin && (existing.user_id === null || existing.user_id !== currentUserId)) {
     throw new Error("Nemáte oprávnění upravit tento řádek.");
   }
 
@@ -385,7 +373,7 @@ export function updateOrderRow(
 export function deleteOrderRow(rowId: number, currentUserId?: number, isAdmin?: boolean): void {
   const db = getDb();
   const row = db.prepare("SELECT order_id, department, person_name, user_id FROM order_rows WHERE id = ?").get(rowId) as Record<string, unknown> | undefined;
-  if (row && row.user_id !== null && !isAdmin && (row.user_id as number) !== currentUserId) {
+  if (row && !isAdmin && (row.user_id === null || (row.user_id as number) !== currentUserId)) {
     throw new Error("Nemáte oprávnění smazat tento řádek.");
   }
   db.prepare("DELETE FROM order_rows WHERE id = ?").run(rowId);

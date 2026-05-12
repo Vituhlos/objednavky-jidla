@@ -1,13 +1,18 @@
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const SENSITIVE_KEYS = new Set(["smtpPass", "imapPass", "settingsPin", "vapidPrivateKey"]);
 
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") {
+    return new Response("Nemáte oprávnění.", { status: 403 });
+  }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   if (!checkRateLimit(`backup:${ip}`, 5, 3600_000)) {
     return new Response("Příliš mnoho požadavků. Zkuste to za hodinu.", { status: 429 });

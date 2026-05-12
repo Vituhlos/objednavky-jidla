@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,10 @@ function remapId(oldId: number | null | undefined, map: Map<number, number>): nu
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") {
+    return Response.json({ ok: false, error: "Nemáte oprávnění." }, { status: 403 });
+  }
   try {
     const { backup, restoreSettings } = await req.json() as { backup: BackupFile; restoreSettings: boolean };
     const db = getDb();

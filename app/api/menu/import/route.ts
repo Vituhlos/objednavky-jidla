@@ -2,12 +2,17 @@ import pdfParse from "pdf-parse";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseMenuText } from "@/lib/parse-menu";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getCurrentUser } from "@/lib/auth";
 import path from "path";
 import fs from "fs";
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") {
+    return NextResponse.json({ error: "Nemáte oprávnění." }, { status: 403 });
+  }
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   if (!checkRateLimit(`pdf-import:${ip}`, 10, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Příliš mnoho nahraných souborů. Zkuste to za hodinu." }, { status: 429 });

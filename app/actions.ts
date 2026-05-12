@@ -457,10 +457,12 @@ export async function actionAdminSendPasswordReset(userId: number): Promise<void
 }
 
 export async function actionCheckImap(): Promise<ImapCheckResult> {
+  await requireAdmin();
   return checkImapForMenu();
 }
 
 export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
+  await requireAdmin();
   const subs = getAllSubscriptions();
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
