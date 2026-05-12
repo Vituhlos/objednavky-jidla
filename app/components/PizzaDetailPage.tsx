@@ -62,10 +62,10 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
   const BackButton = ({ mobile }: { mobile?: boolean }) => (
     <Link
       href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-lg transition hover:bg-black/5 ${mobile ? "text-[13px] text-stone-500 px-1.5 py-1 -ml-1" : "text-[12px] text-stone-500 px-2 py-1"}`}
+      className={`inline-flex items-center gap-1 font-semibold rounded-full transition shrink-0 ${mobile ? "text-[13px] text-stone-600 px-2 py-1 bg-black/[0.06] hover:bg-black/10 -ml-1" : "text-[12px] text-stone-600 px-2.5 py-1 bg-black/[0.06] hover:bg-black/10"}`}
     >
-      <MIcon name="arrow_back" size={mobile ? 16 : 14} />
-      {!mobile && <span>Historie</span>}
+      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
+      <span>Historie</span>
     </Link>
   );
 

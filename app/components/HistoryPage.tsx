@@ -153,7 +153,7 @@ export default function HistoryPage({
                     return (
                       <tr
                         key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
                         onClick={() => router.push(`/historie/${order.id}`)}
                         onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
                         role="link"
@@ -206,7 +206,7 @@ export default function HistoryPage({
                     return (
                       <tr
                         key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/30 active:bg-white/40 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
                         onClick={() => router.push(`/historie/pizza/${order.id}`)}
                         onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
                         role="link"
