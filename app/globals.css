@@ -455,11 +455,11 @@ body {
 .modal-add-second:focus-visible { outline: 2px solid rgba(245,158,11,0.65); outline-offset: 2px; }
 
 @keyframes modal-add-pulse {
-  0%, 100% { border-color: rgba(234,88,12,0.35); box-shadow: 0 0 0 0 rgba(234,88,12,0.15); }
-  50%       { border-color: rgba(234,88,12,0.7);  box-shadow: 0 0 0 5px rgba(234,88,12,0); }
+  0%, 100% { border-color: rgba(220,38,38,0.4); box-shadow: 0 0 0 0 rgba(220,38,38,0.25); transform: scale(1); }
+  50%       { border-color: rgba(220,38,38,0.9); box-shadow: 0 0 0 8px rgba(220,38,38,0);  transform: scale(1.015); }
 }
 .modal-add-second--pulse {
-  animation: modal-add-pulse 1.6s ease-in-out infinite;
+  animation: modal-add-pulse 1.2s ease-in-out infinite;
   background: rgba(220,38,38,0.07);
   border-color: rgba(220,38,38,0.5);
   color: #b91c1c;
