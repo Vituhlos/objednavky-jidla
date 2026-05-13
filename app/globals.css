@@ -222,6 +222,21 @@ body {
   font-size: 12px; color: #a8a29e; line-height: 1.45; max-width: 200px;
 }
 
+/* ── Settings save footer ── */
+.settings-save-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px 12px;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255,255,255,0.6);
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .settings-save-bar {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* ── Scrollbars ── */
 .scroll-area { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .scroll-area::-webkit-scrollbar { width: 5px; height: 5px; }

@@ -603,7 +603,7 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-6">
         {!unlocked ? (
           /* PIN lock */
           <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
@@ -644,22 +644,30 @@ export default function SettingsPage({
         ) : (
           <>
             {/* Tab bar */}
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12.5px] font-semibold transition-all ${
-                    activeTab === tab.id ? "text-white shadow-sm" : "glass-btn text-stone-600 hover:text-stone-800"
-                  }`}
-                  style={activeTab === tab.id ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
-                >
-                  <MIcon name={tab.icon as "settings"} size={14} />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
-                </button>
-              ))}
+            <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+              <div
+                className="flex p-1 rounded-2xl gap-0.5"
+                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+              >
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                    }`}
+                    style={activeTab === tab.id ? {
+                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                    } : {}}
+                  >
+                    <MIcon name={tab.icon as "settings"} size={14} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* ── Objednávka — non-form sections ── */}
@@ -1217,25 +1225,6 @@ export default function SettingsPage({
               </>
             )}
 
-            {/* ── Save button (all tabs except Oddělení) ── */}
-            {activeTab !== "oddeleni" && (
-              <div className="flex items-center justify-end gap-3 pt-1">
-                {saveStatus === "saved" && (
-                  <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
-                )}
-                {saveStatus === "error" && (
-                  <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
-                )}
-                <button
-                  className="modal-btn modal-btn--primary"
-                  disabled={isPending}
-                  form="settings-form"
-                  type="submit"
-                >
-                  {isPending ? "Ukládám..." : "Uložit nastavení"}
-                </button>
-              </div>
-            )}
           </>
         )}
 
@@ -1252,6 +1241,19 @@ export default function SettingsPage({
           )}
         </div>
       </main>
+
+      {/* ── Sticky save footer ── */}
+      {unlocked && activeTab !== "oddeleni" && (
+        <div className="settings-save-bar">
+          <div className="flex-1">
+            {saveStatus === "saved" && <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>}
+            {saveStatus === "error" && <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>}
+          </div>
+          <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
+            {isPending ? "Ukládám..." : "Uložit nastavení"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
