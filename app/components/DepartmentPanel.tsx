@@ -285,6 +285,7 @@ function OrderEditModal({
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showNumberConfirm, setShowNumberConfirm] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -362,7 +363,15 @@ function OrderEditModal({
       setValidationError(`„${personName.trim()}" už v objednávce je.`);
       return;
     }
+    if (showMealTip) {
+      setShowNumberConfirm(true);
+      return;
+    }
     setValidationError(null);
+    doSave();
+  };
+
+  const doSave = () => {
     try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
@@ -574,6 +583,24 @@ function OrderEditModal({
           onConfirm={onDelete}
           title="Smazat objednávku"
         />
+      )}
+      {showNumberConfirm && (
+        <ConfirmModal
+          title="Číslo ve jméně"
+          confirmLabel="Uložit stejně"
+          confirmVariant="primary"
+          onConfirm={() => { setShowNumberConfirm(false); doSave(); }}
+          onClose={() => setShowNumberConfirm(false)}
+        >
+          <p className="text-[13px] text-stone-600 leading-relaxed">
+            Jméno obsahuje číslo — to většinou znamená, že chceš objednat víc jídel pro jednu osobu.
+          </p>
+          <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-xl text-[12px] text-amber-800 font-medium"
+            style={{ background: "rgba(234,88,12,0.07)", border: "1px solid rgba(234,88,12,0.18)" }}>
+            <MIcon name="lightbulb" size={14} fill style={{ color: "#c2410c", flexShrink: 0, marginTop: 1 }} />
+            <span>Víc jídel přidáš tlačítkem <strong>„Přidat další jídlo do objednávky"</strong> — pak stačí jedna objednávka na jméno bez čísla.</span>
+          </div>
+        </ConfirmModal>
       )}
     </div>,
     document.body
