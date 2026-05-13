@@ -524,7 +524,7 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          <div>
+          <div style={{ position: "relative" }}>
             {showMealTip && (
               <div className="meal-tip-callout">
                 Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
