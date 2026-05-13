@@ -339,17 +339,11 @@ function OrderEditModal({
     rollCount > 0 || breadDumplingCount > 0 || potatoDumplingCount > 0;
 
   const normalizeName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
-  // strip trailing digits + separators: "Pech 2", "Pech2", "Pech - 2" → "pech"
-  const normalizeNameFuzzy = (s: string) => normalizeName(s).replace(/[\s\-_]+\d+$/, "").trimEnd();
   const isDuplicateName =
     personName.trim() !== "" &&
     normalizeName(personName) !== normalizeName(row.personName) &&
     existingNames.some((n) => normalizeName(n) === normalizeName(personName));
-  const isSimilarName =
-    !isDuplicateName &&
-    personName.trim() !== "" &&
-    normalizeNameFuzzy(personName) !== normalizeNameFuzzy(row.personName) &&
-    existingNames.some((n) => normalizeNameFuzzy(n) === normalizeNameFuzzy(personName) && normalizeName(n) !== normalizeName(personName));
+  const showMealTip = /\d/.test(lastName) && mealEntries.length === 1;
 
   const handleSave = () => {
     if (!firstName.trim()) {
@@ -521,10 +515,21 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
-            <MIcon name="add" size={14} style={{ color: "#c2410c" }} />
-            Přidat další jídlo do objednávky
-          </button>
+          <div style={{ position: "relative" }}>
+            {showMealTip && (
+              <div className="meal-tip-callout">
+                Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
+              </div>
+            )}
+            <button
+              className={`modal-add-second${showMealTip ? " modal-add-second--pulse" : ""}`}
+              onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
+              type="button"
+            >
+              <MIcon name="add" size={14} style={{ color: "#c2410c" }} />
+              Přidat další jídlo do objednávky
+            </button>
+          </div>
 
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>

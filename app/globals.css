@@ -453,6 +453,38 @@ body {
 .modal-add-second:hover { background: rgba(234,88,12,0.08); border-color: rgba(234,88,12,0.55); }
 .modal-add-second:active { transform: scale(0.98); }
 .modal-add-second:focus-visible { outline: 2px solid rgba(245,158,11,0.65); outline-offset: 2px; }
+
+@keyframes modal-add-pulse {
+  0%, 100% { border-color: rgba(234,88,12,0.35); box-shadow: 0 0 0 0 rgba(234,88,12,0.15); }
+  50%       { border-color: rgba(234,88,12,0.7);  box-shadow: 0 0 0 5px rgba(234,88,12,0); }
+}
+.modal-add-second--pulse {
+  animation: modal-add-pulse 1.6s ease-in-out infinite;
+  background: rgba(234,88,12,0.07);
+}
+.meal-tip-callout {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.94); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(234,88,12,0.22); border-radius: 12px;
+  padding: 0.55rem 0.9rem; font-size: 0.78rem; font-weight: 500;
+  color: #92400e; text-align: center; white-space: nowrap;
+  box-shadow: 0 6px 24px -4px rgba(234,88,12,0.14);
+  pointer-events: none; z-index: 10;
+  animation: tip-in 0.18s ease-out both;
+}
+.meal-tip-callout::after {
+  content: ""; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%) translateY(-50%) rotate(45deg);
+  width: 9px; height: 9px;
+  background: rgba(255,255,255,0.94);
+  border-right: 1px solid rgba(234,88,12,0.22);
+  border-bottom: 1px solid rgba(234,88,12,0.22);
+}
+@keyframes tip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 .modal-extras { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.65); }
 .modal-stepper { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 0.85rem; min-height: 44px; border-bottom: 1px solid rgba(255,255,255,0.5); }
 .modal-stepper:last-child { border-bottom: none; }
