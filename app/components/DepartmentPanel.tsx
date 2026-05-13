@@ -339,10 +339,17 @@ function OrderEditModal({
     rollCount > 0 || breadDumplingCount > 0 || potatoDumplingCount > 0;
 
   const normalizeName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  // strip trailing digits + separators: "Pech 2", "Pech2", "Pech - 2" → "pech"
+  const normalizeNameFuzzy = (s: string) => normalizeName(s).replace(/[\s\-_]+\d+$/, "").trimEnd();
   const isDuplicateName =
     personName.trim() !== "" &&
     normalizeName(personName) !== normalizeName(row.personName) &&
     existingNames.some((n) => normalizeName(n) === normalizeName(personName));
+  const isSimilarName =
+    !isDuplicateName &&
+    personName.trim() !== "" &&
+    normalizeNameFuzzy(personName) !== normalizeNameFuzzy(row.personName) &&
+    existingNames.some((n) => normalizeNameFuzzy(n) === normalizeNameFuzzy(personName) && normalizeName(n) !== normalizeName(personName));
 
   const handleSave = () => {
     if (!firstName.trim()) {
@@ -514,14 +521,9 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          {mealEntries.length === 1 && mealEntries[0].itemId !== null && (
-            <p className="text-[11.5px] text-stone-400 -mt-1">
-              Chceš víc jídel v jedné objednávce? Přidej je tlačítkem níže.
-            </p>
-          )}
           <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
-            <MIcon name="add" size={14} style={{ color: "#D97706" }} />
-            Přidat další jídlo
+            <MIcon name="add" size={14} style={{ color: "#c2410c" }} />
+            Přidat další jídlo do objednávky
           </button>
 
           <div className="modal-field">
