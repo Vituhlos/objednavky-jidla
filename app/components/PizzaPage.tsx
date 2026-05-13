@@ -231,10 +231,12 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           </div>
 
           {rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-8 text-stone-400">
-              <MIcon name="local_pizza" size={32} fill />
-              <p className="text-[13px]">Zatím nikdo neobjednal</p>
-              <p className="text-[12px]">Přidejte první osobu tlačítkem výše</p>
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="local_pizza" size={22} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="empty-state__title">Zatím nikdo neobjednal</p>
+              <p className="empty-state__sub">Přidejte první osobu tlačítkem výše</p>
             </div>
           ) : (
             <>

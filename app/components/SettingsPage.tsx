@@ -1181,7 +1181,12 @@ export default function SettingsPage({
 
                 <Section icon="history" title="Historie změn">
                   {initialAuditLog.length === 0 ? (
-                    <p className="text-[12.5px] text-stone-400 text-center py-2">Zatím žádné záznamy.</p>
+                    <div className="empty-state">
+                      <div className="empty-state__icon">
+                        <MIcon name="manage_history" size={22} style={{ color: "#94a3b8" }} />
+                      </div>
+                      <p className="empty-state__title">Zatím žádné záznamy</p>
+                    </div>
                   ) : (
                     <div className="overflow-x-auto -mx-4 -mb-4">
                       <table className="w-full text-[12px]">

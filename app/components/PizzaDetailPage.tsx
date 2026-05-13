@@ -130,7 +130,12 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
           </div>
 
           {rows.length === 0 ? (
-            <div className="px-4 py-6 text-[13px] text-stone-400 text-center">Žádné řádky v objednávce.</div>
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="receipt_long" size={22} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="empty-state__title">Žádné řádky v objednávce</p>
+            </div>
           ) : (
             <>
               <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 font-display text-[10px] uppercase tracking-wide text-stone-500 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 60px 80px 80px", background: "rgba(255,255,255,0.3)" }}>

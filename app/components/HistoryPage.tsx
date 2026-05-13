@@ -130,9 +130,12 @@ export default function HistoryPage({
             <span className="text-[11px] text-stone-500">{visibleOrders.length} záznamů · {sentCount} odesláno</span>
           </div>
           {filteredOrders.length === 0 ? (
-            <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
-              <MIcon name="history" size={28} style={{ color: "#94a3b8" }} />
-              <p className="text-[13px] text-stone-400">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné objednávky v databázi."}</p>
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="history" size={22} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="empty-state__title">{q ? "Žádné výsledky" : "Zatím žádné objednávky"}</p>
+              {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -184,9 +187,12 @@ export default function HistoryPage({
             <span className="text-[11px] text-stone-500">{visiblePizza.length} záznamů · {pizzaSentCount} odesláno</span>
           </div>
           {filteredPizza.length === 0 ? (
-            <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
-              <MIcon name="local_pizza" size={28} style={{ color: "#94a3b8" }} />
-              <p className="text-[13px] text-stone-400">{q ? "Žádné výsledky pro hledaný výraz" : "Zatím žádné pizzové objednávky v databázi."}</p>
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="local_pizza" size={22} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="empty-state__title">{q ? "Žádné výsledky" : "Zatím žádné pizzové objednávky"}</p>
+              {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
             <div className="overflow-x-auto">

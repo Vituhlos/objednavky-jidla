@@ -784,11 +784,12 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         {/* Rows */}
         <div className={isSent ? "dept-rows-sent" : ""}>
           {activeRows.length === 0 ? (
-            <div className="px-4 py-6 flex flex-col items-center gap-1.5 text-center">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(148,163,184,0.1)" }}>
-                <MIcon name="groups" size={18} style={{ color: "#94a3b8" }} />
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="groups" size={22} style={{ color: "#94a3b8" }} />
               </div>
-              <p className="text-[12px] text-stone-400">Nikdo zatím neobjednal</p>
+              <p className="empty-state__title">Nikdo zatím neobjednal</p>
+              <p className="empty-state__sub">Přidejte první osobu tlačítkem výše</p>
             </div>
           ) : (
             activeRows.map((row) => (
