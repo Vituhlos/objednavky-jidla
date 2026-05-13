@@ -11,6 +11,7 @@ export function ConfirmModal({
   confirmVariant = "danger",
   isPending = false,
   children,
+  dialogClassName,
   onConfirm,
   onClose,
 }: {
@@ -20,6 +21,7 @@ export function ConfirmModal({
   confirmVariant?: "danger" | "primary";
   isPending?: boolean;
   children?: React.ReactNode;
+  dialogClassName?: string;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -36,7 +38,7 @@ export function ConfirmModal({
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
-      <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" onClick={(e) => e.stopPropagation()}>
+      <div className={`confirm-dialog${dialogClassName ? ` ${dialogClassName}` : ""}`} role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" onClick={(e) => e.stopPropagation()}>
         <div className={`confirm-dialog__icon${confirmVariant === "primary" ? " confirm-dialog__icon--primary" : ""}`}>
           {confirmVariant === "primary" ? (
             <MIcon name="send" size={24} fill />

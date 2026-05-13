@@ -338,6 +338,11 @@ body {
 .confirm-dialog__message { font-size: 0.8rem; color: var(--ink-3); margin: 0 0 1rem; }
 .confirm-dialog__actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: center; }
 .confirm-dialog__actions .modal-btn { flex: 1; }
+.confirm-dialog--wide { width: min(420px, 90vw); padding: 2rem; }
+.confirm-dialog--wide .confirm-dialog__icon { width: 68px; height: 68px; margin-bottom: 1rem; }
+.confirm-dialog--wide .confirm-dialog__icon svg { font-size: 30px; }
+.confirm-dialog--wide .confirm-dialog__title { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.confirm-dialog--wide .confirm-dialog__message { font-size: 0.85rem; }
 
 /* Send summary in confirm */
 .send-summary { display: flex; gap: 1rem; margin: 0.5rem 0 0.25rem; justify-content: center; }

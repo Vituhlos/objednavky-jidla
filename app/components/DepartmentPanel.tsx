@@ -589,6 +589,7 @@ function OrderEditModal({
           title="Číslo ve jméně"
           confirmLabel="Uložit stejně"
           confirmVariant="primary"
+          dialogClassName="confirm-dialog--wide"
           onConfirm={() => { setShowNumberConfirm(false); doSave(); }}
           onClose={() => setShowNumberConfirm(false)}
         >
