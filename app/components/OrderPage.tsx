@@ -141,6 +141,13 @@ function parseCutoffMinutes(cutoffTime: string) {
   return h * 60 + m;
 }
 
+const DAY_LOCATIVE = ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"];
+function getFutureDayPhrase(selectedDate: string, todayDate: string): string {
+  if (selectedDate === addDays(todayDate, 1)) return "zítra";
+  const dow = new Date(`${selectedDate}T12:00:00`).getDay();
+  return DAY_LOCATIVE[dow];
+}
+
 function recalcDepartments(departments: DepartmentData[]): DepartmentData[] {
   return departments.map((d) => ({
     ...d,
@@ -234,9 +241,10 @@ export default function OrderPage({
 
   // ── Live cutoff check ─────────────────────────────────────
   const checkCutoff = useCallback(() => {
+    if (isFutureDay) return false;
     const now = getPragueNow();
     return now.getHours() * 60 + now.getMinutes() >= parseCutoffMinutes(cutoffTime);
-  }, [cutoffTime]);
+  }, [cutoffTime, isFutureDay]);
 
   const [isPastCutoff, setIsPastCutoff] = useState(checkCutoff);
 
@@ -590,6 +598,7 @@ export default function OrderPage({
   );
 
   const getCountdownInfo = useCallback((): { label: string; mins: number } | null => {
+    if (isFutureDay) return null;
     const now = getPragueNow();
     const diff = parseCutoffMinutes(cutoffTime) - (now.getHours() * 60 + now.getMinutes());
     if (diff <= 0) return null;
@@ -597,7 +606,7 @@ export default function OrderPage({
     const hours = Math.floor(diff / 60);
     const mins = diff % 60;
     return { label: mins > 0 ? `za ${hours} h ${mins} min` : `za ${hours} h`, mins: diff };
-  }, [cutoffTime]);
+  }, [cutoffTime, isFutureDay]);
   const [countdownInfo, setCountdownInfo] = useState(getCountdownInfo);
   const countdown = countdownInfo?.label ?? null;
   const countdownMins = countdownInfo?.mins ?? null;
@@ -615,6 +624,10 @@ export default function OrderPage({
       today.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
     );
   }, []);
+
+  const futureDayPhrase = isFutureDay && selectedDate && todayDate
+    ? getFutureDayPhrase(selectedDate, todayDate)
+    : null;
 
   const allSoups = initialData.todayMenu.soups.filter((i) => i.name !== "Zavřeno");
   const allMeals = initialData.todayMenu.meals.filter((i) => i.name !== "Zavřeno");
@@ -694,12 +707,17 @@ export default function OrderPage({
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
         <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
-          {!isSent && !isPastCutoff && countdown && (
+          {isFutureDay && !isSent && futureDayPhrase && (
+            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+              <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
+            </span>
+          )}
+          {!isFutureDay && !isSent && !isPastCutoff && countdown && (
             <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
               <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime})
             </span>
           )}
-          {!isSent && isPastCutoff && (
+          {!isFutureDay && !isSent && isPastCutoff && (
             <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
               <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime})
             </span>
@@ -728,12 +746,6 @@ export default function OrderPage({
             </button>
           </div>
         )}
-        {isFutureDay && !isSent && !noMenu && (
-          <span className="text-[11.5px] text-stone-500 inline-flex items-center gap-1.5 shrink-0">
-            <MIcon name="schedule" size={13} />
-            Odešle se automaticky v den samotný
-          </span>
-        )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
         <button
           aria-label="Nápověda"
@@ -761,12 +773,17 @@ export default function OrderPage({
           role="img"
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
-        {!isSent && !isPastCutoff && countdown && (
+        {isFutureDay && !isSent && futureDayPhrase && (
+          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
+            <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
+          </span>
+        )}
+        {!isFutureDay && !isSent && !isPastCutoff && countdown && (
           <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
             <MIcon name="schedule" size={12} /> {countdown}
           </span>
         )}
-        {!isSent && isPastCutoff && (
+        {!isFutureDay && !isSent && isPastCutoff && (
           <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
             <MIcon name="schedule" size={12} /> Po uzávěrce
           </span>
