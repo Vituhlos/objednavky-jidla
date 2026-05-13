@@ -201,6 +201,7 @@ export default function OrderPage({
   const justSentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [daySwitchPending, setDaySwitchPending] = useState(false);
 
   type PendingDelete = { rowId: number; rowData: OrderRowEnriched; deptName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -296,7 +297,27 @@ export default function OrderPage({
     // Cancel any stale refresh for the previous date
     refreshAbortRef.current?.abort();
     selectedDateRef.current = selectedDate;
+    setDaySwitchPending(false);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!availableDates || !showDayPicker) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const idx = availableDates.indexOf(selectedDate ?? "");
+      const next = e.key === "ArrowLeft" ? idx - 1 : idx + 1;
+      if (next >= 0 && next < availableDates.length) {
+        e.preventDefault();
+        setDaySwitchPending(true);
+        startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [availableDates, selectedDate, showDayPicker, startTransition, router]);
 
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
@@ -817,7 +838,7 @@ export default function OrderPage({
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
-                        onClick={() => startTransition(() => { router.push(`/?date=${date}`); })}
+                        onClick={() => { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
                           background: "linear-gradient(135deg,#F59E0B,#EA580C)",
                           color: "white",
@@ -891,7 +912,7 @@ export default function OrderPage({
               )}
 
               {/* Department panels — 3-col on desktop */}
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
                 {departments.map((dept) => (
                   <DepartmentPanel
                     data={dept}
