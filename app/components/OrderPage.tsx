@@ -645,11 +645,15 @@ export default function OrderPage({
         <div
           aria-live="polite"
           role="status"
-          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-white text-[12.5px] font-semibold"
-          style={{
-            background: countdownMins <= 10
-              ? "linear-gradient(90deg,#dc2626,#b91c1c)"
-              : "linear-gradient(90deg,#EA580C,#D97706)",
+          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-[12.5px] font-semibold"
+          style={countdownMins <= 10 ? {
+            background: "rgba(220,38,38,0.09)",
+            borderBottom: "1px solid rgba(220,38,38,0.18)",
+            color: "#b91c1c",
+          } : {
+            background: "rgba(234,88,12,0.08)",
+            borderBottom: "1px solid rgba(234,88,12,0.16)",
+            color: "#c2410c",
           }}
         >
           <MIcon name="timer" size={15} className="shrink-0" />
