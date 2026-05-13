@@ -463,14 +463,12 @@ body {
   background: rgba(234,88,12,0.07);
 }
 .meal-tip-callout {
-  position: absolute; bottom: calc(100% + 12px); left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   background: rgba(234,88,12,0.1); backdrop-filter: blur(24px) saturate(180%);
   border: 1.5px solid rgba(234,88,12,0.4); border-radius: 14px;
   padding: 0.7rem 1.1rem; font-size: 0.82rem; font-weight: 600;
-  color: #9a3412; text-align: center; white-space: nowrap;
-  box-shadow: 0 8px 28px -4px rgba(234,88,12,0.2);
-  pointer-events: none; z-index: 10;
+  color: #9a3412; text-align: center;
+  box-shadow: 0 4px 16px -4px rgba(234,88,12,0.15);
   animation: tip-in 0.18s ease-out both;
 }
 .meal-tip-callout::after {
