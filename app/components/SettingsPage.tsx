@@ -603,7 +603,7 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-6">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-24">
         {!unlocked ? (
           /* PIN lock */
           <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
@@ -1242,13 +1242,11 @@ export default function SettingsPage({
         </div>
       </main>
 
-      {/* ── Sticky save footer ── */}
+      {/* ── Floating save button ── */}
       {unlocked && activeTab !== "oddeleni" && (
-        <div className="settings-save-bar">
-          <div className="flex-1">
-            {saveStatus === "saved" && <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>}
-            {saveStatus === "error" && <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>}
-          </div>
+        <div className="settings-save-fab">
+          {saveStatus === "saved" && <span className="settings-save-fab__status text-emerald-700">Nastavení uloženo.</span>}
+          {saveStatus === "error" && <span className="settings-save-fab__status text-red-600">Chyba při ukládání.</span>}
           <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
             {isPending ? "Ukládám..." : "Uložit nastavení"}
           </button>
