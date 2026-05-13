@@ -535,7 +535,7 @@ function OrderEditModal({
               onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
               type="button"
             >
-              <MIcon name="add" size={14} style={{ color: "#c2410c" }} />
+              <MIcon name="add" size={14} style={{ color: showMealTip ? "#b91c1c" : "#c2410c" }} />
               Přidat další jídlo do objednávky
             </button>
           </div>
