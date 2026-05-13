@@ -616,7 +616,7 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
 
   return (
     <div
-      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition ${!isSent ? "hover:bg-white/50 active:bg-white/50 cursor-pointer active:scale-[0.995]" : ""}`}
+      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 active:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
       onClick={!isSent ? onEdit : undefined}
       role={!isSent ? "button" : undefined}
       tabIndex={!isSent ? 0 : undefined}

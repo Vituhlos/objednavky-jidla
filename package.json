@@ -1,6 +1,6 @@
 {
   "name": "docker-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Objednavkovy system jidla v jednom Docker containeru.",
   "scripts": {
