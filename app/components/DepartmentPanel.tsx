@@ -344,7 +344,7 @@ function OrderEditModal({
     personName.trim() !== "" &&
     normalizeName(personName) !== normalizeName(row.personName) &&
     existingNames.some((n) => normalizeName(n) === normalizeName(personName));
-  const showMealTip = (/\d/.test(lastName) || /\d/.test(firstName)) && mealEntries.length === 1;
+  const showMealTip = /\d/.test(lastName) || /\d/.test(firstName);
 
   const handleSave = () => {
     if (!firstName.trim()) {
