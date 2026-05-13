@@ -405,6 +405,7 @@ body {
 @media (min-width: 640px) {
   .modal-input, .modal-select { font-size: 0.8125rem; }
 }
+.modal-input--error { border-color: rgba(220,38,38,0.5) !important; box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 0 0 3px rgba(220,38,38,0.1) !important; }
 .modal-input:focus, .modal-select:focus {
   border-color: rgba(245,158,11,0.5);
   box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 0 0 3px rgba(245,158,11,0.15);

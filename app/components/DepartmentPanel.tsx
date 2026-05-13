@@ -285,7 +285,6 @@ function OrderEditModal({
   const [bbqCount, setBbqCount] = useState(row.bbqCount);
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showNumberConfirm, setShowNumberConfirm] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -363,10 +362,6 @@ function OrderEditModal({
       setValidationError(`„${personName.trim()}" už v objednávce je.`);
       return;
     }
-    if (showMealTip) {
-      setShowNumberConfirm(true);
-      return;
-    }
     setValidationError(null);
     doSave();
   };
@@ -423,25 +418,31 @@ function OrderEditModal({
                 <input
                   autoFocus
                   autoComplete="given-name"
-                  className="modal-input"
+                  className={`modal-input${/\d/.test(firstName) ? " modal-input--error" : ""}`}
                   id="modal-firstname"
                   onChange={(e) => { setFirstName(e.target.value); setValidationError(null); }}
                   placeholder="Jan"
                   type="text"
                   value={firstName}
                 />
+                {/\d/.test(firstName) && (
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo ze jména.</p>
+                )}
               </div>
               <div style={{ flex: 1 }}>
                 <label className="modal-label" htmlFor="modal-lastname">Příjmení</label>
                 <input
                   autoComplete="family-name"
-                  className="modal-input"
+                  className={`modal-input${/\d/.test(lastName) ? " modal-input--error" : ""}`}
                   id="modal-lastname"
                   onChange={(e) => { setLastName(e.target.value); setValidationError(null); }}
                   placeholder="Novák"
                   type="text"
                   value={lastName}
                 />
+                {/\d/.test(lastName) && (
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo z příjmení.</p>
+                )}
               </div>
             </div>
             {isDuplicateName && (
@@ -573,7 +574,7 @@ function OrderEditModal({
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
-          <button className="modal-btn modal-btn--primary" disabled={isDuplicateName} onClick={handleSave} type="button">Uložit</button>
+          <button className="modal-btn modal-btn--primary" disabled={isDuplicateName || showMealTip} onClick={handleSave} type="button">Uložit</button>
         </div>
       </div>
       {showDeleteConfirm && (
@@ -583,25 +584,6 @@ function OrderEditModal({
           onConfirm={onDelete}
           title="Smazat objednávku"
         />
-      )}
-      {showNumberConfirm && (
-        <ConfirmModal
-          title="Číslo ve jméně"
-          confirmLabel="Uložit stejně"
-          confirmVariant="primary"
-          dialogClassName="confirm-dialog--wide"
-          onConfirm={() => { setShowNumberConfirm(false); doSave(); }}
-          onClose={() => setShowNumberConfirm(false)}
-        >
-          <p className="text-[13px] text-stone-600 leading-relaxed">
-            Jméno obsahuje číslo — to většinou znamená, že chceš objednat víc jídel pro jednu osobu.
-          </p>
-          <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-xl text-[12px] text-amber-800 font-medium"
-            style={{ background: "rgba(234,88,12,0.07)", border: "1px solid rgba(234,88,12,0.18)" }}>
-            <MIcon name="lightbulb" size={14} fill style={{ color: "#c2410c", flexShrink: 0, marginTop: 1 }} />
-            <span>Víc jídel přidáš tlačítkem <strong>„Přidat další jídlo do objednávky"</strong> — pak stačí jedna objednávka na jméno bez čísla.</span>
-          </div>
-        </ConfirmModal>
       )}
     </div>,
     document.body
