@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getDb } from "./db";
 import { buildOrderEmail } from "./order-email";
 import { buildOrderPdfAttachment } from "./order-pdf";
@@ -14,6 +16,22 @@ import {
   getWeekLabel,
 } from "./menu";
 import type { MenuItem } from "./types";
+
+const DATA_DIR = path.dirname(process.env.DB_PATH ?? path.join(process.cwd(), "data", "stros.db"));
+
+export function getOrderPdfPath(orderId: number): string {
+  return path.join(DATA_DIR, "pdfs", `order-${orderId}.pdf`);
+}
+
+export function orderPdfExists(orderId: number): boolean {
+  return fs.existsSync(getOrderPdfPath(orderId));
+}
+
+function savePdf(orderId: number, buffer: Buffer): void {
+  const dir = path.join(DATA_DIR, "pdfs");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(getOrderPdfPath(orderId), buffer);
+}
 import { getPragueISODate } from "./time";
 import type {
   Order,
@@ -414,6 +432,7 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
       text: email.text,
       attachments,
     });
+    savePdf(orderId, attachments[0].content);
   } catch (err) {
     // Revert the claim so the user can retry after fixing SMTP
     db.prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?").run(orderId);
