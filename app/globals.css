@@ -483,6 +483,9 @@ body {
   pointer-events: none; z-index: 10; max-width: 100%;
   animation: tip-in 0.18s ease-out both;
 }
+@media (min-width: 640px) {
+  .meal-tip-callout { white-space: nowrap; max-width: none; }
+}
 .meal-tip-callout::after {
   content: ""; position: absolute; bottom: 100%; left: 50%;
   transform: translateX(-50%) translateY(50%) rotate(45deg);
