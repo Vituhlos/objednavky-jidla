@@ -375,6 +375,7 @@ body {
   color: white;
 }
 .modal-btn--primary:not(:disabled):hover { opacity: 0.88; }
+.modal-btn:disabled { background: rgba(0,0,0,0.08); box-shadow: none; color: rgba(0,0,0,0.3); cursor: not-allowed; }
 .modal-btn--danger {
   background: rgba(220,38,38,0.08);
   backdrop-filter: blur(22px);
