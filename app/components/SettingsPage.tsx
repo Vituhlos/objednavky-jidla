@@ -1356,8 +1356,27 @@ export default function SettingsPage({
                         {[
                           {
                             num: "1",
-                            title: "Vytvoř bota (2 minuty)",
-                            body: <>V Telegramu vyhledej <strong>@BotFather</strong> (modrý fajfkový odznak = oficiální). Pošli mu <code className="bg-black/5 px-1 rounded">/newbot</code>, zadej libovolný název a uživatelské jméno (musí končit na <em>bot</em>, např. <em>ObeduLIMAbot</em>). BotFather ti okamžitě odpoví s <strong>Bot Tokenem</strong> — zkopíruj ho.</>,
+                            title: "Vytvoř bota přes @BotFather (2 minuty)",
+                            body: (
+                              <div className="space-y-2">
+                                <p>V Telegramu vyhledej <strong>@BotFather</strong> — vyber toho s modrým ověřovacím odznakem. Klikni <strong>Start</strong>.</p>
+                                <div className="space-y-1 text-[12px]">
+                                  {[
+                                    ["Ty napíšeš:", "/newbot"],
+                                    ["BotFather se zeptá:", "How are we going to call it? (zadej zobrazovaný název, např. Obědy LIMA)"],
+                                    ["Ty napíšeš:", "Obědy LIMA"],
+                                    ["BotFather se zeptá:", "Choose a username — musí končit na bot (např. ObedyLIMAbot)"],
+                                    ["Ty napíšeš:", "ObedyLIMAbot"],
+                                    ["BotFather odpoví:", "Done! Token: 1234567890:AAFxxxxxxx... — zkopíruj ho!"],
+                                  ].map(([who, what], i) => (
+                                    <div key={i} className="flex gap-2">
+                                      <span className="shrink-0 text-stone-400 w-28">{who}</span>
+                                      <span className="font-mono text-[11px] text-stone-700 bg-black/5 px-1.5 py-0.5 rounded leading-relaxed">{what}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ),
                           },
                           {
                             num: "2",
@@ -1391,7 +1410,7 @@ export default function SettingsPage({
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
-                              <p className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</p>
+                              <div className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
                             </div>
                           </div>
                         ))}
