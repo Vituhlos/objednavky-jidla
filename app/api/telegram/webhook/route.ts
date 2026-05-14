@@ -36,15 +36,16 @@ function formatMenuForDay(dayCode: string, dateStr: string): string {
   const menu = getMenuItemsForDay(dayCode);
   if (menu.soups.length === 0 && menu.meals.length === 0)
     return `🍽 <b>Jídelníček ${dateStr}</b>\n\nJídelníček zatím není k dispozici.`;
-  const lines: string[] = [`🍽 <b>Jídelníček ${dateStr}</b>`, ""];
+  const lines: string[] = [`🍽 <b>Jídelníček ${dateStr}</b>`];
   if (menu.soups.length > 0) {
-    lines.push("<b>Polévky</b>");
-    menu.soups.forEach((s) => lines.push(`  • ${s.name}`));
     lines.push("");
+    lines.push("<b>🍲 Polévky</b>");
+    menu.soups.forEach((s) => lines.push(`  • ${s.name}`));
   }
   if (menu.meals.length > 0) {
-    lines.push("<b>Jídla</b>");
-    menu.meals.forEach((m) => lines.push(`  • ${m.name}`));
+    lines.push("");
+    lines.push("<b>🍽 Hlavní jídla</b>");
+    menu.meals.forEach((m) => lines.push(`  <code>${m.code}.</code> ${m.name}`));
   }
   return lines.join("\n");
 }
@@ -73,21 +74,19 @@ function formatStav(): string {
   const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
     weekday: "long", day: "numeric", month: "numeric",
   });
-  const statusIcon = data.order.status === "sent" ? "✅" : "📝";
-  const statusLabel = data.order.status === "sent" ? "Odesláno" : "Rozepsáno";
-  const totalRows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
-  const lines: string[] = [
-    `📋 <b>Objednávka ${dateStr}</b>`,
-    `${statusIcon} ${statusLabel}  ·  👥 ${totalRows} osob  ·  💰 ${data.totalPrice} Kč`,
-  ];
+  const sent = data.order.status === "sent";
+  const statusLine = sent
+    ? `✅ <b>Odesláno</b>  ·  👥 ${data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length} osob  ·  💰 ${data.totalPrice} Kč`
+    : `📝 <b>Rozepsáno</b>  ·  👥 ${data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length} osob  ·  💰 ${data.totalPrice} Kč`;
+  const lines: string[] = [`📋 <b>Objednávka ${dateStr}</b>`, statusLine];
   data.departments.forEach((dept) => {
     const active = dept.rows.filter((r) => r.personName);
     if (active.length === 0) return;
     lines.push("");
-    lines.push(`<b>${dept.label}</b>`);
+    lines.push(`<b>📂 ${dept.label}</b>`);
     active.forEach((r) => {
-      const meal = r.mainItem ? `\n    <i>${r.mainItem.name}</i>` : "";
-      lines.push(`  • ${r.personName}${meal}`);
+      const meal = r.mainItem ? `  <i>${r.mainItem.code}. ${r.mainItem.name}</i>` : "";
+      lines.push(`  • <b>${r.personName}</b>${meal}`);
     });
   });
   return lines.join("\n");
@@ -133,11 +132,13 @@ async function formatPizza(): Promise<string> {
   try {
     const items = await scrapePizzaMenu();
     if (items.length === 0) return "🍕 <b>Pizza Dublovice</b>\n\nNabídka není momentálně k dispozici.";
-    const lines = ["🍕 <b>Pizza Dublovice</b>", ""];
-    for (const item of items) {
-      lines.push(`${item.code}. ${item.name} — <b>${item.price} Kč</b>`);
-    }
-    return lines.join("\n");
+    const nameWidth = Math.min(32, Math.max(...items.map((i) => i.name.length)));
+    const rows = items.map((item) => {
+      const code = String(item.code).padStart(2);
+      const name = item.name.slice(0, nameWidth).padEnd(nameWidth);
+      return `${code}  ${name}  ${item.price} Kč`;
+    });
+    return `🍕 <b>Pizza Dublovice</b>\n\n<pre>${rows.join("\n")}</pre>`;
   } catch {
     return "⚠️ Nepodařilo se načíst nabídku pizzy. Zkus to znovu.";
   }
@@ -157,10 +158,12 @@ function formatTyden(): string {
     lines.push("");
     lines.push(`<b>${dateStr}</b>`);
     if (menu.soups.length === 0 && menu.meals.length === 0) {
-      lines.push("  Není k dispozici");
+      lines.push("  <i>Není k dispozici</i>");
     } else {
-      menu.soups.forEach((s) => lines.push(`  🍲 ${s.name}`));
-      menu.meals.forEach((m) => lines.push(`  🍽 ${m.name}`));
+      if (menu.soups.length > 0)
+        lines.push(`  🍲 ${menu.soups.map((s) => s.name).join(", ")}`);
+      if (menu.meals.length > 0)
+        lines.push(`  🍽 ${menu.meals.map((m) => `<code>${m.code}.</code> ${m.name}`).join("  ·  ")}`);
     }
   }
   return lines.join("\n");
