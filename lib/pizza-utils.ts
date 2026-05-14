@@ -33,8 +33,8 @@ export function computePizzaTotals(
       allPricesWithBox.push(r.pizzaItem!.price + PIZZA_BOX_FEE);
     }
   }
-  // Descending — nejdražší zdarma = maximální úspora
-  allPricesWithBox.sort((a, b) => b - a);
+  // Ascending — nejlevnější zdarma
+  allPricesWithBox.sort((a, b) => a - b);
 
   const freeCount = Math.floor(totalCount / 3); // 2+1 zdarma
   const discountAmount = allPricesWithBox.slice(0, freeCount).reduce((s, p) => s + p, 0);

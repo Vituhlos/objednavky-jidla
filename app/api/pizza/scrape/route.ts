@@ -29,6 +29,7 @@ function parseHtml(html: string): ScrapedPizza[] {
   const result: ScrapedPizza[] = [];
   let pendingCode: number | null = null;
   let pendingName: string | null = null;
+  let pendingVariant: string | null = null;
 
   for (const line of lines) {
     const itemMatch = line.match(/^(\d+)\.\s*(.+)$/);
@@ -37,14 +38,24 @@ function parseHtml(html: string): ScrapedPizza[] {
     if (itemMatch) {
       pendingCode = Number(itemMatch[1]);
       pendingName = itemMatch[2].trim();
+      pendingVariant = null;
       continue;
     }
-    if (priceMatch && pendingCode !== null && pendingName !== null) {
-      if (pendingCode >= 1 && pendingCode <= 30) {
-        result.push({ code: pendingCode, name: pendingName, price: Number(priceMatch[1]) });
+
+    if (pendingCode !== null && pendingName !== null) {
+      if (priceMatch) {
+        const fullName = pendingVariant
+          ? `${pendingName} – ${pendingVariant}`
+          : pendingName;
+        if (pendingCode >= 1 && pendingCode <= 50) {
+          result.push({ code: pendingCode, name: fullName, price: Number(priceMatch[1]) });
+        }
+        // Keep pendingCode + pendingName — may have more variants with their own prices
+        pendingVariant = null;
+      } else {
+        // Non-price, non-item line between pizza and price → variant descriptor
+        pendingVariant = line;
       }
-      pendingCode = null;
-      pendingName = null;
     }
   }
 

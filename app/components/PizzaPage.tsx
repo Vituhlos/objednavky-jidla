@@ -289,7 +289,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
             </div>
             <div className="px-4 pt-3 pb-0">
               <p className="text-[11.5px] text-stone-500 leading-relaxed">
-                Za každé 2 pizzy dostanete 1 <strong className="text-stone-600">nejdražší zdarma</strong> (včetně krabice). Sleva se počítá automaticky.
+                Za každé 2 pizzy dostanete 1 <strong className="text-stone-600">nejlevnější zdarma</strong> (včetně krabice). Sleva se počítá automaticky.
               </p>
             </div>
             <div className="p-4 grid grid-cols-1 gap-4">
@@ -331,8 +331,8 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
 
               <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
                 <p className="font-display font-bold text-[13px] text-stone-800">🍕 Akce 2+1 zdarma</p>
-                <p>Za každé <strong>2 objednané pizzy</strong> dostanete <strong>1 zdarma</strong>. Automaticky se vybere <strong>nejdražší pizza</strong> z celé objednávky — takže úspora je vždy maximální.</p>
-                <p className="text-stone-500 text-[12px]">Příklad: objednáte 6 pizz → 2 nejdražší jsou zdarma.</p>
+                <p>Za každé <strong>2 objednané pizzy</strong> dostanete <strong>1 zdarma</strong>. Automaticky se vybere <strong>nejlevnější pizza</strong> z celé objednávky.</p>
+                <p className="text-stone-500 text-[12px]">Příklad: objednáte 6 pizz → 2 nejlevnější jsou zdarma.</p>
               </div>
 
               <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
@@ -364,7 +364,7 @@ function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
   const breakdownRows = [
     { label: "Pizzy (ceny)", value: `${totals.baseTotal} Kč`, accent: false },
     { label: `Krabice (${PIZZA_BOX_FEE} Kč/ks)`, value: `${totals.boxTotal} Kč`, accent: false },
-    ...(totals.freeCount > 0 ? [{ label: `2+1 zdarma (${totals.freeCount}× nejdražší)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
+    ...(totals.freeCount > 0 ? [{ label: `2+1 zdarma (${totals.freeCount}× nejlevnější)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
     ...(totals.deliveryFee > 0 ? [{ label: "Doprava", value: `${totals.deliveryFee} Kč`, accent: false }] : []),
     ...(totals.deliveryFee === 0 && totals.finalTotal > 0 ? [{ label: "Doprava zdarma (≥4 ks)", value: "0 Kč", accent: true }] : []),
   ];
