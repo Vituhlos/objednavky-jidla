@@ -44,11 +44,20 @@ function parseHtml(html: string): ScrapedPizza[] {
 
     if (pendingCode !== null && pendingName !== null) {
       if (priceMatch) {
-        const fullName = pendingVariant
-          ? `${pendingName} – ${pendingVariant}`
-          : pendingName;
+        const price = Number(priceMatch[1]);
         if (pendingCode >= 1 && pendingCode <= 50) {
-          result.push({ code: pendingCode, name: fullName, price: Number(priceMatch[1]) });
+          if (pendingVariant) {
+            // "Pomodoro/smetana, ..." → two separate base variants
+            const splitMatch = pendingVariant.match(/^([^\s/,]+)\/([^\s/,]+)/);
+            if (splitMatch) {
+              result.push({ code: pendingCode, name: `${pendingName} – ${splitMatch[1]} základ`, price });
+              result.push({ code: pendingCode, name: `${pendingName} – ${splitMatch[2]} základ`, price });
+            } else {
+              result.push({ code: pendingCode, name: `${pendingName} – ${pendingVariant}`, price });
+            }
+          } else {
+            result.push({ code: pendingCode, name: pendingName, price });
+          }
         }
         // Keep pendingCode + pendingName — may have more variants with their own prices
         pendingVariant = null;
