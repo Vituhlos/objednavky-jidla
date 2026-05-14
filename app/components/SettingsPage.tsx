@@ -72,13 +72,14 @@ function formatTs(ts: string): string {
 
 // ── Section card ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon, children, helpContent }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode }) {
+function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="glass rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
         {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
+        {action}
         {helpContent && (
           <button
             type="button"
@@ -305,6 +306,7 @@ export default function SettingsPage({
   const [telegramTestMsg, setTelegramTestMsg] = useState("");
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [webhookMsg, setWebhookMsg] = useState("");
+  const [showTelegramHelp, setShowTelegramHelp] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -1242,9 +1244,17 @@ export default function SettingsPage({
             {activeTab === "telegram" && (
               <>
                 <div className="flex flex-col gap-4" style={{ display: "flex" }}>
-                  <Section icon="send" title="Telegram bot">
+                  <Section icon="send" title="Telegram bot" action={
+                    <button
+                      type="button"
+                      onClick={() => setShowTelegramHelp(true)}
+                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500"
+                    >
+                      <MIcon name="help_outline" size={13} /> Jak nastavit?
+                    </button>
+                  }>
                     <p className="text-[12.5px] text-stone-500">
-                      Připoj Telegram bota pro notifikace a příkazy. Vytvoř bota přes <strong>@BotFather</strong> na Telegramu, zkopíruj token a Chat ID skupiny nebo kanálu.
+                      Připoj Telegram bota pro notifikace a příkazy.
                     </p>
                     <label className="flex items-center gap-3 cursor-pointer select-none">
                       <div className="relative shrink-0">
@@ -1326,6 +1336,80 @@ export default function SettingsPage({
                     )}
                   </div>
                 </Section>
+
+                {/* Telegram help modal */}
+                {showTelegramHelp && (
+                  <div className="modal-overlay" onClick={() => setShowTelegramHelp(false)}>
+                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-sheet__header">
+                        <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
+                        <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
+                      </div>
+                      <div className="modal-sheet__body space-y-4">
+
+                        {/* Steps */}
+                        {[
+                          {
+                            num: "1",
+                            title: "Vytvoř bota",
+                            body: <>Otevři Telegram a napiš <strong>@BotFather</strong>. Pošli příkaz <code className="bg-black/5 px-1 rounded">/newbot</code>, zadej název a uživatelské jméno bota. BotFather ti pošle <strong>Bot Token</strong> — zkopíruj ho.</>,
+                          },
+                          {
+                            num: "2",
+                            title: "Zjisti Chat ID",
+                            body: <>Přidej bota do skupiny (nebo mu napiš přímo). Pak otevři v prohlížeči:<br /><code className="bg-black/5 px-1.5 py-0.5 rounded text-[11px] break-all">https://api.telegram.org/bot&#123;TOKEN&#125;/getUpdates</code><br />V odpovědi najdi pole <code className="bg-black/5 px-1 rounded">chat.id</code> — to je tvoje <strong>Chat ID</strong>. U skupin začíná minusem (např. <code className="bg-black/5 px-1 rounded">-1001234567890</code>).</>,
+                          },
+                          {
+                            num: "3",
+                            title: "Vyplň nastavení",
+                            body: <>Vlož <strong>Bot Token</strong> a <strong>Chat ID</strong> do polí výše. Zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
+                          },
+                          {
+                            num: "4",
+                            title: "Nastav webhook",
+                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat zprávy z bota. Stačí udělat jednou (nebo po změně domény).</>,
+                          },
+                          {
+                            num: "5",
+                            title: "Otestuj",
+                            body: <>Klikni na <strong>Testovat zprávu</strong>. Pokud vše funguje, bot pošle do chatu testovací zprávu. Pak zkus zadat příkaz <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo v Telegramu.</>,
+                          },
+                        ].map((step) => (
+                          <div key={step.num} className="flex gap-3">
+                            <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                              {step.num}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
+                              <p className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Commands reference */}
+                        <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
+                          <p className="font-display font-bold text-[12.5px] text-stone-800">Dostupné příkazy</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+                            {[
+                              ["/stav", "přehled dnešní objednávky"],
+                              ["/menu", "dnešní jídelníček"],
+                              ["/odeslat", "ruční odeslání objednávky"],
+                              ["/zrusit", "znovu otevřít odeslanou objednávku"],
+                              ["/pomoc", "seznam příkazů"],
+                            ].map(([cmd, desc]) => (
+                              <div key={cmd} className="contents">
+                                <span className="font-mono text-amber-700 font-semibold">{cmd}</span>
+                                <span className="text-stone-500">{desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <p className="text-[11.5px] text-stone-400">Příkazy fungují jen ze zadaného Chat ID — nikdo jiný bota ovládat nemůže.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
