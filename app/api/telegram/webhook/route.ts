@@ -22,14 +22,16 @@ function formatMenu(): string {
   if (!dayCode || now.getDay() === 0 || now.getDay() === 6) return "Dnes není pracovní den.";
   const menu = getMenuItemsForDay(dayCode);
   if (menu.soups.length === 0 && menu.meals.length === 0) return "Jídelníček pro dnešní den není k dispozici.";
-  const lines: string[] = [];
+  const dateStr = now.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+  const lines: string[] = [`🍽 <b>Jídelníček ${dateStr}</b>`, ""];
   if (menu.soups.length > 0) {
-    lines.push("<b>Polévky:</b>");
-    menu.soups.forEach((s) => lines.push(`  ${s.code ? s.code + " " : ""}${s.name}`));
+    lines.push("<b>Polévky</b>");
+    menu.soups.forEach((s) => lines.push(`  • ${s.name}`));
+    lines.push("");
   }
   if (menu.meals.length > 0) {
-    lines.push("<b>Jídla:</b>");
-    menu.meals.forEach((m) => lines.push(`  ${m.code ? m.code + " " : ""}${m.name}`));
+    lines.push("<b>Jídla</b>");
+    menu.meals.forEach((m) => lines.push(`  • ${m.name}`));
   }
   return lines.join("\n");
 }
@@ -41,20 +43,26 @@ function formatStav(): string {
     day: "numeric",
     month: "numeric",
   });
-  const statusLabel = data.order.status === "sent" ? "✅ Odesláno" : "📝 Rozepsáno";
-  const rows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName));
-  const lines = [
-    `<b>Objednávka ${dateStr}</b>`,
-    `Stav: ${statusLabel}`,
-    `Celkem: ${rows.length} osob · ${data.totalPrice} Kč`,
-    "",
+  const statusIcon = data.order.status === "sent" ? "✅" : "📝";
+  const statusLabel = data.order.status === "sent" ? "Odesláno" : "Rozepsáno";
+  const totalRows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
+
+  const lines: string[] = [
+    `📋 <b>Objednávka ${dateStr}</b>`,
+    `${statusIcon} ${statusLabel}  ·  👥 ${totalRows} osob  ·  💰 ${data.totalPrice} Kč`,
   ];
+
   data.departments.forEach((dept) => {
     const active = dept.rows.filter((r) => r.personName);
     if (active.length === 0) return;
+    lines.push("");
     lines.push(`<b>${dept.label}</b>`);
-    active.forEach((r) => lines.push(`  ${r.personName}${r.mainItem ? " — " + r.mainItem.name : ""}`));
+    active.forEach((r) => {
+      const meal = r.mainItem ? `\n    <i>${r.mainItem.name}</i>` : "";
+      lines.push(`  • ${r.personName}${meal}`);
+    });
   });
+
   return lines.join("\n");
 }
 
