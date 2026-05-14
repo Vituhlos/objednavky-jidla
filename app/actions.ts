@@ -27,7 +27,13 @@ import {
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
-import { setTelegramWebhook } from "@/lib/telegram";
+import {
+  setTelegramWebhook,
+  getTelegramSubscriptions,
+  removeTelegramSubscription,
+  setTelegramAdmin,
+} from "@/lib/telegram";
+import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
@@ -268,13 +274,29 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
   return setTelegramWebhook(webhookUrl);
 }
 
-export async function actionSendTelegramTest(): Promise<{ ok: boolean; error?: string }> {
-  const { sendTelegramMessage } = await import("@/lib/telegram");
+export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
+  const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
+  const subs = getTelegramSubscriptions();
+  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
   try {
     await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA — Telegram funguje!");
-    return { ok: true };
+    return { ok: true, sent: subs.length };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
+}
+
+export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
+  return getTelegramSubscriptions();
+}
+
+export async function actionRemoveTelegramSubscription(chatId: string): Promise<void> {
+  removeTelegramSubscription(chatId);
+  revalidatePath("/nastaveni");
+}
+
+export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
+  setTelegramAdmin(chatId, isAdmin);
+  revalidatePath("/nastaveni");
 }
 

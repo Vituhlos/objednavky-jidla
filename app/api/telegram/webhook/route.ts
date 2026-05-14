@@ -1,6 +1,12 @@
 import { type NextRequest } from "next/server";
 import { getSettings } from "@/lib/settings";
-import { sendTelegramMessage } from "@/lib/telegram";
+import {
+  sendTelegramToChat,
+  sendTelegramMessage,
+  registerTelegramUser,
+  isTelegramAdmin,
+  isTelegramRegistered,
+} from "@/lib/telegram";
 import { getTodayOrderData, sendOrder, reopenOrder } from "@/lib/orders";
 import { getMenuItemsForDay } from "@/lib/menu";
 import { broadcast } from "@/lib/sse-broadcast";
@@ -30,11 +36,19 @@ function formatMenu(): string {
 
 function formatStav(): string {
   const data = getTodayOrderData();
-  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
+    weekday: "long",
+    day: "numeric",
+    month: "numeric",
+  });
   const statusLabel = data.order.status === "sent" ? "✅ Odesláno" : "📝 Rozepsáno";
   const rows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName));
-  const total = data.totalPrice;
-  const lines = [`<b>Objednávka ${dateStr}</b>`, `Stav: ${statusLabel}`, `Celkem: ${rows.length} osob · ${total} Kč`, ""];
+  const lines = [
+    `<b>Objednávka ${dateStr}</b>`,
+    `Stav: ${statusLabel}`,
+    `Celkem: ${rows.length} osob · ${data.totalPrice} Kč`,
+    "",
+  ];
   data.departments.forEach((dept) => {
     const active = dept.rows.filter((r) => r.personName);
     if (active.length === 0) return;
@@ -44,53 +58,100 @@ function formatStav(): string {
   return lines.join("\n");
 }
 
+type TelegramUpdate = {
+  message?: {
+    chat: { id: number };
+    from?: { first_name?: string; username?: string };
+    text?: string;
+  };
+};
+
 export async function POST(req: NextRequest) {
   const s = getSettings();
+  if (s.telegramEnabled !== "true" || !s.telegramBotToken) return new Response("ok");
 
-  let update: { message?: { chat: { id: number }; text?: string } };
-  try { update = await req.json(); } catch { return new Response("ok"); }
+  let update: TelegramUpdate;
+  try {
+    update = await req.json();
+  } catch {
+    return new Response("ok");
+  }
 
   const message = update.message;
   if (!message?.text) return new Response("ok");
 
   const chatId = String(message.chat.id);
-  if (chatId !== s.telegramChatId) return new Response("ok");
-
+  const firstName = message.from?.first_name ?? "";
+  const username = message.from?.username ?? "";
   const cmd = message.text.split("@")[0].toLowerCase().trim();
 
-  if (cmd === "/stav") {
-    await sendTelegramMessage(formatStav());
-  } else if (cmd === "/menu") {
-    await sendTelegramMessage(formatMenu());
-  } else if (cmd === "/odeslat") {
-    const data = getTodayOrderData();
-    if (data.order.status === "sent") {
-      await sendTelegramMessage("⚠️ Objednávka je již odeslána.");
+  if (cmd === "/start") {
+    const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, username);
+    if (isNew) {
+      const adminNote = isAdmin ? " Jsi první — máš roli <b>admin</b> (můžeš odesílat objednávky)." : "";
+      await sendTelegramToChat(
+        chatId,
+        `👋 Vítej${firstName ? `, ${firstName}` : ""}!${adminNote}\n\nBudeš dostávat notifikace o objednávkách.\n\n/pomoc — seznam příkazů`,
+      );
     } else {
-      try {
-        await sendOrder(data.order.id, "manual");
-        broadcast();
-        await sendTelegramMessage("✅ Objednávka byla odeslána.");
-      } catch (err) {
-        await sendTelegramMessage(`❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`);
+      await sendTelegramToChat(chatId, "✅ Jsi zaregistrovaný, notifikace ti chodí.\n\n/pomoc — seznam příkazů");
+    }
+    return new Response("ok");
+  }
+
+  if (!isTelegramRegistered(chatId)) {
+    await sendTelegramToChat(chatId, "Pošli /start pro registraci a přijímání notifikací.");
+    return new Response("ok");
+  }
+
+  if (cmd === "/stav") {
+    await sendTelegramToChat(chatId, formatStav());
+  } else if (cmd === "/menu") {
+    await sendTelegramToChat(chatId, formatMenu());
+  } else if (cmd === "/odeslat") {
+    if (!isTelegramAdmin(chatId)) {
+      await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
+    } else {
+      const data = getTodayOrderData();
+      if (data.order.status === "sent") {
+        await sendTelegramToChat(chatId, "⚠️ Objednávka je již odeslána.");
+      } else {
+        try {
+          await sendOrder(data.order.id, "manual");
+          broadcast();
+          await sendTelegramMessage("✅ Objednávka byla odeslána přes Telegram.");
+        } catch (err) {
+          await sendTelegramToChat(
+            chatId,
+            `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
     }
   } else if (cmd === "/zrusit") {
-    const data = getTodayOrderData();
-    if (data.order.status !== "sent") {
-      await sendTelegramMessage("⚠️ Objednávka nebyla odeslána — není co rušit.");
+    if (!isTelegramAdmin(chatId)) {
+      await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
-      reopenOrder(data.order.id);
-      broadcast();
-      await sendTelegramMessage("🔓 Objednávka byla znovu otevřena.");
+      const data = getTodayOrderData();
+      if (data.order.status !== "sent") {
+        await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
+      } else {
+        reopenOrder(data.order.id);
+        broadcast();
+        await sendTelegramMessage("🔓 Objednávka byla znovu otevřena přes Telegram.");
+      }
     }
   } else if (cmd === "/pomoc" || cmd === "/help") {
-    await sendTelegramMessage(
+    const admin = isTelegramAdmin(chatId);
+    await sendTelegramToChat(
+      chatId,
       "<b>Dostupné příkazy:</b>\n" +
-      "/stav — přehled dnešní objednávky\n" +
-      "/menu — dnešní jídelníček\n" +
-      "/odeslat — ruční odeslání objednávky\n" +
-      "/zrusit — znovu otevřít odeslanou objednávku"
+        "/stav — přehled dnešní objednávky\n" +
+        "/menu — dnešní jídelníček\n" +
+        (admin
+          ? "/odeslat — ruční odeslání objednávky\n/zrusit — znovu otevřít odeslanou objednávku\n"
+          : "") +
+        "/pomoc — tento seznam",
     );
   }
 

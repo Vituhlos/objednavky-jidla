@@ -148,6 +148,18 @@ function migrate(db: Database.Database): void {
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Telegram subscriptions (multi-user bot)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS telegram_subscriptions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id       TEXT    NOT NULL UNIQUE,
+      first_name    TEXT    NOT NULL DEFAULT '',
+      username      TEXT    NOT NULL DEFAULT '',
+      is_admin      INTEGER NOT NULL DEFAULT 0,
+      registered_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 

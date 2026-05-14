@@ -18,7 +18,11 @@ import {
   actionSendTestPush,
   actionSetTelegramWebhook,
   actionSendTelegramTest,
+  actionGetTelegramSubscriptions,
+  actionRemoveTelegramSubscription,
+  actionSetTelegramAdmin,
 } from "@/app/actions";
+import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
@@ -307,6 +311,8 @@ export default function SettingsPage({
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [webhookMsg, setWebhookMsg] = useState("");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
+  const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
+  const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -322,6 +328,15 @@ export default function SettingsPage({
   const confirmedPinRef = useRef("");
   const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
+
+  useEffect(() => {
+    if (activeTab === "telegram" && !telegramSubsLoaded) {
+      actionGetTelegramSubscriptions().then((subs) => {
+        setTelegramSubs(subs);
+        setTelegramSubsLoaded(true);
+      });
+    }
+  }, [activeTab, telegramSubsLoaded]);
 
   // Restore state
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
@@ -451,7 +466,6 @@ export default function SettingsPage({
       pushReminderMinutes: fd.get("pushReminderMinutes") as string,
       telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
       telegramBotToken: fd.get("telegramBotToken") as string,
-      telegramChatId: fd.get("telegramChatId") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -1254,7 +1268,7 @@ export default function SettingsPage({
                     </button>
                   }>
                     <p className="text-[12.5px] text-stone-500">
-                      Připoj Telegram bota pro notifikace a příkazy.
+                      Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code> — automaticky se zaregistruje a bude dostávat notifikace.
                     </p>
                     <label className="flex items-center gap-3 cursor-pointer select-none">
                       <div className="relative shrink-0">
@@ -1267,9 +1281,58 @@ export default function SettingsPage({
                     <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
                       <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
                     </Field>
-                    <Field hint="ID chatu nebo skupiny — pošli /start botovi a zkopíruj chat_id" label="Chat ID">
-                      <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramChatId} name="telegramChatId" placeholder="-1001234567890" type="text" />
-                    </Field>
+                  </Section>
+
+                  {/* Subscriber list */}
+                  <Section icon="group" title="Registrovaní uživatelé">
+                    {!telegramSubsLoaded ? (
+                      <p className="text-[12.5px] text-stone-400">Načítám…</p>
+                    ) : telegramSubs.length === 0 ? (
+                      <div className="text-[12.5px] text-stone-400 leading-relaxed">
+                        Zatím nikdo. Každý si otevře chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {telegramSubs.map((sub) => (
+                          <div key={sub.chatId} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-black/3 group">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: sub.isAdmin ? "linear-gradient(135deg,#F59E0B,#EA580C)" : "#a8a29e" }}>
+                              {(sub.firstName || sub.username || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[13px] font-semibold text-stone-800 truncate block">
+                                {sub.firstName || sub.username || `Chat ${sub.chatId}`}
+                                {sub.username && sub.firstName && <span className="text-stone-400 font-normal text-[11px] ml-1">@{sub.username}</span>}
+                              </span>
+                              <span className="text-[11px] text-stone-400">{sub.isAdmin ? "Admin" : "Uživatel"} · ID {sub.chatId}</span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await actionSetTelegramAdmin(sub.chatId, !sub.isAdmin);
+                                  setTelegramSubs((prev) => prev.map((s) => s.chatId === sub.chatId ? { ...s, isAdmin: !s.isAdmin } : s));
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium"
+                                title={sub.isAdmin ? "Odebrat admin" : "Nastavit jako admin"}
+                              >
+                                {sub.isAdmin ? "→ User" : "→ Admin"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await actionRemoveTelegramSubscription(sub.chatId);
+                                  setTelegramSubs((prev) => prev.filter((s) => s.chatId !== sub.chatId));
+                                }}
+                                className="w-7 h-7 rounded-lg glass-btn flex items-center justify-center text-red-400"
+                                title="Odebrat"
+                              >
+                                <MIcon name="close" size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </Section>
 
                   <Section icon="notifications" title="Co bot hlásí">
@@ -1277,15 +1340,15 @@ export default function SettingsPage({
                       <li className="flex items-center gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a" }} /> Objednávka odeslána (auto-send)</li>
                       <li className="flex items-center gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626" }} /> Auto-send selhal</li>
                     </ul>
-                    <p className="text-[12px] text-stone-400 mt-1">Další typy notifikací přibudou postupně.</p>
+                    <p className="text-[12px] text-stone-400 mt-1">Notifikace jdou každému registrovanému uživateli do jeho soukromého chatu.</p>
                   </Section>
 
                   <Section icon="terminal" title="Dostupné příkazy">
                     <ul className="text-[12.5px] text-stone-600 space-y-1.5 font-mono">
                       <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— přehled dnešní objednávky</span></li>
                       <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
-                      <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání objednávky</span></li>
-                      <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku</span></li>
+                      <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
+                      <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/pomoc</span> <span className="font-sans text-stone-500">— seznam příkazů</span></li>
                     </ul>
                   </Section>
@@ -1349,7 +1412,7 @@ export default function SettingsPage({
 
                         {/* Intro */}
                         <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                          <strong>Jak to funguje:</strong> Jeden bot slouží celé firmě. Vytvoříš Telegram skupinu, přidáš do ní kolegy a bota — a všichni ve skupině budou dostávat notifikace. Nikdo si nic individuálně nezakládá.
+                          <strong>Jak to funguje:</strong> Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>. Automaticky se zaregistruje a bude dostávat notifikace do svého soukromého chatu. Nikdo nevidí zprávy ostatních.
                         </div>
 
                         {/* Steps */}
@@ -1363,7 +1426,7 @@ export default function SettingsPage({
                                 <div className="space-y-1 text-[12px]">
                                   {[
                                     ["Ty napíšeš:", "/newbot"],
-                                    ["BotFather se zeptá:", "How are we going to call it? (zadej zobrazovaný název, např. Obědy LIMA)"],
+                                    ["BotFather se zeptá:", "How are we going to call it? (zobrazovaný název, např. Obědy LIMA)"],
                                     ["Ty napíšeš:", "Obědy LIMA"],
                                     ["BotFather se zeptá:", "Choose a username — musí končit na bot (např. ObedyLIMAbot)"],
                                     ["Ty napíšeš:", "ObedyLIMAbot"],
@@ -1380,28 +1443,23 @@ export default function SettingsPage({
                           },
                           {
                             num: "2",
-                            title: "Vytvoř skupinu a přidej do ní bota i kolegy",
-                            body: <>Vytvoř novou Telegram skupinu (např. „Obědy LIMA"). Přidej do ní svého nového bota a všechny kolegy, kteří mají dostávat notifikace.</>,
+                            title: "Vlož token do nastavení a ulož",
+                            body: <>Zkopíruj <strong>Bot Token</strong> z BotFather, vlož ho do pole výše, zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
                           },
                           {
                             num: "3",
-                            title: "Zjisti Chat ID skupiny",
-                            body: <>Do skupiny přidej bota <strong>@getidsbot</strong> — ten hned odpoví s ID skupiny (záporné číslo začínající <code className="bg-black/5 px-1 rounded">-100...</code>). Zkopíruj ho a @getidsbot pak ze skupiny odstraň.</>,
+                            title: "Nastav webhook",
+                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat příkazy. Stačí jednou (opakuj jen při změně domény nebo tokenu).</>,
                           },
                           {
                             num: "4",
-                            title: "Vyplň nastavení a ulož",
-                            body: <>Vlož <strong>Bot Token</strong> a <strong>Chat ID skupiny</strong> do polí výše, zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
+                            title: "Každý kolega pošle /start",
+                            body: <>Každý, kdo chce dostávat notifikace, si najde bota v Telegramu (podle uživatelského jména co jsi zvolil, např. <code className="bg-black/5 px-1 rounded">@ObedyLIMAbot</code>) a pošle mu <code className="bg-black/5 px-1 rounded">/start</code>. První zaregistrovaný dostane automaticky práva <strong>admin</strong>.</>,
                           },
                           {
                             num: "5",
-                            title: "Nastav webhook",
-                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat příkazy z bota. Stačí jednou (opakuj jen při změně domény).</>,
-                          },
-                          {
-                            num: "6",
                             title: "Otestuj",
-                            body: <>Klikni na <strong>Testovat zprávu</strong>. Pokud vše funguje, bot napíše do skupiny testovací zprávu. Pak zkus napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo ve skupině.</>,
+                            body: <>Klikni na <strong>Testovat zprávu</strong> — bot pošle testovací zprávu všem registrovaným. Zkus taky napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo botovi.</>,
                           },
                         ].map((step) => (
                           <div key={step.num} className="flex gap-3">
@@ -1417,13 +1475,13 @@ export default function SettingsPage({
 
                         {/* Commands reference */}
                         <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
-                          <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (pište přímo ve skupině)</p>
+                          <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (piš botovi přímo v soukromém chatu)</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
                             {[
                               ["/stav", "přehled dnešní objednávky"],
                               ["/menu", "dnešní jídelníček"],
-                              ["/odeslat", "ruční odeslání objednávky"],
-                              ["/zrusit", "znovu otevřít odeslanou objednávku"],
+                              ["/odeslat", "odeslání objednávky (admin)"],
+                              ["/zrusit", "znovu otevřít objednávku (admin)"],
                               ["/pomoc", "seznam příkazů"],
                             ].map(([cmd, desc]) => (
                               <div key={cmd} className="contents">
@@ -1434,7 +1492,7 @@ export default function SettingsPage({
                           </div>
                         </div>
 
-                        <p className="text-[11.5px] text-stone-400">Příkazy fungují jen ze zadané skupiny — nikdo zvenčí bota ovládat nemůže.</p>
+                        <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
                       </div>
                     </div>
                   </div>
