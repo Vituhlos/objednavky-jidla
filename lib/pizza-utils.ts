@@ -9,6 +9,8 @@ export interface PizzaTotals {
   deliveryFee: number;
   finalTotal: number;
   pricePerPizza: number;
+  personCount: number;
+  pricePerPerson: number;
 }
 
 export function computePizzaTotals(
@@ -16,9 +18,10 @@ export function computePizzaTotals(
 ): PizzaTotals {
   const active = rows.filter((r) => r.pizzaItem !== null);
   const totalCount = active.reduce((s, r) => s + r.count, 0);
+  const personCount = active.length;
 
   if (totalCount === 0) {
-    return { baseTotal: 0, boxTotal: 0, freeCount: 0, discountAmount: 0, deliveryFee: 0, finalTotal: 0, pricePerPizza: 0 };
+    return { baseTotal: 0, boxTotal: 0, freeCount: 0, discountAmount: 0, deliveryFee: 0, finalTotal: 0, pricePerPizza: 0, personCount: 0, pricePerPerson: 0 };
   }
 
   const baseTotal = active.reduce((s, r) => s + r.pizzaItem!.price * r.count, 0);
@@ -30,13 +33,15 @@ export function computePizzaTotals(
       allPricesWithBox.push(r.pizzaItem!.price + PIZZA_BOX_FEE);
     }
   }
-  allPricesWithBox.sort((a, b) => a - b);
+  // Descending — nejdražší zdarma = maximální úspora
+  allPricesWithBox.sort((a, b) => b - a);
 
-  const freeCount = Math.floor(totalCount / 4);
+  const freeCount = Math.floor(totalCount / 3); // 2+1 zdarma
   const discountAmount = allPricesWithBox.slice(0, freeCount).reduce((s, p) => s + p, 0);
   const deliveryFee = totalCount >= 4 ? 0 : (PIZZA_DELIVERY[totalCount] ?? 0);
   const finalTotal = baseTotal + boxTotal - discountAmount + deliveryFee;
   const pricePerPizza = Math.ceil(finalTotal / totalCount);
+  const pricePerPerson = personCount > 0 ? Math.ceil(finalTotal / personCount) : 0;
 
-  return { baseTotal, boxTotal, freeCount, discountAmount, deliveryFee, finalTotal, pricePerPizza };
+  return { baseTotal, boxTotal, freeCount, discountAmount, deliveryFee, finalTotal, pricePerPizza, personCount, pricePerPerson };
 }
