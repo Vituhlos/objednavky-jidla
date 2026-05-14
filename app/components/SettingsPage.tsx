@@ -23,6 +23,7 @@ import {
   actionSetTelegramAdmin,
   actionGetTelegramBotInfo,
   actionGetTelegramWebhookStatus,
+  actionSetTelegramCommands,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
@@ -312,6 +313,7 @@ export default function SettingsPage({
   const [telegramTestMsg, setTelegramTestMsg] = useState("");
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [webhookMsg, setWebhookMsg] = useState("");
+  const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
@@ -481,6 +483,7 @@ export default function SettingsPage({
       pushReminderMinutes: fd.get("pushReminderMinutes") as string,
       telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
       telegramBotToken: fd.get("telegramBotToken") as string,
+      telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -1175,6 +1178,9 @@ export default function SettingsPage({
                   <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
                     <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
                   </Field>
+                  <Field hint="každý pracovní den bot pošle ranní jídelníček odběratelům — prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
+                    <input className="modal-input w-32" defaultValue={settings.telegramMorningMenuTime} name="telegramMorningMenuTime" placeholder="07:30" type="time" />
+                  </Field>
 
                   {/* Bot info card */}
                   {botInfo?.ok && botInfo.username && (
@@ -1413,7 +1419,8 @@ export default function SettingsPage({
                       <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
                       <li><span className="text-amber-700">/zitra</span> <span className="font-sans text-stone-500">— jídelníček na zítřek</span></li>
                       <li><span className="text-amber-700">/statistiky</span> <span className="font-sans text-stone-500">— statistiky posledních 7 dní</span></li>
-                      <li><span className="text-amber-700">/upozorneni</span> <span className="font-sans text-stone-500">— zapnout/vypnout připomenutí uzávěrky</span></li>
+                      <li><span className="text-amber-700">/nastaveni</span> <span className="font-sans text-stone-500">— nastavení notifikací (inline tlačítka)</span></li>
+                      <li><span className="text-amber-700">/pozvat</span> <span className="font-sans text-stone-500">— QR kód pro přidání kolegy</span></li>
                       <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/nastavit cas HH:MM</span> <span className="font-sans text-stone-500">— změnit čas auto-odesílání <span className="text-stone-400">(jen admin)</span></span></li>
@@ -1459,9 +1466,27 @@ export default function SettingsPage({
                     >
                       {telegramTestStatus === "pending" ? "Odesílám…" : "Testovat zprávu"}
                     </button>
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={commandsStatus === "pending"}
+                      onClick={async () => {
+                        setCommandsStatus("pending");
+                        const res = await actionSetTelegramCommands();
+                        setCommandsStatus(res.ok ? "ok" : "error");
+                      }}
+                      title="Zaregistruje příkazy bota u Telegramu — zobrazí se v autocomplete při psaní /"
+                      type="button"
+                    >
+                      {commandsStatus === "pending" ? "Registruji…" : "Registrovat příkazy"}
+                    </button>
                     {webhookStatus !== "idle" && (
                       <span className={`text-[12px] font-medium ${webhookStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
                         {webhookStatus === "ok" ? "✓ Webhook nastaven" : `✗ ${webhookMsg}`}
+                      </span>
+                    )}
+                    {commandsStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${commandsStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {commandsStatus === "ok" ? "✓ Příkazy registrovány" : "✗ Chyba registrace"}
                       </span>
                     )}
                     {telegramTestStatus !== "idle" && (
@@ -1560,7 +1585,8 @@ export default function SettingsPage({
                               ["/menu", "dnešní jídelníček"],
                               ["/zitra", "jídelníček na zítřek"],
                               ["/statistiky", "statistiky (7 dní)"],
-                              ["/upozorneni", "zapnout/vypnout připomenutí"],
+                              ["/nastaveni", "nastavení notifikací"],
+                              ["/pozvat", "QR kód pro kolegy"],
                               ["/odeslat", "odeslání objednávky (admin)"],
                               ["/zrusit", "znovu otevřít objednávku (admin)"],
                               ["/nastavit cas HH:MM", "změnit čas auto-odesílání (admin)"],

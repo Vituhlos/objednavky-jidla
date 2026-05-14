@@ -29,6 +29,7 @@ import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import {
   setTelegramWebhook,
+  setTelegramCommands,
   getTelegramSubscriptions,
   removeTelegramSubscription,
   setTelegramAdmin,
@@ -111,8 +112,8 @@ export async function actionConfirmMenuImport(
   }
   revalidatePath("/jidelnicek");
   revalidatePath("/");
-  const { sendTelegramMessage: tg } = await import("@/lib/telegram");
-  await tg(`📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
+  const { sendTelegramToSubscribers } = await import("@/lib/telegram");
+  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
@@ -319,5 +320,9 @@ export async function actionGetTelegramWebhookStatus(): Promise<{
   url?: string;
 }> {
   return getTelegramWebhookStatus();
+}
+
+export async function actionSetTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
+  return setTelegramCommands();
 }
 

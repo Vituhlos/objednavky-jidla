@@ -8,12 +8,17 @@ export interface TelegramSubscription {
   username: string;
   isAdmin: boolean;
   notifyReminder: boolean;
+  notifyMorningMenu: boolean;
+  notifyOrderSent: boolean;
+  notifyMenuImported: boolean;
   registeredAt: string;
 }
 
 type DbRow = {
   id: number; chat_id: string; first_name: string; username: string;
-  is_admin: number; notify_reminder: number; registered_at: string;
+  is_admin: number; notify_reminder: number;
+  notify_morning_menu: number; notify_order_sent: number; notify_menu_imported: number;
+  registered_at: string;
 };
 
 export function getTelegramSubscriptions(): TelegramSubscription[] {
@@ -27,8 +32,15 @@ export function getTelegramSubscriptions(): TelegramSubscription[] {
     username: r.username,
     isAdmin: r.is_admin === 1,
     notifyReminder: r.notify_reminder === 1,
+    notifyMorningMenu: r.notify_morning_menu === 1,
+    notifyOrderSent: r.notify_order_sent === 1,
+    notifyMenuImported: r.notify_menu_imported === 1,
     registeredAt: r.registered_at,
   }));
+}
+
+export function getTelegramSubscription(chatId: string): TelegramSubscription | null {
+  return getTelegramSubscriptions().find((s) => s.chatId === chatId) ?? null;
 }
 
 export function registerTelegramUser(
@@ -77,25 +89,50 @@ export function setTelegramAdmin(chatId: string, isAdmin: boolean): void {
     .run(isAdmin ? 1 : 0, chatId);
 }
 
-export function toggleTelegramReminder(chatId: string): boolean {
+// Validated column names — used as TypeScript discriminant to prevent SQL injection
+export const NOTIFY_COLUMNS = [
+  "notify_reminder",
+  "notify_morning_menu",
+  "notify_order_sent",
+  "notify_menu_imported",
+] as const;
+export type NotifyColumn = (typeof NOTIFY_COLUMNS)[number];
+
+export function toggleNotifySetting(chatId: string, col: NotifyColumn): boolean {
   const db = getDb();
   const row = db
-    .prepare("SELECT notify_reminder FROM telegram_subscriptions WHERE chat_id = ?")
-    .get(chatId) as { notify_reminder: number } | undefined;
-  const newVal = row?.notify_reminder === 1 ? 0 : 1;
-  db.prepare("UPDATE telegram_subscriptions SET notify_reminder = ? WHERE chat_id = ?").run(newVal, chatId);
+    .prepare(`SELECT ${col} FROM telegram_subscriptions WHERE chat_id = ?`)
+    .get(chatId) as Record<string, number> | undefined;
+  const newVal = row?.[col] === 1 ? 0 : 1;
+  db.prepare(`UPDATE telegram_subscriptions SET ${col} = ? WHERE chat_id = ?`).run(newVal, chatId);
   return newVal === 1;
 }
 
-export function getSubscribersWithReminder(): TelegramSubscription[] {
-  return getTelegramSubscriptions().filter((s) => s.notifyReminder);
+// Backward-compat alias
+export function toggleTelegramReminder(chatId: string): boolean {
+  return toggleNotifySetting(chatId, "notify_reminder");
 }
 
-async function sendToChat(token: string, chatId: string, text: string): Promise<void> {
+export function getSubscribersFor(col: NotifyColumn): TelegramSubscription[] {
+  return getTelegramSubscriptions().filter((s) => {
+    if (col === "notify_reminder") return s.notifyReminder;
+    if (col === "notify_morning_menu") return s.notifyMorningMenu;
+    if (col === "notify_order_sent") return s.notifyOrderSent;
+    if (col === "notify_menu_imported") return s.notifyMenuImported;
+    return false;
+  });
+}
+
+async function sendToChat(token: string, chatId: string, text: string, replyMarkup?: object): Promise<void> {
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
   });
 }
 
@@ -116,7 +153,7 @@ export async function sendTelegramMessage(text: string): Promise<void> {
 export async function sendTelegramToAdmins(text: string): Promise<void> {
   const s = getSettings();
   if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
-  const admins = getTelegramSubscriptions().filter((s) => s.isAdmin);
+  const admins = getTelegramSubscriptions().filter((sub) => sub.isAdmin);
   if (admins.length === 0) return;
   await Promise.allSettled(
     admins.map((sub) =>
@@ -127,25 +164,30 @@ export async function sendTelegramToAdmins(text: string): Promise<void> {
   );
 }
 
-export async function sendTelegramReminderNotification(text: string): Promise<void> {
+export async function sendTelegramToSubscribers(col: NotifyColumn, text: string): Promise<void> {
   const s = getSettings();
   if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
-  const subs = getSubscribersWithReminder();
+  const subs = getSubscribersFor(col);
   if (subs.length === 0) return;
   await Promise.allSettled(
     subs.map((sub) =>
       sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
-        console.error(`[telegram] Chyba při odesílání reminder na ${sub.chatId}:`, err),
+        console.error(`[telegram] Chyba při odesílání na ${sub.chatId}:`, err),
       ),
     ),
   );
 }
 
-export async function sendTelegramToChat(chatId: string, text: string): Promise<void> {
+// Backward-compat alias
+export async function sendTelegramReminderNotification(text: string): Promise<void> {
+  return sendTelegramToSubscribers("notify_reminder", text);
+}
+
+export async function sendTelegramToChat(chatId: string, text: string, replyMarkup?: object): Promise<void> {
   const s = getSettings();
   if (!s.telegramBotToken) return;
   try {
-    await sendToChat(s.telegramBotToken, chatId, text);
+    await sendToChat(s.telegramBotToken, chatId, text, replyMarkup);
   } catch (err) {
     console.error("[telegram] Chyba při odesílání:", err);
   }
@@ -212,4 +254,30 @@ export async function deleteTelegramWebhook(): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/deleteWebhook`, { method: "POST" });
   } catch { /* ignore */ }
+}
+
+export async function setTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
+  const s = getSettings();
+  if (!s.telegramBotToken) return { ok: false, description: "Bot token není nastaven." };
+  const commands = [
+    { command: "start", description: "Registrovat se a přijímat notifikace" },
+    { command: "stav", description: "Podrobný přehled dnešní objednávky" },
+    { command: "souhrn", description: "Kompaktní tabulka (jméno + kód jídla)" },
+    { command: "menu", description: "Dnešní jídelníček" },
+    { command: "zitra", description: "Jídelníček na zítřek" },
+    { command: "statistiky", description: "Statistiky posledních 7 dní" },
+    { command: "nastaveni", description: "Nastavení notifikací" },
+    { command: "pozvat", description: "QR kód pro přidání kolegy" },
+    { command: "pomoc", description: "Seznam příkazů" },
+  ];
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setMyCommands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commands }),
+    });
+    return (await res.json()) as { ok: boolean; description?: string };
+  } catch (err) {
+    return { ok: false, description: String(err) };
+  }
 }
