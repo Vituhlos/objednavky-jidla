@@ -3,6 +3,7 @@ import { getSettings, saveSettings } from "@/lib/settings";
 import {
   sendTelegramToChat,
   sendTelegramMessage,
+  sendTelegramToSubscribers,
   registerTelegramUser,
   isTelegramAdmin,
   isTelegramRegistered,
@@ -171,6 +172,26 @@ function buildWelcomeKeyboard() {
   };
 }
 
+function buildStavKeyboard() {
+  return {
+    inline_keyboard: [[
+      { text: "🔄 Obnovit", callback_data: "cmd:stav" },
+      { text: "📊 Souhrn", callback_data: "cmd:souhrn" },
+      { text: "🍽 Jídelníček", callback_data: "cmd:menu" },
+    ]],
+  };
+}
+
+function buildMenuKeyboard() {
+  return {
+    inline_keyboard: [[
+      { text: "🔄 Obnovit", callback_data: "cmd:menu" },
+      { text: "📋 Objednávka", callback_data: "cmd:stav" },
+      { text: "➡️ Zítra", callback_data: "cmd:zitra" },
+    ]],
+  };
+}
+
 // ─── Telegram API helpers ─────────────────────────────────────────────────────
 
 async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
@@ -263,8 +284,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Quick-command buttons
-    if (data === "cmd:stav") await sendTelegramToChat(chatId, formatStav());
-    if (data === "cmd:menu") await sendTelegramToChat(chatId, formatMenu());
+    if (data === "cmd:stav") await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
+    if (data === "cmd:souhrn") await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
+    if (data === "cmd:menu") await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
+    if (data === "cmd:zitra") await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
     if (data === "cmd:nastaveni") await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
 
     return new Response("ok");
@@ -304,13 +327,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (cmd === "/stav") {
-    await sendTelegramToChat(chatId, formatStav());
+    await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
   } else if (cmd === "/souhrn") {
-    await sendTelegramToChat(chatId, formatSouhrn());
+    await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
   } else if (cmd === "/menu") {
-    await sendTelegramToChat(chatId, formatMenu());
+    await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
   } else if (cmd === "/zitra") {
-    await sendTelegramToChat(chatId, formatZitra());
+    await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
   } else if (cmd === "/statistiky") {
     await sendTelegramToChat(chatId, formatStatistiky());
   } else if (cmd === "/nastaveni") {
@@ -380,7 +403,7 @@ export async function POST(req: NextRequest) {
       } else {
         reopenOrder(data.order.id);
         broadcast();
-        await sendTelegramMessage("🔓 Objednávka byla znovu otevřena přes Telegram.");
+        await sendTelegramToSubscribers("notify_order_sent", "🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
       }
     }
   } else if (cmd === "/pomoc" || cmd === "/help") {
