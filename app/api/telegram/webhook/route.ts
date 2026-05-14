@@ -146,27 +146,16 @@ async function formatPizza(): Promise<string> {
 
 function formatTyden(): string {
   const now = getPragueNow();
-  const lines = ["📅 <b>Jídelníček na celý týden</b>"];
   const WEEKDAYS: Array<{ jsDay: number; code: string }> = [
     { jsDay: 1, code: "Po" }, { jsDay: 2, code: "Út" }, { jsDay: 3, code: "St" },
     { jsDay: 4, code: "Čt" }, { jsDay: 5, code: "Pá" },
   ];
-  for (const { jsDay, code } of WEEKDAYS) {
+  const blocks = WEEKDAYS.map(({ jsDay, code }) => {
     const date = getDateForDay(now, jsDay);
     const dateStr = date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-    const menu = getMenuItemsForDay(code);
-    lines.push("");
-    lines.push(`<b>${dateStr}</b>`);
-    if (menu.soups.length === 0 && menu.meals.length === 0) {
-      lines.push("  <i>Není k dispozici</i>");
-    } else {
-      if (menu.soups.length > 0)
-        lines.push(`  🍲 ${menu.soups.map((s) => s.name).join(", ")}`);
-      if (menu.meals.length > 0)
-        lines.push(`  🍽 ${menu.meals.map((m) => `<code>${m.code}.</code> ${m.name}`).join("  ·  ")}`);
-    }
-  }
-  return lines.join("\n");
+    return formatMenuForDay(code, dateStr);
+  });
+  return `📅 <b>Jídelníček na celý týden</b>\n\n` + blocks.join("\n\n―――――――――――――\n\n");
 }
 
 function formatStatistiky(): string {
