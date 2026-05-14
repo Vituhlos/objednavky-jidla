@@ -1342,9 +1342,6 @@ export default function SettingsPage({
               </>
             )}
 
-          </>
-        )}
-
             {/* ── Telegram tab — non-form sections ── */}
             {activeTab === "telegram" && (
               <>
@@ -1620,6 +1617,9 @@ export default function SettingsPage({
             </>
           )}
         </div>
+
+          </>
+        )}
       </main>
 
       {/* ── Floating save button ── */}
