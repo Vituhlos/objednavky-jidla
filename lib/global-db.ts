@@ -1,0 +1,67 @@
+import Database from "better-sqlite3";
+import path from "path";
+import fs from "fs";
+import { runMigrations } from "./migrations";
+import type { Migration } from "./migrations";
+
+const GLOBAL_DB_PATH =
+  process.env.GLOBAL_DB_PATH ?? path.join(process.cwd(), "data", "global.db");
+
+let instance: Database.Database | null = null;
+
+export function getGlobalDb(): Database.Database {
+  if (!instance) {
+    fs.mkdirSync(path.dirname(GLOBAL_DB_PATH), { recursive: true });
+    instance = new Database(GLOBAL_DB_PATH);
+    instance.pragma("journal_mode = WAL");
+    instance.pragma("foreign_keys = ON");
+    runMigrations(instance, GLOBAL_MIGRATIONS);
+  }
+  return instance;
+}
+
+const GLOBAL_MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    name: "initial_global_schema",
+    up: (db) => {
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS tenants (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          slug         TEXT    NOT NULL UNIQUE,
+          display_name TEXT    NOT NULL,
+          join_code    TEXT    NOT NULL UNIQUE,
+          active       INTEGER NOT NULL DEFAULT 1,
+          created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS super_admins (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          email         TEXT    NOT NULL UNIQUE,
+          password_hash TEXT    NOT NULL,
+          created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS platform_audit (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts          TEXT    NOT NULL DEFAULT (datetime('now')),
+          tenant_slug TEXT,
+          action      TEXT    NOT NULL,
+          actor_email TEXT,
+          details     TEXT
+        )
+      `).run();
+
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_platform_audit_ts ON platform_audit(ts DESC)`
+      ).run();
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_platform_audit_tenant ON platform_audit(tenant_slug)`
+      ).run();
+    },
+  },
+];
