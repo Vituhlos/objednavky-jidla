@@ -21,6 +21,8 @@ import {
   actionGetTelegramSubscriptions,
   actionRemoveTelegramSubscription,
   actionSetTelegramAdmin,
+  actionGetTelegramBotInfo,
+  actionGetTelegramWebhookStatus,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
@@ -313,6 +315,9 @@ export default function SettingsPage({
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
+  const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
+  const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -330,13 +335,23 @@ export default function SettingsPage({
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
 
   useEffect(() => {
-    if (activeTab === "telegram" && !telegramSubsLoaded) {
+    if (activeTab !== "telegram") return;
+    if (!telegramSubsLoaded) {
       actionGetTelegramSubscriptions().then((subs) => {
         setTelegramSubs(subs);
         setTelegramSubsLoaded(true);
       });
     }
-  }, [activeTab, telegramSubsLoaded]);
+    if (botInfo === null && settings.telegramBotToken) {
+      Promise.all([
+        actionGetTelegramBotInfo(),
+        actionGetTelegramWebhookStatus(),
+      ]).then(([info, webhook]) => {
+        setBotInfo(info);
+        setWebhookInfo(webhook);
+      });
+    }
+  }, [activeTab, telegramSubsLoaded, botInfo, settings.telegramBotToken]);
 
   // Restore state
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
@@ -691,6 +706,11 @@ export default function SettingsPage({
                     <MIcon name={tab.icon as "settings"} size={14} />
                     <span className="hidden sm:inline">{tab.label}</span>
                     <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                    {tab.id === "telegram" && telegramSubsLoaded && telegramSubs.length > 0 && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === "telegram" ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                        {telegramSubs.length}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1124,13 +1144,26 @@ export default function SettingsPage({
               {/* Telegram tab — form part (token + toggle) */}
               <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
                 <Section icon="send" title="Telegram bot" action={
-                  <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
-                    <MIcon name="help_outline" size={13} /> Jak nastavit?
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Status dot */}
+                    {(() => {
+                      const hasToken = !!settings.telegramBotToken;
+                      const connected = botInfo?.ok;
+                      const hasWebhook = webhookInfo?.hasWebhook;
+                      const color = !hasToken ? "#a8a29e" : connected && hasWebhook ? "#16a34a" : connected ? "#f59e0b" : "#ef4444";
+                      const label = !hasToken ? "Nenastaveno" : connected && hasWebhook ? "Připojeno" : connected ? "Token OK, webhook chybí" : "Chyba tokenu";
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color }}>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                          {label}
+                        </span>
+                      );
+                    })()}
+                    <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                      <MIcon name="help_outline" size={13} /> Jak nastavit?
+                    </button>
+                  </div>
                 }>
-                  <p className="text-[12.5px] text-stone-500">
-                    Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code> — automaticky se zaregistruje a bude dostávat notifikace.
-                  </p>
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <div className="relative shrink-0">
                       <input className="peer sr-only" defaultChecked={settings.telegramEnabled === "true"} name="telegramEnabled" type="checkbox" />
@@ -1142,6 +1175,34 @@ export default function SettingsPage({
                   <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
                     <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
                   </Field>
+
+                  {/* Bot info card */}
+                  {botInfo?.ok && botInfo.username && (
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl" style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)" }}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] shrink-0" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                          <MIcon name="smart_toy" size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-stone-800 truncate">{botInfo.firstName}</p>
+                          <p className="text-[11px] text-stone-500 font-mono truncate">@{botInfo.username}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://t.me/${botInfo.username}`);
+                          setLinkCopied(true);
+                          setTimeout(() => setLinkCopied(false), 2000);
+                        }}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500 whitespace-nowrap"
+                        title={`https://t.me/${botInfo.username}`}
+                      >
+                        <MIcon name={linkCopied ? "check" : "link"} size={13} />
+                        {linkCopied ? "Zkopírováno!" : "Kopírovat odkaz"}
+                      </button>
+                    </div>
+                  )}
                 </Section>
               </div>
 
@@ -1284,7 +1345,7 @@ export default function SettingsPage({
                 <div className="flex flex-col gap-4">
 
                   {/* Subscriber list */}
-                  <Section icon="group" title="Registrovaní uživatelé">
+                  <Section icon="group" title={`Registrovaní uživatelé${telegramSubs.length > 0 ? ` (${telegramSubs.length})` : ""}`}>
                     {!telegramSubsLoaded ? (
                       <p className="text-[12.5px] text-stone-400">Načítám…</p>
                     ) : telegramSubs.length === 0 ? (
@@ -1303,7 +1364,9 @@ export default function SettingsPage({
                                 {sub.firstName || sub.username || `Chat ${sub.chatId}`}
                                 {sub.username && sub.firstName && <span className="text-stone-400 font-normal text-[11px] ml-1">@{sub.username}</span>}
                               </span>
-                              <span className="text-[11px] text-stone-400">{sub.isAdmin ? "Admin" : "Uživatel"} · ID {sub.chatId}</span>
+                              <span className="text-[11px] text-stone-400">
+                                {sub.isAdmin ? "Admin" : "Uživatel"} · registrován {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
+                              </span>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
@@ -1368,6 +1431,10 @@ export default function SettingsPage({
                         const res = await actionSetTelegramWebhook();
                         setWebhookStatus(res.ok ? "ok" : "error");
                         setWebhookMsg(res.description ?? "");
+                        if (res.ok) {
+                          const wh = await actionGetTelegramWebhookStatus();
+                          setWebhookInfo(wh);
+                        }
                       }}
                       type="button"
                     >

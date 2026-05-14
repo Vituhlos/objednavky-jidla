@@ -104,6 +104,46 @@ export async function sendTelegramToChat(chatId: string, text: string): Promise<
   }
 }
 
+export async function getTelegramBotInfo(): Promise<{
+  ok: boolean;
+  firstName?: string;
+  username?: string;
+  error?: string;
+}> {
+  const s = getSettings();
+  if (!s.telegramBotToken) return { ok: false, error: "Token není nastaven." };
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/getMe`);
+    const data = (await res.json()) as {
+      ok: boolean;
+      result?: { first_name: string; username: string };
+      description?: string;
+    };
+    if (data.ok && data.result)
+      return { ok: true, firstName: data.result.first_name, username: data.result.username };
+    return { ok: false, error: data.description };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+export async function getTelegramWebhookStatus(): Promise<{
+  ok: boolean;
+  hasWebhook: boolean;
+  url?: string;
+}> {
+  const s = getSettings();
+  if (!s.telegramBotToken) return { ok: false, hasWebhook: false };
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/getWebhookInfo`);
+    const data = (await res.json()) as { ok: boolean; result?: { url: string } };
+    if (!data.ok) return { ok: false, hasWebhook: false };
+    return { ok: true, hasWebhook: !!(data.result?.url), url: data.result?.url };
+  } catch {
+    return { ok: false, hasWebhook: false };
+  }
+}
+
 export async function setTelegramWebhook(webhookUrl: string): Promise<{ ok: boolean; description?: string }> {
   const s = getSettings();
   if (!s.telegramBotToken) return { ok: false, description: "Bot token není nastaven." };

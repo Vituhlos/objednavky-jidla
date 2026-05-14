@@ -32,6 +32,8 @@ import {
   getTelegramSubscriptions,
   removeTelegramSubscription,
   setTelegramAdmin,
+  getTelegramBotInfo,
+  getTelegramWebhookStatus,
 } from "@/lib/telegram";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
@@ -298,5 +300,22 @@ export async function actionRemoveTelegramSubscription(chatId: string): Promise<
 export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
   setTelegramAdmin(chatId, isAdmin);
   revalidatePath("/nastaveni");
+}
+
+export async function actionGetTelegramBotInfo(): Promise<{
+  ok: boolean;
+  firstName?: string;
+  username?: string;
+  error?: string;
+}> {
+  return getTelegramBotInfo();
+}
+
+export async function actionGetTelegramWebhookStatus(): Promise<{
+  ok: boolean;
+  hasWebhook: boolean;
+  url?: string;
+}> {
+  return getTelegramWebhookStatus();
 }
 
