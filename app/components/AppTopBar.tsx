@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
 
 const NAV = [
@@ -13,7 +13,7 @@ const NAV = [
   { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false },
 ];
 
-function SidebarClock() {
+const SidebarClock = memo(function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -32,7 +32,7 @@ function SidebarClock() {
       <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
     </div>
   );
-}
+});
 
 export default function AppTopBar() {
   const pathname = usePathname();

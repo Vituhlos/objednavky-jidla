@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, memo } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -142,7 +142,7 @@ function EmailListInput({
 
 // ── Toggle checkbox ───────────────────────────────────────────────────────────
 
-function Toggle({ name, defaultChecked, label }: { name: string; defaultChecked: boolean; label: string }) {
+const Toggle = memo(function Toggle({ name, defaultChecked, label }: { name: string; defaultChecked: boolean; label: string }) {
   return (
     <label className="flex items-center gap-2.5 cursor-pointer select-none">
       <div className="relative shrink-0">
@@ -153,11 +153,11 @@ function Toggle({ name, defaultChecked, label }: { name: string; defaultChecked:
       <span className="text-[13px] text-stone-700">{label}</span>
     </label>
   );
-}
+});
 
 // ── Department row ────────────────────────────────────────────────────────────
 
-function DeptRow({
+const DeptRow = memo(function DeptRow({
   dept, onSave, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
 }: {
   dept: DepartmentInfo;
@@ -244,7 +244,7 @@ function DeptRow({
       </div>
     </div>
   );
-}
+});
 
 // ── Tabs ─────────────────────────────────────────────────
 

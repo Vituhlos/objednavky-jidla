@@ -42,7 +42,7 @@ body {
   z-index: 0;
   pointer-events: none;
 }
-.orb { position: absolute; border-radius: 9999px; filter: blur(80px); pointer-events: none; will-change: transform; }
+.orb { position: absolute; border-radius: 9999px; filter: blur(80px); pointer-events: none; }
 @media (max-width: 767px) {
   .orb { filter: blur(50px); }
   .glass { backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }

@@ -971,7 +971,7 @@ export default function OrderPage({
                     existingNames={existingNames}
                     extrasPrices={extrasPrices}
                     isSent={isSent}
-                    key={`${dept.name}-${selectedDate ?? ''}`}
+                    key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
                     onDeleteRow={handleDeleteRow}

@@ -57,7 +57,9 @@ const FILLED: Record<string, { viewBox: string; d: string[] }> = {
   "lunch_dining": { viewBox: "0 -960 960 960", d: ["M280-80v-160H80v-80h200v-160H80v-80h200v-160H80v-80h440q58 0 103 30.5T681-680H840v80H681q-13 37-38 67.5T584-480H520v400H280Zm80-400h160q50 0 85-35t35-85q0-50-35-85t-85-35H360v240Z"] },
 };
 
-export default function MIcon({
+import { memo } from "react";
+
+function MIcon({
   name,
   size = 24,
   fill = false,
@@ -91,3 +93,5 @@ export default function MIcon({
     </svg>
   );
 }
+
+export default memo(MIcon);
