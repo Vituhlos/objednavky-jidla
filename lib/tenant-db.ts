@@ -72,32 +72,6 @@ export const TENANT_MIGRATIONS: Migration[] = [
           value TEXT NOT NULL DEFAULT ''
         )
       `).run();
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS pizza_items (
-          id    INTEGER PRIMARY KEY AUTOINCREMENT,
-          code  INTEGER NOT NULL,
-          name  TEXT    NOT NULL,
-          price INTEGER NOT NULL DEFAULT 0
-        )
-      `).run();
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS pizza_orders (
-          id      INTEGER PRIMARY KEY AUTOINCREMENT,
-          date    TEXT    NOT NULL UNIQUE,
-          status  TEXT    NOT NULL DEFAULT 'draft',
-          sent_at TEXT
-        )
-      `).run();
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS pizza_order_rows (
-          id            INTEGER PRIMARY KEY AUTOINCREMENT,
-          order_id      INTEGER NOT NULL REFERENCES pizza_orders(id) ON DELETE CASCADE,
-          sort_order    INTEGER NOT NULL DEFAULT 0,
-          person_name   TEXT    NOT NULL DEFAULT '',
-          pizza_item_id INTEGER REFERENCES pizza_items(id),
-          count         INTEGER NOT NULL DEFAULT 1
-        )
-      `).run();
     },
   },
   {
@@ -229,7 +203,6 @@ export const TENANT_MIGRATIONS: Migration[] = [
     name: "order_rows_user_id",
     up: (db) => {
       try { db.prepare("ALTER TABLE order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)").run(); } catch {}
-      try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)").run(); } catch {}
     },
   },
   {
