@@ -1121,6 +1121,30 @@ export default function SettingsPage({
 
               </div>
 
+              {/* Telegram tab — form part (token + toggle) */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
+                <Section icon="send" title="Telegram bot" action={
+                  <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                    <MIcon name="help_outline" size={13} /> Jak nastavit?
+                  </button>
+                }>
+                  <p className="text-[12.5px] text-stone-500">
+                    Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code> — automaticky se zaregistruje a bude dostávat notifikace.
+                  </p>
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div className="relative shrink-0">
+                      <input className="peer sr-only" defaultChecked={settings.telegramEnabled === "true"} name="telegramEnabled" type="checkbox" />
+                      <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                      <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                    </div>
+                    <span className="text-[13px] font-semibold text-stone-800">Zapnout Telegram notifikace</span>
+                  </label>
+                  <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
+                    <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
+                  </Field>
+                </Section>
+              </div>
+
             </form>
 
             {/* ── Systém — non-form sections ── */}
@@ -1254,34 +1278,10 @@ export default function SettingsPage({
           </>
         )}
 
-            {/* ── Telegram tab ── */}
+            {/* ── Telegram tab — non-form sections ── */}
             {activeTab === "telegram" && (
               <>
-                <div className="flex flex-col gap-4" style={{ display: "flex" }}>
-                  <Section icon="send" title="Telegram bot" action={
-                    <button
-                      type="button"
-                      onClick={() => setShowTelegramHelp(true)}
-                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500"
-                    >
-                      <MIcon name="help_outline" size={13} /> Jak nastavit?
-                    </button>
-                  }>
-                    <p className="text-[12.5px] text-stone-500">
-                      Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code> — automaticky se zaregistruje a bude dostávat notifikace.
-                    </p>
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <div className="relative shrink-0">
-                        <input className="peer sr-only" defaultChecked={settings.telegramEnabled === "true"} name="telegramEnabled" type="checkbox" />
-                        <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-                        <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
-                      </div>
-                      <span className="text-[13px] font-semibold text-stone-800">Zapnout Telegram notifikace</span>
-                    </label>
-                    <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
-                      <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
-                    </Field>
-                  </Section>
+                <div className="flex flex-col gap-4">
 
                   {/* Subscriber list */}
                   <Section icon="group" title="Registrovaní uživatelé">
