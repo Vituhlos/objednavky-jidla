@@ -15,10 +15,20 @@ import { getTodayOrderData, sendOrder, reopenOrder } from "@/lib/orders";
 import { getMenuItemsForDay } from "@/lib/menu";
 import { broadcast } from "@/lib/sse-broadcast";
 import { getPragueNow } from "@/lib/time";
+import { scrapePizzaMenu } from "@/lib/pizza-scraper";
 
 export const dynamic = "force-dynamic";
 
 const DAY_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá", 6: "So", 0: "Ne" };
+
+// Normalised user input → DB day code (handles diacritics variants)
+const DAY_INPUT_MAP: Record<string, string> = {
+  po: "Po", pondeli: "Po", "pondělí": "Po",
+  ut: "Út", "út": "Út", utery: "Út", "úterý": "Út",
+  st: "St", streda: "St", "středa": "St",
+  ct: "Čt", "čt": "Čt", ctvrtek: "Čt", "čtvrtek": "Čt",
+  pa: "Pá", "pá": "Pá", patek: "Pá", "pátek": "Pá",
+};
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -110,6 +120,52 @@ function formatSouhrn(): string {
   );
 }
 
+// Returns the date of a given JS weekday (1=Mon…5=Fri) within the current Prague week
+function getDateForDay(now: Date, targetJsDay: number): Date {
+  const currentJsDay = now.getDay();
+  const mondayOffset = currentJsDay === 0 ? -6 : 1 - currentJsDay;
+  const d = new Date(now);
+  d.setDate(d.getDate() + mondayOffset + (targetJsDay - 1));
+  return d;
+}
+
+async function formatPizza(): Promise<string> {
+  try {
+    const items = await scrapePizzaMenu();
+    if (items.length === 0) return "🍕 <b>Pizza Dublovice</b>\n\nNabídka není momentálně k dispozici.";
+    const lines = ["🍕 <b>Pizza Dublovice</b>", ""];
+    for (const item of items) {
+      lines.push(`${item.code}. ${item.name} — <b>${item.price} Kč</b>`);
+    }
+    return lines.join("\n");
+  } catch {
+    return "⚠️ Nepodařilo se načíst nabídku pizzy. Zkus to znovu.";
+  }
+}
+
+function formatTyden(): string {
+  const now = getPragueNow();
+  const lines = ["📅 <b>Jídelníček na celý týden</b>"];
+  const WEEKDAYS: Array<{ jsDay: number; code: string }> = [
+    { jsDay: 1, code: "Po" }, { jsDay: 2, code: "Út" }, { jsDay: 3, code: "St" },
+    { jsDay: 4, code: "Čt" }, { jsDay: 5, code: "Pá" },
+  ];
+  for (const { jsDay, code } of WEEKDAYS) {
+    const date = getDateForDay(now, jsDay);
+    const dateStr = date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+    const menu = getMenuItemsForDay(code);
+    lines.push("");
+    lines.push(`<b>${dateStr}</b>`);
+    if (menu.soups.length === 0 && menu.meals.length === 0) {
+      lines.push("  Není k dispozici");
+    } else {
+      menu.soups.forEach((s) => lines.push(`  🍲 ${s.name}`));
+      menu.meals.forEach((m) => lines.push(`  🍽 ${m.name}`));
+    }
+  }
+  return lines.join("\n");
+}
+
 function formatStatistiky(): string {
   const db = getDb();
   const weekAgo = new Date(getPragueNow());
@@ -188,6 +244,15 @@ function buildMenuKeyboard() {
       { text: "🔄 Obnovit", callback_data: "cmd:menu" },
       { text: "📋 Objednávka", callback_data: "cmd:stav" },
       { text: "➡️ Zítra", callback_data: "cmd:zitra" },
+    ]],
+  };
+}
+
+function buildPizzaKeyboard() {
+  return {
+    inline_keyboard: [[
+      { text: "🔄 Obnovit", callback_data: "cmd:pizza" },
+      { text: "📋 Objednávka", callback_data: "cmd:stav" },
     ]],
   };
 }
@@ -288,6 +353,8 @@ export async function POST(req: NextRequest) {
     if (data === "cmd:souhrn") await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
     if (data === "cmd:menu") await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
     if (data === "cmd:zitra") await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
+    if (data === "cmd:tyden") await sendTelegramToChat(chatId, formatTyden());
+    if (data === "cmd:pizza") await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
     if (data === "cmd:nastaveni") await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
 
     return new Response("ok");
@@ -330,8 +397,23 @@ export async function POST(req: NextRequest) {
     await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
   } else if (cmd === "/souhrn") {
     await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
-  } else if (cmd === "/menu") {
-    await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
+  } else if (cmd === "/menu" || cmd.startsWith("/menu ")) {
+    const dayArg = cmd.startsWith("/menu ") ? cmd.slice(6).trim() : "";
+    const dayCode = dayArg ? DAY_INPUT_MAP[dayArg] : null;
+    if (dayArg && !dayCode) {
+      await sendTelegramToChat(chatId, "⚠️ Neznámý den. Použij zkratku: <code>Po Ut St Ct Pa</code>");
+    } else if (dayCode) {
+      const jsDay = Object.entries({ 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" }).find(([, v]) => v === dayCode)?.[0];
+      const date = jsDay ? getDateForDay(getPragueNow(), Number(jsDay)) : getPragueNow();
+      const dateStr = date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+      await sendTelegramToChat(chatId, formatMenuForDay(dayCode, dateStr), buildMenuKeyboard());
+    } else {
+      await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
+    }
+  } else if (cmd === "/tyden") {
+    await sendTelegramToChat(chatId, formatTyden());
+  } else if (cmd === "/pizza") {
+    await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
   } else if (cmd === "/zitra") {
     await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
   } else if (cmd === "/statistiky") {
@@ -414,7 +496,10 @@ export async function POST(req: NextRequest) {
         "/stav — podrobný přehled objednávky\n" +
         "/souhrn — kompaktní tabulka (jméno + kód jídla)\n" +
         "/menu — dnešní jídelníček\n" +
+        "/menu Po|Ut|St|Ct|Pa — jídelníček pro konkrétní den\n" +
+        "/tyden — jídelníček na celý týden\n" +
         "/zitra — jídelníček na zítřek\n" +
+        "/pizza — aktuální nabídka pizzerie\n" +
         "/statistiky — statistiky posledních 7 dní\n" +
         "/nastaveni — nastavení notifikací\n" +
         "/pozvat — QR kód pro přidání kolegy\n" +
