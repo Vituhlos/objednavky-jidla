@@ -119,7 +119,7 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
   );
 }
 
-export default function OrderDetailPage({ data }: { data: OrderData }) {
+export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderData; hasPdf?: boolean }) {
   const { order, departments, totalPrice } = data;
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -138,10 +138,10 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
   const BackButton = ({ mobile }: { mobile?: boolean }) => (
     <Link
       href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-lg transition hover:bg-black/5 ${mobile ? "text-[13px] text-stone-500 px-1.5 py-1 -ml-1" : "text-[12px] text-stone-500 px-2 py-1"}`}
+      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
     >
-      <MIcon name="arrow_back" size={mobile ? 16 : 14} />
-      {!mobile && <span>Historie</span>}
+      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
+      <span>Historie</span>
     </Link>
   );
 
@@ -175,9 +175,27 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
         <StatusBadge />
         {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         {order.extraEmail && <span className="text-[12px] text-stone-500 hidden lg:inline">Kopie: {order.extraEmail}</span>}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           {totalPrice > 0 && (
-            <span className="font-display font-bold text-[16px] text-stone-900">{totalPrice} Kč</span>
+            <span className="font-display font-bold text-[16px] text-stone-900 mr-1">{totalPrice} Kč</span>
+          )}
+          {sent && hasPdf && (
+            <>
+              <a
+                href={`/api/orders/${order.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
+              >
+                <MIcon name="picture_as_pdf" size={14} /> Zobrazit PDF
+              </a>
+              <a
+                href={`/api/orders/${order.id}/pdf?download=1`}
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
+              >
+                <MIcon name="download" size={14} /> Stáhnout
+              </a>
+            </>
           )}
           <ReopenBtn />
         </div>
@@ -194,10 +212,28 @@ export default function OrderDetailPage({ data }: { data: OrderData }) {
             <span className="font-display font-bold text-[14px] text-stone-900">{totalPrice} Kč</span>
           )}
         </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
+        <div className="flex items-center gap-2 px-4 pb-2.5 flex-wrap">
           <StatusBadge />
           {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
           <ReopenBtn small />
+          {sent && hasPdf && (
+            <>
+              <a
+                href={`/api/orders/${order.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
+              >
+                <MIcon name="picture_as_pdf" size={13} /> PDF
+              </a>
+              <a
+                href={`/api/orders/${order.id}/pdf?download=1`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
+              >
+                <MIcon name="download" size={13} /> Stáhnout
+              </a>
+            </>
+          )}
         </div>
       </div>
 

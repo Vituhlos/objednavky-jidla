@@ -17,6 +17,7 @@ import {
   actionSendOrder,
   actionReopenOrder,
   actionClearOrder,
+  actionDismissAutoSendError,
 } from "@/app/actions";
 
 // ── Help modal ────────────────────────────────────────────
@@ -32,6 +33,7 @@ const HELP_ADVANCED = [
   { title: "Víc porcí stejného jídla", body: "Nastav počet porcí přímo u daného jídla.", icon: "receipt_long" },
   { title: "Přílohy a omáčky", body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.", icon: "lunch_dining" },
   { title: "Pizza", body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.", icon: "local_pizza" },
+  { title: "Přepínání dnů klávesnicí", body: "Šipky ← → přepínají mezi dostupnými dny v týdnu.", icon: "keyboard" },
 ] as const;
 
 function HelpModal({ onClose }: { onClose: () => void }) {
@@ -176,6 +178,13 @@ function parseCutoffMinutes(cutoffTime: string) {
   return h * 60 + m;
 }
 
+const DAY_LOCATIVE = ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"];
+function getFutureDayPhrase(selectedDate: string, todayDate: string): string {
+  if (selectedDate === addDays(todayDate, 1)) return "zítra";
+  const dow = new Date(`${selectedDate}T12:00:00`).getDay();
+  return DAY_LOCATIVE[dow];
+}
+
 function recalcDepartments(departments: DepartmentData[]): DepartmentData[] {
   return departments.map((d) => ({
     ...d,
@@ -210,6 +219,10 @@ export default function OrderPage({
   isAdmin = false,
   currentUserName,
   defaultDepartment,
+  autoSendEnabled = false,
+  autoSendTime = "08:00",
+  autoSendError,
+  autoSendErrorTs,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -226,6 +239,10 @@ export default function OrderPage({
   isAdmin?: boolean;
   currentUserName?: string;
   defaultDepartment?: string | null;
+  autoSendEnabled?: boolean;
+  autoSendTime?: string;
+  autoSendError?: string;
+  autoSendErrorTs?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -245,6 +262,7 @@ export default function OrderPage({
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [daySwitchPending, setDaySwitchPending] = useState(false);
 
   type PendingDelete = { rowId: number; rowData: OrderRowEnriched; deptName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -277,9 +295,10 @@ export default function OrderPage({
 
   // ── Live cutoff check ─────────────────────────────────────
   const checkCutoff = useCallback(() => {
+    if (isFutureDay) return false;
     const now = getPragueNow();
     return now.getHours() * 60 + now.getMinutes() >= parseCutoffMinutes(cutoffTime);
-  }, [cutoffTime]);
+  }, [cutoffTime, isFutureDay]);
 
   const [isPastCutoff, setIsPastCutoff] = useState(checkCutoff);
 
@@ -335,7 +354,32 @@ export default function OrderPage({
   const isFutureDayRef = useRef(isFutureDay);
   useEffect(() => { isFutureDayRef.current = isFutureDay; }, [isFutureDay]);
   const selectedDateRef = useRef(selectedDate);
-  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    // Cancel any stale refresh for the previous date
+    refreshAbortRef.current?.abort();
+    selectedDateRef.current = selectedDate;
+    setDaySwitchPending(false);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!availableDates || !showDayPicker) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const idx = availableDates.indexOf(selectedDate ?? "");
+      const next = e.key === "ArrowLeft" ? idx - 1 : idx + 1;
+      if (next >= 0 && next < availableDates.length) {
+        e.preventDefault();
+        setDaySwitchPending(true);
+        startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [availableDates, selectedDate, showDayPicker, startTransition, router]);
 
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
@@ -343,13 +387,20 @@ export default function OrderPage({
   const doRefresh = useCallback(() => {
     if (isPendingRef.current) return;
     if (isFutureDayRef.current) return;
+    // Cancel any in-flight refresh for a previous date
+    refreshAbortRef.current?.abort();
+    const ac = new AbortController();
+    refreshAbortRef.current = ac;
+    const requestedDate = selectedDateRef.current;
     const params = new URLSearchParams();
-    if (selectedDateRef.current) params.set("date", selectedDateRef.current);
+    if (requestedDate) params.set("date", requestedDate);
     const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
-    fetch(refreshUrl)
+    fetch(refreshUrl, { signal: ac.signal })
       .then((r) => r.ok ? r.json() : null)
       .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
         if (!data) return;
+        // Discard response if the user navigated to a different day while this was in flight
+        if (requestedDate !== selectedDateRef.current) return;
         setDepartments(data.departments);
         setOrderStatus(data.status as "draft" | "sent");
         if (data.sentAt) setSentAt(data.sentAt);
@@ -615,6 +666,7 @@ export default function OrderPage({
   );
 
   const getCountdownInfo = useCallback((): { label: string; mins: number } | null => {
+    if (isFutureDay) return null;
     const now = getPragueNow();
     const diff = parseCutoffMinutes(cutoffTime) - (now.getHours() * 60 + now.getMinutes());
     if (diff <= 0) return null;
@@ -622,7 +674,7 @@ export default function OrderPage({
     const hours = Math.floor(diff / 60);
     const mins = diff % 60;
     return { label: mins > 0 ? `za ${hours} h ${mins} min` : `za ${hours} h`, mins: diff };
-  }, [cutoffTime]);
+  }, [cutoffTime, isFutureDay]);
   const [countdownInfo, setCountdownInfo] = useState(getCountdownInfo);
   const countdown = countdownInfo?.label ?? null;
   const countdownMins = countdownInfo?.mins ?? null;
@@ -640,6 +692,10 @@ export default function OrderPage({
       d.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
     );
   }, [selectedDate]);
+
+  const futureDayPhrase = isFutureDay && selectedDate && todayDate
+    ? getFutureDayPhrase(selectedDate, todayDate)
+    : null;
 
   const allSoups = initialData.todayMenu.soups.filter((i) => i.name !== "Zavřeno");
   const allMeals = initialData.todayMenu.meals.filter((i) => i.name !== "Zavřeno");
@@ -663,6 +719,29 @@ export default function OrderPage({
 
   return (
     <div className="k-shell">
+
+      {/* ── Auto-send failure banner ── */}
+      {autoSendError && (
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b" style={{ background: "rgba(220,38,38,0.08)", borderColor: "rgba(220,38,38,0.18)" }}>
+          <MIcon name="error" size={16} fill style={{ color: "#dc2626", flexShrink: 0 }} />
+          <div className="flex-1 min-w-0">
+            <span className="text-[12.5px] font-semibold text-red-700">Auto-send selhal</span>
+            {autoSendErrorTs && (
+              <span className="text-[11.5px] text-red-500 ml-2">
+                {new Date(autoSendErrorTs).toLocaleString("cs-CZ", { timeZone: "Europe/Prague", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <p className="text-[11.5px] text-red-600 mt-0.5 truncate">{autoSendError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => actionDismissAutoSendError()}
+            className="shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-red-600"
+          >
+            Zavřít
+          </button>
+        </div>
+      )}
 
       {/* ── Toasts & banners (fixed/absolute) ── */}
       {justSent && (
@@ -691,11 +770,15 @@ export default function OrderPage({
         <div
           aria-live="polite"
           role="status"
-          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-white text-[12.5px] font-semibold"
-          style={{
-            background: countdownMins <= 10
-              ? "linear-gradient(90deg,#dc2626,#b91c1c)"
-              : "linear-gradient(90deg,#EA580C,#D97706)",
+          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-[12.5px] font-semibold"
+          style={countdownMins <= 10 ? {
+            background: "rgba(220,38,38,0.09)",
+            borderBottom: "1px solid rgba(220,38,38,0.18)",
+            color: "#b91c1c",
+          } : {
+            background: "rgba(234,88,12,0.08)",
+            borderBottom: "1px solid rgba(234,88,12,0.16)",
+            color: "#c2410c",
           }}
         >
           <MIcon name="timer" size={15} className="shrink-0" />
@@ -715,14 +798,19 @@ export default function OrderPage({
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
         <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
-          {!isSent && !isPastCutoff && countdown && (
-            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime})
+          {isFutureDay && !isSent && futureDayPhrase && (
+            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+              <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
             </span>
           )}
-          {!isSent && isPastCutoff && (
+          {!isFutureDay && !isSent && !isPastCutoff && countdown && (
+            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
+              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
+            </span>
+          )}
+          {!isFutureDay && !isSent && isPastCutoff && (
             <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime})
+              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
             </span>
           )}
           {isSent && sentAt && (
@@ -736,24 +824,18 @@ export default function OrderPage({
             </span>
           )}
         </div>
-        {isAdmin && !isSent && !isFutureDay && !noMenu && (
+        {isAdmin && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
               disabled={isPending}
-              onClick={() => setShowSendConfirm(true)}
+              onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
               style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
               type="button"
             >
               {isPending ? "Odesílám…" : "Odeslat"}
             </button>
           </div>
-        )}
-        {isFutureDay && !isSent && !noMenu && (
-          <span className="text-[11.5px] text-stone-500 inline-flex items-center gap-1.5 shrink-0">
-            <MIcon name="schedule" size={13} />
-            Odešle se automaticky v den samotný
-          </span>
         )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
         <button
@@ -782,14 +864,19 @@ export default function OrderPage({
           role="img"
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
-        {!isSent && !isPastCutoff && countdown && (
-          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-            <MIcon name="schedule" size={12} /> {countdown}
+        {isFutureDay && !isSent && futureDayPhrase && (
+          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
+            <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
           </span>
         )}
-        {!isSent && isPastCutoff && (
+        {!isFutureDay && !isSent && !isPastCutoff && countdown && (
+          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
+            <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
+          </span>
+        )}
+        {!isFutureDay && !isSent && isPastCutoff && (
           <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
-            <MIcon name="schedule" size={12} /> Po uzávěrce
+            <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
         {isSent && (
@@ -807,11 +894,11 @@ export default function OrderPage({
             <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
           </button>
         )}
-        {isAdmin && !isSent && !isFutureDay && !noMenu && (
+        {isAdmin && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
           <button
             className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
             disabled={isPending}
-            onClick={() => setShowSendConfirm(true)}
+            onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
             style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             type="button"
           >
@@ -845,28 +932,37 @@ export default function OrderPage({
         <div className="flex flex-col gap-4 pb-28 md:pb-6">
 
           {showDayPicker && (
-            <DayPickerScroll>
-              {availableDates!.map((date) => {
-                const isActive = date === selectedDate;
-                return (
-                  <button
-                    key={date}
-                    className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                      isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
-                    }`}
-                    onClick={() => router.push(`/?date=${date}`)}
-                    style={isActive ? {
-                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                      color: "white",
-                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                    } : {}}
-                    type="button"
-                  >
-                    {getDayLabel(date, todayDate!)}
-                  </button>
-                );
-              })}
-            </DayPickerScroll>
+            <div className="relative -mx-4">
+              <div className="overflow-x-auto no-scrollbar px-4">
+                <div
+                  className="flex p-1 rounded-2xl gap-0.5"
+                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+                >
+                  {availableDates!.map((date) => {
+                    const isActive = date === selectedDate;
+                    return (
+                      <button
+                        key={date}
+                        className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                        }`}
+                        onClick={() => { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                        style={isActive ? {
+                          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                          color: "white",
+                          boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                        } : {}}
+                        type="button"
+                      >
+                        {getDayLabel(date, todayDate!)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
+                style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
+            </div>
           )}
 
           {noMenu ? (
@@ -942,7 +1038,7 @@ export default function OrderPage({
               )}
 
               {/* Department panels — 3-col on desktop */}
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
                 {departments.map((dept) => (
                   <DepartmentPanel
                     currentUserId={currentUserId}
@@ -955,7 +1051,7 @@ export default function OrderPage({
                     isAdmin={isAdmin}
                     isDefault={!!defaultDepartment && dept.name === defaultDepartment}
                     isSent={isSent}
-                    key={dept.name}
+                    key={`${dept.name}-${selectedDate ?? ''}`}
                     meals={allMeals}
                     onAddRow={handleAddRow}
                     onDeleteRow={handleDeleteRow}

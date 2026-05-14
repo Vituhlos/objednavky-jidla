@@ -370,31 +370,6 @@ function WeekItem({
           placeholder="Alergeny: 1, 3, 7…"
           title="Čísla alergenů oddělená čárkou (1–14)"
         />
-        <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-stone-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
-          defaultValue={item.name}
-          disabled={disabled}
-          onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
-          title="Název"
-        />
-        <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
-          defaultValue={item.price}
-          disabled={disabled}
-          min={0}
-          onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
-          title="Cena Kč"
-          type="number"
-        />
-        <button
-          aria-label="Smazat položku"
-          className="w-8 h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 transition shrink-0"
-          disabled={disabled}
-          onClick={() => onDelete(item.id)}
-          type="button"
-        >
-          <MIcon name="close" size={13} />
-        </button>
       </div>
     );
   }

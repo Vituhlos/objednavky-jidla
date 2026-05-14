@@ -19,7 +19,16 @@ import {
   actionClearOrder,
   actionCheckImap,
   actionSendTestPush,
+  actionSetTelegramWebhook,
+  actionSendTelegramTest,
+  actionGetTelegramSubscriptions,
+  actionRemoveTelegramSubscription,
+  actionSetTelegramAdmin,
+  actionGetTelegramBotInfo,
+  actionGetTelegramWebhookStatus,
+  actionSetTelegramCommands,
 } from "@/app/actions";
+import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
@@ -73,13 +82,14 @@ function formatTs(ts: string): string {
 
 // ── Section card ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon, children, helpContent }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode }) {
+function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="glass rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
         {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
+        {action}
         {helpContent && (
           <button
             type="button"
@@ -271,7 +281,7 @@ function ResetButton({ userId }: { userId: number }) {
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system";
+type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system" | "telegram";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "objednavka", label: "Objednávka", icon: "assignment" },
@@ -279,6 +289,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "ceny",       label: "Ceny",       icon: "payments" },
   { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
   { id: "system",     label: "Systém",     icon: "build" },
+  { id: "telegram",   label: "Telegram",   icon: "send" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -300,6 +311,17 @@ export default function SettingsPage({
   const [imapCheckStatus, setImapCheckStatus] = useState<"idle" | "pending" | "found" | "notfound" | "error">("idle");
   const [imapCheckMsg, setImapCheckMsg] = useState("");
   const [pushTestStatus, setPushTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [telegramTestStatus, setTelegramTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [telegramTestMsg, setTelegramTestMsg] = useState("");
+  const [webhookStatus, setWebhookStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [webhookMsg, setWebhookMsg] = useState("");
+  const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [showTelegramHelp, setShowTelegramHelp] = useState(false);
+  const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
+  const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
+  const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
+  const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -314,6 +336,25 @@ export default function SettingsPage({
   const formRef = useRef<HTMLFormElement>(null);
   const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
+
+  useEffect(() => {
+    if (activeTab !== "telegram") return;
+    if (!telegramSubsLoaded) {
+      actionGetTelegramSubscriptions().then((subs) => {
+        setTelegramSubs(subs);
+        setTelegramSubsLoaded(true);
+      });
+    }
+    if (botInfo === null && settings.telegramBotToken) {
+      Promise.all([
+        actionGetTelegramBotInfo(),
+        actionGetTelegramWebhookStatus(),
+      ]).then(([info, webhook]) => {
+        setBotInfo(info);
+        setWebhookInfo(webhook);
+      });
+    }
+  }, [activeTab, telegramSubsLoaded, botInfo, settings.telegramBotToken]);
 
   // Restore state
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
@@ -447,6 +488,10 @@ export default function SettingsPage({
         .map((d) => d.code)
         .join(","),
       pushReminderMinutes: fd.get("pushReminderMinutes") as string,
+      telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
+      telegramBotToken: fd.get("telegramBotToken") as string,
+      telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
+      telegramAppUrl: fd.get("telegramAppUrl") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -610,25 +655,38 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-24">
         <>
             {/* Tab bar */}
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12.5px] font-semibold transition-all ${
-                    activeTab === tab.id ? "text-white shadow-sm" : "glass-btn text-stone-600 hover:text-stone-800"
-                  }`}
-                  style={activeTab === tab.id ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
-                >
-                  <MIcon name={tab.icon as "settings"} size={14} />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
-                </button>
-              ))}
+            <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+              <div
+                className="flex p-1 rounded-2xl gap-0.5"
+                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+              >
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                    }`}
+                    style={activeTab === tab.id ? {
+                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                    } : {}}
+                  >
+                    <MIcon name={tab.icon as "settings"} size={14} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                    {tab.id === "telegram" && telegramSubsLoaded && telegramSubs.length > 0 && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === "telegram" ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                        {telegramSubs.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* ── Objednávka — non-form sections ── */}
@@ -1056,6 +1114,77 @@ export default function SettingsPage({
 
               </div>
 
+              {/* Telegram tab — form part (token + toggle) */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
+                <Section icon="send" title="Telegram bot" action={
+                  <div className="flex items-center gap-2">
+                    {/* Status dot */}
+                    {(() => {
+                      const hasToken = !!settings.telegramBotToken;
+                      const connected = botInfo?.ok;
+                      const hasWebhook = webhookInfo?.hasWebhook;
+                      const color = !hasToken ? "#a8a29e" : connected && hasWebhook ? "#16a34a" : connected ? "#f59e0b" : "#ef4444";
+                      const label = !hasToken ? "Nenastaveno" : connected && hasWebhook ? "Připojeno" : connected ? "Token OK, webhook chybí" : "Chyba tokenu";
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color }}>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                          {label}
+                        </span>
+                      );
+                    })()}
+                    <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                      <MIcon name="help_outline" size={13} /> Jak nastavit?
+                    </button>
+                  </div>
+                }>
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div className="relative shrink-0">
+                      <input className="peer sr-only" defaultChecked={settings.telegramEnabled === "true"} name="telegramEnabled" type="checkbox" />
+                      <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                      <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                    </div>
+                    <span className="text-[13px] font-semibold text-stone-800">Zapnout Telegram notifikace</span>
+                  </label>
+                  <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
+                    <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
+                  </Field>
+                  <Field hint="každý pracovní den bot pošle ranní jídelníček odběratelům — prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
+                    <input className="modal-input w-32" defaultValue={settings.telegramMorningMenuTime} name="telegramMorningMenuTime" placeholder="07:30" type="time" />
+                  </Field>
+                  <Field hint="URL tvé appky — umožní otevřít ji jako Mini App přímo v Telegramu přes tlačítko 🌐 v klávesnici (volitelné)" label="URL Mini App">
+                    <input className="modal-input" defaultValue={settings.telegramAppUrl} name="telegramAppUrl" placeholder="https://objednavky.firma.cz" type="url" />
+                  </Field>
+
+                  {/* Bot info card */}
+                  {botInfo?.ok && botInfo.username && (
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl" style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)" }}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] shrink-0" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                          <MIcon name="smart_toy" size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-stone-800 truncate">{botInfo.firstName}</p>
+                          <p className="text-[11px] text-stone-500 font-mono truncate">@{botInfo.username}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://t.me/${botInfo.username}`);
+                          setLinkCopied(true);
+                          setTimeout(() => setLinkCopied(false), 2000);
+                        }}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500 whitespace-nowrap"
+                        title={`https://t.me/${botInfo.username}`}
+                      >
+                        <MIcon name={linkCopied ? "check" : "link"} size={13} />
+                        {linkCopied ? "Zkopírováno!" : "Kopírovat odkaz"}
+                      </button>
+                    </div>
+                  )}
+                </Section>
+              </div>
+
             </form>
 
             {/* ── Systém — non-form sections ── */}
@@ -1261,27 +1390,295 @@ export default function SettingsPage({
               </>
             )}
 
-            {/* ── Save button (all tabs except Oddělení) ── */}
-            {activeTab !== "oddeleni" && (
-              <div className="flex items-center justify-end gap-3 pt-1">
-                {saveStatus === "saved" && (
-                  <span className="text-[12px] font-medium text-emerald-600">Nastavení uloženo.</span>
+            {/* ── Telegram tab — non-form sections ── */}
+            {activeTab === "telegram" && (
+              <>
+                <div className="flex flex-col gap-4">
+
+                  {/* Subscriber list */}
+                  <Section icon="group" title={`Registrovaní uživatelé${telegramSubs.length > 0 ? ` (${telegramSubs.length})` : ""}`}>
+                    {!telegramSubsLoaded ? (
+                      <p className="text-[12.5px] text-stone-400">Načítám…</p>
+                    ) : telegramSubs.length === 0 ? (
+                      <div className="text-[12.5px] text-stone-400 leading-relaxed">
+                        Zatím nikdo. Každý si otevře chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {telegramSubs.map((sub) => (
+                          <div key={sub.chatId} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-black/3 group">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: sub.isAdmin ? "linear-gradient(135deg,#F59E0B,#EA580C)" : "#a8a29e" }}>
+                              {(sub.firstName || sub.username || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[13px] font-semibold text-stone-800 truncate block">
+                                {sub.firstName || sub.username || `Chat ${sub.chatId}`}
+                                {sub.username && sub.firstName && <span className="text-stone-400 font-normal text-[11px] ml-1">@{sub.username}</span>}
+                              </span>
+                              <span className="text-[11px] text-stone-400">
+                                {sub.isAdmin ? "Admin" : "Uživatel"} · registrován {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await actionSetTelegramAdmin(sub.chatId, !sub.isAdmin);
+                                  setTelegramSubs((prev) => prev.map((s) => s.chatId === sub.chatId ? { ...s, isAdmin: !s.isAdmin } : s));
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium"
+                                title={sub.isAdmin ? "Odebrat admin" : "Nastavit jako admin"}
+                              >
+                                {sub.isAdmin ? "→ User" : "→ Admin"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await actionRemoveTelegramSubscription(sub.chatId);
+                                  setTelegramSubs((prev) => prev.filter((s) => s.chatId !== sub.chatId));
+                                }}
+                                className="w-7 h-7 rounded-lg glass-btn flex items-center justify-center text-red-400"
+                                title="Odebrat"
+                              >
+                                <MIcon name="close" size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Section>
+
+                  <Section icon="notifications" title="Co bot hlásí">
+                    <ul className="text-[12.5px] text-stone-600 space-y-1.5">
+                      <li className="flex items-center gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a" }} /> Objednávka odeslána (auto-send)</li>
+                      <li className="flex items-center gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626" }} /> Auto-send selhal</li>
+                    </ul>
+                    <p className="text-[12px] text-stone-400 mt-1">Notifikace jdou každému registrovanému uživateli do jeho soukromého chatu.</p>
+                  </Section>
+
+                  <Section icon="terminal" title="Dostupné příkazy">
+                    <ul className="text-[12.5px] text-stone-600 space-y-1.5 font-mono">
+                      <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— podrobný přehled objednávky (plné názvy)</span></li>
+                      <li><span className="text-amber-700">/souhrn</span> <span className="font-sans text-stone-500">— kompaktní tabulka (jméno + kód jídla)</span></li>
+                      <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
+                      <li><span className="text-amber-700">/zitra</span> <span className="font-sans text-stone-500">— jídelníček na zítřek</span></li>
+                      <li><span className="text-amber-700">/statistiky</span> <span className="font-sans text-stone-500">— statistiky posledních 7 dní</span></li>
+                      <li><span className="text-amber-700">/nastaveni</span> <span className="font-sans text-stone-500">— nastavení notifikací (inline tlačítka)</span></li>
+                      <li><span className="text-amber-700">/pozvat</span> <span className="font-sans text-stone-500">— QR kód pro přidání kolegy</span></li>
+                      <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
+                      <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
+                      <li><span className="text-amber-700">/nastavit cas HH:MM</span> <span className="font-sans text-stone-500">— změnit čas auto-odesílání <span className="text-stone-400">(jen admin)</span></span></li>
+                      <li><span className="text-amber-700">/pomoc</span> <span className="font-sans text-stone-500">— seznam příkazů</span></li>
+                    </ul>
+                  </Section>
+                </div>
+
+                <Section icon="integration_instructions" title="Nastavení webhooku">
+                  <p className="text-[12.5px] text-stone-500">
+                    Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Klikni na tlačítko níže po každé změně domény nebo tokenu.
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={webhookStatus === "pending"}
+                      onClick={async () => {
+                        setWebhookStatus("pending");
+                        setWebhookMsg("");
+                        const res = await actionSetTelegramWebhook();
+                        setWebhookStatus(res.ok ? "ok" : "error");
+                        setWebhookMsg(res.description ?? "");
+                        if (res.ok) {
+                          const wh = await actionGetTelegramWebhookStatus();
+                          setWebhookInfo(wh);
+                        }
+                      }}
+                      type="button"
+                    >
+                      {webhookStatus === "pending" ? "Nastavuji…" : "Nastavit webhook"}
+                    </button>
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={telegramTestStatus === "pending"}
+                      onClick={async () => {
+                        setTelegramTestStatus("pending");
+                        setTelegramTestMsg("");
+                        const res = await actionSendTelegramTest();
+                        setTelegramTestStatus(res.ok ? "ok" : "error");
+                        setTelegramTestMsg(res.error ?? "");
+                      }}
+                      type="button"
+                    >
+                      {telegramTestStatus === "pending" ? "Odesílám…" : "Testovat zprávu"}
+                    </button>
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={commandsStatus === "pending"}
+                      onClick={async () => {
+                        setCommandsStatus("pending");
+                        const res = await actionSetTelegramCommands();
+                        setCommandsStatus(res.ok ? "ok" : "error");
+                      }}
+                      title="Zaregistruje příkazy bota u Telegramu — zobrazí se v autocomplete při psaní /"
+                      type="button"
+                    >
+                      {commandsStatus === "pending" ? "Registruji…" : "Registrovat příkazy"}
+                    </button>
+                    {webhookStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${webhookStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {webhookStatus === "ok" ? "✓ Webhook nastaven" : `✗ ${webhookMsg}`}
+                      </span>
+                    )}
+                    {commandsStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${commandsStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {commandsStatus === "ok" ? "✓ Příkazy registrovány" : "✗ Chyba registrace"}
+                      </span>
+                    )}
+                    {telegramTestStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${telegramTestStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {telegramTestStatus === "ok" ? "✓ Zpráva odeslána" : `✗ ${telegramTestMsg || "Chyba"}`}
+                      </span>
+                    )}
+                  </div>
+                </Section>
+
+                {/* Telegram help modal */}
+                {showTelegramHelp && (
+                  <div className="modal-overlay" onClick={() => setShowTelegramHelp(false)}>
+                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-sheet__header">
+                        <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
+                        <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
+                      </div>
+                      <div className="modal-sheet__body space-y-4">
+
+                        {/* Intro */}
+                        <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                          <strong>Jak to funguje:</strong> Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>. Automaticky se zaregistruje a bude dostávat notifikace do svého soukromého chatu. Nikdo nevidí zprávy ostatních.
+                        </div>
+
+                        {/* Steps */}
+                        {[
+                          {
+                            num: "1",
+                            title: "Vytvoř bota přes @BotFather (2 minuty)",
+                            body: (
+                              <div className="space-y-2">
+                                <p>V Telegramu vyhledej <strong>@BotFather</strong> — vyber toho s modrým ověřovacím odznakem. Klikni <strong>Start</strong>.</p>
+                                <div className="space-y-1 text-[12px]">
+                                  {[
+                                    ["Ty napíšeš:", "/newbot"],
+                                    ["BotFather se zeptá:", "How are we going to call it? (zobrazovaný název, např. Obědy LIMA)"],
+                                    ["Ty napíšeš:", "Obědy LIMA"],
+                                    ["BotFather se zeptá:", "Choose a username — musí končit na bot (např. ObedyLIMAbot)"],
+                                    ["Ty napíšeš:", "ObedyLIMAbot"],
+                                    ["BotFather odpoví:", "Done! Token: 1234567890:AAFxxxxxxx... — zkopíruj ho!"],
+                                  ].map(([who, what], i) => (
+                                    <div key={i} className="flex gap-2">
+                                      <span className="shrink-0 text-stone-400 w-28">{who}</span>
+                                      <span className="font-mono text-[11px] text-stone-700 bg-black/5 px-1.5 py-0.5 rounded leading-relaxed">{what}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ),
+                          },
+                          {
+                            num: "2",
+                            title: "Vlož token do nastavení a ulož",
+                            body: <>Zkopíruj <strong>Bot Token</strong> z BotFather, vlož ho do pole výše, zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
+                          },
+                          {
+                            num: "3",
+                            title: "Nastav webhook",
+                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat příkazy. Stačí jednou (opakuj jen při změně domény nebo tokenu).</>,
+                          },
+                          {
+                            num: "4",
+                            title: "Kolegové — stačí kliknout na odkaz",
+                            body: (
+                              <div className="space-y-1.5">
+                                <p>Pošli kolegům odkaz <code className="bg-black/5 px-1 rounded">t.me/ObedyLIMAbot</code> (uprav na své uživatelské jméno). Kliknou, zmáčknou <strong>Start</strong> — a jsou zaregistrovaní. Žádné nastavování, žádný BotFather.</p>
+                                <p className="text-stone-400">První kdo klikne Start dostane automaticky roli <strong>admin</strong> (může odesílat objednávky příkazem).</p>
+                              </div>
+                            ),
+                          },
+                          {
+                            num: "5",
+                            title: "Otestuj",
+                            body: <>Klikni na <strong>Testovat zprávu</strong> — bot pošle testovací zprávu všem registrovaným. Zkus taky napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo botovi.</>,
+                          },
+                        ].map((step) => (
+                          <div key={step.num} className="flex gap-3">
+                            <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                              {step.num}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
+                              <div className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Commands reference */}
+                        <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
+                          <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (piš botovi přímo v soukromém chatu)</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+                            {[
+                              ["/stav", "přehled dnešní objednávky"],
+                              ["/souhrn", "kompaktní tabulka s kódy"],
+                              ["/menu", "dnešní jídelníček"],
+                              ["/zitra", "jídelníček na zítřek"],
+                              ["/statistiky", "statistiky (7 dní)"],
+                              ["/nastaveni", "nastavení notifikací"],
+                              ["/pozvat", "QR kód pro kolegy"],
+                              ["/odeslat", "odeslání objednávky (admin)"],
+                              ["/zrusit", "znovu otevřít objednávku (admin)"],
+                              ["/nastavit cas HH:MM", "změnit čas auto-odesílání (admin)"],
+                              ["/pomoc", "seznam příkazů"],
+                            ].map(([cmd, desc]) => (
+                              <div key={cmd} className="contents">
+                                <span className="font-mono text-amber-700 font-semibold">{cmd}</span>
+                                <span className="text-stone-500">{desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
-                {saveStatus === "error" && (
-                  <span className="text-[12px] font-medium text-red-500">Chyba při ukládání.</span>
-                )}
-                <button
-                  className="modal-btn modal-btn--primary"
-                  disabled={isPending}
-                  form="settings-form"
-                  type="submit"
-                >
-                  {isPending ? "Ukládám..." : "Uložit nastavení"}
-                </button>
-              </div>
+              </>
             )}
+
+        {/* Version info */}
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">
+          <span>Objednávky LIMA</span>
+          <span className="text-stone-300">·</span>
+          <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>
+          {process.env.NEXT_PUBLIC_COMMIT_SHA && (
+            <>
+              <span className="text-stone-300">·</span>
+              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)}</span>
+            </>
+          )}
+        </div>
+
           </>
       </main>
+
+      {/* ── Floating save button ── */}
+      {activeTab !== "oddeleni" && (
+        <div className="settings-save-fab">
+          {saveStatus === "saved" && <span className="settings-save-fab__status text-emerald-700">Nastavení uloženo.</span>}
+          {saveStatus === "error" && <span className="settings-save-fab__status text-red-600">Chyba při ukládání.</span>}
+          <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
+            {isPending ? "Ukládám..." : "Uložit nastavení"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

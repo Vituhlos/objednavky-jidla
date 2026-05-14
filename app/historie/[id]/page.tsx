@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { getOrderData } from "@/lib/orders";
+import { getOrderData, orderPdfExists } from "@/lib/orders";
 import { notFound } from "next/navigation";
 import OrderDetailPage from "@/app/components/OrderDetailPage";
 
@@ -10,7 +10,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!orderId) notFound();
   try {
     const data = getOrderData(orderId);
-    return <OrderDetailPage data={data} />;
+    return <OrderDetailPage data={data} hasPdf={orderPdfExists(orderId)} />;
   } catch {
     notFound();
   }

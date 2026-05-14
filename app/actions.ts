@@ -28,6 +28,16 @@ import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  setTelegramWebhook,
+  setTelegramCommands,
+  getTelegramSubscriptions,
+  removeTelegramSubscription,
+  setTelegramAdmin,
+  getTelegramBotInfo,
+  getTelegramWebhookStatus,
+} from "@/lib/telegram";
+import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
@@ -121,6 +131,8 @@ export async function actionConfirmMenuImport(
   }
   revalidatePath("/jidelnicek");
   revalidatePath("/");
+  const { sendTelegramToSubscribers } = await import("@/lib/telegram");
+  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
@@ -467,5 +479,65 @@ export async function actionSendTestPush(): Promise<{ sent: number; error?: stri
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
   return { sent: subs.length };
+}
+
+export async function actionDismissAutoSendError(): Promise<void> {
+  saveSettings({ autoSendErrorAcked: "true" });
+  revalidatePath("/");
+}
+
+export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
+  const hdrs = await headers();
+  const host = hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
+  return setTelegramWebhook(webhookUrl);
+}
+
+export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
+  const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
+  const subs = getTelegramSubscriptions();
+  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
+  try {
+    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA — Telegram funguje!");
+    return { ok: true, sent: subs.length };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
+  return getTelegramSubscriptions();
+}
+
+export async function actionRemoveTelegramSubscription(chatId: string): Promise<void> {
+  removeTelegramSubscription(chatId);
+  revalidatePath("/nastaveni");
+}
+
+export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
+  setTelegramAdmin(chatId, isAdmin);
+  revalidatePath("/nastaveni");
+}
+
+export async function actionGetTelegramBotInfo(): Promise<{
+  ok: boolean;
+  firstName?: string;
+  username?: string;
+  error?: string;
+}> {
+  return getTelegramBotInfo();
+}
+
+export async function actionGetTelegramWebhookStatus(): Promise<{
+  ok: boolean;
+  hasWebhook: boolean;
+  url?: string;
+}> {
+  return getTelegramWebhookStatus();
+}
+
+export async function actionSetTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
+  return setTelegramCommands();
 }
 

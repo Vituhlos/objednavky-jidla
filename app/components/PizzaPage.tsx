@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
@@ -31,6 +32,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
   const [scrapeStatus, setScrapeStatus] = useState<string | null>(null);
   const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [showPizzaHelp, setShowPizzaHelp] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
   const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,7 +159,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
         {totalCount > 0 && (
           <span className="text-[12px] text-stone-600">
             <strong>{totalCount} ks</strong> · <strong className="text-stone-800">{totals.finalTotal} Kč</strong>
-            {totals.pricePerPizza > 0 && ` · ${totals.pricePerPizza} Kč/ks`}
+            {totals.pricePerPerson > 0 && <> · <strong className="text-amber-700">{totals.pricePerPerson} Kč/os.</strong></>}
           </span>
         )}
         {scrapeStatus && <span className="text-[12px] text-emerald-600">{scrapeStatus}</span>}
@@ -182,7 +184,10 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza</span>
           {totalCount > 0 && (
-            <span className="text-[12px] text-stone-700 font-semibold">{totalCount} ks · {totals.finalTotal} Kč</span>
+            <span className="text-[12px] text-stone-700 font-semibold">
+              {totalCount} ks · {totals.finalTotal} Kč
+              {totals.pricePerPerson > 0 && <span className="text-amber-700"> · {totals.pricePerPerson} Kč/os.</span>}
+            </span>
           )}
         </div>
         {isAdmin && (
@@ -217,7 +222,10 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Objednávky</span>
             {totalCount > 0 && (
-              <span className="text-[11px] text-stone-500">{totalCount} ks · {totals.finalTotal} Kč</span>
+              <span className="text-[11px] text-stone-500">
+                {totalCount} ks · {totals.finalTotal} Kč
+                {totals.pricePerPerson > 0 && ` · ${totals.pricePerPerson} Kč/os.`}
+              </span>
             )}
             {isAdmin && (
               <button
@@ -236,10 +244,12 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
           </div>
 
           {rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-8 text-stone-400">
-              <MIcon name="local_pizza" size={32} fill />
-              <p className="text-[13px]">Zatím nikdo neobjednal</p>
-              <p className="text-[12px]">Přidejte první osobu tlačítkem výše</p>
+            <div className="empty-state">
+              <div className="empty-state__icon">
+                <MIcon name="local_pizza" size={22} style={{ color: "#94a3b8" }} />
+              </div>
+              <p className="empty-state__title">Zatím nikdo neobjednal</p>
+              <p className="empty-state__sub">Přidejte první osobu tlačítkem výše</p>
             </div>
           ) : (
             <>
@@ -273,7 +283,20 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
           <section className="glass rounded-3xl overflow-hidden">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(79,138,83,0.07)" }}>
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
-              <span className="font-display font-bold text-[13.5px] text-stone-900">Souhrn</span>
+              <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Souhrn</span>
+              <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50/80 px-2 py-0.5 rounded-full">2+1 zdarma</span>
+              <button
+                type="button"
+                onClick={() => setShowPizzaHelp(true)}
+                className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-white/60 transition text-[13px] font-bold"
+                aria-label="Nápověda k výpočtu"
+                title="Jak se počítá cena?"
+              >?</button>
+            </div>
+            <div className="px-4 pt-3 pb-0">
+              <p className="text-[11.5px] text-stone-500 leading-relaxed">
+                Za každé 2 pizzy dostanete 1 <strong className="text-stone-600">nejlevnější zdarma</strong> (včetně krabice). Sleva se počítá automaticky.
+              </p>
             </div>
             <div className="p-4 grid grid-cols-1 gap-4">
               {pizzaCounts.size > 0 && (
@@ -302,38 +325,209 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
         )}
       </div>
       </main>
+
+      {showPizzaHelp && (
+        <div className="modal-overlay" onClick={() => setShowPizzaHelp(false)}>
+          <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-sheet__header">
+              <h3 className="modal-sheet__title">Jak se počítá cena?</h3>
+              <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>
+            </div>
+            <div className="modal-sheet__body space-y-4 text-[13px] text-stone-600 leading-relaxed">
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">🍕 Akce 2+1 zdarma</p>
+                <p>Za každé <strong>2 objednané pizzy</strong> dostanete <strong>1 zdarma</strong>. Automaticky se vybere <strong>nejlevnější pizza</strong> z celé objednávky.</p>
+                <p className="text-stone-500 text-[12px]">Příklad: objednáte 6 pizz → 2 nejlevnější jsou zdarma.</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">📦 Krabice</p>
+                <p>Ke každé pizze se přičítá poplatek <strong>{PIZZA_BOX_FEE} Kč za krabici</strong>. U pizzy zdarma se krabice také nepočítá.</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">🚗 Doprava</p>
+                <p>Při objednávce <strong>4 a více pizz</strong> je doprava zdarma. Při menší objednávce se doprava přičítá dle ceníku (1 ks = 80 Kč, 2 ks = 60 Kč, 3 ks = 50 Kč).</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">👤 Cena na osobu</p>
+                <p>Celková cena se <strong>rovnoměrně rozdělí</strong> mezi všechny objednávající (počet řádků s vybranou pizzou). Výsledek je zaokrouhlen nahoru na celé koruny.</p>
+                <p className="text-stone-500 text-[12px]">Pokud někdo objednal 2 pizzy, zaplatí stejný díl jako ostatní — cena se dělí počtem lidí, ne počtem kusů.</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
   if (totals.finalTotal === 0) return null;
-  const rows = [
+  const breakdownRows = [
     { label: "Pizzy (ceny)", value: `${totals.baseTotal} Kč`, accent: false },
     { label: `Krabice (${PIZZA_BOX_FEE} Kč/ks)`, value: `${totals.boxTotal} Kč`, accent: false },
-    ...(totals.freeCount > 0 ? [{ label: `3+1 zdarma (${totals.freeCount}× nejlevnější)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
+    ...(totals.freeCount > 0 ? [{ label: `2+1 zdarma (${totals.freeCount}× nejlevnější)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
     ...(totals.deliveryFee > 0 ? [{ label: "Doprava", value: `${totals.deliveryFee} Kč`, accent: false }] : []),
     ...(totals.deliveryFee === 0 && totals.finalTotal > 0 ? [{ label: "Doprava zdarma (≥4 ks)", value: "0 Kč", accent: true }] : []),
   ];
   return (
     <div className="mt-3 glass-soft rounded-2xl overflow-hidden">
-      {rows.map(({ label, value, accent }) => (
+      {breakdownRows.map(({ label, value, accent }) => (
         <div key={label} className="flex items-center justify-between px-3 py-1.5 border-b border-white/40 last:border-0 text-[12px]">
           <span className="text-stone-600">{label}</span>
           <span className={`font-semibold ${accent ? "text-emerald-600" : "text-stone-800"}`}>{value}</span>
         </div>
       ))}
-      <div className="flex items-center justify-between px-3 py-2 text-[13px]" style={{ background: "rgba(245,158,11,0.06)" }}>
-        <span className="font-semibold text-stone-700">Celkem</span>
+      <div className="flex items-center justify-between px-3 py-2 text-[13px] border-t border-white/40" style={{ background: "rgba(245,158,11,0.06)" }}>
+        <span className="font-semibold text-stone-700">Celkem pro pizzaře</span>
         <span className="font-display font-bold text-stone-900">{totals.finalTotal} Kč</span>
       </div>
-      {totals.pricePerPizza > 0 && (
-        <div className="flex items-center justify-between px-3 py-1.5 text-[11.5px]">
-          <span className="text-stone-500">Cena za kus</span>
-          <span className="font-semibold text-stone-600">{totals.pricePerPizza} Kč/ks</span>
+      {totals.pricePerPerson > 0 && (
+        <div className="flex items-center justify-between px-3 py-2 text-[13px]" style={{ background: "rgba(234,88,12,0.05)" }}>
+          <span className="font-semibold text-stone-700">Na osobu ({totals.personCount} objednávajících)</span>
+          <span className="font-display font-bold text-amber-700">{totals.pricePerPerson} Kč</span>
         </div>
       )}
     </div>
+  );
+}
+
+function PizzaSelect({
+  value, onChange, items, disabled,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  items: PizzaItem[];
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [hlIdx, setHlIdx] = useState(0);
+
+  const allCount = items.length + 1;
+  const selectedItem = value !== null ? items.find((i) => i.id === value) : null;
+
+  const openList = useCallback(() => {
+    if (disabled) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const listH = Math.min(allCount * 38 + 8, 264);
+    const above = window.innerHeight - rect.bottom < listH && rect.top > listH;
+    setDropPos({ top: above ? rect.top - listH - 4 : rect.bottom + 4, left: rect.left, width: rect.width });
+    const idx = value === null ? 0 : (items.findIndex((i) => i.id === value) + 1);
+    setHlIdx(idx < 0 ? 0 : idx);
+    setOpen(true);
+  }, [disabled, allCount, items, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (listRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!triggerRef.current?.contains(e.target as Node) && !listRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    listRef.current.querySelectorAll<HTMLElement>("[data-idx]")[hlIdx]?.scrollIntoView({ block: "nearest" });
+  }, [hlIdx, open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openList(); }
+      return;
+    }
+    if (e.key === "Escape") { e.preventDefault(); setOpen(false); triggerRef.current?.focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setHlIdx((i) => Math.min(i + 1, allCount - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHlIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (hlIdx === 0) onChange(null); else onChange(items[hlIdx - 1].id);
+      setOpen(false); triggerRef.current?.focus();
+    }
+  };
+
+  const select = (v: number | null) => { onChange(v); setOpen(false); triggerRef.current?.focus(); };
+
+  return (
+    <>
+      <button
+        type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox"
+        className="k-select"
+        style={{ display: "flex", alignItems: "center", backgroundImage: "none", textAlign: "left", cursor: disabled ? "not-allowed" : "default", opacity: disabled ? 0.5 : 1 }}
+        onClick={openList} onKeyDown={handleKeyDown} ref={triggerRef} disabled={disabled}
+      >
+        <span className="flex-1 truncate min-w-0 flex items-baseline gap-1.5">
+          {selectedItem ? (
+            <>
+              <span style={{ fontFamily: "monospace", fontSize: "0.7rem", color: "#d97706", flexShrink: 0 }}>{selectedItem.code}.</span>
+              <span className="truncate">{selectedItem.name}</span>
+              <span style={{ fontSize: "0.7rem", color: "#9b8474", flexShrink: 0 }}>({selectedItem.price} Kč)</span>
+            </>
+          ) : (
+            <span style={{ color: "#a8a29e" }}>— vyberte —</span>
+          )}
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b8474" strokeWidth="2" aria-hidden
+          style={{ flexShrink: 0, marginLeft: 4, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "" }}>
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      {open && createPortal(
+        <div
+          ref={listRef} role="listbox"
+          style={{
+            position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
+            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
+            border: "1px solid rgba(255,255,255,0.68)", borderRadius: 16,
+            boxShadow: "0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
+            <button data-idx="0" type="button" role="option" aria-selected={value === null}
+              className="dropdown-item dropdown-item--placeholder"
+              data-hl={String(hlIdx === 0)}
+              onClick={() => select(null)}
+            >— vyberte —</button>
+            {items.map((item, i) => {
+              const idx = i + 1;
+              return (
+                <button key={item.id} data-idx={String(idx)} type="button" role="option" aria-selected={value === item.id}
+                  className="dropdown-item"
+                  data-hl={String(hlIdx === idx)}
+                  onClick={() => select(item.id)}
+                >
+                  <span style={{ fontFamily: "monospace", fontSize: "0.7rem", color: "#d97706", flexShrink: 0 }}>{item.code}.</span>
+                  <span style={{ flex: 1 }}>{item.name}</span>
+                  <span style={{ fontSize: "0.7rem", color: "#9b8474", flexShrink: 0 }}>{item.price} Kč</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -412,17 +606,12 @@ function PizzaRow({
           placeholder="Jméno..."
           type="text"
         />
-        <select
-          className="k-select"
+        <PizzaSelect
+          value={row.pizzaItemId}
+          onChange={(v) => onUpdate(row.id, { pizzaItemId: v })}
+          items={pizzaItems}
           disabled={isPending || pizzaItems.length === 0}
-          onChange={(e) => onUpdate(row.id, { pizzaItemId: e.target.value ? Number(e.target.value) : null })}
-          value={row.pizzaItemId ?? ""}
-        >
-          <option value="">— vyberte —</option>
-          {pizzaItems.map((item) => (
-            <option key={item.id} value={item.id}>{item.code}. {item.name} ({item.price} Kč)</option>
-          ))}
-        </select>
+        />
         <div className="flex items-center gap-1 justify-center">
           <button aria-label="Snížit počet" className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
           <span className="stepper-count">{row.count}</span>

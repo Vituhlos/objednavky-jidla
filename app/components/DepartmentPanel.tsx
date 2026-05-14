@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
@@ -112,6 +112,174 @@ function ModalStepper({
   );
 }
 
+// ── Custom menu select (replaces native <select>) ─────────
+
+function MenuSelect({
+  id, value, onChange, options, placeholder, style,
+}: {
+  id?: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  options: import("@/lib/types").MenuItem[];
+  placeholder: string;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [hlIdx, setHlIdx] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  const allCount = options.length + 1;
+
+  // ── všechny hooky musí být před jakýmkoliv conditional return ──
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const openList = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const listH = Math.min(allCount * 38 + 8, 264);
+    const above = window.innerHeight - rect.bottom < listH && rect.top > listH;
+    setDropPos({ top: above ? rect.top - listH - 4 : rect.bottom + 4, left: rect.left, width: rect.width });
+    const idx = value === null ? 0 : (options.findIndex((o) => o.id === value) + 1);
+    setHlIdx(idx < 0 ? 0 : idx);
+    setOpen(true);
+  }, [allCount, options, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (listRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!triggerRef.current?.contains(e.target as Node) && !listRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    listRef.current.querySelectorAll<HTMLElement>("[data-idx]")[hlIdx]?.scrollIntoView({ block: "nearest" });
+  }, [hlIdx, open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openList(); }
+      return;
+    }
+    if (e.key === "Escape" || e.key === "Tab") { setOpen(false); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setHlIdx((i) => Math.min(i + 1, allCount - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHlIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (hlIdx === 0) onChange(null); else onChange(options[hlIdx - 1].id);
+      setOpen(false); triggerRef.current?.focus();
+    }
+  };
+
+  const select = (v: number | null) => { onChange(v); setOpen(false); triggerRef.current?.focus(); };
+
+  const selectedOpt = value !== null ? options.find((o) => o.id === value) : null;
+
+  if (isMobile) {
+    return (
+      <select
+        id={id}
+        className="modal-select"
+        style={style}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.code ? `${o.code} – ${o.name}` : o.name}</option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <>
+      <button
+        id={id} type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox"
+        className="modal-select"
+        style={{ display: "flex", alignItems: "center", backgroundImage: "none", textAlign: "left", cursor: "default", ...style }}
+        onClick={openList} onKeyDown={handleKeyDown} ref={triggerRef}
+      >
+        <span className="flex-1 truncate min-w-0 flex items-baseline gap-1.5">
+          {selectedOpt ? (
+            <>
+              {selectedOpt.code && <span style={{ fontFamily: "monospace", fontSize: "0.7rem", color: "#d97706", flexShrink: 0 }}>{selectedOpt.code}</span>}
+              <span className="truncate">{selectedOpt.name}</span>
+            </>
+          ) : (
+            <span style={{ color: "#a8a29e" }}>{placeholder}</span>
+          )}
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b8474" strokeWidth="2" aria-hidden
+          style={{ flexShrink: 0, marginLeft: 4, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "" }}>
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      {open && createPortal(
+        <div
+          ref={listRef} role="listbox"
+          style={{
+            position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
+            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
+            border: "1px solid rgba(255,255,255,0.68)", borderRadius: 16,
+            boxShadow: "0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
+            <button data-idx="0" type="button" role="option" aria-selected={value === null}
+              className="dropdown-item dropdown-item--placeholder"
+              data-hl={String(hlIdx === 0)}
+              onClick={() => select(null)}
+            >{placeholder}</button>
+            {options.map((opt, i) => {
+              const idx = i + 1;
+              return (
+                <button key={opt.id} data-idx={String(idx)} type="button" role="option" aria-selected={value === opt.id}
+                  className="dropdown-item"
+                  data-hl={String(hlIdx === idx)}
+                  onClick={() => select(opt.id)}
+                >
+                  {opt.code && <span style={{ fontFamily: "monospace", fontSize: "0.7rem", color: "#d97706", minWidth: "1.5rem", textAlign: "right", flexShrink: 0 }}>{opt.code}</span>}
+                  <span style={{ flex: 1 }}>{opt.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 // ── Edit modal ────────────────────────────────────────────
 
 function OrderEditModal({
@@ -207,6 +375,7 @@ function OrderEditModal({
     personName.trim() !== "" &&
     normalizeName(personName) !== normalizeName(row.personName) &&
     existingNames.some((n) => normalizeName(n) === normalizeName(personName));
+  const showMealTip = /\d/.test(lastName) || /\d/.test(firstName);
 
   const handleSave = () => {
     if (!firstName.trim()) {
@@ -226,6 +395,10 @@ function OrderEditModal({
       return;
     }
     setValidationError(null);
+    doSave();
+  };
+
+  const doSave = () => {
     try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
@@ -277,25 +450,31 @@ function OrderEditModal({
                 <input
                   autoFocus
                   autoComplete="given-name"
-                  className="modal-input"
+                  className={`modal-input${/\d/.test(firstName) ? " modal-input--error" : ""}`}
                   id="modal-firstname"
                   onChange={(e) => { setFirstName(e.target.value); setValidationError(null); }}
                   placeholder="Jan"
                   type="text"
                   value={firstName}
                 />
+                {/\d/.test(firstName) && (
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo ze jména.</p>
+                )}
               </div>
               <div style={{ flex: 1 }}>
                 <label className="modal-label" htmlFor="modal-lastname">Příjmení</label>
                 <input
                   autoComplete="family-name"
-                  className="modal-input"
+                  className={`modal-input${/\d/.test(lastName) ? " modal-input--error" : ""}`}
                   id="modal-lastname"
                   onChange={(e) => { setLastName(e.target.value); setValidationError(null); }}
                   placeholder="Novák"
                   type="text"
                   value={lastName}
                 />
+                {/\d/.test(lastName) && (
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo z příjmení.</p>
+                )}
               </div>
             </div>
             {isDuplicateName && (
@@ -320,18 +499,13 @@ function OrderEditModal({
                   </button>
                 )}
               </div>
-              <select
-                className="modal-select"
+              <MenuSelect
                 id={`modal-soup-${idx}`}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : null;
-                  setSoupIds((prev) => prev.map((id, i) => i === idx ? val : id));
-                }}
-                value={soupId ?? ""}
-              >
-                <option value="">— žádná polévka —</option>
-                {soups.map((s) => <option key={s.id} value={s.id}>{s.code} – {s.name}</option>)}
-              </select>
+                value={soupId}
+                onChange={(val) => setSoupIds((prev) => prev.map((id, i) => i === idx ? val : id))}
+                options={soups}
+                placeholder="— žádná polévka —"
+              />
             </div>
           ))}
           {soupIds.length < 2 && (
@@ -355,19 +529,14 @@ function OrderEditModal({
                 )}
               </div>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <select
-                  className="modal-select"
+                <MenuSelect
                   id={`modal-meal-${idx}`}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : null;
-                    setMealEntries((prev) => prev.map((ent, i) => i === idx ? { ...ent, itemId: val } : ent));
-                  }}
+                  value={entry.itemId}
+                  onChange={(val) => setMealEntries((prev) => prev.map((ent, i) => i === idx ? { ...ent, itemId: val } : ent))}
+                  options={meals}
+                  placeholder="— žádné jídlo —"
                   style={{ flex: 1, width: "auto", minWidth: 0 }}
-                  value={entry.itemId ?? ""}
-                >
-                  <option value="">— žádné jídlo —</option>
-                  {meals.map((m) => <option key={m.id} value={m.id}>{m.code} – {m.name}</option>)}
-                </select>
+                />
                 {entry.itemId && (
                   <div className="modal-count-stepper">
                     <button
@@ -388,15 +557,21 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          {mealEntries.length === 1 && mealEntries[0].itemId !== null && (
-            <p className="text-[11.5px] text-stone-400 -mt-1">
-              Chceš víc jídel v jedné objednávce? Přidej je tlačítkem níže.
-            </p>
-          )}
-          <button className="modal-add-second" onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])} type="button">
-            <MIcon name="add" size={14} style={{ color: "#D97706" }} />
-            Přidat další jídlo
-          </button>
+          <div style={{ position: "relative" }}>
+            {showMealTip && (
+              <div className="meal-tip-callout">
+                Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
+              </div>
+            )}
+            <button
+              className={`modal-add-second${showMealTip ? " modal-add-second--pulse" : ""}`}
+              onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
+              type="button"
+            >
+              <MIcon name="add" size={14} style={{ color: showMealTip ? "#b91c1c" : "#c2410c" }} />
+              Přidat další jídlo do objednávky
+            </button>
+          </div>
 
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>
@@ -431,7 +606,7 @@ function OrderEditModal({
         <div className="modal-sheet__footer">
           {!isNew && <button className="modal-btn modal-btn--danger" onClick={() => setShowDeleteConfirm(true)} type="button">Smazat</button>}
           <button className="modal-btn modal-btn--secondary" onClick={handleCancel} type="button">Zrušit</button>
-          <button className="modal-btn modal-btn--primary" disabled={isDuplicateName} onClick={handleSave} type="button">Uložit</button>
+          <button className="modal-btn modal-btn--primary" disabled={isDuplicateName || showMealTip} onClick={handleSave} type="button">Uložit</button>
         </div>
       </div>
       {showDeleteConfirm && (

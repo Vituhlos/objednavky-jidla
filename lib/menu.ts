@@ -304,9 +304,9 @@ export function addMenuItem(item: {
     .get(ws) as { week_label: string | null } | undefined;
   const result = db
     .prepare(
-      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
-    .run(ws, labelRow?.week_label ?? null, item.day, item.type, item.code, item.name, item.price);
+    .run(ws, labelRow?.week_label ?? null, item.day, item.type, item.code, item.name, item.price, "");
   return mapRow(
     db.prepare("SELECT * FROM menu_items WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>
   );

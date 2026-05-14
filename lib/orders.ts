@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getDb } from "./db";
 import { buildOrderEmail } from "./order-email";
 import { buildOrderPdfAttachment } from "./order-pdf";
@@ -5,7 +7,6 @@ import { computeRowPrice, type ExtrasPrices } from "./pricing";
 import { getOrderRecipients, sendEmail, sendOrderConfirmationEmail } from "./email";
 import { getSettings } from "./settings";
 import {
-  getMenuItemById,
   getMenuItemsByIds,
   getMenuItemsForDay,
   getTodayDayCode,
@@ -25,6 +26,22 @@ import type {
   Department,
   MealEntry,
 } from "./types";
+
+const DATA_DIR = path.dirname(process.env.DB_PATH ?? path.join(process.cwd(), "data", "stros.db"));
+
+export function getOrderPdfPath(orderId: number): string {
+  return path.join(DATA_DIR, "pdfs", `order-${orderId}.pdf`);
+}
+
+export function orderPdfExists(orderId: number): boolean {
+  return fs.existsSync(getOrderPdfPath(orderId));
+}
+
+function savePdf(orderId: number, buffer: Buffer): void {
+  const dir = path.join(DATA_DIR, "pdfs");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(getOrderPdfPath(orderId), buffer);
+}
 import { getDepartments, getDepartmentsByNames } from "./departments";
 import { logAudit } from "./audit";
 import { isDepartmentSubmitted } from "./order-utils";
@@ -130,7 +147,9 @@ function getOrCreateTodayOrder(): Order {
   const db = getDb();
   const today = getPragueISODate();
   db.prepare("INSERT OR IGNORE INTO orders (date, status) VALUES (?, 'draft')").run(today);
-  const order = db.prepare("SELECT * FROM orders WHERE date = ?").get(today) as Record<string, unknown>;
+  const order = db
+    .prepare("SELECT * FROM orders WHERE date = ?")
+    .get(today) as Record<string, unknown>;
   return mapOrder(order);
 }
 
@@ -427,6 +446,7 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
       text: email.text,
       attachments,
     });
+    savePdf(orderId, attachments[0].content);
   } catch (err) {
     // Revert the claim so the user can retry after fixing SMTP
     db.prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?").run(orderId);

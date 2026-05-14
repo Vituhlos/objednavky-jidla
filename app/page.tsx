@@ -57,6 +57,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       isAdmin={currentUser?.role === "admin"}
       currentUserName={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : undefined}
       defaultDepartment={currentUser?.defaultDepartment ?? null}
+      autoSendEnabled={s.autoSendEnabled === "true"}
+      autoSendTime={s.autoSendTime}
+      autoSendError={s.autoSendLastError && s.autoSendErrorAcked !== "true" ? s.autoSendLastError : undefined}
+      autoSendErrorTs={s.autoSendLastErrorTs || undefined}
     />
   );
 }

@@ -42,6 +42,13 @@ export interface AppSettings {
   pushReminderMinutes: string;
   reminderEmailTo: string;
   autoSendFailureEmail: string;
+  telegramEnabled: string;
+  telegramBotToken: string;
+  telegramMorningMenuTime: string;
+  telegramAppUrl: string;
+  autoSendLastError: string;
+  autoSendLastErrorTs: string;
+  autoSendErrorAcked: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -81,6 +88,13 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   pushReminderMinutes: "push_reminder_minutes",
   reminderEmailTo: "reminder_email_to",
   autoSendFailureEmail: "auto_send_failure_email",
+  telegramEnabled: "telegram_enabled",
+  telegramBotToken: "telegram_bot_token",
+  telegramMorningMenuTime: "telegram_morning_menu_time",
+  telegramAppUrl: "telegram_app_url",
+  autoSendLastError: "auto_send_last_error",
+  autoSendLastErrorTs: "auto_send_last_error_ts",
+  autoSendErrorAcked: "auto_send_error_acked",
 };
 
 function envDefaults(): AppSettings {
@@ -122,6 +136,13 @@ function envDefaults(): AppSettings {
     pushReminderMinutes: "20",
     reminderEmailTo: "",
     autoSendFailureEmail: "",
+    telegramEnabled: "false",
+    telegramBotToken: "",
+    telegramMorningMenuTime: "",
+    telegramAppUrl: "",
+    autoSendLastError: "",
+    autoSendLastErrorTs: "",
+    autoSendErrorAcked: "true",
   };
 }
 
@@ -155,8 +176,7 @@ export function saveSettings(updates: Partial<AppSettings>): void {
   db.transaction(() => {
     for (const [field, value] of Object.entries(updates) as [keyof AppSettings, string][]) {
       const dbKey = KEY_MAP[field];
-      if (!dbKey) continue;
-      // Hash the PIN before storing
+      if (!dbKey || value === null || value === undefined) continue;
       const stored = field === "settingsPin" ? hashPin(value) : value;
       setSetting(dbKey, stored);
     }

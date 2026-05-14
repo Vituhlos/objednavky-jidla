@@ -215,9 +215,10 @@ function splitVariants(text: string): string[] {
 
 function expandVariants(
   code: string,
-  name: string
-): Array<{ code: string; name: string }> {
-  return splitVariants(name).map((n) => ({ code, name: n }));
+  name: string,
+  allergens: string
+): Array<{ code: string; name: string; allergens: string }> {
+  return splitVariants(name).map((n) => ({ code, name: n, allergens }));
 }
 
 export function parseMenuText(rawText: string): ParseResult {
@@ -245,6 +246,7 @@ export function parseMenuText(rawText: string): ParseResult {
     let m = line.match(/^([AB])\s+(.+)$/);
     if (m) {
       const { name, allergens } = extractAllergens(m[2]);
+      // Soups don't have variants worth splitting
       items.push({ day: currentDay, type: "Polévka", code: m[1], name, allergens });
       continue;
     }
@@ -252,9 +254,9 @@ export function parseMenuText(rawText: string): ParseResult {
     m = line.match(/^(\d+)\s+(.+)$/);
     if (m) {
       const { name: cleaned, allergens } = extractAllergens(m[2]);
-      const expanded = expandVariants(m[1], normalizeCommaAlts(cleaned));
+      const expanded = expandVariants(m[1], normalizeCommaAlts(cleaned), allergens);
       for (const variant of expanded) {
-        items.push({ day: currentDay, type: "Jídlo", code: variant.code, name: variant.name, allergens });
+        items.push({ day: currentDay, type: "Jídlo", code: variant.code, name: variant.name, allergens: variant.allergens });
       }
     }
   }
