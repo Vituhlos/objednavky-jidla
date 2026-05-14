@@ -271,6 +271,7 @@ export async function setTelegramCommands(): Promise<{ ok: boolean; description?
     { command: "nastaveni", description: "Nastavení notifikací" },
     { command: "pozvat", description: "QR kód pro přidání kolegy" },
     { command: "pomoc", description: "Seznam příkazů" },
+    { command: "admin", description: "Admin příkazy (pouze pro adminy)" },
   ];
   try {
     const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setMyCommands`, {

@@ -484,6 +484,7 @@ export default function SettingsPage({
       telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
       telegramBotToken: fd.get("telegramBotToken") as string,
       telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
+      telegramAppUrl: fd.get("telegramAppUrl") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -1180,6 +1181,9 @@ export default function SettingsPage({
                   </Field>
                   <Field hint="každý pracovní den bot pošle ranní jídelníček odběratelům — prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
                     <input className="modal-input w-32" defaultValue={settings.telegramMorningMenuTime} name="telegramMorningMenuTime" placeholder="07:30" type="time" />
+                  </Field>
+                  <Field hint="URL tvé appky — umožní otevřít ji jako Mini App přímo v Telegramu přes tlačítko 🌐 v klávesnici (volitelné)" label="URL Mini App">
+                    <input className="modal-input" defaultValue={settings.telegramAppUrl} name="telegramAppUrl" placeholder="https://objednavky.firma.cz" type="url" />
                   </Field>
 
                   {/* Bot info card */}

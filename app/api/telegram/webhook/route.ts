@@ -191,6 +191,33 @@ function formatStatistiky(): string {
   return lines.join("\n");
 }
 
+function formatChybi(): string {
+  const db = getDb();
+  const data = getTodayOrderData();
+  const twoWeeksAgo = new Date(getPragueNow());
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const twoWeeksAgoISO = twoWeeksAgo.toISOString().slice(0, 10);
+  const recentPeople = db.prepare(`
+    SELECT DISTINCT r.person_name FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE r.person_name != '' AND o.date >= ? AND o.id != ? AND o.status = 'sent'
+    ORDER BY r.person_name
+  `).all(twoWeeksAgoISO, data.order.id) as { person_name: string }[];
+  const orderedToday = new Set(
+    data.departments.flatMap((d) => d.rows.filter((r) => r.personName).map((r) => r.personName)),
+  );
+  const missing = recentPeople.map((r) => r.person_name).filter((n) => !orderedToday.has(n));
+  if (missing.length === 0) return "✅ Všichni kdo obvykle objednávají, dnes mají řádek.";
+  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
+    weekday: "long", day: "numeric", month: "numeric",
+  });
+  return (
+    `👥 <b>Kdo ještě neobjednal (${dateStr})</b>\n\n` +
+    missing.map((n) => `  • ${n}`).join("\n") +
+    `\n\n<i>Celkem ${missing.length} osob</i>`
+  );
+}
+
 // ─── Inline keyboards ─────────────────────────────────────────────────────────
 
 const SETTINGS_TEXT = "⚙️ <b>Nastavení notifikací</b>\n\nZapni nebo vypni, co ti má bot posílat:";
@@ -250,15 +277,33 @@ function buildPizzaKeyboard() {
 }
 
 function buildMainReplyKeyboard(isAdmin: boolean) {
-  const rows: Array<Array<{ text: string }>> = [
+  const { telegramAppUrl } = getSettings();
+  type KeyboardButton = { text: string } | { text: string; web_app: { url: string } };
+  const rows: Array<Array<KeyboardButton>> = [
     [{ text: "📋 Objednávka" }, { text: "📊 Souhrn" }],
     [{ text: "🍽 Menu dnes" },  { text: "📅 Celý týden" }],
     [{ text: "🍕 Pizza" },      { text: "⚙️ Nastavení" }],
   ];
+  if (telegramAppUrl) {
+    rows.push([{ text: "🌐 Otevřít appku", web_app: { url: telegramAppUrl } }]);
+  }
   if (isAdmin) {
-    rows.push([{ text: "📤 Odeslat" }, { text: "🔓 Znovu otevřít" }]);
+    rows.push([{ text: "👑 Admin" }]);
   }
   return { keyboard: rows, resize_keyboard: true };
+}
+
+function buildAdminKeyboard() {
+  const data = getTodayOrderData();
+  const isSent = data.order.status === "sent";
+  return {
+    inline_keyboard: [
+      isSent
+        ? [{ text: "🔓 Znovu otevřít objednávku", callback_data: "admin:zrusit" }]
+        : [{ text: "📤 Odeslat objednávku", callback_data: "admin:odeslat" }],
+      [{ text: "👥 Kdo ještě neobjednal", callback_data: "admin:chybi" }],
+    ],
+  };
 }
 
 // Maps ReplyKeyboard button texts → command strings
@@ -269,8 +314,7 @@ const BUTTON_MAP: Record<string, string> = {
   "📅 celý týden":    "/tyden",
   "🍕 pizza":         "/pizza",
   "⚙️ nastavení":     "/nastaveni",
-  "📤 odeslat":       "/odeslat",
-  "🔓 znovu otevřít": "/zrusit",
+  "👑 admin":         "/admin",
 };
 
 // ─── Telegram API helpers ─────────────────────────────────────────────────────
@@ -299,6 +343,14 @@ async function sendPhotoToChat(token: string, chatId: string, photoUrl: string, 
   }).catch(() => {});
 }
 
+async function answerInlineQuery(token: string, inlineQueryId: string, results: object[]): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${token}/answerInlineQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inline_query_id: inlineQueryId, results, cache_time: 60 }),
+  }).catch(() => {});
+}
+
 async function getBotUsername(token: string): Promise<string | null> {
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
@@ -322,6 +374,11 @@ type TelegramUpdate = {
     from: { id: number; first_name?: string };
     message?: { chat: { id: number }; message_id: number };
     data?: string;
+  };
+  inline_query?: {
+    id: string;
+    from: { id: number };
+    query: string;
   };
 };
 
@@ -373,6 +430,54 @@ export async function POST(req: NextRequest) {
     if (data === "cmd:pizza") await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
     if (data === "cmd:nastaveni") await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
 
+    // Admin inline actions
+    if (isTelegramAdmin(chatId)) {
+      if (data === "admin:odeslat") {
+        const orderData = getTodayOrderData();
+        if (orderData.order.status === "sent") {
+          await sendTelegramToChat(chatId, "⚠️ Objednávka je již odeslána.");
+        } else {
+          try {
+            await sendOrder(orderData.order.id, "manual");
+            broadcast();
+            await sendTelegramMessage("✅ Objednávka byla odeslána přes Telegram.");
+          } catch (err) {
+            await sendTelegramToChat(chatId, `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      }
+      if (data === "admin:zrusit") {
+        const orderData = getTodayOrderData();
+        if (orderData.order.status !== "sent") {
+          await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
+        } else {
+          reopenOrder(orderData.order.id);
+          broadcast();
+          await sendTelegramToSubscribers("notify_order_sent", "🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
+        }
+      }
+      if (data === "admin:chybi") {
+        await sendTelegramToChat(chatId, formatChybi());
+      }
+    }
+
+    return new Response("ok");
+  }
+
+  // ── Inline query (@bot pizza / @bot menu) ───────────────────────────────
+  if (update.inline_query) {
+    const iq = update.inline_query;
+    const query = iq.query.toLowerCase().trim();
+    const isPizza = query === "pizza" || query.startsWith("pizza");
+    const text = isPizza ? await formatPizza() : formatMenu();
+    const title = isPizza ? "🍕 Pizza nabídka" : "🍽 Dnešní menu";
+    await answerInlineQuery(s.telegramBotToken, iq.id, [{
+      type: "article",
+      id: isPizza ? "pizza" : "menu",
+      title,
+      description: "Klepni pro zobrazení v chatu",
+      input_message_content: { message_text: text, parse_mode: "HTML" },
+    }]);
     return new Response("ok");
   }
 
@@ -502,6 +607,39 @@ export async function POST(req: NextRequest) {
         await sendTelegramToSubscribers("notify_order_sent", "🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
       }
     }
+  } else if (effectiveCmd === "/admin") {
+    if (!isTelegramAdmin(chatId)) {
+      await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
+    } else {
+      const orderData = getTodayOrderData();
+      const isSent = orderData.order.status === "sent";
+      await sendTelegramToChat(
+        chatId,
+        "👑 <b>Admin příkazy</b>\n\n" +
+          `Objednávka: ${isSent ? "✅ Odeslána" : "📝 Rozepsána"}\n\n` +
+          "Pro hromadnou zprávu všem uživatelům:\n<code>/zprava [text]</code>",
+        buildAdminKeyboard(),
+      );
+    }
+  } else if (effectiveCmd.startsWith("/zprava ") || effectiveCmd === "/zprava") {
+    if (!isTelegramAdmin(chatId)) {
+      await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
+    } else {
+      const text = effectiveCmd.slice(8).trim();
+      if (!text) {
+        await sendTelegramToChat(chatId, "⚠️ Použití: <code>/zprava [text zprávy]</code>");
+      } else {
+        await sendTelegramMessage(`📢 <b>Zpráva od admina:</b>\n\n${text}`);
+        const preview = text.length > 50 ? text.slice(0, 50) + "…" : text;
+        await sendTelegramToChat(chatId, `✅ Zpráva rozeslána: <i>${preview}</i>`);
+      }
+    }
+  } else if (effectiveCmd === "/chybi") {
+    if (!isTelegramAdmin(chatId)) {
+      await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
+    } else {
+      await sendTelegramToChat(chatId, formatChybi());
+    }
   } else if (effectiveCmd === "/pomoc" || effectiveCmd === "/help") {
     const admin = isTelegramAdmin(chatId);
     await sendTelegramToChat(
@@ -518,7 +656,10 @@ export async function POST(req: NextRequest) {
         "/nastaveni — nastavení notifikací\n" +
         "/pozvat — QR kód pro přidání kolegy\n" +
         (admin
-          ? "/odeslat — ruční odeslání objednávky\n" +
+          ? "/admin — admin příkazy (odeslat, znovu otevřít, kdo chybí)\n" +
+            "/zprava [text] — rozeslat zprávu všem uživatelům\n" +
+            "/chybi — kdo ještě dnes neobjednal\n" +
+            "/odeslat — ruční odeslání objednávky\n" +
             "/zrusit — znovu otevřít odeslanou objednávku\n" +
             "/nastavit cas HH:MM — změnit čas auto-odesílání\n"
           : "") +
