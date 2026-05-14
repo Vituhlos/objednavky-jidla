@@ -51,6 +51,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       menuEmpty={menuEmpty}
       selectedDate={selectedDate}
       todayDate={todayISO}
+      autoSendEnabled={s.autoSendEnabled === "true"}
+      autoSendTime={s.autoSendTime}
     />
   );
 }

@@ -178,6 +178,8 @@ export default function OrderPage({
   todayDate,
   holidayName,
   holidayDescription,
+  autoSendEnabled = false,
+  autoSendTime = "08:00",
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -190,6 +192,8 @@ export default function OrderPage({
   todayDate?: string;
   holidayName?: string | null;
   holidayDescription?: string | null;
+  autoSendEnabled?: boolean;
+  autoSendTime?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -733,7 +737,7 @@ export default function OrderPage({
             </span>
           )}
         </div>
-        {!isSent && !isFutureDay && !noMenu && (
+        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
@@ -745,6 +749,12 @@ export default function OrderPage({
               {isPending ? "Odesílám…" : "Odeslat"}
             </button>
           </div>
+        )}
+        {!isSent && !isFutureDay && !noMenu && autoSendEnabled && (
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 shrink-0">
+            <MIcon name="schedule" size={14} style={{ color: "#D97706" }} />
+            Odešle se automaticky v {autoSendTime}
+          </span>
         )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
         <button
@@ -803,7 +813,7 @@ export default function OrderPage({
             <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
           </button>
         )}
-        {!isSent && !isFutureDay && !noMenu && (
+        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
           <button
             className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
             disabled={isPending}
@@ -813,6 +823,12 @@ export default function OrderPage({
           >
             {isPending ? "Odesílám…" : "Odeslat"}
           </button>
+        )}
+        {!isSent && !isFutureDay && !noMenu && autoSendEnabled && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 shrink-0">
+            <MIcon name="schedule" size={12} style={{ color: "#D97706" }} />
+            Auto {autoSendTime}
+          </span>
         )}
         {isFutureDay && !isSent && !noMenu && (
           <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
