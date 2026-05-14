@@ -15,6 +15,7 @@ import {
   actionDeleteRow,
   actionSendOrder,
   actionReopenOrder,
+  actionDismissAutoSendError,
 } from "@/app/actions";
 
 // ── Help modal ────────────────────────────────────────────
@@ -181,6 +182,8 @@ export default function OrderPage({
   holidayDescription,
   autoSendEnabled = false,
   autoSendTime = "08:00",
+  autoSendError,
+  autoSendErrorTs,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -195,6 +198,8 @@ export default function OrderPage({
   holidayDescription?: string | null;
   autoSendEnabled?: boolean;
   autoSendTime?: string;
+  autoSendError?: string;
+  autoSendErrorTs?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -656,6 +661,29 @@ export default function OrderPage({
 
   return (
     <div className="k-shell">
+
+      {/* ── Auto-send failure banner ── */}
+      {autoSendError && (
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b" style={{ background: "rgba(220,38,38,0.08)", borderColor: "rgba(220,38,38,0.18)" }}>
+          <MIcon name="error" size={16} fill style={{ color: "#dc2626", flexShrink: 0 }} />
+          <div className="flex-1 min-w-0">
+            <span className="text-[12.5px] font-semibold text-red-700">Auto-send selhal</span>
+            {autoSendErrorTs && (
+              <span className="text-[11.5px] text-red-500 ml-2">
+                {new Date(autoSendErrorTs).toLocaleString("cs-CZ", { timeZone: "Europe/Prague", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <p className="text-[11.5px] text-red-600 mt-0.5 truncate">{autoSendError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => actionDismissAutoSendError()}
+            className="shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-red-600"
+          >
+            Zavřít
+          </button>
+        </div>
+      )}
 
       {/* ── Toasts & banners (fixed/absolute) ── */}
       {justSent && (

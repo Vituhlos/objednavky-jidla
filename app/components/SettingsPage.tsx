@@ -16,6 +16,8 @@ import {
   actionClearOrder,
   actionCheckImap,
   actionSendTestPush,
+  actionSetTelegramWebhook,
+  actionSendTelegramTest,
 } from "@/app/actions";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -238,7 +240,7 @@ function DeptRow({
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system";
+type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system" | "telegram";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "objednavka", label: "Objednávka", icon: "assignment" },
@@ -246,6 +248,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "ceny",       label: "Ceny",       icon: "payments" },
   { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
   { id: "system",     label: "Systém",     icon: "build" },
+  { id: "telegram",   label: "Telegram",   icon: "send" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -298,6 +301,10 @@ export default function SettingsPage({
   const [imapCheckStatus, setImapCheckStatus] = useState<"idle" | "pending" | "found" | "notfound" | "error">("idle");
   const [imapCheckMsg, setImapCheckMsg] = useState("");
   const [pushTestStatus, setPushTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [telegramTestStatus, setTelegramTestStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [telegramTestMsg, setTelegramTestMsg] = useState("");
+  const [webhookStatus, setWebhookStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
+  const [webhookMsg, setWebhookMsg] = useState("");
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -440,6 +447,9 @@ export default function SettingsPage({
         .map((d) => d.code)
         .join(","),
       pushReminderMinutes: fd.get("pushReminderMinutes") as string,
+      telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
+      telegramBotToken: fd.get("telegramBotToken") as string,
+      telegramChatId: fd.get("telegramChatId") as string,
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
@@ -1227,6 +1237,97 @@ export default function SettingsPage({
 
           </>
         )}
+
+            {/* ── Telegram tab ── */}
+            {activeTab === "telegram" && (
+              <>
+                <div className="flex flex-col gap-4" style={{ display: "flex" }}>
+                  <Section icon="send" title="Telegram bot">
+                    <p className="text-[12.5px] text-stone-500">
+                      Připoj Telegram bota pro notifikace a příkazy. Vytvoř bota přes <strong>@BotFather</strong> na Telegramu, zkopíruj token a Chat ID skupiny nebo kanálu.
+                    </p>
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <div className="relative shrink-0">
+                        <input className="peer sr-only" defaultChecked={settings.telegramEnabled === "true"} name="telegramEnabled" type="checkbox" />
+                        <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                        <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                      </div>
+                      <span className="text-[13px] font-semibold text-stone-800">Zapnout Telegram notifikace</span>
+                    </label>
+                    <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
+                      <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
+                    </Field>
+                    <Field hint="ID chatu nebo skupiny — pošli /start botovi a zkopíruj chat_id" label="Chat ID">
+                      <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramChatId} name="telegramChatId" placeholder="-1001234567890" type="text" />
+                    </Field>
+                  </Section>
+
+                  <Section icon="notifications" title="Co bot hlásí">
+                    <ul className="text-[12.5px] text-stone-600 space-y-1.5">
+                      <li className="flex items-center gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a" }} /> Objednávka odeslána (auto-send)</li>
+                      <li className="flex items-center gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626" }} /> Auto-send selhal</li>
+                    </ul>
+                    <p className="text-[12px] text-stone-400 mt-1">Další typy notifikací přibudou postupně.</p>
+                  </Section>
+
+                  <Section icon="terminal" title="Dostupné příkazy">
+                    <ul className="text-[12.5px] text-stone-600 space-y-1.5 font-mono">
+                      <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— přehled dnešní objednávky</span></li>
+                      <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
+                      <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání objednávky</span></li>
+                      <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku</span></li>
+                      <li><span className="text-amber-700">/pomoc</span> <span className="font-sans text-stone-500">— seznam příkazů</span></li>
+                    </ul>
+                  </Section>
+                </div>
+
+                <Section icon="integration_instructions" title="Nastavení webhooku">
+                  <p className="text-[12.5px] text-stone-500">
+                    Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Klikni na tlačítko níže po každé změně domény nebo tokenu.
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={webhookStatus === "pending"}
+                      onClick={async () => {
+                        setWebhookStatus("pending");
+                        setWebhookMsg("");
+                        const res = await actionSetTelegramWebhook();
+                        setWebhookStatus(res.ok ? "ok" : "error");
+                        setWebhookMsg(res.description ?? "");
+                      }}
+                      type="button"
+                    >
+                      {webhookStatus === "pending" ? "Nastavuji…" : "Nastavit webhook"}
+                    </button>
+                    <button
+                      className="modal-btn modal-btn--secondary"
+                      disabled={telegramTestStatus === "pending"}
+                      onClick={async () => {
+                        setTelegramTestStatus("pending");
+                        setTelegramTestMsg("");
+                        const res = await actionSendTelegramTest();
+                        setTelegramTestStatus(res.ok ? "ok" : "error");
+                        setTelegramTestMsg(res.error ?? "");
+                      }}
+                      type="button"
+                    >
+                      {telegramTestStatus === "pending" ? "Odesílám…" : "Testovat zprávu"}
+                    </button>
+                    {webhookStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${webhookStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {webhookStatus === "ok" ? "✓ Webhook nastaven" : `✗ ${webhookMsg}`}
+                      </span>
+                    )}
+                    {telegramTestStatus !== "idle" && (
+                      <span className={`text-[12px] font-medium ${telegramTestStatus === "ok" ? "text-green-600" : "text-red-500"}`}>
+                        {telegramTestStatus === "ok" ? "✓ Zpráva odeslána" : `✗ ${telegramTestMsg || "Chyba"}`}
+                      </span>
+                    )}
+                  </div>
+                </Section>
+              </>
+            )}
 
         {/* Version info */}
         <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">

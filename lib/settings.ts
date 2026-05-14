@@ -42,6 +42,12 @@ export interface AppSettings {
   pushReminderMinutes: string;
   reminderEmailTo: string;
   autoSendFailureEmail: string;
+  telegramEnabled: string;
+  telegramBotToken: string;
+  telegramChatId: string;
+  autoSendLastError: string;
+  autoSendLastErrorTs: string;
+  autoSendErrorAcked: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -81,6 +87,12 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   pushReminderMinutes: "push_reminder_minutes",
   reminderEmailTo: "reminder_email_to",
   autoSendFailureEmail: "auto_send_failure_email",
+  telegramEnabled: "telegram_enabled",
+  telegramBotToken: "telegram_bot_token",
+  telegramChatId: "telegram_chat_id",
+  autoSendLastError: "auto_send_last_error",
+  autoSendLastErrorTs: "auto_send_last_error_ts",
+  autoSendErrorAcked: "auto_send_error_acked",
 };
 
 function envDefaults(): AppSettings {
@@ -122,6 +134,12 @@ function envDefaults(): AppSettings {
     pushReminderMinutes: "20",
     reminderEmailTo: "",
     autoSendFailureEmail: "",
+    telegramEnabled: "false",
+    telegramBotToken: "",
+    telegramChatId: "",
+    autoSendLastError: "",
+    autoSendLastErrorTs: "",
+    autoSendErrorAcked: "true",
   };
 }
 

@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { getSettings } from "./settings";
+import { getSettings, saveSettings } from "./settings";
 import type { AppSettings } from "./settings";
 import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
@@ -10,6 +10,7 @@ import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
+import { sendTelegramMessage } from "./telegram";
 import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -67,13 +68,22 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     await sendOrder(data.order.id, "auto");
     broadcast();
     console.log("[scheduler] Objednávka automaticky odeslána.");
+    // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
+    saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
+    const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
+    await sendTelegramMessage(`✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek · ${data.totalPrice} Kč`);
   } catch (err) {
     console.error("[scheduler] Auto-send selhal:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
+    // Ulož chybu do DB pro banner v appce
+    saveSettings({ autoSendLastError: errMsg, autoSendLastErrorTs: new Date().toISOString(), autoSendErrorAcked: "false" });
+    // Pošli Telegram upozornění
+    await sendTelegramMessage(`❌ <b>Auto-send selhal</b>\n📅 ${dateStr}\n⚠️ ${errMsg}\n\nObjednávka zůstala rozepsaná — odešli ji ručně.`);
+    // Fallback e-mail (pokud je nastaven)
     const recipients = (s.autoSendFailureEmail || s.reminderEmailTo)
       .split(",").map((e) => e.trim()).filter(Boolean);
     if (recipients.length > 0) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
       try {
         await sendEmail({
           to: recipients,

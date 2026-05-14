@@ -27,6 +27,7 @@ import {
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
+import { setTelegramWebhook } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
@@ -252,5 +253,28 @@ export async function actionSendTestPush(): Promise<{ sent: number; error?: stri
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
   return { sent: subs.length };
+}
+
+export async function actionDismissAutoSendError(): Promise<void> {
+  saveSettings({ autoSendErrorAcked: "true" });
+  revalidatePath("/");
+}
+
+export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
+  const hdrs = await headers();
+  const host = hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
+  return setTelegramWebhook(webhookUrl);
+}
+
+export async function actionSendTelegramTest(): Promise<{ ok: boolean; error?: string }> {
+  const { sendTelegramMessage } = await import("@/lib/telegram");
+  try {
+    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA — Telegram funguje!");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 
