@@ -276,7 +276,13 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
           <section className="glass rounded-3xl overflow-hidden">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(79,138,83,0.07)" }}>
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
-              <span className="font-display font-bold text-[13.5px] text-stone-900">Souhrn</span>
+              <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Souhrn</span>
+              <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50/80 px-2 py-0.5 rounded-full">2+1 zdarma</span>
+            </div>
+            <div className="px-4 pt-3 pb-0">
+              <p className="text-[11.5px] text-stone-500 leading-relaxed">
+                Za každé 2 pizzy dostanete 1 <strong className="text-stone-600">nejdražší zdarma</strong> (včetně krabice). Sleva se počítá automaticky.
+              </p>
             </div>
             <div className="p-4 grid grid-cols-1 gap-4">
               {pizzaCounts.size > 0 && (
