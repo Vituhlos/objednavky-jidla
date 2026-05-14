@@ -170,8 +170,7 @@ export function saveSettings(updates: Partial<AppSettings>): void {
   db.transaction(() => {
     for (const [field, value] of Object.entries(updates) as [keyof AppSettings, string][]) {
       const dbKey = KEY_MAP[field];
-      if (!dbKey) continue;
-      // Hash the PIN before storing
+      if (!dbKey || value === null || value === undefined) continue;
       const stored = field === "settingsPin" ? hashPin(value) : value;
       setSetting(dbKey, stored);
     }
