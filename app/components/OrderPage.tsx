@@ -1051,7 +1051,7 @@ export default function OrderPage({
                     isAdmin={isAdmin}
                     isDefault={!!defaultDepartment && dept.name === defaultDepartment}
                     isSent={isSent}
-                    key={`${dept.name}-${selectedDate ?? ''}`}
+                    key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
                     onDeleteRow={handleDeleteRow}

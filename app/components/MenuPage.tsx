@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, useCallback, useEffect } from "react";
+import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo } from "react";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
 import type { ParsedMenuItem, ParseResult } from "@/lib/parse-menu";
@@ -18,7 +18,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
 // Textarea that auto-grows to fit its content
-function AutoTextarea({ defaultValue, disabled, onCommit, placeholder, title }: {
+const AutoTextarea = memo(function AutoTextarea({ defaultValue, disabled, onCommit, placeholder, title }: {
   defaultValue: string; disabled: boolean; placeholder?: string; title?: string;
   onCommit: (value: string) => void;
 }) {
@@ -46,7 +46,7 @@ function AutoTextarea({ defaultValue, disabled, onCommit, placeholder, title }: 
       title={title}
     />
   );
-}
+});
 
 const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"];
 const DAY_LABELS: Record<string, string> = {
@@ -88,13 +88,16 @@ type ImportState =
 
 // ── Preview table ──────────────────────────────────────────────────────────────
 
-function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
-  const byDay: Record<string, { soups: ParsedMenuItem[]; meals: ParsedMenuItem[] }> = {};
-  for (const item of items) {
-    if (!byDay[item.day]) byDay[item.day] = { soups: [], meals: [] };
-    if (item.type === "Polévka") byDay[item.day].soups.push(item);
-    else byDay[item.day].meals.push(item);
-  }
+const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
+  const byDay = useMemo(() => {
+    const acc: Record<string, { soups: ParsedMenuItem[]; meals: ParsedMenuItem[] }> = {};
+    for (const item of items) {
+      if (!acc[item.day]) acc[item.day] = { soups: [], meals: [] };
+      if (item.type === "Polévka") acc[item.day].soups.push(item);
+      else acc[item.day].meals.push(item);
+    }
+    return acc;
+  }, [items]);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
       {DAY_ORDER.filter((d) => byDay[d]).map((day) => (
@@ -124,11 +127,11 @@ function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
       ))}
     </div>
   );
-}
+});
 
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
-function WeekGrid({
+const WeekGrid = memo(function WeekGrid({
   menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onDelete, onUpdate, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
@@ -290,7 +293,7 @@ function WeekGrid({
       })}
     </div>
   );
-}
+});
 
 const ALLERGEN_NAMES: Record<number, string> = {
   1: "Lepek", 2: "Korýši", 3: "Vejce", 4: "Ryby", 5: "Arašídy",
@@ -298,7 +301,7 @@ const ALLERGEN_NAMES: Record<number, string> = {
   11: "Sezam", 12: "Siřičitany", 13: "Vlčí bob", 14: "Měkkýši",
 };
 
-function AllergenBadges({ allergens }: { allergens: string }) {
+const AllergenBadges = memo(function AllergenBadges({ allergens }: { allergens: string }) {
   const nums = allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
   if (nums.length === 0) return null;
   return (
@@ -315,9 +318,9 @@ function AllergenBadges({ allergens }: { allergens: string }) {
       ))}
     </span>
   );
-}
+});
 
-function WeekItem({
+const WeekItem = memo(function WeekItem({
   item, editMode, disabled, onDelete, onUpdate,
 }: {
   item: MenuItem;
@@ -383,11 +386,11 @@ function WeekItem({
       <span className="shrink-0 text-[11.5px] font-semibold text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
     </div>
   );
-}
+});
 
 // ── Menu section (mobile) ──────────────────────────────────────────────────────
 
-function MenuSection({
+const MenuSection = memo(function MenuSection({
   title,
   icon,
   accent,
@@ -497,7 +500,7 @@ function MenuSection({
       )}
     </div>
   );
-}
+});
 
 // ── Main component ────────────────────────────────────────────────────────────
 

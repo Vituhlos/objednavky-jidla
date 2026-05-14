@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
@@ -365,7 +365,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
   );
 }
 
-function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
+const PizzaPriceBreakdown = memo(function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
   if (totals.finalTotal === 0) return null;
   const breakdownRows = [
     { label: "Pizzy (ceny)", value: `${totals.baseTotal} Kč`, accent: false },
@@ -394,9 +394,9 @@ function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
       )}
     </div>
   );
-}
+});
 
-function PizzaSelect({
+const PizzaSelect = memo(function PizzaSelect({
   value, onChange, items, disabled,
 }: {
   value: number | null;
@@ -529,9 +529,9 @@ function PizzaSelect({
       )}
     </>
   );
-}
+});
 
-function PizzaRow({
+const PizzaRow = memo(function PizzaRow({
   row,
   idx,
   pizzaItems,
@@ -631,4 +631,4 @@ function PizzaRow({
       </div>
     </div>
   );
-}
+});

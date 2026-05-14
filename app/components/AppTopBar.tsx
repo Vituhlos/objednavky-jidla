@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
 
 const MAIN_NAV = [
@@ -15,7 +15,7 @@ const MAIN_NAV = [
 
 const PROFILE_NAV = { href: "/profil", label: "Můj profil", shortLabel: "Profil", icon: "account_circle", exact: false };
 
-function SidebarClock() {
+const SidebarClock = memo(function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -34,7 +34,7 @@ function SidebarClock() {
       <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
     </div>
   );
-}
+});
 
 function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();

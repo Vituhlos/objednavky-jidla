@@ -11,7 +11,7 @@ const inter = Inter({
   weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
-  preload: false,
+  preload: true,
 });
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -19,7 +19,7 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700"],
   variable: "--font-jakarta",
   display: "swap",
-  preload: false,
+  preload: true,
 });
 
 
