@@ -45,7 +45,7 @@ function formatMenuForDay(dayCode: string, dateStr: string): string {
   if (menu.meals.length > 0) {
     lines.push("");
     lines.push("<b>🍽 Hlavní jídla</b>");
-    menu.meals.forEach((m) => lines.push(`  <code>${m.code}.</code> ${m.name}`));
+    menu.meals.forEach((m) => lines.push(`  • ${m.name}`));
   }
   return lines.join("\n");
 }
@@ -85,7 +85,7 @@ function formatStav(): string {
     lines.push("");
     lines.push(`<b>📂 ${dept.label}</b>`);
     active.forEach((r) => {
-      const meal = r.mainItem ? `  <i>${r.mainItem.code}. ${r.mainItem.name}</i>` : "";
+      const meal = r.mainItem ? `  <i>${r.mainItem.name}</i>` : "";
       lines.push(`  • <b>${r.personName}</b>${meal}`);
     });
   });
