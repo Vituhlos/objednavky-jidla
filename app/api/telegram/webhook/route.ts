@@ -249,6 +249,30 @@ function buildPizzaKeyboard() {
   };
 }
 
+function buildMainReplyKeyboard(isAdmin: boolean) {
+  const rows: Array<Array<{ text: string }>> = [
+    [{ text: "📋 Objednávka" }, { text: "📊 Souhrn" }],
+    [{ text: "🍽 Menu dnes" },  { text: "📅 Celý týden" }],
+    [{ text: "🍕 Pizza" },      { text: "⚙️ Nastavení" }],
+  ];
+  if (isAdmin) {
+    rows.push([{ text: "📤 Odeslat" }, { text: "🔓 Znovu otevřít" }]);
+  }
+  return { keyboard: rows, resize_keyboard: true };
+}
+
+// Maps ReplyKeyboard button texts → command strings
+const BUTTON_MAP: Record<string, string> = {
+  "📋 objednávka":    "/stav",
+  "📊 souhrn":        "/souhrn",
+  "🍽 menu dnes":     "/menu",
+  "📅 celý týden":    "/tyden",
+  "🍕 pizza":         "/pizza",
+  "⚙️ nastavení":     "/nastaveni",
+  "📤 odeslat":       "/odeslat",
+  "🔓 znovu otevřít": "/zrusit",
+};
+
 // ─── Telegram API helpers ─────────────────────────────────────────────────────
 
 async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
@@ -360,12 +384,13 @@ export async function POST(req: NextRequest) {
   const firstName = message.from?.first_name ?? "";
   const senderUsername = message.from?.username ?? "";
   const cmd = message.text.split("@")[0].toLowerCase().trim();
+  const effectiveCmd = BUTTON_MAP[cmd] ?? cmd;
 
   if (cmd === "/start") {
     const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, senderUsername);
     const name = firstName ? `, <b>${firstName}</b>` : "";
     const adminNote = isAdmin && isNew
-      ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky příkazem /odeslat a /zrusit."
+      ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky přes tlačítka níže."
       : "";
     const welcomeText =
       `👋 Vítej${name}!\n\n` +
@@ -375,8 +400,8 @@ export async function POST(req: NextRequest) {
       `  🌅 Ranní jídelníček (pokud si zapneš)\n` +
       `  📬 Potvrzení o odeslání objednávky\n` +
       `  📋 Notifikaci při importu nového jídelníčku\n\n` +
-      `Co a kdy ti chodí si nastavíš přes /nastaveni nebo níže.`;
-    await sendTelegramToChat(chatId, welcomeText, buildWelcomeKeyboard());
+      `Vše ovládáš přes tlačítka dole nebo příkazy jako /menu, /stav apod.`;
+    await sendTelegramToChat(chatId, welcomeText, buildMainReplyKeyboard(isAdmin));
     return new Response("ok");
   }
 
@@ -385,12 +410,12 @@ export async function POST(req: NextRequest) {
     return new Response("ok");
   }
 
-  if (cmd === "/stav") {
+  if (effectiveCmd === "/stav") {
     await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
-  } else if (cmd === "/souhrn") {
+  } else if (effectiveCmd === "/souhrn") {
     await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
-  } else if (cmd === "/menu" || cmd.startsWith("/menu ")) {
-    const dayArg = cmd.startsWith("/menu ") ? cmd.slice(6).trim() : "";
+  } else if (effectiveCmd === "/menu" || effectiveCmd.startsWith("/menu ")) {
+    const dayArg = effectiveCmd.startsWith("/menu ") ? effectiveCmd.slice(6).trim() : "";
     const dayCode = dayArg ? DAY_INPUT_MAP[dayArg] : null;
     if (dayArg && !dayCode) {
       await sendTelegramToChat(chatId, "⚠️ Neznámý den. Použij zkratku: <code>Po Ut St Ct Pa</code>");
@@ -402,20 +427,17 @@ export async function POST(req: NextRequest) {
     } else {
       await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
     }
-  } else if (cmd === "/tyden") {
+  } else if (effectiveCmd === "/tyden") {
     await sendTelegramToChat(chatId, formatTyden());
-  } else if (cmd === "/pizza") {
+  } else if (effectiveCmd === "/pizza") {
     await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
-  } else if (cmd === "/zitra") {
+  } else if (effectiveCmd === "/zitra") {
     await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
-  } else if (cmd === "/statistiky") {
+  } else if (effectiveCmd === "/statistiky") {
     await sendTelegramToChat(chatId, formatStatistiky());
-  } else if (cmd === "/nastaveni") {
+  } else if (effectiveCmd === "/nastaveni" || effectiveCmd === "/upozorneni") {
     await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
-  } else if (cmd === "/upozorneni") {
-    // Legacy alias
-    await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
-  } else if (cmd === "/pozvat") {
+  } else if (effectiveCmd === "/pozvat") {
     const botUsername = await getBotUsername(s.telegramBotToken);
     if (botUsername) {
       const botUrl = `https://t.me/${botUsername}`;
@@ -429,11 +451,11 @@ export async function POST(req: NextRequest) {
     } else {
       await sendTelegramToChat(chatId, "⚠️ Nepodařilo se načíst odkaz na bota.");
     }
-  } else if (cmd.startsWith("/nastavit cas ")) {
+  } else if (effectiveCmd.startsWith("/nastavit cas ")) {
     if (!isTelegramAdmin(chatId)) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
-      const time = cmd.replace("/nastavit cas ", "").trim();
+      const time = effectiveCmd.replace("/nastavit cas ", "").trim();
       if (!/^\d{1,2}:\d{2}$/.test(time)) {
         await sendTelegramToChat(chatId, "⚠️ Neplatný formát. Použij např. <code>/nastavit cas 08:00</code>");
       } else {
@@ -447,7 +469,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-  } else if (cmd === "/odeslat") {
+  } else if (effectiveCmd === "/odeslat") {
     if (!isTelegramAdmin(chatId)) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
@@ -467,7 +489,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-  } else if (cmd === "/zrusit") {
+  } else if (effectiveCmd === "/zrusit") {
     if (!isTelegramAdmin(chatId)) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
@@ -480,7 +502,7 @@ export async function POST(req: NextRequest) {
         await sendTelegramToSubscribers("notify_order_sent", "🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
       }
     }
-  } else if (cmd === "/pomoc" || cmd === "/help") {
+  } else if (effectiveCmd === "/pomoc" || effectiveCmd === "/help") {
     const admin = isTelegramAdmin(chatId);
     await sendTelegramToChat(
       chatId,
