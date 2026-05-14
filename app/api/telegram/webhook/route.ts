@@ -66,6 +66,37 @@ function formatStav(): string {
   return lines.join("\n");
 }
 
+function formatSouhrn(): string {
+  const data = getTodayOrderData();
+  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
+    weekday: "long",
+    day: "numeric",
+    month: "numeric",
+  });
+  const statusIcon = data.order.status === "sent" ? "✅" : "📝";
+  const statusLabel = data.order.status === "sent" ? "Odesláno" : "Rozepsáno";
+  const totalRows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
+
+  const blocks: string[] = [];
+  data.departments.forEach((dept) => {
+    const active = dept.rows.filter((r) => r.personName);
+    if (active.length === 0) return;
+    const nameWidth = Math.min(18, Math.max(...active.map((r) => r.personName.length)));
+    const rows = active.map((r) => {
+      const name = r.personName.slice(0, nameWidth).padEnd(nameWidth);
+      const meal = r.mainItem?.code ?? (r.mainItem ? "?" : "—");
+      return `${name}  ${meal}`;
+    });
+    blocks.push(`${dept.label}\n${rows.join("\n")}`);
+  });
+
+  return (
+    `📊 <b>Souhrn ${dateStr}</b>\n` +
+    `${statusIcon} ${statusLabel}  ·  👥 ${totalRows} osob  ·  💰 ${data.totalPrice} Kč\n\n` +
+    `<pre>${blocks.join("\n\n")}</pre>`
+  );
+}
+
 type TelegramUpdate = {
   message?: {
     chat: { id: number };
@@ -114,6 +145,8 @@ export async function POST(req: NextRequest) {
 
   if (cmd === "/stav") {
     await sendTelegramToChat(chatId, formatStav());
+  } else if (cmd === "/souhrn") {
+    await sendTelegramToChat(chatId, formatSouhrn());
   } else if (cmd === "/menu") {
     await sendTelegramToChat(chatId, formatMenu());
   } else if (cmd === "/odeslat") {
@@ -154,7 +187,8 @@ export async function POST(req: NextRequest) {
     await sendTelegramToChat(
       chatId,
       "<b>Dostupné příkazy:</b>\n" +
-        "/stav — přehled dnešní objednávky\n" +
+        "/stav — podrobný přehled objednávky\n" +
+        "/souhrn — kompaktní tabulka (jméno + kód jídla)\n" +
         "/menu — dnešní jídelníček\n" +
         (admin
           ? "/odeslat — ruční odeslání objednávky\n/zrusit — znovu otevřít odeslanou objednávku\n"

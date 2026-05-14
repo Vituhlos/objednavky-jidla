@@ -1408,7 +1408,8 @@ export default function SettingsPage({
 
                   <Section icon="terminal" title="Dostupné příkazy">
                     <ul className="text-[12.5px] text-stone-600 space-y-1.5 font-mono">
-                      <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— přehled dnešní objednávky</span></li>
+                      <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— podrobný přehled objednávky (plné názvy)</span></li>
+                      <li><span className="text-amber-700">/souhrn</span> <span className="font-sans text-stone-500">— kompaktní tabulka (jméno + kód jídla)</span></li>
                       <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
                       <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
