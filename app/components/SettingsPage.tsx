@@ -1411,8 +1411,12 @@ export default function SettingsPage({
                       <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— podrobný přehled objednávky (plné názvy)</span></li>
                       <li><span className="text-amber-700">/souhrn</span> <span className="font-sans text-stone-500">— kompaktní tabulka (jméno + kód jídla)</span></li>
                       <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
+                      <li><span className="text-amber-700">/zitra</span> <span className="font-sans text-stone-500">— jídelníček na zítřek</span></li>
+                      <li><span className="text-amber-700">/statistiky</span> <span className="font-sans text-stone-500">— statistiky posledních 7 dní</span></li>
+                      <li><span className="text-amber-700">/upozorneni</span> <span className="font-sans text-stone-500">— zapnout/vypnout připomenutí uzávěrky</span></li>
                       <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
+                      <li><span className="text-amber-700">/nastavit cas HH:MM</span> <span className="font-sans text-stone-500">— změnit čas auto-odesílání <span className="text-stone-400">(jen admin)</span></span></li>
                       <li><span className="text-amber-700">/pomoc</span> <span className="font-sans text-stone-500">— seznam příkazů</span></li>
                     </ul>
                   </Section>
@@ -1552,9 +1556,14 @@ export default function SettingsPage({
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
                             {[
                               ["/stav", "přehled dnešní objednávky"],
+                              ["/souhrn", "kompaktní tabulka s kódy"],
                               ["/menu", "dnešní jídelníček"],
+                              ["/zitra", "jídelníček na zítřek"],
+                              ["/statistiky", "statistiky (7 dní)"],
+                              ["/upozorneni", "zapnout/vypnout připomenutí"],
                               ["/odeslat", "odeslání objednávky (admin)"],
                               ["/zrusit", "znovu otevřít objednávku (admin)"],
+                              ["/nastavit cas HH:MM", "změnit čas auto-odesílání (admin)"],
                               ["/pomoc", "seznam příkazů"],
                             ].map(([cmd, desc]) => (
                               <div key={cmd} className="contents">

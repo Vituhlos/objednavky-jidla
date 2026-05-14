@@ -7,10 +7,14 @@ export interface TelegramSubscription {
   firstName: string;
   username: string;
   isAdmin: boolean;
+  notifyReminder: boolean;
   registeredAt: string;
 }
 
-type DbRow = { id: number; chat_id: string; first_name: string; username: string; is_admin: number; registered_at: string };
+type DbRow = {
+  id: number; chat_id: string; first_name: string; username: string;
+  is_admin: number; notify_reminder: number; registered_at: string;
+};
 
 export function getTelegramSubscriptions(): TelegramSubscription[] {
   const rows = getDb()
@@ -22,6 +26,7 @@ export function getTelegramSubscriptions(): TelegramSubscription[] {
     firstName: r.first_name,
     username: r.username,
     isAdmin: r.is_admin === 1,
+    notifyReminder: r.notify_reminder === 1,
     registeredAt: r.registered_at,
   }));
 }
@@ -72,6 +77,20 @@ export function setTelegramAdmin(chatId: string, isAdmin: boolean): void {
     .run(isAdmin ? 1 : 0, chatId);
 }
 
+export function toggleTelegramReminder(chatId: string): boolean {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT notify_reminder FROM telegram_subscriptions WHERE chat_id = ?")
+    .get(chatId) as { notify_reminder: number } | undefined;
+  const newVal = row?.notify_reminder === 1 ? 0 : 1;
+  db.prepare("UPDATE telegram_subscriptions SET notify_reminder = ? WHERE chat_id = ?").run(newVal, chatId);
+  return newVal === 1;
+}
+
+export function getSubscribersWithReminder(): TelegramSubscription[] {
+  return getTelegramSubscriptions().filter((s) => s.notifyReminder);
+}
+
 async function sendToChat(token: string, chatId: string, text: string): Promise<void> {
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
@@ -89,6 +108,34 @@ export async function sendTelegramMessage(text: string): Promise<void> {
     subs.map((sub) =>
       sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
         console.error(`[telegram] Chyba při odesílání na ${sub.chatId}:`, err),
+      ),
+    ),
+  );
+}
+
+export async function sendTelegramToAdmins(text: string): Promise<void> {
+  const s = getSettings();
+  if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
+  const admins = getTelegramSubscriptions().filter((s) => s.isAdmin);
+  if (admins.length === 0) return;
+  await Promise.allSettled(
+    admins.map((sub) =>
+      sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
+        console.error(`[telegram] Chyba při odesílání adminovi ${sub.chatId}:`, err),
+      ),
+    ),
+  );
+}
+
+export async function sendTelegramReminderNotification(text: string): Promise<void> {
+  const s = getSettings();
+  if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
+  const subs = getSubscribersWithReminder();
+  if (subs.length === 0) return;
+  await Promise.allSettled(
+    subs.map((sub) =>
+      sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
+        console.error(`[telegram] Chyba při odesílání reminder na ${sub.chatId}:`, err),
       ),
     ),
   );

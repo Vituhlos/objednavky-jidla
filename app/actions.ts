@@ -111,6 +111,8 @@ export async function actionConfirmMenuImport(
   }
   revalidatePath("/jidelnicek");
   revalidatePath("/");
+  const { sendTelegramMessage: tg } = await import("@/lib/telegram");
+  await tg(`📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
