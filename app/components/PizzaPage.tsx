@@ -32,6 +32,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
   const [scrapeStatus, setScrapeStatus] = useState<string | null>(null);
   const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [showPizzaHelp, setShowPizzaHelp] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
   const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -278,6 +279,13 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
               <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Souhrn</span>
               <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50/80 px-2 py-0.5 rounded-full">2+1 zdarma</span>
+              <button
+                type="button"
+                onClick={() => setShowPizzaHelp(true)}
+                className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-white/60 transition text-[13px] font-bold"
+                aria-label="Nápověda k výpočtu"
+                title="Jak se počítá cena?"
+              >?</button>
             </div>
             <div className="px-4 pt-3 pb-0">
               <p className="text-[11.5px] text-stone-500 leading-relaxed">
@@ -311,6 +319,42 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         )}
       </div>
       </main>
+
+      {showPizzaHelp && (
+        <div className="modal-overlay" onClick={() => setShowPizzaHelp(false)}>
+          <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-sheet__header">
+              <h3 className="modal-sheet__title">Jak se počítá cena?</h3>
+              <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>
+            </div>
+            <div className="modal-sheet__body space-y-4 text-[13px] text-stone-600 leading-relaxed">
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">🍕 Akce 2+1 zdarma</p>
+                <p>Za každé <strong>2 objednané pizzy</strong> dostanete <strong>1 zdarma</strong>. Automaticky se vybere <strong>nejdražší pizza</strong> z celé objednávky — takže úspora je vždy maximální.</p>
+                <p className="text-stone-500 text-[12px]">Příklad: objednáte 6 pizz → 2 nejdražší jsou zdarma.</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">📦 Krabice</p>
+                <p>Ke každé pizze se přičítá poplatek <strong>{PIZZA_BOX_FEE} Kč za krabici</strong>. U pizzy zdarma se krabice také nepočítá.</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">🚗 Doprava</p>
+                <p>Při objednávce <strong>4 a více pizz</strong> je doprava zdarma. Při menší objednávce se doprava přičítá dle ceníku (1 ks = 80 Kč, 2 ks = 60 Kč, 3 ks = 50 Kč).</p>
+              </div>
+
+              <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
+                <p className="font-display font-bold text-[13px] text-stone-800">👤 Cena na osobu</p>
+                <p>Celková cena se <strong>rovnoměrně rozdělí</strong> mezi všechny objednávající (počet řádků s vybranou pizzou). Výsledek je zaokrouhlen nahoru na celé koruny.</p>
+                <p className="text-stone-500 text-[12px]">Pokud někdo objednal 2 pizzy, zaplatí stejný díl jako ostatní — cena se dělí počtem lidí, ne počtem kusů.</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
