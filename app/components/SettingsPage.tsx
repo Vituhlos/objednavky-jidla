@@ -1453,8 +1453,13 @@ export default function SettingsPage({
                           },
                           {
                             num: "4",
-                            title: "Každý kolega pošle /start",
-                            body: <>Každý, kdo chce dostávat notifikace, si najde bota v Telegramu (podle uživatelského jména co jsi zvolil, např. <code className="bg-black/5 px-1 rounded">@ObedyLIMAbot</code>) a pošle mu <code className="bg-black/5 px-1 rounded">/start</code>. První zaregistrovaný dostane automaticky práva <strong>admin</strong>.</>,
+                            title: "Kolegové — stačí kliknout na odkaz",
+                            body: (
+                              <div className="space-y-1.5">
+                                <p>Pošli kolegům odkaz <code className="bg-black/5 px-1 rounded">t.me/ObedyLIMAbot</code> (uprav na své uživatelské jméno). Kliknou, zmáčknou <strong>Start</strong> — a jsou zaregistrovaní. Žádné nastavování, žádný BotFather.</p>
+                                <p className="text-stone-400">První kdo klikne Start dostane automaticky roli <strong>admin</strong> (může odesílat objednávky příkazem).</p>
+                              </div>
+                            ),
                           },
                           {
                             num: "5",
