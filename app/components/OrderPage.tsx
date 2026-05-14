@@ -718,12 +718,12 @@ export default function OrderPage({
           )}
           {!isFutureDay && !isSent && !isPastCutoff && countdown && (
             <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime})
+              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
             </span>
           )}
           {!isFutureDay && !isSent && isPastCutoff && (
             <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime})
+              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
             </span>
           )}
           {isSent && sentAt && (
@@ -749,12 +749,6 @@ export default function OrderPage({
               {isPending ? "Odesílám…" : "Odeslat"}
             </button>
           </div>
-        )}
-        {!isSent && !isFutureDay && !noMenu && autoSendEnabled && (
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 shrink-0">
-            <MIcon name="schedule" size={14} style={{ color: "#D97706" }} />
-            Odešle se automaticky v {autoSendTime}
-          </span>
         )}
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
         <button
@@ -790,12 +784,12 @@ export default function OrderPage({
         )}
         {!isFutureDay && !isSent && !isPastCutoff && countdown && (
           <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-            <MIcon name="schedule" size={12} /> {countdown}
+            <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
         {!isFutureDay && !isSent && isPastCutoff && (
           <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
-            <MIcon name="schedule" size={12} /> Po uzávěrce
+            <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
         {isSent && (
@@ -823,12 +817,6 @@ export default function OrderPage({
           >
             {isPending ? "Odesílám…" : "Odeslat"}
           </button>
-        )}
-        {!isSent && !isFutureDay && !noMenu && autoSendEnabled && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 shrink-0">
-            <MIcon name="schedule" size={12} style={{ color: "#D97706" }} />
-            Auto {autoSendTime}
-          </span>
         )}
         {isFutureDay && !isSent && !noMenu && (
           <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
