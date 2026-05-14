@@ -282,20 +282,19 @@ export async function POST(req: NextRequest) {
   if (cmd === "/start") {
     const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, senderUsername);
     const name = firstName ? `, <b>${firstName}</b>` : "";
-    const adminNote = isAdmin
+    const adminNote = isAdmin && isNew
       ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky příkazem /odeslat a /zrusit."
       : "";
-    const welcomeText = isNew
-      ? `👋 Vítej${name}!\n\n` +
-        `Jsem bot systému <b>Objednávky LIMA</b> — firemního objednávání obědů.${adminNote}\n\n` +
-        `<b>Co ti posílám:</b>\n` +
-        `  🔔 Upozornění před uzávěrkou objednávek\n` +
-        `  🌅 Ranní jídelníček (pokud si zapneš)\n` +
-        `  📬 Potvrzení o odeslání objednávky\n` +
-        `  📋 Notifikaci při importu nového jídelníčku\n\n` +
-        `Co a kdy ti chodí si nastavíš přes /nastaveni nebo níže.`
-      : "✅ Jsi zaregistrovaný, notifikace ti chodí.\n\n/pomoc — seznam příkazů";
-    await sendTelegramToChat(chatId, welcomeText, isNew ? buildWelcomeKeyboard() : undefined);
+    const welcomeText =
+      `👋 Vítej${name}!\n\n` +
+      `Jsem bot systému <b>Objednávky LIMA</b> — firemního objednávání obědů.${adminNote}\n\n` +
+      `<b>Co ti posílám:</b>\n` +
+      `  🔔 Upozornění před uzávěrkou objednávek\n` +
+      `  🌅 Ranní jídelníček (pokud si zapneš)\n` +
+      `  📬 Potvrzení o odeslání objednávky\n` +
+      `  📋 Notifikaci při importu nového jídelníčku\n\n` +
+      `Co a kdy ti chodí si nastavíš přes /nastaveni nebo níže.`;
+    await sendTelegramToChat(chatId, welcomeText, buildWelcomeKeyboard());
     return new Response("ok");
   }
 
