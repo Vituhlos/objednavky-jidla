@@ -1347,32 +1347,42 @@ export default function SettingsPage({
                       </div>
                       <div className="modal-sheet__body space-y-4">
 
+                        {/* Intro */}
+                        <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                          <strong>Jak to funguje:</strong> Jeden bot slouží celé firmě. Vytvoříš Telegram skupinu, přidáš do ní kolegy a bota — a všichni ve skupině budou dostávat notifikace. Nikdo si nic individuálně nezakládá.
+                        </div>
+
                         {/* Steps */}
                         {[
                           {
                             num: "1",
-                            title: "Vytvoř bota",
-                            body: <>Otevři Telegram a napiš <strong>@BotFather</strong>. Pošli příkaz <code className="bg-black/5 px-1 rounded">/newbot</code>, zadej název a uživatelské jméno bota. BotFather ti pošle <strong>Bot Token</strong> — zkopíruj ho.</>,
+                            title: "Vytvoř bota (2 minuty)",
+                            body: <>V Telegramu vyhledej <strong>@BotFather</strong> (modrý fajfkový odznak = oficiální). Pošli mu <code className="bg-black/5 px-1 rounded">/newbot</code>, zadej libovolný název a uživatelské jméno (musí končit na <em>bot</em>, např. <em>ObeduLIMAbot</em>). BotFather ti okamžitě odpoví s <strong>Bot Tokenem</strong> — zkopíruj ho.</>,
                           },
                           {
                             num: "2",
-                            title: "Zjisti Chat ID",
-                            body: <>Přidej bota do skupiny (nebo mu napiš přímo). Pak otevři v prohlížeči:<br /><code className="bg-black/5 px-1.5 py-0.5 rounded text-[11px] break-all">https://api.telegram.org/bot&#123;TOKEN&#125;/getUpdates</code><br />V odpovědi najdi pole <code className="bg-black/5 px-1 rounded">chat.id</code> — to je tvoje <strong>Chat ID</strong>. U skupin začíná minusem (např. <code className="bg-black/5 px-1 rounded">-1001234567890</code>).</>,
+                            title: "Vytvoř skupinu a přidej do ní bota i kolegy",
+                            body: <>Vytvoř novou Telegram skupinu (např. „Obědy LIMA"). Přidej do ní svého nového bota a všechny kolegy, kteří mají dostávat notifikace.</>,
                           },
                           {
                             num: "3",
-                            title: "Vyplň nastavení",
-                            body: <>Vlož <strong>Bot Token</strong> a <strong>Chat ID</strong> do polí výše. Zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
+                            title: "Zjisti Chat ID skupiny",
+                            body: <>Do skupiny přidej bota <strong>@getidsbot</strong> — ten hned odpoví s ID skupiny (záporné číslo začínající <code className="bg-black/5 px-1 rounded">-100...</code>). Zkopíruj ho a @getidsbot pak ze skupiny odstraň.</>,
                           },
                           {
                             num: "4",
-                            title: "Nastav webhook",
-                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat zprávy z bota. Stačí udělat jednou (nebo po změně domény).</>,
+                            title: "Vyplň nastavení a ulož",
+                            body: <>Vlož <strong>Bot Token</strong> a <strong>Chat ID skupiny</strong> do polí výše, zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
                           },
                           {
                             num: "5",
+                            title: "Nastav webhook",
+                            body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat příkazy z bota. Stačí jednou (opakuj jen při změně domény).</>,
+                          },
+                          {
+                            num: "6",
                             title: "Otestuj",
-                            body: <>Klikni na <strong>Testovat zprávu</strong>. Pokud vše funguje, bot pošle do chatu testovací zprávu. Pak zkus zadat příkaz <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo v Telegramu.</>,
+                            body: <>Klikni na <strong>Testovat zprávu</strong>. Pokud vše funguje, bot napíše do skupiny testovací zprávu. Pak zkus napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo ve skupině.</>,
                           },
                         ].map((step) => (
                           <div key={step.num} className="flex gap-3">
@@ -1388,7 +1398,7 @@ export default function SettingsPage({
 
                         {/* Commands reference */}
                         <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
-                          <p className="font-display font-bold text-[12.5px] text-stone-800">Dostupné příkazy</p>
+                          <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (pište přímo ve skupině)</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
                             {[
                               ["/stav", "přehled dnešní objednávky"],
@@ -1405,7 +1415,7 @@ export default function SettingsPage({
                           </div>
                         </div>
 
-                        <p className="text-[11.5px] text-stone-400">Příkazy fungují jen ze zadaného Chat ID — nikdo jiný bota ovládat nemůže.</p>
+                        <p className="text-[11.5px] text-stone-400">Příkazy fungují jen ze zadané skupiny — nikdo zvenčí bota ovládat nemůže.</p>
                       </div>
                     </div>
                   </div>
