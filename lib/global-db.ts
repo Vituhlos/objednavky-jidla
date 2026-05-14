@@ -64,4 +64,22 @@ const GLOBAL_MIGRATIONS: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 2,
+    name: "super_admin_sessions",
+    up: (db) => {
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS super_admin_sessions (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          admin_id   INTEGER NOT NULL REFERENCES super_admins(id) ON DELETE CASCADE,
+          token      TEXT    NOT NULL UNIQUE,
+          expires_at TEXT    NOT NULL,
+          created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_sa_sessions_token ON super_admin_sessions(token)`
+      ).run();
+    },
+  },
 ];
