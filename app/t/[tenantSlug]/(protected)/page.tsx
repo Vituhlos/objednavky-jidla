@@ -3,17 +3,21 @@ import { getSettings } from "@/lib/settings";
 import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
-import { getCurrentUser } from "@/lib/auth";
+import { requireTenantAccess } from "@/lib/tenant-auth";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function TenantHomePage({
+  params: routeParams,
   searchParams,
 }: {
+  params: Promise<{ tenantSlug: string }>;
   searchParams: Promise<{ date?: string }>;
 }) {
-  // Tenant context already set by layout — all getDb() calls use this tenant's DB
+  const { tenantSlug } = await routeParams;
+  // Tenant context already set by outer layout — getDb() calls use this tenant's DB
+  const currentUser = await requireTenantAccess(tenantSlug);
   const params = await searchParams;
   const pragueNow = getPragueNow();
   const todayISO = toLocalISODate(pragueNow);
@@ -31,7 +35,6 @@ export default async function TenantHomePage({
 
   const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
-  const currentUser = await getCurrentUser();
 
   const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;

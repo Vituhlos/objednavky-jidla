@@ -5,15 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import MIcon from "./MIcon";
 
-const MAIN_NAV = [
-  { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
-  { href: "/jidelnicek", label: "Jídelníček LIMA",   shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
-  { href: "/pizza",      label: "Pizza",              shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
-  { href: "/historie",   label: "Historie",           shortLabel: "Historie",   icon: "history",         exact: false },
-  { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false },
-];
+function buildNavItems(base: string) {
+  return [
+    { href: base || "/",              label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
+    { href: `${base}/jidelnicek`,     label: "Jídelníček",        shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
+    { href: `${base}/pizza`,          label: "Pizza",             shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
+    { href: `${base}/historie`,       label: "Historie",          shortLabel: "Historie",   icon: "history",         exact: false },
+    { href: `${base}/nastaveni`,      label: "Nastavení",         shortLabel: "Nastavení",  icon: "settings",        exact: false },
+  ];
+}
 
-const PROFILE_NAV = { href: "/profil", label: "Můj profil", shortLabel: "Profil", icon: "account_circle", exact: false };
+function buildProfileNav(base: string) {
+  return { href: `${base}/profil`, label: "Můj profil", shortLabel: "Profil", icon: "account_circle", exact: false };
+}
 
 function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
@@ -50,15 +54,15 @@ function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: 
 
 type UserInfo = { firstName: string; lastName: string; role: string } | null;
 
-function UserBadge({ user }: { user: UserInfo }) {
+function UserBadge({ user, basePath = "" }: { user: UserInfo; basePath?: string }) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
+      await fetch(`${basePath}/api/auth/logout`, { method: "POST" });
+      router.push(`${basePath}/login`);
       router.refresh();
     } finally {
       setLoggingOut(false);
@@ -70,11 +74,11 @@ function UserBadge({ user }: { user: UserInfo }) {
       <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Účet</div>
       <div className="text-[12px] text-stone-500 leading-snug mb-2.5">Přihlaste se pro přidání objednávky.</div>
       <div className="flex flex-col gap-1.5">
-        <Link href="/login" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
+        <Link href={`${basePath}/login`} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
           <MIcon name="login" size={13} />
           Přihlásit se
         </Link>
-        <Link href="/register" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
+        <Link href={`${basePath}/register`} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
           <MIcon name="person_add" size={13} />
           Vytvořit účet
         </Link>
@@ -84,7 +88,7 @@ function UserBadge({ user }: { user: UserInfo }) {
 
   return (
     <div className="glass-soft rounded-2xl p-3">
-      <Link href="/profil" className="flex items-center gap-2.5 mb-2 group no-underline">
+      <Link href={`${basePath}/profil`} className="flex items-center gap-2.5 mb-2 group no-underline">
         <InitialsAvatar firstName={user.firstName} lastName={user.lastName} />
         <div className="flex-1 min-w-0">
           <div className="font-display font-bold text-[13px] text-stone-900 leading-none group-hover:text-amber-700 transition truncate">
@@ -108,20 +112,26 @@ function UserBadge({ user }: { user: UserInfo }) {
   );
 }
 
-export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
+export default function AppTopBar({ initialUser, tenantSlug }: { initialUser?: UserInfo; tenantSlug?: string }) {
   const pathname = usePathname();
+  const base = tenantSlug ? `/t/${tenantSlug}` : "";
 
-  if (pathname === "/login" || pathname === "/register" || pathname === "/zapomenute-heslo" || pathname.startsWith("/reset-hesla")) return null;
+  const authPaths = tenantSlug
+    ? [`${base}/login`, `${base}/register`, `${base}/zapomenute-heslo`]
+    : ["/login", "/register", "/zapomenute-heslo"];
+  if (authPaths.some((p) => pathname === p) || pathname.startsWith(`${base}/reset-hesla`)) return null;
 
   const isAdmin = initialUser?.role === "admin";
+  const mainNav = buildNavItems(base);
+  const profileNav = buildProfileNav(base);
 
   // Mobile nav: max 5 items — admins swap /historie for /nastaveni
   const mobileNav = isAdmin
-    ? [...MAIN_NAV.filter((n) => n.href !== "/historie"), PROFILE_NAV]
-    : [...MAIN_NAV.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV];
+    ? [...mainNav.filter((n) => !n.href.endsWith("/historie")), profileNav]
+    : [...mainNav.filter((n) => !n.href.endsWith("/nastaveni")), profileNav];
 
   // Desktop sidebar nav: just the main 5 — profile is accessible via the UserBadge name link
-  const desktopNav = MAIN_NAV;
+  const desktopNav = mainNav;
 
   return (
     <>
@@ -175,7 +185,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
         </div>
 
         <div className="mt-auto flex flex-col gap-2">
-          <UserBadge user={initialUser ?? null} />
+          <UserBadge user={initialUser ?? null} basePath={base} />
           <SidebarClock />
         </div>
       </aside>

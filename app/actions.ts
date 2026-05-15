@@ -28,6 +28,7 @@ import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/auth";
+import { requireTenantAccess, requireTenantAdmin } from "@/lib/tenant-auth";
 import {
   setTelegramWebhook,
   setTelegramCommands,
@@ -53,14 +54,16 @@ import {
 import type { DepartmentInfo } from "@/lib/departments";
 
 async function requireAuth() {
-  await initTenantContext();
+  const slug = await initTenantContext();
+  if (slug) return await requireTenantAccess(slug);
   const user = await getCurrentUser();
   if (!user) throw new Error("Musíte být přihlášeni.");
   return user;
 }
 
 async function requireAdmin() {
-  await initTenantContext();
+  const slug = await initTenantContext();
+  if (slug) return await requireTenantAdmin(slug);
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") throw new Error("Tato akce vyžaduje oprávnění správce.");
   return user;
@@ -71,9 +74,7 @@ export async function actionAddRow(
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  await initTenantContext();
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Pro přidání objednávky se musíte přihlásit.");
+  const user = await requireAuth();
   const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`, pushEndpoint);
   revalidatePath("/");
   broadcast();
@@ -300,8 +301,7 @@ export async function actionSaveSettings(updates: Partial<AppSettings>): Promise
 }
 
 export async function actionGetUsers(): Promise<Array<{ id: number; email: string; firstName: string; lastName: string; role: string; active: number; createdAt: string }>> {
-  const user = await getCurrentUser();
-  if (user?.role !== "admin") throw new Error("Nemáte oprávnění.");
+  await requireAdmin();
   const { getDb } = await import("@/lib/db");
   const db = getDb();
   const rows = db.prepare("SELECT id, email, first_name, last_name, role, active, created_at FROM users ORDER BY created_at").all() as Record<string, unknown>[];
@@ -317,16 +317,14 @@ export async function actionGetUsers(): Promise<Array<{ id: number; email: strin
 }
 
 export async function actionSetUserRole(userId: number, role: "user" | "admin"): Promise<void> {
-  const user = await getCurrentUser();
-  if (user?.role !== "admin") throw new Error("Nemáte oprávnění.");
+  await requireAdmin();
   const { getDb } = await import("@/lib/db");
   getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, userId);
   revalidatePath("/nastaveni");
 }
 
 export async function actionSetUserActive(userId: number, active: boolean): Promise<void> {
-  const user = await getCurrentUser();
-  if (user?.role !== "admin") throw new Error("Nemáte oprávnění.");
+  await requireAdmin();
   const { getDb } = await import("@/lib/db");
   const db = getDb();
   db.prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, userId);
