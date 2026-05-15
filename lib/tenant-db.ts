@@ -10,6 +10,15 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
 
 const cache = new Map<string, Database.Database>();
 
+// Only ignore "already has column" — all other ALTER TABLE errors are real failures.
+function addColumnIfMissing(fn: () => void): void {
+  try {
+    fn();
+  } catch (e: unknown) {
+    if (!(e instanceof Error) || !e.message.includes("already has column")) throw e;
+  }
+}
+
 export function getTenantDb(slug: string): Database.Database {
   if (!SLUG_RE.test(slug)) throw new Error(`Invalid tenant slug: "${slug}"`);
   let db = cache.get(slug);
@@ -22,6 +31,14 @@ export function getTenantDb(slug: string): Database.Database {
     cache.set(slug, db);
   }
   return db;
+}
+
+export function evictTenantDb(slug: string): void {
+  const db = cache.get(slug);
+  if (db) {
+    db.close();
+    cache.delete(slug);
+  }
 }
 
 export const TENANT_MIGRATIONS: Migration[] = [
@@ -78,44 +95,58 @@ export const TENANT_MIGRATIONS: Migration[] = [
     version: 2,
     name: "menu_items_week_start",
     up: (db) => {
-      try { db.prepare("ALTER TABLE menu_items ADD COLUMN week_start TEXT").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE menu_items ADD COLUMN week_start TEXT").run()
+      );
     },
   },
   {
     version: 3,
     name: "order_rows_note",
     up: (db) => {
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''").run()
+      );
     },
   },
   {
     version: 4,
     name: "order_rows_meal_count",
     up: (db) => {
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN meal_count INTEGER NOT NULL DEFAULT 1").run(); } catch {}
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN main_item_id_2 INTEGER REFERENCES menu_items(id)").run(); } catch {}
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN meal_count_2 INTEGER NOT NULL DEFAULT 1").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN meal_count INTEGER NOT NULL DEFAULT 1").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN main_item_id_2 INTEGER REFERENCES menu_items(id)").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN meal_count_2 INTEGER NOT NULL DEFAULT 1").run()
+      );
     },
   },
   {
     version: 5,
     name: "order_rows_extra_meals",
     up: (db) => {
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN soup_item_id_2 INTEGER REFERENCES menu_items(id)").run(); } catch {}
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN extra_meals TEXT NOT NULL DEFAULT '[]'").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN soup_item_id_2 INTEGER REFERENCES menu_items(id)").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN extra_meals TEXT NOT NULL DEFAULT '[]'").run()
+      );
     },
   },
   {
     version: 6,
     name: "migrate_extra_meals_json",
     up: (db) => {
-      try {
-        db.prepare(`
-          UPDATE order_rows
-          SET    extra_meals = json_array(json_object('itemId', main_item_id_2, 'count', COALESCE(meal_count_2, 1)))
-          WHERE  main_item_id_2 IS NOT NULL AND extra_meals = '[]'
-        `).run();
-      } catch {}
+      // One-time data migration: copy old main_item_id_2 into extra_meals JSON array.
+      // Safe to run on existing DBs — WHERE clause skips already-migrated rows.
+      db.prepare(`
+        UPDATE order_rows
+        SET    extra_meals = json_array(json_object('itemId', main_item_id_2, 'count', COALESCE(meal_count_2, 1)))
+        WHERE  main_item_id_2 IS NOT NULL AND extra_meals = '[]'
+      `).run();
     },
   },
   {
@@ -202,22 +233,30 @@ export const TENANT_MIGRATIONS: Migration[] = [
     version: 11,
     name: "order_rows_user_id",
     up: (db) => {
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)").run()
+      );
     },
   },
   {
     version: 12,
     name: "users_extra_columns",
     up: (db) => {
-      try { db.prepare("ALTER TABLE users ADD COLUMN default_department TEXT").run(); } catch {}
-      try { db.prepare("ALTER TABLE users ADD COLUMN email_order_confirmation INTEGER NOT NULL DEFAULT 0").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE users ADD COLUMN default_department TEXT").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE users ADD COLUMN email_order_confirmation INTEGER NOT NULL DEFAULT 0").run()
+      );
     },
   },
   {
     version: 13,
     name: "menu_items_allergens",
     up: (db) => {
-      try { db.prepare("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''").run()
+      );
     },
   },
   {
@@ -272,16 +311,24 @@ export const TENANT_MIGRATIONS: Migration[] = [
     version: 17,
     name: "telegram_notification_columns",
     up: (db) => {
-      try { db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_morning_menu INTEGER NOT NULL DEFAULT 0").run(); } catch {}
-      try { db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_order_sent INTEGER NOT NULL DEFAULT 1").run(); } catch {}
-      try { db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_morning_menu INTEGER NOT NULL DEFAULT 0").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_order_sent INTEGER NOT NULL DEFAULT 1").run()
+      );
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1").run()
+      );
     },
   },
   {
     version: 18,
     name: "order_rows_push_endpoint",
     up: (db) => {
-      try { db.prepare("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT").run(); } catch {}
+      addColumnIfMissing(() =>
+        db.prepare("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT").run()
+      );
     },
   },
   {

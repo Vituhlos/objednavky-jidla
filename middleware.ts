@@ -4,12 +4,13 @@ const COOKIE_NAME = "session_token";
 const SA_COOKIE_NAME = "sa_session_token";
 
 const TENANT_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
-// Paths within /t/[slug]/ that don't require a session
-const TENANT_PUBLIC_SUFFIXES = [
+// Paths within /t/[slug]/ that don't require a session (exact match or prefix)
+const TENANT_PUBLIC_PATHS = [
   "/login",
   "/register",
   "/zapomenute-heslo",
   "/reset-hesla",
+  "/api/auth",
 ];
 
 // Legacy single-tenant public/protected paths (unchanged)
@@ -36,11 +37,13 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    const isPublicTenantPath = TENANT_PUBLIC_SUFFIXES.some(
-      (s) => rest === s || rest.startsWith(`${s}?`)
+    const isPublicTenantPath = TENANT_PUBLIC_PATHS.some(
+      (s) => rest === s || rest.startsWith(`${s}/`) || rest.startsWith(`${s}?`)
     );
     if (isPublicTenantPath) return NextResponse.next();
 
+    // Edge Runtime can't access SQLite — only presence check here.
+    // Actual session validity is enforced by requireTenantAccess() in each server component.
     const token = request.cookies.get(COOKIE_NAME)?.value;
     if (!token) {
       return NextResponse.redirect(new URL(`/t/${slug}/login`, request.url));
