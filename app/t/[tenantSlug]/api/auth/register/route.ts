@@ -3,6 +3,10 @@ import { getTenantDb } from "@/lib/tenant-db";
 import { getGlobalDb } from "@/lib/global-db";
 import { hashPassword, COOKIE_NAME } from "@/lib/auth";
 import { createTenantSession } from "@/lib/tenant-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const REGISTER_MAX = 5;
+const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hodina
 
 export async function POST(
   req: NextRequest,
@@ -17,6 +21,14 @@ export async function POST(
 
   if (!email?.trim() || !firstName?.trim() || !lastName?.trim() || !password || !joinCode?.trim()) {
     return NextResponse.json({ error: "Vyplňte všechna pole." }, { status: 400 });
+  }
+
+  // Rate limit per-IP — max 5 registrací za hodinu
+  const db = getTenantDb(tenantSlug);
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const rlKey = `register:${tenantSlug}:${ip}`;
+  if (!checkRateLimit(rlKey, REGISTER_MAX, REGISTER_WINDOW_MS, db)) {
+    return NextResponse.json({ error: "Příliš mnoho pokusů. Zkuste to za hodinu." }, { status: 429 });
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return NextResponse.json({ error: "Neplatná e-mailová adresa." }, { status: 400 });
@@ -33,7 +45,6 @@ export async function POST(
     return NextResponse.json({ error: "Neplatný registrační kód." }, { status: 403 });
   }
 
-  const db = getTenantDb(tenantSlug);
   const normalizedEmail = email.trim().toLowerCase();
 
   const existingActive = db.prepare("SELECT id FROM users WHERE email = ? AND active = 1").get(normalizedEmail);

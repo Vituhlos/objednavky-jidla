@@ -41,6 +41,10 @@ export interface GlobalSettings {
   vapidPublicKey: string;
   vapidPrivateKey: string;
   pushReminderMinutes: string;
+  // Scheduler health tracking (written by each job, read by /api/health)
+  lastImapCheckAt: string;
+  lastBackupAt: string;
+  lastCronRunAt: string;
 }
 
 const GLOBAL_KEY_MAP: Record<keyof GlobalSettings, string> = {
@@ -78,6 +82,9 @@ const GLOBAL_KEY_MAP: Record<keyof GlobalSettings, string> = {
   vapidPublicKey:       "vapid_public_key",
   vapidPrivateKey:      "vapid_private_key",
   pushReminderMinutes:  "push_reminder_minutes",
+  lastImapCheckAt:      "last_imap_check_at",
+  lastBackupAt:         "last_backup_at",
+  lastCronRunAt:        "last_cron_run_at",
 };
 
 function globalDefaults(): GlobalSettings {
@@ -116,6 +123,9 @@ function globalDefaults(): GlobalSettings {
     vapidPublicKey:       "",
     vapidPrivateKey:      "",
     pushReminderMinutes:  "20",
+    lastImapCheckAt:      "",
+    lastBackupAt:         "",
+    lastCronRunAt:        "",
   };
 }
 

@@ -1,4 +1,6 @@
 import cron from "node-cron";
+import path from "path";
+import { statfs } from "node:fs/promises";
 import { getGlobalSettings, saveGlobalSettings } from "./global-settings";
 import type { GlobalSettings } from "./global-settings";
 import { checkImapForMenu } from "./imap";
@@ -11,7 +13,21 @@ import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification } from "./telegram";
+import { runNightlyBackup } from "./backup";
 import webpush from "web-push";
+
+const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+
+// Alert cooldown map — prevents Telegram spam
+const alertCooldowns = new Map<string, number>();
+function shouldAlert(key: string, cooldownMs: number): boolean {
+  const last = alertCooldowns.get(key) ?? 0;
+  if (Date.now() - last > cooldownMs) {
+    alertCooldowns.set(key, Date.now());
+    return true;
+  }
+  return false;
+}
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -279,7 +295,40 @@ async function checkTelegramReminder(s: GlobalSettings, currentTime: string, jsD
   );
 }
 
+async function checkDiskUsage(): Promise<void> {
+  try {
+    const stats = await statfs(DATA_DIR);
+    const usedPercent = (1 - stats.bfree / stats.blocks) * 100;
+    if (usedPercent >= 90) {
+      if (shouldAlert("disk-critical", 15 * 60 * 1000)) {
+        await sendTelegramToAdmins(`🚨 <b>Disk KRITICKÝ: ${usedPercent.toFixed(0)}% využito</b>\nZálohy nemusí vzniknout. Okamžitě uvolněte místo.`);
+      }
+    } else if (usedPercent >= 80) {
+      if (shouldAlert("disk-warning", 60 * 60 * 1000)) {
+        await sendTelegramToAdmins(`⚠️ <b>Disk varování: ${usedPercent.toFixed(0)}% využito</b>\nZvažte uvolnění místa.`);
+      }
+    }
+  } catch {
+    // statfs nemusí fungovat na všech platformách (Windows dev) — ignoruj
+  }
+}
+
+async function checkNightlyBackup(currentTime: string): Promise<void> {
+  if (currentTime !== "02:00") return;
+  console.log("[scheduler] Spouštím noční zálohu...");
+  try {
+    await runNightlyBackup();
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[scheduler] Noční záloha selhala:", errMsg);
+    if (shouldAlert("backup-fail", 0)) {
+      await sendTelegramToAdmins(`🚨 <b>Záloha selhala</b>\n⚠️ ${errMsg}`);
+    }
+  }
+}
+
 export function startScheduler(): void {
+  // Minutový cron — auto-send, IMAP, připomenutí
   cron.schedule("* * * * *", async () => {
     try {
       const s = getGlobalSettings();
@@ -287,15 +336,23 @@ export function startScheduler(): void {
       const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       const jsDay = now.getDay();
 
+      saveGlobalSettings({ lastCronRunAt: new Date().toISOString() });
+
       await checkAutoSend(s, currentTime, jsDay);
       await checkImapImport(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
       await checkPushReminder(s, currentTime, jsDay);
       await checkMorningMenu(s, currentTime, jsDay);
       await checkTelegramReminder(s, currentTime, jsDay);
+      await checkNightlyBackup(currentTime);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }
+  });
+
+  // Hodinový cron — disk monitoring
+  cron.schedule("0 * * * *", async () => {
+    await checkDiskUsage();
   });
 
   console.log("[scheduler] Automatický odesílač nastaven.");
