@@ -295,13 +295,14 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, isAdmin = false,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, isAdmin = false, apiBase = "",
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
   isAdmin?: boolean;
+  apiBase?: string;
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("objednavka");
   const [isPending, startTransition] = useTransition();
@@ -522,7 +523,7 @@ export default function SettingsPage({
     setSmtpTestMsg("Testuji připojení...");
     startTransition(async () => {
       try {
-        const res = await fetch("/api/smtp-test", {
+        const res = await fetch(`${apiBase}/api/smtp-test`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(config),
@@ -1197,7 +1198,7 @@ export default function SettingsPage({
               <a
                 className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
                 download
-                href="/api/backup"
+                href={`${apiBase}/api/backup`}
               >
                 <MIcon name="download" size={14} /> Stáhnout zálohu
               </a>

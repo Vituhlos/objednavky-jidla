@@ -223,6 +223,7 @@ export default function OrderPage({
   autoSendTime = "08:00",
   autoSendError,
   autoSendErrorTs,
+  apiBase = "",
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -243,6 +244,7 @@ export default function OrderPage({
   autoSendTime?: string;
   autoSendError?: string;
   autoSendErrorTs?: string;
+  apiBase?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -394,7 +396,7 @@ export default function OrderPage({
     const requestedDate = selectedDateRef.current;
     const params = new URLSearchParams();
     if (requestedDate) params.set("date", requestedDate);
-    const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
+    const refreshUrl = params.size > 0 ? `${apiBase}/api/order-refresh?${params.toString()}` : `${apiBase}/api/order-refresh`;
     fetch(refreshUrl, { signal: ac.signal })
       .then((r) => r.ok ? r.json() : null)
       .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
@@ -435,7 +437,7 @@ export default function OrderPage({
     let unmounted = false;
 
     function connect() {
-      es = new EventSource("/api/sse");
+      es = new EventSource(`${apiBase}/api/sse`);
       es.addEventListener("open", () => {
         reconnectDelay = 1000;
         setSseConnected(true);

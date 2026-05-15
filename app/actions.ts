@@ -42,8 +42,8 @@ import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
-import { broadcast } from "@/lib/sse-broadcast";
-import { initTenantContext } from "@/lib/tenant-context";
+import { broadcast, broadcastForTenant } from "@/lib/sse-broadcast";
+import { initTenantContext, getTenantSlugForRequest } from "@/lib/tenant-context";
 import {
   getDepartments,
   addDepartment,
@@ -59,6 +59,12 @@ async function requireAuth() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Musíte být přihlášeni.");
   return user;
+}
+
+function broadcastChange(): void {
+  const slug = getTenantSlugForRequest();
+  if (slug) broadcastForTenant(slug);
+  else broadcast();
 }
 
 async function requireAdmin() {
@@ -77,7 +83,7 @@ export async function actionAddRow(
   const user = await requireAuth();
   const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`, pushEndpoint);
   revalidatePath("/");
-  broadcast();
+  broadcastChange();
   return row;
 }
 
@@ -102,7 +108,7 @@ export async function actionUpdateRow(
 ): Promise<OrderRowEnriched> {
   const user = await requireAuth();
   const row = updateOrderRow(rowId, updates, user.id, user.role === "admin", pushEndpoint);
-  broadcast();
+  broadcastChange();
   return row;
 }
 
@@ -110,14 +116,14 @@ export async function actionDeleteRow(rowId: number): Promise<void> {
   const user = await requireAuth();
   deleteOrderRow(rowId, user.id, user.role === "admin");
   revalidatePath("/");
-  broadcast();
+  broadcastChange();
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
   await requireAdmin();
   await dbSendOrder(orderId);
   revalidatePath("/");
-  broadcast();
+  broadcastChange();
 }
 
 export async function actionConfirmMenuImport(
@@ -182,7 +188,7 @@ export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow>
   await requireAuth();
   const row = addPizzaRow(orderId);
   revalidatePath("/pizza");
-  broadcast();
+  broadcastChange();
   return row;
 }
 
@@ -193,7 +199,7 @@ export async function actionUpdatePizzaRow(
   await requireAuth();
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
-  broadcast();
+  broadcastChange();
   return row;
 }
 
@@ -201,7 +207,7 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
   await requireAuth();
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
-  broadcast();
+  broadcastChange();
 }
 
 export async function actionUpdatePizzaPrices(
@@ -219,7 +225,7 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
   revalidatePath("/");
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
-  broadcast();
+  broadcastChange();
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
@@ -245,7 +251,7 @@ export async function actionClearOrder(orderId: number): Promise<void> {
   await requireAdmin();
   clearOrderRows(orderId);
   revalidatePath("/");
-  broadcast();
+  broadcastChange();
 }
 
 export async function actionGetDepartments(): Promise<DepartmentInfo[]> {

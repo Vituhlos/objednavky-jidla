@@ -76,6 +76,7 @@ interface Props {
   hasPdfCurrent: boolean;
   hasPdfNext: boolean;
   isAdmin: boolean;
+  apiBase?: string;
 }
 
 type ImportState =
@@ -514,6 +515,7 @@ export default function MenuPage({
   hasPdfCurrent,
   hasPdfNext,
   isAdmin,
+  apiBase = "",
 }: Props) {
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
   // Sync state when server pushes new props (after router.refresh() following an import)
@@ -562,7 +564,7 @@ export default function MenuPage({
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const res = await fetch("/api/menu/import", { method: "POST", body: fd });
+      const res = await fetch(`${apiBase}/api/menu/import`, { method: "POST", body: fd });
       const data = await res.json() as ParseResult;
       if (!res.ok) {
         setImportState({ phase: "error", message: (data as { error?: string }).error ?? "Neznámá chyba." });
@@ -689,7 +691,7 @@ export default function MenuPage({
         )}
         {hasPdfActive && (
           <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-            download href={`/api/menu/pdf/${activeWeekStart}`}>
+            download href={`${apiBase}/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
         )}
@@ -763,7 +765,7 @@ export default function MenuPage({
         </div>
         {hasPdfActive && (
           <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
-            download href={`/api/menu/pdf/${activeWeekStart}`}>
+            download href={`${apiBase}/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
         )}

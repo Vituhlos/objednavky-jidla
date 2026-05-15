@@ -33,6 +33,7 @@ export default async function TenantSettingsPage({
       isAdmin={true}
       settings={settings}
       todayOrder={{ id: todayData.order.id, status: todayData.order.status }}
+      apiBase={`/t/${tenantSlug}`}
     />
   );
 }

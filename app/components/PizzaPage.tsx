@@ -22,7 +22,7 @@ function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] 
 
 type PizzaPendingDelete = { rowId: number; rowData: PizzaOrderRow };
 
-export default function PizzaPage({ initialData, isAdmin }: { initialData: PizzaOrderData; isAdmin: boolean }) {
+export default function PizzaPage({ initialData, isAdmin, apiBase = "" }: { initialData: PizzaOrderData; isAdmin: boolean; apiBase?: string }) {
   const [rows, setRows] = useState(initialData.rows);
   const [pizzaItems, setPizzaItems] = useState(initialData.pizzaItems);
   const [orderId] = useState(initialData.order.id);
@@ -117,7 +117,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
     setScrapeStatus("Načítám ceník z webu...");
     startTransition(async () => {
       try {
-        const res = await fetch("/api/pizza/scrape");
+        const res = await fetch(`${apiBase}/api/pizza/scrape`);
         let json: { items?: Array<{ code: number; name: string; price: number }>; error?: string };
         try {
           json = await res.json() as typeof json;

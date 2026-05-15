@@ -59,6 +59,7 @@ export default async function TenantJidelnicekPage({
       nextWeekLabel={nextWeekLabel}
       nextWeekStart={nextWeekStart}
       todayCode={todayCode}
+      apiBase={`/t/${tenantSlug}`}
     />
   );
 }

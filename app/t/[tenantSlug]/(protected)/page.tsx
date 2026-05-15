@@ -69,6 +69,7 @@ export default async function TenantHomePage({
       autoSendTime={s.autoSendTime}
       autoSendError={s.autoSendLastError && s.autoSendErrorAcked !== "true" ? s.autoSendLastError : undefined}
       autoSendErrorTs={s.autoSendLastErrorTs || undefined}
+      apiBase={`/t/${tenantSlug}`}
     />
   );
 }

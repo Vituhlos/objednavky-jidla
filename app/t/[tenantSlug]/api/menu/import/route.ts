@@ -1,0 +1,71 @@
+import pdfParse from "pdf-parse";
+import { type NextRequest, NextResponse } from "next/server";
+import { parseMenuText } from "@/lib/parse-menu";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { requireTenantAdmin } from "@/lib/tenant-auth";
+import { getTenantDb } from "@/lib/tenant-db";
+import path from "path";
+import fs from "fs";
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tenantSlug: string }> }) {
+  const { tenantSlug } = await params;
+  try {
+    await requireTenantAdmin(tenantSlug);
+  } catch {
+    return NextResponse.json({ error: "Nemáte oprávnění." }, { status: 403 });
+  }
+
+  const db = getTenantDb(tenantSlug);
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`pdf-import:${ip}`, 10, 60 * 60 * 1000, db)) {
+    return NextResponse.json({ error: "Příliš mnoho nahraných souborů. Zkuste to za hodinu." }, { status: 429 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Nepodařilo se přečíst nahraný soubor." }, { status: 400 });
+  }
+
+  const file = formData.get("file");
+  if (!file || typeof file === "string") {
+    return NextResponse.json({ error: "Soubor nebyl nalezen." }, { status: 400 });
+  }
+  if (file.size > MAX_PDF_BYTES) {
+    return NextResponse.json({ error: "Soubor je příliš velký (max 10 MB)." }, { status: 413 });
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  let rawText = "";
+  try {
+    const result = await pdfParse(buffer);
+    rawText = result.text;
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Nepodařilo se přečíst PDF. (${e instanceof Error ? e.message : "Neznámá chyba"})` },
+      { status: 422 }
+    );
+  }
+
+  const parsed = parseMenuText(rawText);
+  if (parsed.items.length === 0) {
+    return NextResponse.json(
+      { error: "Z PDF se nepodařilo načíst žádná jídla. Zkontrolujte, zda jde o správný soubor jídelníčku LIMA.", rawTextPreview: parsed.rawTextPreview },
+      { status: 422 }
+    );
+  }
+
+  let tmpPdfName: string | undefined;
+  try {
+    const pdfsDir = path.join(process.cwd(), "data", "pdfs");
+    fs.mkdirSync(pdfsDir, { recursive: true });
+    tmpPdfName = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.pdf`;
+    fs.writeFileSync(path.join(pdfsDir, tmpPdfName), buffer);
+  } catch { /* non-fatal */ }
+
+  return NextResponse.json({ ...parsed, tmpPdfName });
+}

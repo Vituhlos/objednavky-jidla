@@ -13,5 +13,5 @@ export default async function TenantPizzaPage({
   const currentUser = await requireTenantAccess(tenantSlug);
   const isAdmin = currentUser.role === "admin";
   const data = getTodayPizzaOrderData();
-  return <PizzaPage initialData={data} isAdmin={isAdmin} />;
+  return <PizzaPage initialData={data} isAdmin={isAdmin} apiBase={`/t/${tenantSlug}`} />;
 }
