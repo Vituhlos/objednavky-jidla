@@ -1,26 +1,45 @@
-FROM node:24-bookworm-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
-
+# ---- Builder stage ----
+FROM node:24-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm ci
 
 COPY . .
 
-ENV NEXT_TELEMETRY_DISABLED=1
-
 ARG COMMIT_SHA=""
 ENV COMMIT_SHA=$COMMIT_SHA
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# ---- Runner stage ----
+FROM node:24-alpine AS runner
+WORKDIR /app
 
-VOLUME ["/app/data"]
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# DejaVu fonts pro pdfkit (lib/order-pdf.ts používá Debian cestu — symlink zajistí kompatibilitu)
+# wget pro HEALTHCHECK
+RUN apk add --no-cache font-dejavu wget \
+ && mkdir -p /usr/share/fonts/truetype \
+ && ln -s /usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu
+
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public           ./public
+
+RUN mkdir -p /app/data/backups && chown -R nextjs:nodejs /app/data
+
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
+
+CMD ["node", "server.js"]
