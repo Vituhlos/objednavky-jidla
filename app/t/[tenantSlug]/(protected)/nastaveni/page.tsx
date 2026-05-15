@@ -2,13 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { getSettings } from "@/lib/settings";
 import { getDepartments } from "@/lib/departments";
-import { getRecentAuditLog } from "@/lib/audit";
-import { getTodayOrderData } from "@/lib/orders";
 import { requireTenantAdmin, TenantAuthError } from "@/lib/tenant-auth";
 import { redirect } from "next/navigation";
-import SettingsPage from "@/app/components/SettingsPage";
+import TenantSettingsPage from "@/app/components/TenantSettingsPage";
 
-export default async function TenantSettingsPage({
+export default async function TenantSettingsRoute({
   params,
 }: {
   params: Promise<{ tenantSlug: string }>;
@@ -23,17 +21,12 @@ export default async function TenantSettingsPage({
 
   const settings = getSettings();
   const departments = getDepartments();
-  const auditLog = getRecentAuditLog(200);
-  const todayData = getTodayOrderData();
 
   return (
-    <SettingsPage
-      auditLog={auditLog}
+    <TenantSettingsPage
       departments={departments}
-      isAdmin={true}
       settings={settings}
-      todayOrder={{ id: todayData.order.id, status: todayData.order.status }}
-      apiBase={`/t/${tenantSlug}`}
+      tenantSlug={tenantSlug}
     />
   );
 }

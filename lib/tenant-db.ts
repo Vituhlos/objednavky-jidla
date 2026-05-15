@@ -344,4 +344,49 @@ export const TENANT_MIGRATIONS: Migration[] = [
       db.prepare(`CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token)`).run();
     },
   },
+  {
+    version: 20,
+    name: "order_rows_drop_menu_fk",
+    // menu_items moved to global.db — SQLite cannot enforce cross-DB foreign keys.
+    // Recreate order_rows without FK declarations on soup/main item columns.
+    up: (db) => {
+      db.prepare(`
+        CREATE TABLE order_rows_v20 (
+          id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id              INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+          department            TEXT    NOT NULL,
+          sort_order            INTEGER NOT NULL DEFAULT 0,
+          person_name           TEXT    NOT NULL DEFAULT '',
+          user_id               INTEGER REFERENCES users(id),
+          soup_item_id          INTEGER,
+          soup_item_id_2        INTEGER,
+          main_item_id          INTEGER,
+          main_item_id_2        INTEGER,
+          meal_count            INTEGER NOT NULL DEFAULT 1,
+          meal_count_2          INTEGER NOT NULL DEFAULT 1,
+          extra_meals           TEXT    NOT NULL DEFAULT '[]',
+          roll_count            INTEGER NOT NULL DEFAULT 0,
+          bread_dumpling_count  INTEGER NOT NULL DEFAULT 0,
+          potato_dumpling_count INTEGER NOT NULL DEFAULT 0,
+          ketchup_count         INTEGER NOT NULL DEFAULT 0,
+          tatarka_count         INTEGER NOT NULL DEFAULT 0,
+          bbq_count             INTEGER NOT NULL DEFAULT 0,
+          note                  TEXT    NOT NULL DEFAULT '',
+          push_endpoint         TEXT
+        )
+      `).run();
+      db.prepare(`
+        INSERT INTO order_rows_v20
+          SELECT id, order_id, department, sort_order, person_name,
+                 user_id, soup_item_id, soup_item_id_2, main_item_id, main_item_id_2,
+                 meal_count, meal_count_2, extra_meals,
+                 roll_count, bread_dumpling_count, potato_dumpling_count,
+                 ketchup_count, tatarka_count, bbq_count, note, push_endpoint
+          FROM order_rows
+      `).run();
+      db.prepare(`DROP TABLE order_rows`).run();
+      db.prepare(`ALTER TABLE order_rows_v20 RENAME TO order_rows`).run();
+      db.prepare(`CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id)`).run();
+    },
+  },
 ];

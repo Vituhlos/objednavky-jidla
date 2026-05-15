@@ -82,4 +82,36 @@ const GLOBAL_MIGRATIONS: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 3,
+    name: "global_settings_and_menu",
+    up: (db) => {
+      // Global settings: IMAP, auto-send deadline, menu prices, Telegram, VAPID
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key   TEXT PRIMARY KEY,
+          value TEXT NOT NULL DEFAULT ''
+        )
+      `).run();
+
+      // Menu items — one shared menu for all tenants; kitchen imports via IMAP/PDF
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS menu_items (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          week_start TEXT,
+          week_label TEXT,
+          day        TEXT    NOT NULL,
+          type       TEXT    NOT NULL,
+          code       TEXT    NOT NULL,
+          name       TEXT    NOT NULL,
+          price      INTEGER NOT NULL DEFAULT 0,
+          allergens  TEXT    NOT NULL DEFAULT ''
+        )
+      `).run();
+
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_menu_items_week_day ON menu_items(week_start, day)`
+      ).run();
+    },
+  },
 ];

@@ -182,6 +182,23 @@ export default function AppTopBar({ initialUser, tenantSlug }: { initialUser?: U
               </Link>
             );
           })}
+          {isAdmin && base && (
+            <Link
+              href={`${base}/admin`}
+              aria-current={pathname.startsWith(`${base}/admin`) ? "page" : undefined}
+              className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition mt-1 ${pathname.startsWith(`${base}/admin`) ? "sidebar-item-active" : "hover:bg-white/60"}`}
+            >
+              <MIcon
+                name="admin_panel_settings"
+                size={19}
+                fill={pathname.startsWith(`${base}/admin`)}
+                style={pathname.startsWith(`${base}/admin`) ? { color: "#D97706" } : { color: "#94a3b8" }}
+              />
+              <span className={`flex-1 text-[13px] font-display font-semibold ${pathname.startsWith(`${base}/admin`) ? "text-stone-900" : "text-stone-500"}`}>
+                ★ Admin
+              </span>
+            </Link>
+          )}
         </div>
 
         <div className="mt-auto flex flex-col gap-2">
