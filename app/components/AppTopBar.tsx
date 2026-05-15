@@ -122,7 +122,7 @@ export default function AppTopBar({ initialUser, tenantSlug }: { initialUser?: U
   if (authPaths.some((p) => pathname === p) || pathname.startsWith(`${base}/reset-hesla`)) return null;
 
   const isAdmin = initialUser?.role === "admin";
-  const mainNav = buildNavItems(base);
+  const mainNav = buildNavItems(base).filter((n) => !tenantSlug || !n.href.endsWith("/pizza"));
   const profileNav = buildProfileNav(base);
 
   // Mobile nav: max 5 items — admins swap /historie for /nastaveni
