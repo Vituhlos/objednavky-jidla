@@ -9,7 +9,7 @@ Běží jako **jeden Docker kontejner**, bez přihlášení — přístup omezen
 
 | Vrstva | Technologie |
 |---|---|
-| Framework | Next.js 15, App Router, React 19 |
+| Framework | Next.js 16, App Router, React 19 |
 | Jazyk | TypeScript (striktní) |
 | CSS | Tailwind CSS 4 + vlastní třídy v `globals.css` |
 | Databáze | SQLite přes `better-sqlite3` (singleton, WAL mode) |

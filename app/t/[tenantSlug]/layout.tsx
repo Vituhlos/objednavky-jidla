@@ -1,7 +1,9 @@
-import { redirect } from "next/navigation";
 import { setTenantSlug } from "@/lib/tenant-context";
-import { requireTenantAccess, TenantAuthError } from "@/lib/tenant-auth";
 
+// Outer tenant shell: sets DB context for all nested renders.
+// Auth check lives in (protected)/layout.tsx so public paths
+// (login, register, zapomenute-heslo, reset-hesla, api/auth)
+// can render without a session.
 export default async function TenantLayout({
   children,
   params,
@@ -10,18 +12,6 @@ export default async function TenantLayout({
   params: Promise<{ tenantSlug: string }>;
 }) {
   const { tenantSlug } = await params;
-
-  // Set for all getDb() calls in this render (layout + page + lib)
   setTenantSlug(tenantSlug);
-
-  try {
-    await requireTenantAccess(tenantSlug);
-  } catch (e) {
-    if (e instanceof TenantAuthError) {
-      redirect(`/t/${tenantSlug}/login`);
-    }
-    throw e;
-  }
-
   return <>{children}</>;
 }
