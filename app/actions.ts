@@ -42,6 +42,7 @@ import { checkImapForMenu } from "@/lib/imap";
 import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
 import { broadcast } from "@/lib/sse-broadcast";
+import { initTenantContext } from "@/lib/tenant-context";
 import {
   getDepartments,
   addDepartment,
@@ -52,12 +53,14 @@ import {
 import type { DepartmentInfo } from "@/lib/departments";
 
 async function requireAuth() {
+  await initTenantContext();
   const user = await getCurrentUser();
   if (!user) throw new Error("Musíte být přihlášeni.");
   return user;
 }
 
 async function requireAdmin() {
+  await initTenantContext();
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") throw new Error("Tato akce vyžaduje oprávnění správce.");
   return user;
@@ -68,6 +71,7 @@ export async function actionAddRow(
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  await initTenantContext();
   const user = await getCurrentUser();
   if (!user) throw new Error("Pro přidání objednávky se musíte přihlásit.");
   const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`, pushEndpoint);
@@ -244,6 +248,7 @@ export async function actionClearOrder(orderId: number): Promise<void> {
 }
 
 export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
+  await initTenantContext();
   return getDepartments();
 }
 
@@ -482,6 +487,7 @@ export async function actionSendTestPush(): Promise<{ sent: number; error?: stri
 }
 
 export async function actionDismissAutoSendError(): Promise<void> {
+  await initTenantContext();
   saveSettings({ autoSendErrorAcked: "true" });
   revalidatePath("/");
 }
