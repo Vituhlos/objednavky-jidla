@@ -3,7 +3,7 @@ import pdfParse from "pdf-parse";
 import path from "path";
 import fs from "fs";
 import { resolve4 } from "dns/promises";
-import { getSettings } from "./settings";
+import { getGlobalSettings } from "./global-settings";
 import { parseMenuText } from "./parse-menu";
 import { setMenuForWeek } from "./menu";
 import { logAudit } from "./audit";
@@ -48,7 +48,7 @@ function findPdfPart(node: BodyNode | null | undefined): BodyNode | null {
 }
 
 export async function checkImapForMenu(): Promise<ImapCheckResult> {
-  const s = getSettings();
+  const s = getGlobalSettings();
 
   if (s.imapEnabled !== "true") return { found: false, error: "IMAP není zapnuto." };
   if (!s.imapHost || !s.imapUser || !s.imapPass) return { found: false, error: "IMAP přihlašovací údaje nejsou nastaveny." };

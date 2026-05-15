@@ -1,5 +1,6 @@
-import { getDb } from "./db";
-import { getSettings } from "./settings";
+import { getGlobalDb } from "./global-db";
+import { getTenantDb } from "./tenant-db";
+import { getGlobalSettings } from "./global-settings";
 import { getPragueNow, toLocalISODate } from "./time";
 import type { MenuItem, DayCode } from "./types";
 
@@ -22,8 +23,7 @@ export function getDayCodeForISO(iso: string): DayCode | null {
 }
 
 export function getMenuDates(): string[] {
-  const db = getDb();
-  const rows = db
+  const rows = getGlobalDb()
     .prepare("SELECT DISTINCT week_start, day FROM menu_items WHERE week_start IS NOT NULL ORDER BY week_start, day")
     .all() as { week_start: string; day: string }[];
   const offsets: Record<string, number> = { Po: 0, Út: 1, St: 2, Čt: 3, Pá: 4 };
@@ -73,9 +73,8 @@ export function getMenuItemsForDay(day: string, weekStart?: string): {
   soups: MenuItem[];
   meals: MenuItem[];
 } {
-  const db = getDb();
   const ws = weekStart ?? getMondayISO();
-  const items = db
+  const items = getGlobalDb()
     .prepare(
       "SELECT * FROM menu_items WHERE day = ? AND (week_start = ? OR week_start IS NULL) ORDER BY type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
     )
@@ -88,8 +87,7 @@ export function getMenuItemsForDay(day: string, weekStart?: string): {
 }
 
 export function getMenuItemById(id: number): MenuItem | null {
-  const db = getDb();
-  const row = db
+  const row = getGlobalDb()
     .prepare("SELECT * FROM menu_items WHERE id = ?")
     .get(id) as Record<string, unknown> | undefined;
   return row ? mapRow(row) : null;
@@ -98,7 +96,7 @@ export function getMenuItemById(id: number): MenuItem | null {
 export function getMenuItemsByIds(ids: number[]): Map<number, MenuItem> {
   if (ids.length === 0) return new Map();
   const placeholders = ids.map(() => "?").join(",");
-  const rows = getDb()
+  const rows = getGlobalDb()
     .prepare(`SELECT * FROM menu_items WHERE id IN (${placeholders})`)
     .all(...ids) as Record<string, unknown>[];
   return new Map(rows.map((row) => [row.id as number, mapRow(row)]));
@@ -117,9 +115,8 @@ export function getWeekLabel(): string {
 }
 
 export function getMenuWeekLabel(weekStart?: string): string | null {
-  const db = getDb();
   const ws = weekStart ?? getMondayISO();
-  const row = db
+  const row = getGlobalDb()
     .prepare(
       "SELECT week_label FROM menu_items WHERE (week_start = ? OR week_start IS NULL) AND week_label IS NOT NULL LIMIT 1"
     )
@@ -131,9 +128,8 @@ export function getFullMenu(weekStart?: string): Record<
   string,
   { soups: MenuItem[]; meals: MenuItem[] }
 > {
-  const db = getDb();
   const ws = weekStart ?? getMondayISO();
-  const all = db
+  const all = getGlobalDb()
     .prepare(
       "SELECT * FROM menu_items WHERE week_start = ? OR week_start IS NULL ORDER BY day, type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
     )
@@ -149,139 +145,158 @@ export function getFullMenu(weekStart?: string): Record<
 }
 
 // Replace (or create) all menu items for a specific week.
-// After replacing, tries to re-link order_rows to the new items by matching day+code+name
+// After replacing, re-links order_rows in all active tenant DBs by matching day+code+name
 // so that re-importing the same PDF doesn't wipe meal selections.
 export function setMenuForWeek(
   weekStart: string,
   weekLabel: string,
   items: import("./parse-menu").ParsedMenuItem[]
 ): void {
-  const db = getDb();
-  const s = getSettings();
+  const globalDb = getGlobalDb();
+  const s = getGlobalSettings();
   const soupPrice = parseInt(s.defaultSoupPrice) || 30;
   const mealPrice = parseInt(s.defaultMealPrice) || 110;
 
-  interface RefRow {
-    row_id: number;
-    soup_day: string | null; soup_code: string | null; soup_name: string | null;
-    soup2_day: string | null; soup2_code: string | null; soup2_name: string | null;
-    main_day: string | null; main_code: string | null; main_name: string | null;
-  }
+  type ItemMeta = { id: number; day: string; type: string; code: string; name: string };
 
-  const transaction = db.transaction(() => {
-    // Capture which order_rows reference this week's items before deletion
-    const affected = db.prepare(`
-      SELECT or2.id AS row_id,
-        soup.day AS soup_day, soup.code AS soup_code, soup.name AS soup_name,
-        soup2.day AS soup2_day, soup2.code AS soup2_code, soup2.name AS soup2_name,
-        main.day AS main_day, main.code AS main_code, main.name AS main_name
-      FROM order_rows or2
-      LEFT JOIN menu_items soup  ON soup.id  = or2.soup_item_id   AND soup.week_start  = ?
-      LEFT JOIN menu_items soup2 ON soup2.id = or2.soup_item_id_2 AND soup2.week_start = ?
-      LEFT JOIN menu_items main  ON main.id  = or2.main_item_id   AND main.week_start  = ?
-      WHERE or2.soup_item_id   IN (SELECT id FROM menu_items WHERE week_start = ?)
-         OR or2.soup_item_id_2 IN (SELECT id FROM menu_items WHERE week_start = ?)
-         OR or2.main_item_id   IN (SELECT id FROM menu_items WHERE week_start = ?)
-    `).all(weekStart, weekStart, weekStart, weekStart, weekStart, weekStart) as RefRow[];
+  // Capture old item metadata for re-linking before deletion
+  const oldItems = globalDb
+    .prepare("SELECT id, day, type, code, name FROM menu_items WHERE week_start = ?")
+    .all(weekStart) as ItemMeta[];
+  const oldIds = oldItems.map((r) => r.id);
 
-    // Capture extra_meals references — rows with any extra meal item from this week
-    const weekItemIds = (db.prepare("SELECT id FROM menu_items WHERE week_start = ?").all(weekStart) as { id: number }[]).map((r) => r.id);
-    const weekItemIdSet = new Set(weekItemIds);
-
-    interface ExtraMealRow { row_id: number; extra_meals: string; }
-    interface ExtraMealEntry { itemId: number; count: number; }
-    const extraMealRows: ExtraMealRow[] = [];
-    if (weekItemIds.length > 0) {
-      const allRows = db.prepare("SELECT id AS row_id, extra_meals FROM order_rows WHERE extra_meals IS NOT NULL AND extra_meals != '[]' AND extra_meals != ''").all() as ExtraMealRow[];
-      for (const r of allRows) {
-        try {
-          const entries: ExtraMealEntry[] = JSON.parse(r.extra_meals);
-          if (entries.some((e) => weekItemIdSet.has(e.itemId))) extraMealRows.push(r);
-        } catch { /* ignore malformed JSON */ }
-      }
-    }
-
-    // Also build a lookup map: oldItemId → {day, type, code, name}
-    interface ItemMeta { day: string; type: string; code: string; name: string; }
-    const oldItemMeta = new Map<number, ItemMeta>();
-    if (weekItemIds.length > 0) {
-      const metaRows = db.prepare("SELECT id, day, type, code, name FROM menu_items WHERE week_start = ?").all(weekStart) as (ItemMeta & { id: number })[];
-      for (const m of metaRows) oldItemMeta.set(m.id, { day: m.day, type: m.type, code: m.code, name: m.name });
-    }
-
-    db.prepare("UPDATE order_rows SET soup_item_id = NULL WHERE soup_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
-    db.prepare("UPDATE order_rows SET soup_item_id_2 = NULL WHERE soup_item_id_2 IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
-    db.prepare("UPDATE order_rows SET main_item_id = NULL WHERE main_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
-    db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
-
-    const insert = db.prepare(
+  // Replace menu in global.db
+  globalDb.transaction(() => {
+    globalDb.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
+    const insert = globalDb.prepare(
       "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
     for (const item of items) {
       const price = item.type === "Polévka" ? soupPrice : mealPrice;
       insert.run(weekStart, weekLabel, item.day, item.type, item.code, item.name, price, item.allergens ?? "");
     }
+  })();
 
-    // Re-link order rows: match by (day, code, name) — fall back to (day, code) first match
-    const findNewId = (day: string, type: string, code: string, name: string): number | null => {
-      const exact = db.prepare(
-        "SELECT id FROM menu_items WHERE week_start=? AND day=? AND type=? AND code=? AND name=? LIMIT 1"
-      ).get(weekStart, day, type, code, name) as { id: number } | undefined;
-      if (exact) return exact.id;
-      const byCode = db.prepare(
-        "SELECT id FROM menu_items WHERE week_start=? AND day=? AND type=? AND code=? LIMIT 1"
-      ).get(weekStart, day, type, code) as { id: number } | undefined;
-      return byCode?.id ?? null;
-    };
+  if (oldIds.length === 0) return; // Fresh week, no existing order_rows to re-link
 
-    for (const ref of affected) {
-      if (ref.soup_day) {
-        const newId = findNewId(ref.soup_day, "Polévka", ref.soup_code!, ref.soup_name ?? "");
-        if (newId) db.prepare("UPDATE order_rows SET soup_item_id=? WHERE id=?").run(newId, ref.row_id);
-      }
-      if (ref.soup2_day) {
-        const newId = findNewId(ref.soup2_day, "Polévka", ref.soup2_code!, ref.soup2_name ?? "");
-        if (newId) db.prepare("UPDATE order_rows SET soup_item_id_2=? WHERE id=?").run(newId, ref.row_id);
-      }
-      if (ref.main_day) {
-        const newId = findNewId(ref.main_day, "Jídlo", ref.main_code!, ref.main_name ?? "");
-        if (newId) db.prepare("UPDATE order_rows SET main_item_id=? WHERE id=?").run(newId, ref.row_id);
-      }
+  // Build lookup maps for re-linking: day|type|code|name → newId
+  const newItems = globalDb
+    .prepare("SELECT id, day, type, code, name FROM menu_items WHERE week_start = ?")
+    .all(weekStart) as ItemMeta[];
+
+  const exactKey = (i: ItemMeta) => `${i.day}|${i.type}|${i.code}|${i.name}`;
+  const codeKey  = (i: ItemMeta) => `${i.day}|${i.type}|${i.code}`;
+  const byExact = new Map(newItems.map((i) => [exactKey(i), i.id]));
+  const byCode  = new Map(newItems.map((i) => [codeKey(i), i.id]));
+
+  const findNewId = (day: string, type: string, code: string, name: string): number | null =>
+    byExact.get(`${day}|${type}|${code}|${name}`) ?? byCode.get(`${day}|${type}|${code}`) ?? null;
+
+  // Build a meta map for the old items (needed for extra_meals JSON re-linking)
+  const oldMeta = new Map(oldItems.map((i) => [i.id, i]));
+  const oldIdSet = new Set(oldIds);
+
+  // Re-link order_rows in each active tenant DB
+  const tenants = globalDb
+    .prepare("SELECT slug FROM tenants WHERE active = 1")
+    .all() as { slug: string }[];
+
+  for (const { slug } of tenants) {
+    try {
+      const tdb = getTenantDb(slug);
+
+      // Find rows referencing any of the old item IDs
+      const placeholders = oldIds.map(() => "?").join(",");
+      const affectedRows = tdb.prepare(`
+        SELECT id, soup_item_id, soup_item_id_2, main_item_id, extra_meals
+        FROM order_rows
+        WHERE soup_item_id   IN (${placeholders})
+           OR soup_item_id_2 IN (${placeholders})
+           OR main_item_id   IN (${placeholders})
+      `).all(...oldIds, ...oldIds, ...oldIds) as {
+        id: number;
+        soup_item_id: number | null;
+        soup_item_id_2: number | null;
+        main_item_id: number | null;
+        extra_meals: string;
+      }[];
+
+      tdb.transaction(() => {
+        for (const row of affectedRows) {
+          if (row.soup_item_id && oldIdSet.has(row.soup_item_id)) {
+            const meta = oldMeta.get(row.soup_item_id);
+            const newId = meta ? findNewId(meta.day, "Polévka", meta.code, meta.name) : null;
+            tdb.prepare("UPDATE order_rows SET soup_item_id = ? WHERE id = ?").run(newId, row.id);
+          }
+          if (row.soup_item_id_2 && oldIdSet.has(row.soup_item_id_2)) {
+            const meta = oldMeta.get(row.soup_item_id_2);
+            const newId = meta ? findNewId(meta.day, "Polévka", meta.code, meta.name) : null;
+            tdb.prepare("UPDATE order_rows SET soup_item_id_2 = ? WHERE id = ?").run(newId, row.id);
+          }
+          if (row.main_item_id && oldIdSet.has(row.main_item_id)) {
+            const meta = oldMeta.get(row.main_item_id);
+            const newId = meta ? findNewId(meta.day, "Jídlo", meta.code, meta.name) : null;
+            tdb.prepare("UPDATE order_rows SET main_item_id = ? WHERE id = ?").run(newId, row.id);
+          }
+          // Re-link extra_meals JSON entries
+          try {
+            type ExtraMealEntry = { itemId: number; count: number };
+            const entries: ExtraMealEntry[] = JSON.parse(row.extra_meals || "[]");
+            let changed = false;
+            const updated = entries.map((e) => {
+              if (!oldIdSet.has(e.itemId)) return e;
+              const meta = oldMeta.get(e.itemId);
+              if (!meta) return e;
+              const newId = findNewId(meta.day, meta.type, meta.code, meta.name);
+              if (newId && newId !== e.itemId) { changed = true; return { ...e, itemId: newId }; }
+              return e;
+            });
+            if (changed) {
+              tdb.prepare("UPDATE order_rows SET extra_meals = ? WHERE id = ?")
+                .run(JSON.stringify(updated), row.id);
+            }
+          } catch { /* ignore malformed JSON */ }
+        }
+      })();
+    } catch (err) {
+      console.error(`[menu] Chyba při re-linkování order_rows pro tenant ${slug}:`, err);
     }
-
-    // Re-link extra_meals JSON
-    for (const r of extraMealRows) {
-      try {
-        type ExtraMealEntry = { itemId: number; count: number };
-        const entries: ExtraMealEntry[] = JSON.parse(r.extra_meals);
-        let changed = false;
-        const updated = entries.map((e) => {
-          if (!weekItemIdSet.has(e.itemId)) return e;
-          const meta = oldItemMeta.get(e.itemId);
-          if (!meta) return e;
-          const newId = findNewId(meta.day, meta.type, meta.code, meta.name);
-          if (newId && newId !== e.itemId) { changed = true; return { ...e, itemId: newId }; }
-          return e;
-        });
-        if (changed) db.prepare("UPDATE order_rows SET extra_meals=? WHERE id=?").run(JSON.stringify(updated), r.row_id);
-      } catch { /* ignore malformed JSON */ }
-    }
-  });
-  transaction();
+  }
 }
 
 export function deleteMenuForWeek(weekStart: string): void {
-  const db = getDb();
-  db.transaction(() => {
-    db.prepare("UPDATE order_rows SET soup_item_id = NULL WHERE soup_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
-    db.prepare("UPDATE order_rows SET main_item_id = NULL WHERE main_item_id IN (SELECT id FROM menu_items WHERE week_start = ?)").run(weekStart);
-    db.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
+  const globalDb = getGlobalDb();
+
+  // Get IDs before deletion for tenant re-linking
+  const ids = (globalDb
+    .prepare("SELECT id FROM menu_items WHERE week_start = ?")
+    .all(weekStart) as { id: number }[]).map((r) => r.id);
+
+  globalDb.transaction(() => {
+    globalDb.prepare("DELETE FROM menu_items WHERE week_start = ?").run(weekStart);
   })();
+
+  if (ids.length === 0) return;
+
+  const placeholders = ids.map(() => "?").join(",");
+  const tenants = globalDb
+    .prepare("SELECT slug FROM tenants WHERE active = 1")
+    .all() as { slug: string }[];
+
+  for (const { slug } of tenants) {
+    try {
+      const tdb = getTenantDb(slug);
+      tdb.prepare(`UPDATE order_rows SET soup_item_id   = NULL WHERE soup_item_id   IN (${placeholders})`).run(...ids);
+      tdb.prepare(`UPDATE order_rows SET soup_item_id_2 = NULL WHERE soup_item_id_2 IN (${placeholders})`).run(...ids);
+      tdb.prepare(`UPDATE order_rows SET main_item_id   = NULL WHERE main_item_id   IN (${placeholders})`).run(...ids);
+    } catch (err) {
+      console.error(`[menu] Chyba při mazání referencí pro tenant ${slug}:`, err);
+    }
+  }
 }
 
 export function getAllMenuWeeks(): { weekStart: string; weekLabel: string | null }[] {
-  const db = getDb();
-  const rows = db
+  const rows = getGlobalDb()
     .prepare(
       "SELECT DISTINCT week_start, week_label FROM menu_items WHERE week_start IS NOT NULL ORDER BY week_start ASC"
     )
@@ -297,7 +312,7 @@ export function addMenuItem(item: {
   price: number;
   weekStart?: string;
 }): MenuItem {
-  const db = getDb();
+  const db = getGlobalDb();
   const ws = item.weekStart ?? getMondayISO();
   const labelRow = db
     .prepare("SELECT week_label FROM menu_items WHERE week_start = ? LIMIT 1")
@@ -316,7 +331,7 @@ export function updateMenuItem(
   id: number,
   updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): MenuItem {
-  const db = getDb();
+  const db = getGlobalDb();
   const fieldMap: Record<string, string> = { code: "code", name: "name", price: "price", allergens: "allergens" };
   const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
   if (entries.length > 0) {
@@ -332,11 +347,11 @@ export function updateMenuItem(
 }
 
 export function deleteMenuItem(id: number): void {
-  getDb().prepare("DELETE FROM menu_items WHERE id = ?").run(id);
+  getGlobalDb().prepare("DELETE FROM menu_items WHERE id = ?").run(id);
 }
 
 export function closeDay(dayCode: string, weekStart: string): void {
-  const db = getDb();
+  const db = getGlobalDb();
   db.transaction(() => {
     db.prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ?").run(dayCode, weekStart);
     db.prepare("INSERT INTO menu_items (week_start, day, type, code, name, price) VALUES (?, ?, 'Jídlo', '0', 'Zavřeno', 0)").run(weekStart, dayCode);
@@ -344,7 +359,7 @@ export function closeDay(dayCode: string, weekStart: string): void {
 }
 
 export function openDay(dayCode: string, weekStart: string): void {
-  getDb().prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ? AND name = 'Zavřeno'").run(dayCode, weekStart);
+  getGlobalDb().prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ? AND name = 'Zavřeno'").run(dayCode, weekStart);
 }
 
 // Keep replaceMenu for backward compatibility (replaces current week)
@@ -357,7 +372,7 @@ export function replaceMenu(
 
 export function seedMenuIfEmpty(weekLabel: string): void {
   if (process.env.NODE_ENV === "production") return;
-  const db = getDb();
+  const db = getGlobalDb();
   const count = (
     db.prepare("SELECT COUNT(*) as c FROM menu_items").get() as { c: number }
   ).c;
@@ -368,12 +383,11 @@ export function seedMenuIfEmpty(weekLabel: string): void {
     "INSERT INTO menu_items (week_start, week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
   );
   const SAMPLE_MENU = getSampleMenu();
-  const insertMany = db.transaction(() => {
+  db.transaction(() => {
     for (const item of SAMPLE_MENU) {
       insert.run(ws, weekLabel, item.day, item.type, item.code, item.name, item.price);
     }
-  });
-  insertMany();
+  })();
 }
 
 function getSampleMenu(): Array<{

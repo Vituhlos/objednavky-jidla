@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { getSettings, saveSettings } from "./settings";
-import type { AppSettings } from "./settings";
+import { getGlobalSettings, saveGlobalSettings } from "./global-settings";
+import type { GlobalSettings } from "./global-settings";
 import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
 import { getMenuItemsForDay, getMondayISO } from "./menu";
@@ -34,7 +34,7 @@ function isTodayClosed(data: ReturnType<typeof getTodayOrderData>): boolean {
   return [...soups, ...meals].some((m) => m.name === "Zavřeno");
 }
 
-async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkAutoSend(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   if (s.autoSendEnabled !== "true") return;
   if (currentTime !== s.autoSendTime) return;
 
@@ -69,7 +69,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     broadcast();
     console.log("[scheduler] Objednávka automaticky odeslána.");
     // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
-    saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
+    saveGlobalSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
     await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek · ${data.totalPrice} Kč`);
   } catch (err) {
@@ -77,7 +77,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     const errMsg = err instanceof Error ? err.message : String(err);
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
     // Ulož chybu do DB pro banner v appce
-    saveSettings({ autoSendLastError: errMsg, autoSendLastErrorTs: new Date().toISOString(), autoSendErrorAcked: "false" });
+    saveGlobalSettings({ autoSendLastError: errMsg, autoSendLastErrorTs: new Date().toISOString(), autoSendErrorAcked: "false" });
     // Pošli Telegram upozornění
     await sendTelegramToAdmins(`❌ <b>Auto-send selhal</b>\n📅 ${dateStr}\n⚠️ ${errMsg}\n\nObjednávka zůstala rozepsaná — odešli ji ručně.`);
     // Fallback e-mail (pokud je nastaven)
@@ -102,7 +102,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   }
 }
 
-async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkMenuReminder(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   const reminderTime = getReminderTime(s.cutoffTime);
   if (currentTime !== reminderTime) return;
 
@@ -159,7 +159,7 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
 }
 
-async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkPushReminder(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   if (!JS_TO_DAY_CODE[jsDay]) return; // víkend
   const minutes = parseInt(s.pushReminderMinutes) || 20;
   const [h, m] = s.cutoffTime.split(":").map(Number);
@@ -211,7 +211,7 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   );
 }
 
-async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkImapImport(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   if (s.imapEnabled !== "true") return;
   if (currentTime !== s.imapCheckTime) return;
   const allowedDays = s.imapCheckDays
@@ -232,7 +232,7 @@ async function checkImapImport(s: AppSettings, currentTime: string, jsDay: numbe
   }
 }
 
-async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkMorningMenu(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   if (!s.telegramMorningMenuTime || currentTime !== s.telegramMorningMenuTime) return;
   if (!JS_TO_DAY_CODE[jsDay]) return;
 
@@ -261,7 +261,7 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
   await sendTelegramToSubscribers("notify_morning_menu", text);
 }
 
-async function checkTelegramReminder(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+async function checkTelegramReminder(s: GlobalSettings, currentTime: string, jsDay: number): Promise<void> {
   if (!JS_TO_DAY_CODE[jsDay]) return;
   const minutes = parseInt(s.pushReminderMinutes) || 20;
   const [h, m] = s.cutoffTime.split(":").map(Number);
@@ -282,7 +282,7 @@ async function checkTelegramReminder(s: AppSettings, currentTime: string, jsDay:
 export function startScheduler(): void {
   cron.schedule("* * * * *", async () => {
     try {
-      const s = getSettings();
+      const s = getGlobalSettings();
       const now = getPragueNow();
       const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       const jsDay = now.getDay();
