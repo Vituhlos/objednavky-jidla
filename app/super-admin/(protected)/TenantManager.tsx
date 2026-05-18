@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import MIcon from "@/app/components/MIcon";
 import { saCreateTenant, saToggleTenant, saRegenerateJoinCode } from "./actions";
 
@@ -79,6 +80,16 @@ function TenantRow({ tenant, onUpdate }: { tenant: Tenant; onUpdate: () => void 
       </td>
       <td style={{ padding: "0.75rem 0.5rem", fontSize: 12, color: "#9b8474" }}>
         {tenant.createdAt.slice(0, 10)}
+      </td>
+      <td style={{ padding: "0.75rem 0.5rem" }}>
+        <Link
+          href={`/super-admin/najemnici/${tenant.slug}`}
+          title="Spravovat uživatele (rescue)"
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#9b8474", textDecoration: "none", padding: "3px 8px", borderRadius: 8, border: "1px solid var(--sand)" }}
+        >
+          <MIcon name="shield_person" size={13} />
+          Rescue
+        </Link>
       </td>
     </tr>
   );
@@ -173,6 +184,7 @@ export default function TenantManager({ tenants: initialTenants }: { tenants: Te
                 <th style={{ textAlign: "center", padding: "0.65rem 0.5rem", fontSize: 12, fontWeight: 700, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Uživatelé</th>
                 <th style={{ textAlign: "center", padding: "0.65rem 0.5rem", fontSize: 12, fontWeight: 700, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                 <th style={{ textAlign: "left", padding: "0.65rem 0.5rem", fontSize: 12, fontWeight: 700, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Vytvořeno</th>
+                <th style={{ padding: "0.65rem 0.5rem" }} />
               </tr>
             </thead>
             <tbody>

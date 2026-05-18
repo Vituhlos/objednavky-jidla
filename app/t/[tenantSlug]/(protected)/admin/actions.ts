@@ -6,6 +6,12 @@ import { getGlobalDb } from "@/lib/global-db";
 import { requireTenantAdmin } from "@/lib/tenant-auth";
 import crypto from "crypto";
 
+function countOtherAdmins(tenantSlug: string, excludeUserId: number): number {
+  return (getTenantDb(tenantSlug)
+    .prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin' AND active = 1 AND id != ?")
+    .get(excludeUserId) as { c: number }).c;
+}
+
 export async function actionChangeUserRole(
   tenantSlug: string,
   userId: number,
@@ -13,6 +19,9 @@ export async function actionChangeUserRole(
 ): Promise<{ error?: string }> {
   try {
     await requireTenantAdmin(tenantSlug);
+    if (role === "user" && countOtherAdmins(tenantSlug, userId) === 0) {
+      return { error: "Kantýna musí mít aspoň jednoho admina. Nejdřív povyšte jiného uživatele." };
+    }
     getTenantDb(tenantSlug)
       .prepare("UPDATE users SET role = ? WHERE id = ?")
       .run(role, userId);
@@ -29,12 +38,15 @@ export async function actionAnonymizeUser(
 ): Promise<{ error?: string }> {
   try {
     await requireTenantAdmin(tenantSlug);
+    const db = getTenantDb(tenantSlug);
+    const target = db.prepare("SELECT role FROM users WHERE id = ?").get(userId) as { role: string } | undefined;
+    if (target?.role === "admin" && countOtherAdmins(tenantSlug, userId) === 0) {
+      return { error: "Nelze anonymizovat posledního admina kantýny. Nejdřív povyšte jiného uživatele." };
+    }
     const suffix = crypto.randomBytes(4).toString("hex");
-    getTenantDb(tenantSlug)
-      .prepare(
-        "UPDATE users SET first_name = 'Anonymní', last_name = 'uživatel', email = ?, active = 0, role = 'user' WHERE id = ?"
-      )
-      .run(`smazany_${suffix}@anonymized.cz`, userId);
+    db.prepare(
+      "UPDATE users SET first_name = 'Anonymní', last_name = 'uživatel', email = ?, active = 0, role = 'user' WHERE id = ?"
+    ).run(`smazany_${suffix}@anonymized.cz`, userId);
     revalidatePath(`/t/${tenantSlug}/admin`);
     return {};
   } catch (e) {

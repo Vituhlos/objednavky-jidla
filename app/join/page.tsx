@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import MIcon from "@/app/components/MIcon";
 
 export default function JoinPage() {
@@ -75,6 +76,30 @@ export default function JoinPage() {
               {loading ? "Hledám…" : "Pokračovat"}
             </button>
           </form>
+        </div>
+
+        {/* Subtle platform admin link — visible only to those who know to look */}
+        <div style={{ position: "fixed", bottom: "1.25rem", right: "1.25rem" }}>
+          <Link
+            href="/super-admin"
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              fontSize: 11, color: "rgba(155,132,116,0.45)", textDecoration: "none",
+              padding: "6px 10px", borderRadius: 10,
+              transition: "color 0.2s, background 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.color = "#9b8474";
+              (e.currentTarget as HTMLAnchorElement).style.background = "rgba(155,132,116,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.color = "rgba(155,132,116,0.45)";
+              (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+            }}
+          >
+            <MIcon name="admin_panel_settings" size={13} />
+            Správa platformy
+          </Link>
         </div>
       </div>
     </div>

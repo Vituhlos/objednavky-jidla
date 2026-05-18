@@ -1,11 +1,16 @@
-export const dynamic = "force-dynamic";
-
+import { cache, Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireSuperAdmin, TenantAuthError } from "@/lib/tenant-auth";
 import { aggregateOrdersForDate, getWorkingDayNeighbors } from "@/lib/kitchen-aggregation";
 import type { KitchenAggregation, TenantSummary } from "@/lib/kitchen-aggregation";
 import MIcon from "@/app/components/MIcon";
+
+// ── cached data fetcher ───────────────────────────────────────────────────────
+
+const getAggregation = cache(async (date: string): Promise<KitchenAggregation> => {
+  return aggregateOrdersForDate(date);
+});
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -16,7 +21,7 @@ function formatDate(iso: string): string {
   }).replace(/^\w/, (c) => c.toUpperCase());
 }
 
-// ── sub-components (server) ───────────────────────────────────────────────────
+// ── sub-components ────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
   return (
@@ -41,19 +46,12 @@ function BarChart({ items, maxVal }: { items: { name: string; total: number }[];
       {items.map((item) => {
         const pct = maxVal > 0 ? (item.total / maxVal) * 100 : 0;
         const intensity = pct / 100;
-        const barColor = intensity > 0.6
-          ? "#EA580C"
-          : intensity > 0.3
-          ? "#F59E0B"
-          : "#d6cfc8";
+        const barColor = intensity > 0.6 ? "#EA580C" : intensity > 0.3 ? "#F59E0B" : "#d6cfc8";
         return (
           <div key={item.name} className="flex items-center gap-3">
             <div className="w-[180px] sm:w-[240px] shrink-0 text-[12px] text-stone-700 font-medium truncate">{item.name}</div>
             <div className="flex-1 h-6 rounded-full bg-stone-100 overflow-hidden relative">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, background: barColor }}
-              />
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
             </div>
             <div className="w-8 text-right text-[13px] font-bold text-stone-800 shrink-0">{item.total}×</div>
           </div>
@@ -126,62 +124,31 @@ function TenantCard({ tenant }: { tenant: TenantSummary }) {
   );
 }
 
-// ── page ─────────────────────────────────────────────────────────────────────
+// ── Suspense sections ─────────────────────────────────────────────────────────
 
-export default async function KuchynePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  try {
-    await requireSuperAdmin();
-  } catch (e) {
-    if (e instanceof TenantAuthError) redirect("/super-admin/login");
-    throw e;
-  }
-
-  const params = await searchParams;
-  const today = new Date().toISOString().split("T")[0];
-  const date = params.date ?? today;
-
-  const data: KitchenAggregation = aggregateOrdersForDate(date);
-  const { prev, next } = getWorkingDayNeighbors(date);
-  const maxItemVal = data.perItem[0]?.total ?? 1;
-
+async function KitchenStatCardsSection({ date }: { date: string }) {
+  const data = await getAggregation(date);
   const sentCount = data.tenants.filter((t) => t.orderStatus === "sent").length;
   const activeCount = data.tenants.filter((t) => t.orderStatus !== "none").length;
-
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
-      {/* Header + day picker */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-display font-bold text-[20px] text-stone-900">Přehled kuchyně</h1>
-          <p className="text-[13px] text-stone-400 mt-0.5">
-            {sentCount}/{activeCount} firem uzavřelo objednávky
-          </p>
-        </div>
-        <div className="flex items-center gap-2 glass-soft rounded-2xl px-3 py-2">
-          <Link href={`/kuchyne?date=${prev}`} className="p-1 rounded-lg hover:bg-stone-100 transition-colors text-stone-500 hover:text-stone-700">
-            <MIcon name="chevron_left" size={20} />
-          </Link>
-          <span className="text-[13px] font-semibold text-stone-700 min-w-[160px] text-center">
-            {formatDate(date)}
-          </span>
-          <Link href={`/kuchyne?date=${next}`} className="p-1 rounded-lg hover:bg-stone-100 transition-colors text-stone-500 hover:text-stone-700">
-            <MIcon name="chevron_right" size={20} />
-          </Link>
-        </div>
-      </div>
-
-      {/* Stat cards */}
+    <>
+      <p className="text-[13px] text-stone-400 mt-0.5 mb-5">
+        {sentCount}/{activeCount} firem uzavřelo objednávky
+      </p>
       <div className="grid grid-cols-3 gap-3 mb-5">
         <StatCard label="Objednávek" value={data.totalOrders} icon="groups" color="#F59E0B" />
         <StatCard label="Porcí jídla" value={data.totalMeals} icon="restaurant" color="#EA580C" />
         <StatCard label="Polévek" value={data.totalSoups} icon="soup_kitchen" color="#4F8A53" />
       </div>
+    </>
+  );
+}
 
-      {/* Bar chart */}
+async function KitchenAggregationSection({ date }: { date: string }) {
+  const data = await getAggregation(date);
+  const maxItemVal = data.perItem[0]?.total ?? 1;
+  return (
+    <>
       {data.perItem.length > 0 && (
         <section className="glass-soft rounded-2xl p-5 mb-4">
           <h2 className="font-display font-semibold text-[15px] text-stone-800 mb-4 flex items-center gap-2">
@@ -192,7 +159,6 @@ export default async function KuchynePage({
         </section>
       )}
 
-      {/* Accessories summary */}
       {(data.totalRolls > 0 || data.totalBreadDumplings > 0 || data.totalPotatoDumplings > 0) && (
         <section className="glass-soft rounded-2xl p-5 mb-4">
           <h2 className="font-display font-semibold text-[15px] text-stone-800 mb-3 flex items-center gap-2">
@@ -207,7 +173,6 @@ export default async function KuchynePage({
         </section>
       )}
 
-      {/* Per-tenant cards */}
       <section>
         <h2 className="font-display font-semibold text-[15px] text-stone-800 mb-3 flex items-center gap-2">
           <MIcon name="corporate_fare" size={18} className="text-amber-600" />
@@ -225,6 +190,89 @@ export default async function KuchynePage({
           </div>
         )}
       </section>
+    </>
+  );
+}
+
+// ── stat cards skeleton ───────────────────────────────────────────────────────
+
+function StatCardsSkeleton() {
+  return (
+    <>
+      <div style={{ height: 20, width: 200, background: "rgba(0,0,0,0.06)", borderRadius: 6, marginBottom: "1.25rem" }} />
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="glass-soft rounded-2xl p-4 flex items-center gap-3">
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(0,0,0,0.06)", flexShrink: 0 }} />
+            <div>
+              <div style={{ height: 28, width: 40, background: "rgba(0,0,0,0.08)", borderRadius: 6 }} />
+              <div style={{ height: 12, width: 72, background: "rgba(0,0,0,0.05)", borderRadius: 5, marginTop: 4 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function AggregationSkeleton() {
+  return (
+    <div className="glass-soft rounded-2xl p-5">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 mb-3" style={{ opacity: 1 - i * 0.18 }}>
+          <div style={{ width: 180, height: 14, background: "rgba(0,0,0,0.06)", borderRadius: 6, flexShrink: 0 }} />
+          <div style={{ flex: 1, height: 24, background: "rgba(0,0,0,0.05)", borderRadius: 99 }} />
+          <div style={{ width: 28, height: 14, background: "rgba(0,0,0,0.06)", borderRadius: 5, flexShrink: 0 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
+
+export default async function KuchynePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  try {
+    await requireSuperAdmin();
+  } catch (e) {
+    if (e instanceof TenantAuthError) redirect("/super-admin/login");
+    throw e;
+  }
+
+  const params = await searchParams;
+  const today = new Date().toISOString().split("T")[0];
+  const date = params.date ?? today;
+  const { prev, next } = getWorkingDayNeighbors(date);
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
+      {/* Header + day picker */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h1 className="font-display font-bold text-[20px] text-stone-900">Přehled kuchyně</h1>
+        <div className="flex items-center gap-2 glass-soft rounded-2xl px-3 py-2">
+          <Link href={`/kuchyne?date=${prev}`} className="p-1 rounded-lg hover:bg-stone-100 transition-colors text-stone-500 hover:text-stone-700">
+            <MIcon name="chevron_left" size={20} />
+          </Link>
+          <span className="text-[13px] font-semibold text-stone-700 min-w-[160px] text-center">
+            {formatDate(date)}
+          </span>
+          <Link href={`/kuchyne?date=${next}`} className="p-1 rounded-lg hover:bg-stone-100 transition-colors text-stone-500 hover:text-stone-700">
+            <MIcon name="chevron_right" size={20} />
+          </Link>
+        </div>
+      </div>
+
+      <Suspense fallback={<StatCardsSkeleton />}>
+        <KitchenStatCardsSection date={date} />
+      </Suspense>
+
+      <Suspense fallback={<AggregationSkeleton />}>
+        <KitchenAggregationSection date={date} />
+      </Suspense>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
@@ -45,18 +46,22 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getCurrentUser().catch(() => null);
+  const h = await headers();
+  const hideSidebar = h.get("x-is-super-admin") === "1" || h.get("x-no-sidebar") === "1";
+  const user = hideSidebar ? null : await getCurrentUser().catch(() => null);
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
       <body className={inter.className}>
-        <div className="stage-bg" aria-hidden>
-          <div className="orb orb-sky" />
-          <div className="orb orb-amber" />
-          <div className="orb orb-mint" />
-        </div>
-        <AppTopBar initialUser={user} />
-        <OfflineBanner />
+        {!hideSidebar && (
+          <div className="stage-bg" aria-hidden>
+            <div className="orb orb-sky" />
+            <div className="orb orb-amber" />
+            <div className="orb orb-mint" />
+          </div>
+        )}
+        {!hideSidebar && <AppTopBar initialUser={user} />}
+        {!hideSidebar && <OfflineBanner />}
         {children}
         <SwRegister />
       </body>

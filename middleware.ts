@@ -57,12 +57,23 @@ export function middleware(request: NextRequest) {
 
   // ── /super-admin/* — super admin routes ─────────────────────────────────
   if (pathname.startsWith("/super-admin")) {
-    if (pathname === "/super-admin/login") return NextResponse.next();
-    const token = request.cookies.get(SA_COOKIE_NAME)?.value;
-    if (!token) {
-      return NextResponse.redirect(new URL("/super-admin/login", request.url));
+    const isPublicSA = pathname === "/super-admin/login" || pathname.startsWith("/super-admin/api/auth/");
+    if (!isPublicSA) {
+      const token = request.cookies.get(SA_COOKIE_NAME)?.value;
+      if (!token) {
+        return NextResponse.redirect(new URL("/super-admin/login", request.url));
+      }
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("x-is-super-admin", "1");
+    return res;
+  }
+
+  // ── Join / landing pages — no sidebar ───────────────────────────────────
+  if (pathname === "/" || pathname.startsWith("/join")) {
+    const res = NextResponse.next();
+    res.headers.set("x-no-sidebar", "1");
+    return res;
   }
 
   // ── Legacy single-tenant routes (backward compat during migration) ────────
