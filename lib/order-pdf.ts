@@ -169,6 +169,25 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
         } else {
           drawMealCell(doc, row, x, y, col.width);
         }
+      } else if (colIdx === 2) {
+        if (!row.soupItem) {
+          const midY = y + rh / 2;
+          const midX = x + col.width / 2;
+          doc.strokeColor("#BBBBBB").lineWidth(0.8)
+            .moveTo(midX - 14, midY).lineTo(midX + 14, midY).stroke();
+        } else {
+          const soup = row.soupItem;
+          if (soup.code) {
+            doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
+              .text(soup.code, x + 3, y + 4, { lineBreak: false });
+            const codeW = doc.widthOfString(soup.code + "  ");
+            doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+              .text(soup.name, x + 3 + codeW, y + 4, { width: col.width - 6 - codeW, lineBreak: false });
+          } else {
+            doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+              .text(soup.name, x + 3, y + 4, { width: col.width - 6 });
+          }
+        }
       } else {
         doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
           .text(col.value(row, idx), x + 3, y + 4, { width: col.width - 6, align: col.align });
