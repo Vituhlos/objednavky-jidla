@@ -569,11 +569,17 @@ export default function MenuPage({
   hasPdfNext,
 }: Props) {
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
+  const [nextMenu, setNextMenu] = useState(initialNextMenu);
   // Sync state when server pushes new props (after router.refresh() following an import)
   const prevMenuPropsRef = useRef(initialCurrentMenu);
   if (prevMenuPropsRef.current !== initialCurrentMenu) {
     prevMenuPropsRef.current = initialCurrentMenu;
     setCurrentMenu(initialCurrentMenu);
+  }
+  const prevNextMenuPropsRef = useRef(initialNextMenu);
+  if (prevNextMenuPropsRef.current !== initialNextMenu) {
+    prevNextMenuPropsRef.current = initialNextMenu;
+    setNextMenu(initialNextMenu);
   }
   const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
   const [editMode, setEditMode] = useState(false);
@@ -590,7 +596,7 @@ export default function MenuPage({
   const activeWeekStart = activeWeek === "current" ? currentWeekStart : nextWeekStart;
   const activeWeekLabel = activeWeek === "current" ? currentWeekLabel : nextWeekLabel;
   const hasPdfActive = activeWeek === "current" ? hasPdfCurrent : hasPdfNext;
-  const activeMenu = activeWeek === "current" ? currentMenu : initialNextMenu;
+  const activeMenu = activeWeek === "current" ? currentMenu : nextMenu;
   const activeHolidayNames = activeWeek === "current" ? currentHolidayNames : nextHolidayNames;
   const visibleTodayCode = activeWeek === "current" ? todayCode : null;
   const [activeDay, setActiveDay] = useState<string>(() => resolveActiveDay(activeMenu, visibleTodayCode));
@@ -656,7 +662,8 @@ export default function MenuPage({
   // ── Edit mode ─────────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => {
-    setCurrentMenu((prev) => {
+    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
+    setMenu((prev) => {
       const next = { ...prev };
       for (const day of Object.keys(next)) {
         next[day] = {
@@ -667,12 +674,13 @@ export default function MenuPage({
       return next;
     });
     startTransition(async () => { await actionUpdateMenuItem(id, updates); });
-  }, []);
+  }, [activeWeek]);
 
   const handleDelete = useCallback((id: number) => {
+    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
     startTransition(async () => {
       await actionDeleteMenuItem(id);
-      setCurrentMenu((prev) => {
+      setMenu((prev) => {
         const next = { ...prev };
         for (const day of Object.keys(next)) {
           next[day] = {
@@ -683,18 +691,19 @@ export default function MenuPage({
         return next;
       });
     });
-  }, []);
+  }, [activeWeek]);
 
   const handleAdd = useCallback((day: string, type: "Polévka" | "Jídlo") => {
+    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
     startTransition(async () => {
       const newItem = await actionAddMenuItem({
         day, type,
         code: type === "Polévka" ? "A" : "1",
         name: "",
         price: type === "Polévka" ? defaultSoupPrice : defaultMealPrice,
-        weekStart: currentWeekStart,
+        weekStart: activeWeekStart,
       });
-      setCurrentMenu((prev) => {
+      setMenu((prev) => {
         const dayData = prev[day] ?? { soups: [], meals: [] };
         return {
           ...prev,
@@ -706,7 +715,7 @@ export default function MenuPage({
       });
       setEditingItem(newItem);
     });
-  }, [currentWeekStart, defaultSoupPrice, defaultMealPrice]);
+  }, [activeWeek, activeWeekStart, defaultSoupPrice, defaultMealPrice]);
 
   const handleDeleteNextWeek = () => {
     setConfirmDeleteNext(false);
@@ -723,7 +732,7 @@ export default function MenuPage({
   const isDayClosed = [...dayMenu.soups, ...dayMenu.meals].every(i => i.name === "Zavřeno") && (dayMenu.soups.length + dayMenu.meals.length) > 0;
   const displayDaySoups = dayMenu.soups.filter(i => i.name !== "Zavřeno");
   const displayDayMeals = dayMenu.meals.filter(i => i.name !== "Zavřeno");
-  const isReadOnly = activeWeek === "next";
+  const isReadOnly = false;
 
   const dayDates: Record<string, number> = {};
   const weekBase = new Date(activeWeekStart + "T00:00:00");
