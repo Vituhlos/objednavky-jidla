@@ -25,7 +25,7 @@ export default async function ProtectedLayout({
   return (
     <>
       <AppTopBar initialUser={initialUser} tenantSlug={tenantSlug} />
-      <div className="md:ml-[232px]">
+      <div className="md:ml-[244px]">
         {children}
       </div>
     </>

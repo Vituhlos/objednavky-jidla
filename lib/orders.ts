@@ -509,6 +509,7 @@ export interface OrderSummary {
   sentAt: string | null;
   extraEmail: string | null;
   rowCount: number;
+  totalPrice?: number;
 }
 
 export function reopenOrder(orderId: number): void {
