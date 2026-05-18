@@ -80,9 +80,9 @@ const COL_DEFS: ColDef[] = [
 ];
 
 const HEADER_H = 21;
-const FONT_BODY = 9;
-const FONT_HEADER = 8;
-const ROW_PAD = 7;
+const FONT_BODY = 10;
+const FONT_HEADER = 9;
+const ROW_PAD = 10;
 
 function calcRowHeight(doc: PDFKit.PDFDocument, row: OrderRowEnriched, idx: number): number {
   doc.font(FONT).fontSize(FONT_BODY);
@@ -92,7 +92,48 @@ function calcRowHeight(doc: PDFKit.PDFDocument, row: OrderRowEnriched, idx: numb
     const h = doc.heightOfString(text, { width: col.width - 6 });
     if (h > maxH) maxH = h;
   }
-  return Math.max(maxH + ROW_PAD, 18);
+  return Math.max(maxH + ROW_PAD, 20);
+}
+
+function drawMealCell(
+  doc: PDFKit.PDFDocument,
+  row: OrderRowEnriched,
+  x: number,
+  y: number,
+  width: number,
+) {
+  const lines: Array<{ code: string; rest: string }> = [];
+  if (row.mainItem) {
+    const countPfx = (row.mealCount || 1) > 1 ? `${row.mealCount}× ` : "";
+    lines.push({ code: row.mainItem.code || "", rest: `${countPfx}${row.mainItem.name}` });
+  }
+  for (const { item, count } of row.extraMealItems) {
+    const countPfx = count > 1 ? `${count}× ` : "";
+    lines.push({ code: item.code || "", rest: `+ ${countPfx}${item.name}` });
+  }
+
+  if (lines.length === 0) {
+    doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+      .text("–", x + 3, y + 4, { width: width - 6 });
+    return;
+  }
+
+  let lineY = y + 4;
+  for (const line of lines) {
+    const fullText = line.code ? `${line.code}  ${line.rest}` : line.rest;
+    const lineH = doc.font(FONT).fontSize(FONT_BODY).heightOfString(fullText, { width: width - 6 });
+    if (line.code) {
+      doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(line.code, x + 3, lineY, { lineBreak: false });
+      const codeW = doc.widthOfString(line.code + "  ");
+      doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(line.rest, x + 3 + codeW, lineY, { width: width - 6 - codeW, lineBreak: false });
+    } else {
+      doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(line.rest, x + 3, lineY, { width: width - 6, lineBreak: false });
+    }
+    lineY += lineH;
+  }
 }
 
 function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: number): number {
@@ -114,18 +155,24 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
   // data rows
   rows.forEach((row, idx) => {
     const rh = rowHeights[idx];
-    const bg = idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8";
+    const hasNote = !!row.note?.trim();
+    const bg = hasNote ? "#FFFBEB" : (idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8");
     doc.rect(TABLE_X, y, TABLE_W, rh).fill(bg);
 
     x = TABLE_X;
     const hasNoMeal = !row.mainItem && row.extraMealItems.length === 0;
     COL_DEFS.forEach((col, colIdx) => {
-      const isBezJidla = colIdx === 3 && hasNoMeal;
-      const cell = isBezJidla ? "bez jídla" : col.value(row, idx);
-      doc.font(isBezJidla ? FONT_ITALIC : FONT)
-        .fontSize(FONT_BODY)
-        .fillColor(isBezJidla ? "#9CA3AF" : "#30343A");
-      doc.text(cell, x + 3, y + 4, { width: col.width - 6, align: col.align });
+      if (colIdx === 3) {
+        if (hasNoMeal) {
+          doc.font(FONT_ITALIC).fontSize(FONT_BODY).fillColor("#9CA3AF")
+            .text("bez jídla", x + 3, y + 4, { width: col.width - 6, align: col.align });
+        } else {
+          drawMealCell(doc, row, x, y, col.width);
+        }
+      } else {
+        doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+          .text(col.value(row, idx), x + 3, y + 4, { width: col.width - 6, align: col.align });
+      }
       x += col.width;
     });
     y += rh;
@@ -225,7 +272,7 @@ function calcSummaryRowHeight(doc: PDFKit.PDFDocument, row: SummaryRow, idx: num
     const h = doc.heightOfString(text, { width: col.width - 6 });
     if (h > maxH) maxH = h;
   }
-  return Math.max(maxH + ROW_PAD, 18);
+  return Math.max(maxH + ROW_PAD, 20);
 }
 
 function drawSummaryHeader(doc: PDFKit.PDFDocument, y: number): number {
