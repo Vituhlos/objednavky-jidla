@@ -946,7 +946,7 @@ export default function OrderPage({
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
-                        onClick={() => { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                        onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
                           background: "linear-gradient(135deg,#F59E0B,#EA580C)",
                           color: "white",
