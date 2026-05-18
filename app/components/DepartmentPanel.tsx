@@ -69,14 +69,14 @@ interface Props {
 
 // ── Department colors (matches template) ─────────────────
 
-const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
-  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
-  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
-  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
-  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#F59E0B", grad: "linear-gradient(135deg,#fcd34d,#F59E0B)" },
-  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
-  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
-  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
+const DEPT_COLORS: Record<string, { bg: string; soft: string; icon: string; grad: string }> = {
+  blue:   { bg: "rgba(59,130,246,0.06)",  soft: "rgba(59,130,246,0.12)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
+  rust:   { bg: "rgba(194,101,77,0.06)",  soft: "rgba(194,101,77,0.12)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
+  green:  { bg: "rgba(79,138,83,0.06)",   soft: "rgba(79,138,83,0.12)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
+  amber:  { bg: "rgba(245,158,11,0.06)",  soft: "rgba(245,158,11,0.12)",  icon: "#F59E0B", grad: "linear-gradient(135deg,#fcd34d,#F59E0B)" },
+  navy:   { bg: "rgba(30,64,175,0.06)",   soft: "rgba(30,64,175,0.12)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
+  orange: { bg: "rgba(234,88,12,0.06)",   soft: "rgba(234,88,12,0.12)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
+  red:    { bg: "rgba(220,38,38,0.06)",   soft: "rgba(220,38,38,0.12)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
@@ -89,7 +89,7 @@ const DEPT_ICONS: Partial<Record<Department, string>> = {
 
 function DeptIcon({ name, color }: { name: Department; color: string }) {
   const icon = DEPT_ICONS[name] ?? "groups";
-  return <MIcon name={icon} size={18} fill style={{ color }} />;
+  return <MIcon name={icon} size={22} fill style={{ color }} />;
 }
 
 // ── Modal stepper ─────────────────────────────────────────
@@ -640,103 +640,62 @@ function getChips(row: OrderRowEnriched): string[] {
   return chips;
 }
 
-function OrderRow({ row, accent, isSent, isEditable, onEdit, onDelete }: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; isEditable: boolean; onEdit: () => void; onDelete: () => void;
+function OrderRow({ row, accent, isSent, isEditable, onEdit }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean; isEditable: boolean; onEdit: () => void;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
   const chips = getChips(row);
   const canInteract = !isSent && isEditable;
 
+  // Collect soup + extras sub-line parts
+  const subParts: string[] = [];
+  if (row.soupItem) subParts.push(`+ ${row.soupItem.name}${row.soupItem2 ? ` + ${row.soupItem2.name}` : ""}`);
+  if (chips.length > 0) subParts.push(...chips);
+
   return (
     <div
-      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition ${canInteract ? "hover:bg-white/50 active:bg-white/50 cursor-pointer active:scale-[0.995]" : ""} ${!isEditable && !isSent ? "opacity-60" : ""}`}
+      className={`flex items-start gap-3 px-2.5 py-2 rounded-xl transition ${canInteract ? "hover:bg-white/55 cursor-pointer" : ""} ${!isEditable && !isSent ? "opacity-60" : ""}`}
       onClick={canInteract ? onEdit : undefined}
       role={canInteract ? "button" : undefined}
       tabIndex={canInteract ? 0 : undefined}
       onKeyDown={canInteract ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(); } } : undefined}
     >
-      {/* Avatar */}
       <span
-        className="inline-flex items-center justify-center text-white font-semibold font-display shrink-0"
-        style={{ width: 34, height: 34, fontSize: 13, borderRadius: 999, background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
+        className="inline-flex items-center justify-center rounded-full text-white font-display font-bold text-[11px] shrink-0"
+        style={{ width: 34, height: 34, background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85), 0 2px 6px -2px rgba(26,18,8,0.20)" }}
       >
         {getInitials(row.personName)}
       </span>
 
-      {/* Body */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display font-semibold text-[14px] text-stone-900 leading-none">{row.personName || "—"}</span>
-          {row.note && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px]" title={row.note}>
-              <MIcon name="edit" size={11} style={{ flexShrink: 0 }} />
-              <span className="truncate min-w-0">{row.note}</span>
-            </span>
+        <div className="flex items-baseline gap-2">
+          <div className="text-[12.5px] font-semibold text-slate-900 leading-tight flex-1 truncate">{row.personName || "—"}</div>
+          {row.rowPrice > 0 && (
+            <div className="font-display font-bold text-[12.5px] text-slate-900 tabular-nums shrink-0">{row.rowPrice} Kč</div>
+          )}
+          {!isSent && !isEditable && (
+            <MIcon name="lock" size={11} style={{ color: "#d4c5b5", flexShrink: 0 }} />
           )}
         </div>
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
-          {row.mainItem && (
-            <span className="text-[12.5px] text-stone-600 leading-snug">
-              {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
-              {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
-              {row.mainItem.name}
-              {row.mainItem.allergens && <AllergenBadges allergens={row.mainItem.allergens} />}
-            </span>
-          )}
+
+        <div className="text-[11.5px] text-slate-600 mt-0.5 leading-snug">
+          {(row.mealCount || 1) > 1 && <span className="font-display font-bold text-slate-800">{row.mealCount}× </span>}
+          {row.mainItem
+            ? <>{row.mainItem.code && <span className="font-mono text-[10px] text-slate-400 mr-0.5">{row.mainItem.code}</span>}{row.mainItem.name}</>
+            : <em className="text-slate-400">— bez jídla —</em>
+          }
           {row.extraMealItems.map((e, i) => (
-            <span key={i} className="text-[12.5px] text-stone-600 leading-snug">
-              <span className="text-stone-300 mx-0.5">+</span>
-              {e.count > 1 ? `${e.count}× ` : ""}
-              {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
-              {e.item.name}
-              {e.item.allergens && <AllergenBadges allergens={e.item.allergens} />}
-            </span>
-          ))}
-          {(row.mainItem || row.extraMealItems.length > 0) && row.soupItem && (
-            <span className="text-stone-300 text-[11px]">·</span>
-          )}
-          {row.soupItem && (
-            <span className="text-[12.5px] text-stone-500 leading-snug">
-              {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
-              {row.soupItem.name}
-              {row.soupItem.allergens && <AllergenBadges allergens={row.soupItem.allergens} />}
-            </span>
-          )}
-          {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
-          {row.soupItem2 && (
-            <span className="text-[12.5px] text-stone-500 leading-snug">
-              {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
-              {row.soupItem2.name}
-              {row.soupItem2.allergens && <AllergenBadges allergens={row.soupItem2.allergens} />}
-            </span>
-          )}
-          {!row.mainItem && !row.soupItem && <span className="text-[12.5px] text-stone-400">—</span>}
-          {chips.map((c) => (
-            <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-stone-500">{c}</span>
+            <span key={i}> <span className="text-slate-300">+</span> {e.count > 1 ? `${e.count}× ` : ""}{e.item.name}</span>
           ))}
         </div>
-      </div>
 
-      {/* Price */}
-      <div className="shrink-0 font-display font-bold text-[13px] text-stone-800">
-        {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="text-stone-400 font-normal">—</span>}
+        {(subParts.length > 0 || row.note) && (
+          <div className="text-[10.5px] text-slate-400 leading-snug mt-0.5">
+            {subParts.join(" · ")}
+            {row.note && <span className="ml-1 italic">{row.note}</span>}
+          </div>
+        )}
       </div>
-
-      {/* Delete button — always visible on mobile, hover-only on desktop */}
-      {canInteract && (
-        <button
-          type="button"
-          aria-label="Smazat"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
-        >
-          <MIcon name="close" size={15} />
-        </button>
-      )}
-      {/* Lock icon for rows owned by other users */}
-      {!isSent && !isEditable && (
-        <MIcon name="lock" size={13} style={{ color: "#d4c5b5", flexShrink: 0 }} />
-      )}
     </div>
   );
 }
@@ -755,7 +714,6 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [deleteConfirmRowId, setDeleteConfirmRowId] = useState<number | null>(null);
 
   const dc = DEPT_COLORS[data.accent] ?? DC_DEFAULT;
   const activeRows = data.rows.filter(hasOrderRowContent);
@@ -775,46 +733,47 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
     }
   };
 
+  const itemCount = activeRows.length;
+  const countWord = itemCount === 1 ? "objednávka" : (itemCount >= 2 && itemCount <= 4) ? "objednávky" : "objednávek";
+
   return (
     <>
-      <section className="glass rounded-3xl overflow-hidden" style={{ borderColor: dc.border }}>
+      <section
+        className="rounded-2xl overflow-hidden flex flex-col transition"
+        style={{
+          background: "rgba(255,255,255,0.74)",
+          border: "1px solid rgba(255,255,255,0.65)",
+          boxShadow: "0 10px 26px -14px rgba(26,18,8,0.12), 0 1px 0 rgba(255,255,255,0.9) inset",
+          opacity: isSent ? 0.78 : 1,
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
+        <div
+          className="flex items-center gap-3 px-4 py-3.5"
+          style={{
+            background: `linear-gradient(180deg, ${dc.bg}, rgba(255,255,255,0.0))`,
+            borderBottom: `1px solid ${dc.icon}1F`,
+          }}
+        >
           <div
-            className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0"
-            style={{ background: `${dc.icon}22` }}
+            className="w-11 h-11 rounded-xl inline-flex items-center justify-center shrink-0"
+            style={{ background: dc.soft, boxShadow: `inset 0 -1px 0 ${dc.icon}26, 0 1px 0 rgba(255,255,255,0.7) inset` }}
           >
             <DeptIcon name={data.name} color={dc.icon} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
+              <div className="font-display font-bold text-[15px] text-slate-900 leading-tight">{data.label}</div>
               {isDefault && <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#D97706" }}>moje</span>}
             </div>
-            <div className="text-[11.5px] text-stone-500 mt-0.5">
-              {activeRows.length > 0 ? (
-                <>
-                  {activeRows.length} {pluralOrders(activeRows.length)}
-                  {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
-                </>
-              ) : (
-                <span className="text-stone-400">Zatím prázdné</span>
-              )}
+            <div className="text-[11.5px] text-slate-500 mt-0.5">
+              {itemCount > 0 ? `${itemCount} ${countWord}` : <span className="italic text-slate-400">žádné objednávky</span>}
             </div>
           </div>
-          {!isSent && (currentUserId !== undefined || isAdmin) && (
-            <button
-              type="button"
-              disabled={isAdding}
-              onClick={handleAddAndOpen}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-            >
-              {isAdding
-                ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />
-                : <MIcon name="add" size={14} />}
-              {isAdding ? "Přidávám" : "Přidat"}
-            </button>
+          {data.subtotal > 0 && (
+            <div className="font-display font-extrabold text-[16px] tabular-nums leading-none shrink-0" style={{ color: dc.icon }}>
+              {data.subtotal.toLocaleString("cs-CZ")} Kč
+            </div>
           )}
         </div>
 
@@ -826,30 +785,10 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         )}
 
         {/* Rows */}
-        <div className={isSent ? "dept-rows-sent" : ""}>
+        <div className="flex-1 p-2 flex flex-col gap-0.5 min-h-[120px]">
           {activeRows.length === 0 ? (
-            <div className="px-4 py-6 flex flex-col items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${dc.icon}18` }}>
-                <DeptIcon name={data.name} color={dc.icon} />
-              </div>
-              <div className="text-center">
-                <p className="text-[12.5px] font-semibold text-stone-600">Zatím nikdo z {data.label}</p>
-                <p className="text-[11.5px] text-stone-400 mt-0.5">
-                  {isSent ? "Nikdo z tohoto oddělení neobjednal." : "Buď první, kdo objedná."}
-                </p>
-              </div>
-              {!isSent && currentUserId !== undefined && (
-                <button
-                  type="button"
-                  disabled={isAdding}
-                  onClick={handleAddAndOpen}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-                  style={{ background: dc.grad, boxShadow: `0 4px 12px -4px ${dc.icon}55` }}
-                >
-                  <MIcon name="add" size={13} />
-                  {isAdding ? "Přidávám…" : "Objednat za sebe"}
-                </button>
-              )}
+            <div className="flex-1 flex items-center justify-center text-[12px] text-slate-400 italic py-6">
+              {isSent ? "Nikdo z tohoto oddělení neobjednal." : "Zatím nikdo neobjednal"}
             </div>
           ) : (
             activeRows.map((row) => {
@@ -862,18 +801,32 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
                   isSent={isSent}
                   isEditable={editable}
                   onEdit={() => editable && setModalState({ rowId: row.id, isNew: false })}
-                  onDelete={() => editable && setDeleteConfirmRowId(row.id)}
                 />
               );
             })
           )}
+
+          {!isSent && (currentUserId !== undefined || isAdmin) && (
+            <button
+              type="button"
+              disabled={isAdding}
+              onClick={handleAddAndOpen}
+              className="mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11.5px] font-semibold text-slate-500 hover:text-slate-900 transition disabled:opacity-50"
+              style={{ background: "rgba(255,255,255,0.45)", border: "1px dashed rgba(26,18,8,0.18)" }}
+            >
+              <MIcon name={isAdding ? "refresh" : "add"} size={14} style={isAdding ? { animation: "k-spin 0.8s linear infinite" } : undefined} />
+              {isAdding ? "Přidávám…" : "Přidat osobu"}
+            </button>
+          )}
         </div>
 
-        {/* Sent lock badge */}
-        {isSent && activeRows.length > 0 && (
-          <div className="flex items-center gap-1.5 px-4 py-2 border-t border-white/30">
-            <MIcon name="lock" size={12} style={{ color: "#94a3b8" }} />
-            <span className="text-[11px] text-stone-400">Odesláno — pouze pro čtení</span>
+        {/* Sent footer */}
+        {isSent && (
+          <div
+            className="px-4 py-2.5 flex items-center gap-2 text-[11.5px] font-semibold"
+            style={{ background: "rgba(16,185,129,0.10)", color: "#047857", borderTop: "1px solid rgba(16,185,129,0.22)" }}
+          >
+            <MIcon name="lock" size={13} fill /> Odesláno — pouze pro čtení
           </div>
         )}
       </section>
@@ -896,15 +849,6 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         />
       )}
 
-      {/* Confirm delete */}
-      {deleteConfirmRowId !== null && (
-        <ConfirmModal
-          message="Objednávka této osoby bude odstraněna."
-          onClose={() => setDeleteConfirmRowId(null)}
-          onConfirm={() => { onDeleteRow(deleteConfirmRowId); setDeleteConfirmRowId(null); }}
-          title="Smazat objednávku"
-        />
-      )}
     </>
   );
 }

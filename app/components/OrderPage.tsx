@@ -127,51 +127,22 @@ function addDays(iso: string, n: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function getDayLabel(date: string, todayDate: string): string {
-  if (date === todayDate) return "Dnes";
-  if (date === addDays(todayDate, 1)) return "Zítra";
-  const [y, m, d] = date.split("-").map(Number);
-  const obj = new Date(y, m - 1, d);
-  const wd = obj.toLocaleDateString("cs-CZ", { weekday: "short" });
-  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d}.${m}.`;
-}
 
 function getPragueNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
 }
 
-function DayPickerScroll({ children }: { children: React.ReactNode }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [fadeLeft, setFadeLeft] = useState(false);
-  const [fadeRight, setFadeRight] = useState(false);
-
-  const update = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setFadeLeft(el.scrollLeft > 4);
-    setFadeRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => { update(); }, [update]);
-
-  return (
-    <div className="relative rounded-2xl md:w-fit" style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}>
-      <div ref={scrollRef} onScroll={update} className="overflow-x-auto no-scrollbar">
-        <div className="flex p-1 gap-0.5" style={{ width: "max-content", minWidth: "100%" }}>
-          {children}
-        </div>
-      </div>
-      {fadeLeft && (
-        <div className="md:hidden absolute left-0 top-0 bottom-0 w-8 rounded-l-2xl pointer-events-none"
-          style={{ background: "linear-gradient(to right, rgba(237,231,221,0.9), transparent)" }} />
-      )}
-      {fadeRight && (
-        <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 rounded-r-2xl pointer-events-none"
-          style={{ background: "linear-gradient(to left, rgba(237,231,221,0.9), transparent)" }} />
-      )}
-    </div>
-  );
+function getDateParts(date: string, todayDate: string): { label: string; dateShort: string } {
+  const [, m, d] = date.split("-").map(Number);
+  const dateShort = `${d}.${m}.`;
+  if (date === todayDate) return { label: "Dnes", dateShort };
+  if (date === addDays(todayDate, 1)) return { label: "Zítra", dateShort };
+  const obj = new Date(`${date}T12:00:00`);
+  const wd = obj.toLocaleDateString("cs-CZ", { weekday: "short" });
+  return { label: wd.charAt(0).toUpperCase() + wd.slice(1, 2), dateShort };
 }
+
+const MONTHS_CZ = ["ledna","února","března","dubna","května","června","července","srpna","září","října","listopadu","prosince"];
 
 function parseCutoffMinutes(cutoffTime: string) {
   const [h, m] = cutoffTime.split(":").map(Number);
@@ -376,7 +347,7 @@ export default function OrderPage({
       if (next >= 0 && next < availableDates.length) {
         e.preventDefault();
         setDaySwitchPending(true);
-        startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+        startTransition(() => { router.push(`${apiBase}?date=${availableDates[next]}`); });
       }
     };
     document.addEventListener("keydown", handler);
@@ -686,14 +657,22 @@ export default function OrderPage({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffTime]);
 
-  const dayStr = useMemo(() => {
+const dateLong = useMemo(() => {
     const d = selectedDate ? new Date(`${selectedDate}T12:00:00`) : new Date();
-    return (
-      d.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^\w/, (c) => c.toUpperCase()) +
-      " " +
-      d.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
-    );
+    return d.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
+      .replace(/^\w/, (c) => c.toUpperCase());
   }, [selectedDate]);
+
+  const weekRangeLabel = useMemo(() => {
+    if (!availableDates || availableDates.length === 0) return "";
+    const first = new Date(`${availableDates[0]}T12:00:00`);
+    const last = new Date(`${availableDates[availableDates.length - 1]}T12:00:00`);
+    const d1 = first.getDate(), d2 = last.getDate();
+    const m1 = first.getMonth(), m2 = last.getMonth();
+    const y = first.getFullYear();
+    if (m1 === m2) return `Týden ${d1}.–${d2}. ${MONTHS_CZ[m1]} ${y}`;
+    return `Týden ${d1}. ${MONTHS_CZ[m1]}–${d2}. ${MONTHS_CZ[m2]} ${y}`;
+  }, [availableDates]);
 
   const futureDayPhrase = isFutureDay && selectedDate && todayDate
     ? getFutureDayPhrase(selectedDate, todayDate)
@@ -745,7 +724,7 @@ export default function OrderPage({
         </div>
       )}
 
-      {/* ── Toasts & banners (fixed/absolute) ── */}
+      {/* ── Fixed toasts ── */}
       {justSent && (
         <div aria-live="polite" role="status" className="fixed top-16 left-1/2 -translate-x-1/2 z-[300] fade-up pointer-events-none">
           <div className="glass rounded-full px-5 py-2.5 flex items-center gap-2 shadow-lg">
@@ -768,7 +747,7 @@ export default function OrderPage({
       )}
 
       {/* ── Urgency countdown banner (< 30 min) ── */}
-      {!isSent && !isPastCutoff && countdownMins !== null && countdownMins <= 30 && (
+      {!isSent && !isPastCutoff && !isFutureDay && countdownMins !== null && countdownMins <= 30 && (
         <div
           aria-live="polite"
           role="status"
@@ -792,325 +771,257 @@ export default function OrderPage({
         </div>
       )}
 
-      {/* ── Desktop info strip ── */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
-        <span
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
-          {isFutureDay && !isSent && futureDayPhrase && (
-            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
-              <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
-            </span>
-          )}
-          {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {!isFutureDay && !isSent && isPastCutoff && (
-            <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {isSent && sentAt && (
-            <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-              <MIcon name="check_circle" size={13} fill /> Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          {activeOrderCount > 0 && (
-            <span className="text-stone-400">
-              {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
-            </span>
-          )}
-        </div>
-        {isAdmin && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              disabled={isPending}
-              onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-              type="button"
-            >
-              {isPending ? "Odesílám…" : "Odeslat"}
-            </button>
+      {/* ── Day picker ── */}
+      {showDayPicker && (
+        <div className="px-6 pt-5 pb-3 shrink-0 flex items-center gap-3">
+          <div
+            className="inline-flex items-center gap-0.5 p-1 rounded-2xl"
+            style={{
+              background: "rgba(255,255,255,0.55)",
+              border: "1px solid rgba(255,255,255,0.7)",
+              boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 4px 14px -8px rgba(26,18,8,0.08)",
+            }}
+          >
+            {availableDates!.map((date) => {
+              const isActive = date === selectedDate;
+              const { label, dateShort } = getDateParts(date, todayDate!);
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => { setDaySwitchPending(true); startTransition(() => { router.push(`${apiBase}?date=${date}`); }); }}
+                  className={`inline-flex items-baseline gap-2 px-4 py-1.5 rounded-xl text-[12.5px] font-semibold font-display transition ${isActive ? "text-white" : "text-slate-600 hover:text-slate-900"}`}
+                  style={isActive ? {
+                    background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                    boxShadow: "0 6px 14px -6px rgba(234,88,12,0.5), 0 1px 0 rgba(255,255,255,0.35) inset",
+                  } : {}}
+                >
+                  <span>{label}</span>
+                  <span className={`text-[10.5px] tabular-nums ${isActive ? "text-white/80" : "text-slate-400"}`}>{dateShort}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-        {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
-        <button
-          aria-label="Nápověda"
-          className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={16} />
-        </button>
-      </div>
-
-      {/* ── Mobile info strip ── */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
-        <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-        <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
-        {activeOrderCount > 0 && (
-          <span className="text-[11px] text-stone-500 shrink-0">
-            {activeOrderCount} · {totalPrice} Kč
-          </span>
-        )}
-        <span
-          aria-label={sseConnected ? "Živé aktualizace aktivní" : "Připojování k živým aktualizacím…"}
-          aria-live="polite"
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          role="img"
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        {isFutureDay && !isSent && futureDayPhrase && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
-            <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
-          </span>
-        )}
-        {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-            <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {!isFutureDay && !isSent && isPastCutoff && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
-            <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {isSent && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-semibold shrink-0">
-            <MIcon name="check_circle" size={12} fill /> Odesláno
-          </span>
-        )}
-        {pushState !== "unsupported" && pushState !== "denied" && (
-          <button
-            onClick={handlePushToggle}
-            title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
-            className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
-            type="button"
-          >
-            <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
-          </button>
-        )}
-        {isAdmin && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <button
-            className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
-            disabled={isPending}
-            onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-            type="button"
-          >
-            {isPending ? "Odesílám…" : "Odeslat"}
-          </button>
-        )}
-        {isFutureDay && !isSent && !noMenu && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
-            <MIcon name="schedule" size={12} />
-            Auto
-          </span>
-        )}
-        <button
-          aria-label="Nápověda"
-          className="ml-auto w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={17} />
-        </button>
-      </div>
-      {sendError && (
-        <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
-          <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
-          {sendError}
+          <div className="flex-1" />
+          <div className="text-[11.5px] text-slate-500">{weekRangeLabel}</div>
         </div>
       )}
 
-      {/* ── Scrollable main content ── */}
-      <main className="flex-1 overflow-y-auto scroll-area p-4">
-        <div className="flex flex-col gap-4 pb-28 md:pb-6">
-
-          {showDayPicker && (
-            <div className="relative -mx-4">
-              <div className="overflow-x-auto no-scrollbar px-4">
-                <div
-                  className="flex p-1 rounded-2xl gap-0.5"
-                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
-                >
-                  {availableDates!.map((date) => {
-                    const isActive = date === selectedDate;
-                    return (
-                      <button
-                        key={date}
-                        className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
-                        }`}
-                        onClick={() => { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
-                        style={isActive ? {
-                          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                          color: "white",
-                          boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                        } : {}}
-                        type="button"
-                      >
-                        {getDayLabel(date, todayDate!)}
-                      </button>
-                    );
-                  })}
-                </div>
+      {/* ── Status bar ── */}
+      <div className={`px-6 shrink-0 flex items-end justify-between gap-4 ${showDayPicker ? "pb-4" : "pt-5 pb-4"}`}>
+        <div>
+          <div className="text-[10.5px] uppercase tracking-[0.18em] text-slate-400 font-bold mb-1">
+            {isFutureDay ? "Plánovaná objednávka" : "Dnešní objednávka"}
+          </div>
+          <div className="font-display font-extrabold text-[22px] text-slate-900 leading-none">{dateLong}</div>
+        </div>
+        <div className="text-right">
+          {isSent ? (
+            <>
+              <div className="text-[10.5px] uppercase tracking-[0.18em] font-bold mb-1 inline-flex items-center gap-1.5 justify-end" style={{ color: "#047857" }}>
+                <MIcon name="check_circle" size={12} fill />
+                Odesláno{sentAt && ` v ${new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}`}
               </div>
-              <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
-                style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
-            </div>
-          )}
-
-          {noMenu ? (
-            /* ── Closed / no-menu banner ── */
-            <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
-              <div className="flex flex-col items-center text-center px-6 py-8 md:py-10 gap-3">
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={holidayName
-                    ? { background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.45)" }
-                    : { background: "rgba(148,163,184,0.18)", border: "1px solid rgba(148,163,184,0.25)" }
-                  }
-                >
-                  {holidayName ? (
-                    <span className="text-[28px] leading-none">{holidayEmoji}</span>
-                  ) : (
-                    <MIcon name="no_meals" size={28} fill style={{ color: "#94a3b8" }} />
-                  )}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
-                    {holidayName ?? "Jídelníček není k dispozici"}
-                  </div>
-                  {formattedClosedDate && (
-                    <div className="text-[13px] text-stone-500">{formattedClosedDate}</div>
-                  )}
-                </div>
-                {holidayDescription && (
-                  <p className="text-[13px] text-stone-500 leading-relaxed max-w-sm">
-                    {holidayDescription}
-                  </p>
-                )}
-                <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500 mt-1"
-                  style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
-                >
-                  <MIcon name="info" size={13} style={{ color: "#D97706" }} />
-                  <span>{holidayName ? "V tento den se objednávky nevytvářejí." : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}</span>
-                </div>
+              <div className="font-display font-extrabold text-[18px] text-slate-900 tabular-nums">
+                {activeOrderCount} jídel ·{" "}
+                <span style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  {totalPrice.toLocaleString("cs-CZ")} Kč
+                </span>
               </div>
-            </div>
+            </>
           ) : (
             <>
-              {menuEmpty && !isSent && (
-                <div className="glass rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
-                  style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)" }}>
-                  <MIcon name="warning" size={16} style={{ color: "#D97706" }} />
-                  <span className="text-stone-700">
-                    <strong>Jídelníček není naplněný.</strong>{" "}
-                    Přejděte do{" "}
-                    <a href="/jidelnicek" className="underline text-stone-700 hover:text-stone-900">Jídelníčku</a>
-                    {" "}a importujte PDF nebo přidejte položky ručně.
-                  </span>
-                </div>
-              )}
-
-              {/* Login banner for unauthenticated users — mobile only (desktop uses sidebar) */}
-              {currentUserId === undefined && !isAdmin && (
-                <div className="md:hidden glass rounded-2xl px-4 py-3 flex items-center gap-3" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }}>
-                  <MIcon name="person" size={20} fill style={{ color: "#D97706" }} />
-                  <span className="text-[13px] text-stone-700 flex-1 leading-snug">
-                    Pro přidání vlastní objednávky se přihlaste.
-                  </span>
-                  <div className="flex gap-2 shrink-0">
-                    <Link href="/login" className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
-                      Přihlásit se
-                    </Link>
-                    <Link href="/register" className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-white transition hover:opacity-[0.88] no-underline" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
-                      Registrovat
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              {/* Department panels — 3-col on desktop */}
-              <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
-                {departments.map((dept) => (
-                  <DepartmentPanel
-                    currentUserId={currentUserId}
-                    currentUserName={currentUserName}
-                    data={dept}
-                    defaultMealPrice={defaultMealPrice}
-                    defaultSoupPrice={defaultSoupPrice}
-                    existingNames={existingNames}
-                    extrasPrices={extrasPrices}
-                    isAdmin={isAdmin}
-                    isDefault={!!defaultDepartment && dept.name === defaultDepartment}
-                    isSent={isSent}
-                    key={`${dept.name}-${selectedDate ?? ''}`}
-                    meals={allMeals}
-                    onAddRow={handleAddRow}
-                    onDeleteRow={handleDeleteRow}
-                    onUpdateRow={handleUpdateRow}
-                    soups={allSoups}
-                  />
-                ))}
+              <div className="text-[10.5px] uppercase tracking-[0.18em] font-bold mb-1 inline-flex items-center gap-1.5 justify-end text-amber-700">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
+                  title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+                />
+                {isFutureDay
+                  ? `Uzávěrka ${futureDayPhrase ?? ""} v ${cutoffTime}`
+                  : `Otevřená · uzávěrka ${cutoffTime}`}
               </div>
-
-              {/* Bottom status bar */}
-              <div
-                className="glass rounded-2xl px-4 py-3 flex items-center gap-3"
-                style={isSent ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" } : {}}
-              >
-                <div
-                  className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
-                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(100,116,139,0.1)" }}
-                >
-                  <MIcon name={isSent ? "check_circle" : "lock"} size={18} fill style={{ color: isSent ? "#16a34a" : "#94a3b8" }} />
-                </div>
-                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug">
-                  {isSent ? (
-                    <>
-                      <strong className="text-green-700">Objednávka odeslána</strong>
-                      {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
-                    </>
-                  ) : isFutureDay ? (
-                    <>
-                      <strong>Objednávka dopředu.</strong>
-                      <span className="text-stone-500"> Odešle se automaticky v den samotný v {cutoffTime}.</span>
-                    </>
-                  ) : (
-                    <>
-                      <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
-                    </>
-                  )}
-                </div>
-                {!isSent && totalPrice > 0 && (
-                  <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
-                )}
-                {isAdmin && !isSent && (
-                  <button
-                    className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-btn text-stone-500"
-                    disabled={isPending}
-                    onClick={() => setClearConfirm(true)}
-                    type="button"
-                  >
-                    Smazat
-                  </button>
-                )}
+              <div className="font-display font-bold text-[14.5px] text-slate-700 tabular-nums">
+                {activeOrderCount} jídel · {totalPrice.toLocaleString("cs-CZ")} Kč
               </div>
             </>
           )}
         </div>
-      </main>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto scroll-area px-6 pb-5">
+        {noMenu ? (
+          <div className="glass rounded-3xl overflow-hidden mt-2" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
+            <div className="flex flex-col items-center text-center px-6 py-10 gap-3">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={holidayName
+                  ? { background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.45)" }
+                  : { background: "rgba(148,163,184,0.18)", border: "1px solid rgba(148,163,184,0.25)" }
+                }
+              >
+                {holidayName
+                  ? <span className="text-[28px] leading-none">{holidayEmoji}</span>
+                  : <MIcon name="no_meals" size={28} fill style={{ color: "#94a3b8" }} />
+                }
+              </div>
+              <div>
+                <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
+                  {holidayName ?? "Jídelníček není k dispozici"}
+                </div>
+                {formattedClosedDate && <div className="text-[13px] text-stone-500 mt-0.5">{formattedClosedDate}</div>}
+              </div>
+              {holidayDescription && (
+                <p className="text-[13px] text-stone-500 leading-relaxed max-w-sm">{holidayDescription}</p>
+              )}
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500"
+                style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
+              >
+                <MIcon name="info" size={13} style={{ color: "#D97706" }} />
+                <span>{holidayName ? "V tento den se objednávky nevytvářejí." : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {menuEmpty && !isSent && (
+              <div className="glass rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px] mb-4"
+                style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)" }}>
+                <MIcon name="warning" size={16} style={{ color: "#D97706" }} />
+                <span className="text-stone-700">
+                  <strong>Jídelníček není naplněný.</strong>{" "}
+                  Přejděte do{" "}
+                  <Link href={`${apiBase}/jidelnicek`} className="underline text-stone-700 hover:text-stone-900">Jídelníčku</Link>
+                  {" "}a importujte PDF nebo přidejte položky ručně.
+                </span>
+              </div>
+            )}
+
+            {/* 3-col dept grid */}
+            <div className={`grid grid-cols-3 gap-4 items-start transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
+              {departments.map((dept) => (
+                <DepartmentPanel
+                  key={`${dept.name}-${selectedDate ?? ""}`}
+                  currentUserId={currentUserId}
+                  currentUserName={currentUserName}
+                  data={dept}
+                  defaultMealPrice={defaultMealPrice}
+                  defaultSoupPrice={defaultSoupPrice}
+                  existingNames={existingNames}
+                  extrasPrices={extrasPrices}
+                  isAdmin={isAdmin}
+                  isDefault={!!defaultDepartment && dept.name === defaultDepartment}
+                  isSent={isSent}
+                  meals={allMeals}
+                  onAddRow={handleAddRow}
+                  onDeleteRow={handleDeleteRow}
+                  onUpdateRow={handleUpdateRow}
+                  soups={allSoups}
+                />
+              ))}
+            </div>
+
+            {/* Green sent banner */}
+            {isSent && (
+              <div
+                className="mt-4 rounded-2xl px-5 py-4 flex items-center gap-4"
+                style={{
+                  background: "linear-gradient(135deg, rgba(16,185,129,0.22), rgba(16,185,129,0.10))",
+                  border: "1px solid rgba(16,185,129,0.32)",
+                  boxShadow: "0 8px 24px -10px rgba(16,185,129,0.25), 0 1px 0 rgba(255,255,255,0.55) inset",
+                }}
+              >
+                <div className="w-11 h-11 rounded-xl inline-flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(16,185,129,0.20)" }}>
+                  <MIcon name="check_circle" size={24} fill style={{ color: "#047857" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-bold text-[15px] leading-tight" style={{ color: "#065f46" }}>
+                    Objednávka odeslána{sentAt && ` v ${new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}`} · Další úpravy nejsou možné.
+                  </div>
+                  <div className="text-[12px] mt-1" style={{ color: "rgba(6,95,70,0.72)" }}>
+                    Kuchyně dostane výpis. Výdej od 11:30 do 13:00.
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleReopen}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold font-display px-3 py-1.5 rounded-xl shrink-0 disabled:opacity-55"
+                    style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(16,185,129,0.25)", color: "#065f46" }}
+                  >
+                    <MIcon name="lock_open" size={14} /> Znovu otevřít
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Admin send / info bar */}
+            {!isSent && !noMenu && (isFutureDay || isAdmin) && (
+              <div
+                className="mt-4 rounded-2xl px-5 py-3.5 flex items-center gap-3"
+                style={{
+                  background: "rgba(255,255,255,0.6)",
+                  border: "1px solid rgba(255,255,255,0.7)",
+                  boxShadow: "0 8px 22px -12px rgba(26,18,8,0.10), 0 1px 0 rgba(255,255,255,0.85) inset",
+                }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-bold text-[13.5px] text-slate-900">
+                    {isFutureDay ? "Objednávka dopředu" : autoSendEnabled ? "Automatické odesílání" : "Připraveno k odeslání"}
+                  </div>
+                  <div className="text-[11.5px] text-slate-500 mt-0.5">
+                    {isFutureDay
+                      ? `Odešle se automaticky ${futureDayPhrase ?? ""} v ${cutoffTime}`
+                      : autoSendEnabled
+                        ? `Odešle se automaticky v ${autoSendTime}`
+                        : `${activeOrderCount} ${activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · uzávěrka v ${cutoffTime}${countdown ? ` (zbývá ${countdown})` : ""}`
+                    }
+                  </div>
+                </div>
+                {!isFutureDay && !autoSendEnabled && isAdmin && (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
+                    className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-xl text-white shrink-0 disabled:opacity-55"
+                    style={{
+                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                      boxShadow: "0 8px 22px -8px rgba(234,88,12,0.5), 0 1px 0 rgba(255,255,255,0.4) inset",
+                    }}
+                  >
+                    <MIcon name="send" size={15} fill />
+                    {isPending ? "Odesílám…" : "Odeslat objednávku"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {sendError && (
+              <div role="alert" className="mt-3 flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12.5px] font-medium text-rose-800"
+                style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.22)" }}>
+                <MIcon name="error" size={14} style={{ color: "#dc2626" }} />
+                {sendError}
+              </div>
+            )}
+
+            {isAdmin && !isSent && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => setClearConfirm(true)}
+                  className="text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-btn text-slate-500"
+                >
+                  Smazat objednávku
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* ── Modals ── */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
