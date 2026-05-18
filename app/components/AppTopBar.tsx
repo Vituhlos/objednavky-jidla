@@ -2,248 +2,236 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import MIcon from "./MIcon";
 
-function buildNavItems(base: string) {
+function buildMainNav(base: string) {
   return [
-    { href: base || "/",              label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
-    { href: `${base}/jidelnicek`,     label: "Jídelníček",        shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
-    { href: `${base}/pizza`,          label: "Pizza",             shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
-    { href: `${base}/historie`,       label: "Historie",          shortLabel: "Historie",   icon: "history",         exact: false },
-    { href: `${base}/nastaveni`,      label: "Nastavení",         shortLabel: "Nastavení",  icon: "settings",        exact: false },
+    { href: base || "/",          icon: "receipt_long", label: "Dnešní objednávka", exact: true  },
+    { href: `${base}/jidelnicek`, icon: "menu_book",    label: "Jídelníček",        exact: false },
+    { href: `${base}/historie`,   icon: "history",      label: "Historie",          exact: false },
+    { href: `${base}/profil`,     icon: "person",       label: "Profil",            exact: false },
   ];
 }
 
-function buildProfileNav(base: string) {
-  return { href: `${base}/profil`, label: "Můj profil", shortLabel: "Profil", icon: "account_circle", exact: false };
-}
-
-function SidebarClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const timeStr = now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now
-    .toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-    .replace(/^\w/, (c) => c.toUpperCase());
-
-  return (
-    <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Dnes</div>
-      <div className="font-display font-bold text-[15px] text-stone-900">{timeStr}</div>
-      <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
-    </div>
-  );
-}
-
-function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  return (
-    <div
-      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-display font-bold text-white text-[13px]"
-      style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 10px -4px rgba(245,158,11,0.45)" }}
-    >
-      {initials}
-    </div>
-  );
+function buildAdminNav(base: string) {
+  return [
+    { href: `${base}/admin/uzivatele`, icon: "group",    label: "Uživatelé",  exact: false },
+    { href: `${base}/nastaveni`,       icon: "settings", label: "Nastavení",  exact: false },
+  ];
 }
 
 type UserInfo = { firstName: string; lastName: string; role: string } | null;
 
-function UserBadge({ user, basePath = "" }: { user: UserInfo; basePath?: string }) {
-  const router = useRouter();
-  const [loggingOut, setLoggingOut] = useState(false);
+function tInitials(user: NonNullable<UserInfo>) {
+  return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+}
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await fetch(`${basePath}/api/auth/logout`, { method: "POST" });
-      router.push(`${basePath}/login`);
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
-    }
-  };
-
-  if (!user) return (
-    <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Účet</div>
-      <div className="text-[12px] text-stone-500 leading-snug mb-2.5">Přihlaste se pro přidání objednávky.</div>
-      <div className="flex flex-col gap-1.5">
-        <Link href={`${basePath}/login`} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
-          <MIcon name="login" size={13} />
-          Přihlásit se
-        </Link>
-        <Link href={`${basePath}/register`} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
-          <MIcon name="person_add" size={13} />
-          Vytvořit účet
-        </Link>
-      </div>
-    </div>
-  );
-
+function UserCard({
+  user,
+  basePath,
+  onLogout,
+  loggingOut,
+}: {
+  user: NonNullable<UserInfo>;
+  basePath: string;
+  onLogout: () => void;
+  loggingOut: boolean;
+}) {
+  const isAdmin = user.role === "admin";
   return (
-    <div className="glass-soft rounded-2xl p-3">
-      <Link href={`${basePath}/profil`} className="flex items-center gap-2.5 mb-2 group no-underline">
-        <InitialsAvatar firstName={user.firstName} lastName={user.lastName} />
-        <div className="flex-1 min-w-0">
-          <div className="font-display font-bold text-[13px] text-stone-900 leading-none group-hover:text-amber-700 transition truncate">
+    <div className="glass-soft rounded-2xl p-2.5 flex items-center gap-2.5">
+      <Link href={`${basePath}/profil`} className="no-underline flex items-center gap-2.5 flex-1 min-w-0 group">
+        <span
+          className="inline-flex items-center justify-center rounded-full shrink-0 font-display font-bold text-white text-[11px]"
+          style={{
+            width: 32, height: 32,
+            background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+            boxShadow: "0 0 0 2px rgba(255,255,255,0.85)",
+          }}
+        >
+          {tInitials(user)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] font-semibold text-slate-900 truncate leading-tight group-hover:text-amber-700 transition">
             {user.firstName} {user.lastName}
           </div>
-          {user.role === "admin"
-            ? <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Admin</div>
-            : <div className="text-[10px] text-stone-400 mt-0.5">Profil &amp; nastavení</div>
-          }
+          <div className="text-[10.5px] text-slate-500 flex items-center gap-1">
+            {isAdmin
+              ? <><MIcon name="shield_person" size={10} /><span>Admin</span></>
+              : <span>Uživatel</span>
+            }
+          </div>
         </div>
       </Link>
       <button
-        onClick={handleLogout}
+        type="button"
+        onClick={onLogout}
         disabled={loggingOut}
-        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-stone-500 glass-btn transition hover:text-stone-700"
+        title="Odhlásit"
+        className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-slate-400 hover:text-rose-600 transition"
       >
-        <MIcon name="logout" size={13} />
-        {loggingOut ? "Odhlašuji…" : "Odhlásit se"}
+        <MIcon name="logout" size={15} />
       </button>
     </div>
   );
 }
 
-export default function AppTopBar({ initialUser, tenantSlug }: { initialUser?: UserInfo; tenantSlug?: string }) {
+export default function AppTopBar({
+  initialUser,
+  tenantSlug,
+  tenantName,
+}: {
+  initialUser?: UserInfo;
+  tenantSlug?: string;
+  tenantName?: string;
+}) {
   const pathname = usePathname();
+  const router = useRouter();
   const base = tenantSlug ? `/t/${tenantSlug}` : "";
+  const [loggingOut, setLoggingOut] = useState(false);
 
+  // Don't render on auth pages
   const authPaths = tenantSlug
     ? [`${base}/login`, `${base}/register`, `${base}/zapomenute-heslo`]
     : ["/login", "/register", "/zapomenute-heslo"];
   if (authPaths.some((p) => pathname === p) || pathname.startsWith(`${base}/reset-hesla`)) return null;
 
   const isAdmin = initialUser?.role === "admin";
-  const mainNav = buildNavItems(base).filter((n) => !tenantSlug || !n.href.endsWith("/pizza"));
-  const profileNav = buildProfileNav(base);
 
-  // Mobile nav: max 5 items — admins swap /historie for /nastaveni
-  const mobileNav = isAdmin
-    ? [...mainNav.filter((n) => !n.href.endsWith("/historie")), profileNav]
-    : [...mainNav.filter((n) => !n.href.endsWith("/nastaveni")), profileNav];
+  // Tenant display info derived from tenantName or slug
+  const displayName = tenantName
+    || (tenantSlug ? tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1).replace(/-/g, " ") : "Kantýna");
+  const initials = displayName
+    .split(/\s+/)
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
-  // Desktop sidebar nav: just the main 5 — profile is accessible via the UserBadge name link
-  const desktopNav = mainNav;
+  const mainNav = buildMainNav(base);
+  const adminNav = buildAdminNav(base);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch(`${base}/api/auth/logout`, { method: "POST" });
+      router.push(`${base}/login`);
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
-    <>
-      {/* ── Desktop sidebar (fixed, hidden on mobile) ── */}
-      <aside className="hidden md:flex fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
-        <div className="px-2 py-3">
-          <span className="inline-flex items-center gap-2 font-display font-extrabold">
-            <span
-              className="inline-flex items-center justify-center rounded-xl"
-              style={{
-                width: 34, height: 34,
-                background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)",
-              }}
-            >
-              <MIcon name="restaurant" size={20} fill className="text-white" />
-            </span>
-            <span style={{
-              fontSize: 19,
-              background: "linear-gradient(135deg,#D97706,#EA580C)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}>
-              Kantýna
-            </span>
-          </span>
+    <aside
+      className="hidden md:flex fixed top-0 left-0 w-[244px] h-screen flex-col gap-1 p-3 border-r border-white/55 z-50 overflow-y-auto"
+      style={{
+        background: "rgba(255,255,255,0.5)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+      }}
+    >
+      {/* ── Tenant header ── */}
+      <div className="px-2 py-3 flex items-center gap-2.5">
+        <span
+          className="inline-flex items-center justify-center rounded-xl font-display font-extrabold text-white text-[12px] shrink-0"
+          style={{
+            width: 34, height: 34,
+            background: "linear-gradient(135deg, #F59E0B, #EA580C)",
+            boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)",
+          }}
+        >
+          {initials}
+        </span>
+        <div className="min-w-0">
+          <div className="text-[9.5px] uppercase tracking-[0.15em] font-semibold text-amber-700/80 -mb-0.5">Kantýna</div>
+          <div className="font-display font-bold text-[12.5px] text-slate-900 truncate leading-tight">{displayName}</div>
         </div>
+      </div>
 
-        <div className="mt-2 flex flex-col gap-0.5">
-          {desktopNav.map(({ href, label, icon, exact }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition ${isActive ? "sidebar-item-active" : "hover:bg-white/60"}`}
-              >
-                <MIcon
-                  name={icon}
-                  size={19}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
-                <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-500"}`}>
-                  {label}
-                </span>
-              </Link>
-            );
-          })}
-          {isAdmin && base && (
+      {/* ── Main nav ── */}
+      <div className="mt-2 flex flex-col gap-0.5">
+        {mainNav.map(({ href, icon, label, exact }) => {
+          const isActive = exact ? pathname === href : pathname.startsWith(href) && href !== "/";
+          return (
             <Link
-              href={`${base}/admin`}
-              aria-current={pathname.startsWith(`${base}/admin`) ? "page" : undefined}
-              className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition mt-1 ${pathname.startsWith(`${base}/admin`) ? "sidebar-item-active" : "hover:bg-white/60"}`}
+              key={href}
+              href={href}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition no-underline ${isActive ? "tab-active" : "hover:bg-white/60"}`}
             >
               <MIcon
-                name="admin_panel_settings"
-                size={19}
-                fill={pathname.startsWith(`${base}/admin`)}
-                style={pathname.startsWith(`${base}/admin`) ? { color: "#D97706" } : { color: "#94a3b8" }}
+                name={icon}
+                size={18}
+                fill={isActive}
+                style={isActive
+                  ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+                  : { color: "#94a3b8" }}
               />
-              <span className={`flex-1 text-[13px] font-display font-semibold ${pathname.startsWith(`${base}/admin`) ? "text-stone-900" : "text-stone-500"}`}>
-                ★ Admin
+              <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-slate-900" : "text-slate-500"}`}>
+                {label}
               </span>
             </Link>
-          )}
-        </div>
+          );
+        })}
+      </div>
 
-        <div className="mt-auto flex flex-col gap-2">
-          <UserBadge user={initialUser ?? null} basePath={base} />
-          <SidebarClock />
-        </div>
-      </aside>
+      {/* ── Admin section ── */}
+      {isAdmin && (
+        <>
+          <div className="px-3 mt-4 mb-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <MIcon name="shield_person" size={11} /> Admin
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {adminNav.map(({ href, icon, label, exact }) => {
+              const isActive = exact ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition no-underline ${isActive ? "tab-active" : "hover:bg-white/60"}`}
+                >
+                  <MIcon
+                    name={icon}
+                    size={18}
+                    fill={isActive}
+                    style={isActive
+                      ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+                      : { color: "#94a3b8" }}
+                  />
+                  <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-slate-900" : "text-slate-500"}`}>
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      {/* ── Mobile bottom fade (masks background bleed under nav) ── */}
-      <div
-        aria-hidden="true"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
-        style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
-      />
-
-      {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
-        <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {mobileNav.map(({ href, shortLabel, icon, exact }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
-                style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
-              >
-                <MIcon
-                  name={icon}
-                  size={20}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
-                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
-                  {shortLabel}
-                </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+      {/* ── User card at bottom ── */}
+      <div className="mt-auto">
+        {initialUser ? (
+          <UserCard
+            user={initialUser}
+            basePath={base}
+            onLogout={handleLogout}
+            loggingOut={loggingOut}
+          />
+        ) : (
+          <div className="glass-soft rounded-2xl p-3 flex flex-col gap-1.5">
+            <Link
+              href={`${base}/login`}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-slate-600 glass-btn transition no-underline"
+            >
+              <MIcon name="login" size={13} />
+              Přihlásit se
+            </Link>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

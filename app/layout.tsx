@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
@@ -17,8 +17,16 @@ const inter = Inter({
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-jakarta",
+  display: "swap",
+  preload: false,
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-mono",
   display: "swap",
   preload: false,
 });
@@ -50,7 +58,7 @@ export default async function RootLayout({
   const hideSidebar = h.get("x-is-super-admin") === "1" || h.get("x-no-sidebar") === "1";
   const user = hideSidebar ? null : await getCurrentUser().catch(() => null);
   return (
-    <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
+    <html lang="cs" className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}>
       <head />
       <body className={inter.className}>
         {!hideSidebar && (
@@ -58,6 +66,7 @@ export default async function RootLayout({
             <div className="orb orb-sky" />
             <div className="orb orb-amber" />
             <div className="orb orb-mint" />
+            <div className="orb orb-rose" />
           </div>
         )}
         {!hideSidebar && <AppTopBar initialUser={user} />}
