@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import MIcon from "@/app/components/MIcon";
+import TenantAuthShell from "@/app/components/TenantAuthShell";
 
 export default function TenantForgotPasswordPage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
@@ -31,52 +32,70 @@ export default function TenantForgotPasswordPage() {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflowY: "auto" }}>
-      <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
-        <div className="glass scale-in" style={{ width: "100%", maxWidth: 400, borderRadius: 24, padding: "2rem", position: "relative", zIndex: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "1.75rem", gap: 10 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 8px 24px -8px rgba(245,158,11,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MIcon name="lock_reset" size={26} fill className="text-white" />
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div className="font-display" style={{ fontSize: 22, fontWeight: 800, background: "linear-gradient(135deg,#D97706,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Obnovení hesla
-              </div>
-              <div style={{ fontSize: 13, color: "#9b8474", marginTop: 2 }}>Zašleme vám odkaz na obnovení</div>
+    <TenantAuthShell>
+      <div className="glass rounded-3xl p-7 scale-in">
+        <h1 className="font-display font-extrabold text-[20px] text-slate-900 leading-none mb-1">Zapomenuté heslo</h1>
+        <p className="text-[12.5px] text-slate-500 mb-5">
+          Zadejte e-mail a pošleme vám odkaz pro obnovení hesla.
+        </p>
+
+        {sent ? (
+          <div
+            className="rounded-2xl px-4 py-4 flex items-start gap-3"
+            style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.28)" }}
+          >
+            <MIcon name="mark_email_read" size={20} fill style={{ color: "#059669" }} />
+            <div className="text-[12.5px] text-emerald-800 leading-snug">
+              <strong className="block">Hotovo!</strong>
+              Pokud k <strong className="font-semibold">{email}</strong> existuje účet, dorazí během pár minut e-mail s odkazem.
             </div>
           </div>
-
-          {sent ? (
-            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(79,138,83,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <MIcon name="mark_email_read" size={24} fill style={{ color: "#4F8A53" }} />
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5 block">E-mail</span>
+              <div className="relative">
+                <MIcon name="mail" size={15} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="email" required autoFocus autoComplete="email"
+                  value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jmeno@firma.cz"
+                  className="k-field" style={{ paddingLeft: 38 }}
+                />
               </div>
-              <p style={{ fontSize: 14, color: "#57534e", lineHeight: 1.6 }}>
-                Pokud je e-mail <strong>{email}</strong> registrovaný, přijde vám odkaz na obnovení hesla.
-                Odkaz je platný <strong>1 hodinu</strong>.
-              </p>
-              <p style={{ fontSize: 12, color: "#a8a29e" }}>Zkontrolujte i složku se spamem.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label className="auth-label">E-mail</label>
-                <input autoComplete="email" autoFocus className="auth-input" onChange={(e) => setEmail(e.target.value)} placeholder="vas@email.cz" required type="email" value={email} />
-              </div>
-              {error && <div style={{ padding: "0.6rem 0.875rem", borderRadius: 12, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.22)", color: "#b91c1c", fontSize: 13 }}>{error}</div>}
-              <button className="auth-btn" disabled={loading} type="submit">
-                {loading ? "Odesílám…" : "Odeslat odkaz"}
-              </button>
-            </form>
-          )}
+            </label>
 
-          <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: 13, color: "#9b8474" }}>
-            <Link href={`/t/${tenantSlug}/login`} style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>
-              ← Zpět na přihlášení
-            </Link>
-          </p>
+            {error && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12.5px] font-medium text-rose-800"
+                style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.22)" }}>
+                <MIcon name="error" size={14} style={{ color: "#dc2626" }} />
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit" disabled={loading}
+              className="w-full mt-1 inline-flex items-center justify-center gap-2 text-[13.5px] font-semibold font-display px-4 py-2.5 rounded-2xl text-white transition disabled:opacity-55"
+              style={{
+                background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                boxShadow: "0 12px 26px -10px rgba(234,88,12,0.55), 0 1px 0 rgba(255,255,255,0.35) inset",
+              }}
+            >
+              <MIcon name="send" size={16} fill />
+              {loading ? "Odesílám…" : "Odeslat odkaz"}
+            </button>
+          </form>
+        )}
+
+        <div className="text-center mt-5">
+          <Link
+            href={`/t/${tenantSlug}/login`}
+            className="text-[11.5px] text-slate-500 hover:text-amber-700 font-semibold inline-flex items-center gap-1 no-underline"
+          >
+            <MIcon name="arrow_back" size={12} /> Zpět na přihlášení
+          </Link>
         </div>
       </div>
-    </div>
+    </TenantAuthShell>
   );
 }
