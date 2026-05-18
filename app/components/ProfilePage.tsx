@@ -206,16 +206,13 @@ export default function ProfilePage({
 
   return (
     <div className="k-shell">
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <MIcon name="account_circle" size={16} fill style={{ color: "#D97706" }} />
-        <span className="font-display font-bold text-[15px] text-stone-900">Můj profil</span>
-        <span className="text-[12px] text-stone-500">{user.email}</span>
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5">
-        <span className="font-display font-bold text-[14px] text-stone-900">Můj profil</span>
+      {/* Header */}
+      <div
+        className="px-5 py-3 border-b border-white/50 flex items-center gap-3 shrink-0"
+        style={{ background: "rgba(255,255,255,0.28)" }}
+      >
+        <h2 className="font-display font-extrabold text-[18px] text-slate-900">Můj profil</h2>
+        <span className="text-[12px] text-slate-500 hidden sm:inline">{user.email}</span>
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8">
@@ -272,7 +269,7 @@ export default function ProfilePage({
               <div className="flex flex-col gap-1">
                 <span className="text-[11.5px] font-semibold text-stone-600">Jméno</span>
                 <input
-                  className="modal-input"
+                  className="k-field"
                   required
                   type="text"
                   value={firstName}
@@ -283,7 +280,7 @@ export default function ProfilePage({
               <div className="flex flex-col gap-1">
                 <span className="text-[11.5px] font-semibold text-stone-600">Příjmení</span>
                 <input
-                  className="modal-input"
+                  className="k-field"
                   required
                   type="text"
                   value={lastName}
@@ -295,7 +292,7 @@ export default function ProfilePage({
 
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">E-mail</span>
-              <div className="modal-input text-stone-400 select-none flex items-center justify-between gap-2">
+              <div className="k-field text-stone-400 select-none flex items-center justify-between gap-2">
                 <span>{user.email}</span>
                 <span className="text-[10.5px] text-stone-300 shrink-0">změnit níže</span>
               </div>
@@ -341,10 +338,12 @@ export default function ProfilePage({
 
             <div className="flex items-center gap-2">
               <button
-                className="modal-btn modal-btn--primary"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-2xl text-white transition disabled:opacity-55"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 14px -6px rgba(234,88,12,0.4)" }}
                 disabled={isPending}
                 type="submit"
               >
+                <MIcon name="check" size={14} fill />
                 {isPending ? "Ukládám…" : "Uložit změny"}
               </button>
               {profileSaved && (
@@ -366,7 +365,7 @@ export default function ProfilePage({
             <div className="flex flex-col gap-1">
               <span className="text-[11.5px] font-semibold text-stone-600">Nový e-mail</span>
               <input
-                className="modal-input"
+                className="k-field"
                 required
                 type="email"
                 value={newEmail}
@@ -379,7 +378,7 @@ export default function ProfilePage({
               <span className="text-[11.5px] font-semibold text-stone-600">Potvrdit heslem</span>
               <div className="relative">
                 <input
-                  className="modal-input w-full pr-9"
+                  className="k-field w-full pr-9"
                   required
                   type={showEmailPassword ? "text" : "password"}
                   value={emailPassword}
@@ -399,10 +398,12 @@ export default function ProfilePage({
 
             <div className="flex items-center gap-2">
               <button
-                className="modal-btn modal-btn--primary"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-2xl text-white transition disabled:opacity-55"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 14px -6px rgba(234,88,12,0.4)" }}
                 disabled={isPending}
                 type="submit"
               >
+                <MIcon name="check" size={14} fill />
                 {isPending ? "Ukládám…" : "Změnit e-mail"}
               </button>
               {emailSaved && (
@@ -425,7 +426,7 @@ export default function ProfilePage({
               <span className="text-[11.5px] font-semibold text-stone-600">Stávající heslo</span>
               <div className="relative">
                 <input
-                  className="modal-input w-full pr-9"
+                  className="k-field w-full pr-9"
                   required
                   type={showOldPassword ? "text" : "password"}
                   value={oldPassword}
@@ -442,7 +443,7 @@ export default function ProfilePage({
               <span className="text-[11.5px] font-semibold text-stone-600">Nové heslo</span>
               <div className="relative">
                 <input
-                  className="modal-input w-full pr-9"
+                  className="k-field w-full pr-9"
                   required
                   minLength={6}
                   type={showNewPassword ? "text" : "password"}
@@ -460,7 +461,7 @@ export default function ProfilePage({
               <span className="text-[11.5px] font-semibold text-stone-600">Nové heslo znovu</span>
               <div className="relative">
                 <input
-                  className={`modal-input w-full pr-9${passwordMismatch ? " border-red-400" : ""}`}
+                  className={`k-field w-full pr-9${passwordMismatch ? " border-red-400" : ""}`}
                   required
                   type={showNewPasswordConfirm ? "text" : "password"}
                   value={newPasswordConfirm}
@@ -481,11 +482,13 @@ export default function ProfilePage({
 
             <div className="flex items-center gap-2">
               <button
-                className="modal-btn modal-btn--primary"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-2xl text-white transition disabled:opacity-55"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 14px -6px rgba(234,88,12,0.4)" }}
                 disabled={isPending || passwordMismatch}
                 type="submit"
               >
-                {isPending ? "Ukládám…" : "Změnit heslo"}
+                <MIcon name="lock_reset" size={14} fill />
+                {isPending ? "Ukládám…" : "Uložit heslo"}
               </button>
               {passwordSaved && (
                 <span className="text-[12px] text-green-700 inline-flex items-center gap-1">
