@@ -3,6 +3,7 @@ import path from "path";
 
 const FONT = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans.ttf");
 const FONT_BOLD = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Bold.ttf");
+const FONT_ITALIC = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Oblique.ttf");
 import { PassThrough } from "stream";
 import { type DepartmentData, type OrderData, type OrderRowEnriched } from "./types";
 import { getSubmittedRows } from "./order-utils";
@@ -117,12 +118,16 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
     doc.rect(TABLE_X, y, TABLE_W, rh).fill(bg);
 
     x = TABLE_X;
-    doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A");
-    for (const col of COL_DEFS) {
-      const cell = col.value(row, idx);
+    const hasNoMeal = !row.mainItem && row.extraMealItems.length === 0;
+    COL_DEFS.forEach((col, colIdx) => {
+      const isBezJidla = colIdx === 3 && hasNoMeal;
+      const cell = isBezJidla ? "bez jídla" : col.value(row, idx);
+      doc.font(isBezJidla ? FONT_ITALIC : FONT)
+        .fontSize(FONT_BODY)
+        .fillColor(isBezJidla ? "#9CA3AF" : "#30343A");
       doc.text(cell, x + 3, y + 4, { width: col.width - 6, align: col.align });
       x += col.width;
-    }
+    });
     y += rh;
   });
 
