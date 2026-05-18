@@ -12,10 +12,26 @@ interface SA {
   isSelf: boolean;
 }
 
+function pwdStrength(pwd: string): { score: number; label: string; color: string } {
+  if (!pwd) return { score: 0, label: "—", color: "#cbd5e1" };
+  let s = 0;
+  if (pwd.length >= 8)  s++;
+  if (pwd.length >= 12) s++;
+  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) s++;
+  if (/[0-9]/.test(pwd)) s++;
+  if (/[^A-Za-z0-9]/.test(pwd)) s++;
+  const labels = ["Slabé", "Slabé", "Průměrné", "Dobré", "Silné", "Velmi silné"];
+  const colors = ["#ef4444", "#f97316", "#F59E0B", "#84cc16", "#10b981", "#059669"];
+  return { score: s, label: labels[s], color: colors[s] };
+}
+
 function AddSAForm({ onAdded }: { onAdded: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [pwd, setPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+
+  const strength = pwdStrength(pwd);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,31 +41,102 @@ function AddSAForm({ onAdded }: { onAdded: () => void }) {
       const result = await saAddSuperAdmin(fd);
       if (result.error) { setError(result.error); return; }
       (e.target as HTMLFormElement).reset();
+      setPwd("");
       onAdded();
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end", padding: "1.25rem", background: "rgba(22,50,74,0.04)", borderRadius: 14, border: "1px solid rgba(22,50,74,0.12)" }}>
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--navy)", marginBottom: 4 }}>E-mail *</label>
-        <input name="email" required type="email" placeholder="admin@firma.cz" autoComplete="off" style={{ padding: "0.45rem 0.75rem", borderRadius: 8, border: "1px solid var(--sand)", fontSize: 13, width: 220 }} />
-      </div>
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--navy)", marginBottom: 4 }}>Heslo (min. 8 znaků) *</label>
-        <div style={{ position: "relative" }}>
-          <input name="password" required minLength={8} type={showPassword ? "text" : "password"} placeholder="••••••••" autoComplete="new-password" style={{ padding: "0.45rem 2.5rem 0.45rem 0.75rem", borderRadius: 8, border: "1px solid var(--sand)", fontSize: 13, width: 200 }} />
-          <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} style={{ position: "absolute", right: "0.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9b8474", padding: 0 }}>
-            <MIcon name={showPassword ? "visibility_off" : "visibility"} size={15} />
-          </button>
+    <form onSubmit={handleSubmit} className="glass rounded-3xl p-5 mb-5">
+      <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-white/55">
+        <span
+          className="inline-flex items-center justify-center rounded-xl shrink-0"
+          style={{
+            width: 32, height: 32,
+            background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+            boxShadow: "0 6px 14px -6px rgba(245,158,11,0.5)",
+          }}
+        >
+          <MIcon name="person_add" size={17} fill style={{ color: "white" }} />
+        </span>
+        <div>
+          <div className="font-display font-bold text-[14.5px] text-slate-900 leading-tight">Nový super admin</div>
+          <div className="text-[11.5px] text-slate-500 leading-tight">Účet okamžitě získá plný přístup.</div>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {error && <span style={{ fontSize: 12, color: "#b91c1c" }}>{error}</span>}
-        <button type="submit" disabled={isPending} className="v2-btn v2-btn--primary" style={{ whiteSpace: "nowrap" }}>
-          <MIcon name="person_add" size={15} style={{ marginRight: 4 }} />
-          {isPending ? "Přidávám…" : "Přidat správce"}
-        </button>
+
+      <div className="flex flex-wrap gap-3 items-end">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">E-mail *</span>
+          <div className="relative">
+            <MIcon name="mail" size={15} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              name="email"
+              required
+              type="email"
+              placeholder="jmeno@kantyna.cz"
+              autoComplete="off"
+              className="k-field"
+              style={{ paddingLeft: 38, width: 220 }}
+            />
+          </div>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Heslo (min. 8 znaků) *</span>
+          <div className="relative">
+            <MIcon name="lock" size={15} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              name="password"
+              required
+              minLength={8}
+              type={showPwd ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              value={pwd}
+              onChange={(e) => setPwd(e.target.value)}
+              className="k-field mono"
+              style={{ paddingLeft: 38, paddingRight: 40, width: 200 }}
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPwd((s) => !s)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg inline-flex items-center justify-center text-slate-400 hover:text-slate-700"
+            >
+              <MIcon name={showPwd ? "visibility_off" : "visibility"} size={16} />
+            </button>
+          </div>
+          {pwd && (
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-slate-200/60">
+                <div
+                  className="h-full transition-all"
+                  style={{ width: `${(strength.score / 5) * 100}%`, background: strength.color }}
+                />
+              </div>
+              <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: strength.color }}>
+                {strength.label}
+              </span>
+            </div>
+          )}
+        </label>
+
+        <div className="flex flex-col gap-1 self-end">
+          {error && <span className="text-[12px] text-red-600">{error}</span>}
+          <button
+            type="submit"
+            disabled={isPending}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-2xl text-white transition disabled:opacity-55 whitespace-nowrap"
+            style={{
+              background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+              boxShadow: "0 6px 14px -6px rgba(234,88,12,0.4)",
+            }}
+          >
+            <MIcon name="person_add" size={15} />
+            {isPending ? "Přidávám…" : "Přidat správce"}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -74,63 +161,82 @@ export default function SpravciManager({ admins: initialAdmins }: { admins: SA[]
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-display" style={{ fontSize: 24, fontWeight: 700, color: "var(--navy)", margin: 0 }}>Správci platformy</h1>
-          <p style={{ fontSize: 13, color: "#9b8474", marginTop: 4 }}>{admins.length} správce registrováno</p>
+          <h2 className="font-display font-extrabold text-[24px] text-slate-900 leading-none mb-1">Super admini</h2>
+          <p className="text-[13px] text-slate-500">
+            <strong className="text-slate-800">{admins.length}</strong> účtů s úplným přístupem ke všem kantýnám.
+          </p>
         </div>
-        <button onClick={() => setShowAdd((s) => !s)} className="v2-btn v2-btn--primary">
-          <MIcon name={showAdd ? "close" : "person_add"} size={18} style={{ marginRight: 4 }} />
+        <button
+          onClick={() => setShowAdd((s) => !s)}
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold font-display px-4 py-2 rounded-2xl transition"
+          style={{
+            background: showAdd ? "rgba(148,163,184,0.25)" : "linear-gradient(135deg,#F59E0B,#EA580C)",
+            boxShadow: showAdd ? "none" : "0 6px 14px -6px rgba(234,88,12,0.4)",
+            color: showAdd ? "#475569" : "white",
+          }}
+        >
+          <MIcon name={showAdd ? "close" : "person_add"} size={18} />
           {showAdd ? "Zrušit" : "Přidat správce"}
         </button>
       </div>
 
       {error && (
-        <div style={{ padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "#b91c1c", fontSize: 13, marginBottom: "1rem" }}>
+        <div
+          className="rounded-2xl px-4 py-3 mb-4 text-[13px] text-red-700"
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}
+        >
           {error}
         </div>
       )}
 
       {showAdd && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <AddSAForm onAdded={() => { setShowAdd(false); window.location.reload(); }} />
-        </div>
+        <AddSAForm onAdded={() => { setShowAdd(false); window.location.reload(); }} />
       )}
 
-      <div className="glass" style={{ borderRadius: 16, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* Table */}
+      <div className="glass rounded-3xl overflow-hidden">
+        <table className="k-table">
           <thead>
-            <tr style={{ borderBottom: "2px solid var(--sand)", background: "rgba(22,50,74,0.03)" }}>
-              <th style={{ textAlign: "left", padding: "0.65rem 1rem", fontSize: 12, fontWeight: 700, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.05em" }}>E-mail</th>
-              <th style={{ textAlign: "left", padding: "0.65rem 1rem", fontSize: 12, fontWeight: 700, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Vytvořeno</th>
-              <th style={{ padding: "0.65rem 1rem" }} />
+            <tr>
+              <th>Správce</th>
+              <th>Vytvořeno</th>
+              <th style={{ textAlign: "right" }} />
             </tr>
           </thead>
           <tbody>
             {admins.map((admin) => (
-              <tr key={admin.id} style={{ borderBottom: "1px solid var(--sand)", opacity: isPending ? 0.6 : 1 }}>
-                <td style={{ padding: "0.75rem 1rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#1e3a5f,#2f4858)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <MIcon name="admin_panel_settings" size={16} fill style={{ color: "#fff" }} />
+              <tr key={admin.id} style={{ opacity: isPending ? 0.6 : 1 }}>
+                <td className="py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="inline-flex items-center justify-center rounded-xl shrink-0"
+                      style={{
+                        width: 34, height: 34,
+                        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                        boxShadow: "0 6px 14px -6px rgba(234,88,12,0.35)",
+                      }}
+                    >
+                      <MIcon name="admin_panel_settings" size={16} fill style={{ color: "white" }} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--navy)" }}>{admin.email}</div>
-                      {admin.isSelf && <div style={{ fontSize: 11, color: "#9b8474" }}>Váš účet</div>}
+                      <div className="font-semibold text-[13px] text-slate-900">{admin.email}</div>
+                      {admin.isSelf && <div className="text-[11px] text-slate-400">Váš účet</div>}
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: "0.75rem 1rem", fontSize: 13, color: "#9b8474" }}>
-                  {admin.createdAt.slice(0, 10)}
+                <td className="py-3.5">
+                  <span className="text-[12.5px] text-slate-500 tabular-nums">{admin.createdAt.slice(0, 10)}</span>
                 </td>
-                <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                <td className="py-3.5" style={{ textAlign: "right" }}>
                   {!admin.isSelf && (
                     <button
                       onClick={() => setRemoveConfirm(admin)}
                       disabled={isPending}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                       title="Odebrat správce"
-                      style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 6px", borderRadius: 8, color: "#9b8474" }}
-                      className="hover:bg-red-50 hover:text-red-500 transition-colors"
                     >
                       <MIcon name="person_remove" size={16} />
                     </button>
@@ -138,6 +244,13 @@ export default function SpravciManager({ admins: initialAdmins }: { admins: SA[]
                 </td>
               </tr>
             ))}
+            {admins.length === 0 && (
+              <tr>
+                <td colSpan={3} className="py-8 text-center text-[13px] text-slate-400">
+                  Žádní správci.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
