@@ -168,6 +168,14 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS menu_day_closed (
+      week_start TEXT NOT NULL,
+      day        TEXT NOT NULL,
+      PRIMARY KEY (week_start, day)
+    )
+  `).run();
+
   // Performance indexes
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);
