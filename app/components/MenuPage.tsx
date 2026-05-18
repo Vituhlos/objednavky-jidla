@@ -17,10 +17,9 @@ import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
-// Textarea that auto-grows to fit its content
-const AutoTextarea = memo(function AutoTextarea({ defaultValue, disabled, onCommit, placeholder, title }: {
-  defaultValue: string; disabled: boolean; placeholder?: string; title?: string;
-  onCommit: (value: string) => void;
+// Controlled textarea that auto-grows to fit its content (used in modal)
+function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
+  value: string; onChange: (v: string) => void; disabled: boolean; placeholder?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -28,25 +27,24 @@ const AutoTextarea = memo(function AutoTextarea({ defaultValue, disabled, onComm
     if (!el) return;
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
-  }, [defaultValue]);
+  }, [value]);
   return (
     <textarea
       ref={ref}
-      className="bg-white/50 border border-white/60 rounded-lg py-1.5 px-2.5 text-[13px] text-stone-800 w-full outline-none focus:border-amber-400/60 resize-none overflow-hidden leading-snug"
-      defaultValue={defaultValue}
-      disabled={disabled}
-      onBlur={(e) => { if (e.target.value !== defaultValue) onCommit(e.target.value); }}
+      className="modal-input w-full resize-none overflow-hidden leading-snug"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       onInput={(e) => {
         const el = e.currentTarget;
         el.style.height = "auto";
         el.style.height = el.scrollHeight + "px";
       }}
+      disabled={disabled}
       placeholder={placeholder}
-      rows={1}
-      title={title}
+      rows={2}
     />
   );
-});
+}
 
 const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"];
 const DAY_LABELS: Record<string, string> = {
@@ -68,6 +66,8 @@ interface Props {
   currentWeekLabel: string | null;
   currentWeekStart: string;
   currentHolidayNames: Record<string, string | null>;
+  defaultMealPrice: number;
+  defaultSoupPrice: number;
   nextMenu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   nextHolidayNames: Record<string, string | null>;
   nextWeekLabel: string | null;
@@ -131,7 +131,7 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onDelete, onUpdate, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -141,8 +141,7 @@ const WeekGrid = memo(function WeekGrid({
   disabled: boolean;
   weekStart: string;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
-  onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
+  onEdit: (item: MenuItem) => void;
   onCloseDay: (day: string) => void;
   onOpenDay: (day: string) => void;
 }) {
@@ -245,7 +244,7 @@ const WeekGrid = memo(function WeekGrid({
                       )}
                     </div>
                     {displaySoups.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
+                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
                     ))}
                     {displaySoups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
@@ -268,7 +267,7 @@ const WeekGrid = memo(function WeekGrid({
                       )}
                     </div>
                     {displayMeals.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onDelete={onDelete} onUpdate={onUpdate} />
+                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
                     ))}
                     {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
@@ -319,62 +318,130 @@ const AllergenBadges = memo(function AllergenBadges({ allergens }: { allergens: 
   );
 });
 
+function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }: {
+  item: MenuItem;
+  disabled: boolean;
+  onSave: (id: number, updates: Partial<{ code: string; name: string; allergens: string }>) => void;
+  onRequestDelete: (id: number) => void;
+  onClose: () => void;
+}) {
+  const [code, setCode] = useState(item.code);
+  const [name, setName] = useState(item.name);
+  const [activeAllergens, setActiveAllergens] = useState<Set<number>>(() =>
+    new Set(item.allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14))
+  );
+
+  const toggleAllergen = (n: number) => {
+    setActiveAllergens((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n); else next.add(n);
+      return next;
+    });
+  };
+
+  const handleSave = () => {
+    const allergenStr = [...activeAllergens].sort((a, b) => a - b).join(",");
+    onSave(item.id, { code, name, allergens: allergenStr });
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-sheet !w-full sm:!w-[420px]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="item-edit-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-sheet__header">
+          <h3 className="modal-sheet__title" id="item-edit-modal-title">
+            Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
+          </h3>
+          <button
+            aria-label="Zavřít"
+            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500"
+            onClick={onClose}
+            type="button"
+          >
+            <MIcon name="close" size={16} />
+          </button>
+        </div>
+        <div className="modal-sheet__body space-y-4">
+          <div>
+            <label className="modal-label">Kód</label>
+            <input
+              className="modal-input w-20 mt-1"
+              disabled={disabled}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="modal-label">Název</label>
+            <div className="mt-1">
+              <AutoResizeTextarea
+                disabled={disabled}
+                onChange={setName}
+                placeholder="Název jídla"
+                value={name}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="modal-label">Alergeny</label>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => {
+                const active = activeAllergens.has(n);
+                return (
+                  <button
+                    key={n}
+                    disabled={disabled}
+                    onClick={() => toggleAllergen(n)}
+                    title={ALLERGEN_NAMES[n]}
+                    type="button"
+                    className="w-8 h-8 rounded-lg text-[12px] font-bold transition active:scale-95"
+                    style={active
+                      ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 6px -1px rgba(234,88,12,0.30)" }
+                      : { background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.6)", color: "#78716c" }
+                    }
+                  >{n}</button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="modal-sheet__footer">
+          <button
+            className="modal-btn modal-btn--danger"
+            disabled={disabled}
+            onClick={() => { onRequestDelete(item.id); onClose(); }}
+            type="button"
+          >
+            Smazat
+          </button>
+          <button
+            className="modal-btn modal-btn--primary"
+            disabled={disabled}
+            onClick={handleSave}
+            type="button"
+          >
+            Uložit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const WeekItem = memo(function WeekItem({
-  item, editMode, disabled, onDelete, onUpdate,
+  item, editMode, disabled, onEdit,
 }: {
   item: MenuItem;
   editMode: boolean;
   disabled: boolean;
-  onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
+  onEdit: (item: MenuItem) => void;
 }) {
-  if (editMode) {
-    return (
-      <div className="group py-0.5 space-y-0.5">
-        <div className="flex items-center gap-1">
-          <input
-            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] font-mono w-7 shrink-0 text-center outline-none focus:border-amber-400/60"
-            defaultValue={item.code}
-            disabled={disabled}
-            onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
-            title="Kód"
-          />
-          <input
-            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[11px] text-stone-800 flex-1 min-w-0 outline-none focus:border-amber-400/60"
-            defaultValue={item.name}
-            disabled={disabled}
-            onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
-            title="Název"
-          />
-          <input
-            className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] w-10 text-right shrink-0 outline-none focus:border-amber-400/60"
-            defaultValue={item.price}
-            disabled={disabled}
-            min={0}
-            onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
-            title="Cena Kč"
-            type="number"
-          />
-          <button
-            className="w-5 h-5 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition opacity-0 group-hover:opacity-100 shrink-0"
-            disabled={disabled}
-            onClick={() => onDelete(item.id)}
-            type="button"
-          >
-            <MIcon name="close" size={10} />
-          </button>
-        </div>
-        <input
-          className="bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[10px] text-stone-600 w-full outline-none focus:border-amber-400/60"
-          defaultValue={item.allergens}
-          disabled={disabled}
-          onBlur={(e) => { if (e.target.value !== item.allergens) onUpdate(item.id, { allergens: e.target.value }); }}
-          placeholder="Alergeny: 1, 3, 7…"
-          title="Čísla alergenů oddělená čárkou (1–14)"
-        />
-      </div>
-    );
-  }
   return (
     <div className="flex items-start gap-1.5 py-1">
       <span className="font-mono text-[10.5px] text-stone-400 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
@@ -382,7 +449,19 @@ const WeekItem = memo(function WeekItem({
         {item.name}
         {item.allergens && <AllergenBadges allergens={item.allergens} />}
       </span>
-      <span className="shrink-0 text-[11.5px] font-semibold text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
+      {editMode ? (
+        <button
+          className="w-6 h-6 rounded-lg inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0 mt-[1px]"
+          disabled={disabled}
+          onClick={() => onEdit(item)}
+          title="Upravit"
+          type="button"
+        >
+          <MIcon name="edit" size={12} />
+        </button>
+      ) : (
+        <span className="shrink-0 text-[11.5px] font-semibold text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
+      )}
     </div>
   );
 });
@@ -399,8 +478,7 @@ const MenuSection = memo(function MenuSection({
   editMode,
   emptyLabel,
   onAdd,
-  onDelete,
-  onUpdate,
+  onEdit,
 }: {
   title: string;
   icon: string;
@@ -411,8 +489,7 @@ const MenuSection = memo(function MenuSection({
   editMode: boolean;
   emptyLabel: string;
   onAdd?: () => void;
-  onDelete: (id: number) => void;
-  onUpdate: (id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => void;
+  onEdit?: (item: MenuItem) => void;
 }) {
   return (
     <div className="glass rounded-3xl overflow-hidden">
@@ -436,49 +513,21 @@ const MenuSection = memo(function MenuSection({
       ) : editMode ? (
         <div className="px-4 divide-y divide-white/30">
           {items.map((item) => (
-            <div key={item.id} className="group py-2 space-y-1.5">
-              <AutoTextarea
-                defaultValue={item.name}
+            <div key={item.id} className="flex items-start gap-2 py-2.5">
+              <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
+              <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
+                {item.name}
+                {item.allergens && <AllergenBadges allergens={item.allergens} />}
+              </span>
+              <button
+                className="w-10 h-10 rounded-xl inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0"
                 disabled={disabled}
-                onCommit={(v) => onUpdate(item.id, { name: v })}
-                placeholder="Název jídla"
-                title="Název"
-              />
-              <div className="flex items-center gap-2">
-                <input
-                  className="bg-white/50 border border-white/60 rounded-lg py-1 px-2 text-[11px] font-mono w-10 shrink-0 text-center outline-none focus:border-amber-400/60"
-                  defaultValue={item.code}
-                  disabled={disabled}
-                  onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
-                  title="Kód"
-                />
-                <input
-                  className="bg-white/50 border border-white/60 rounded-lg py-1 px-2 text-[12px] w-16 text-right shrink-0 outline-none focus:border-amber-400/60"
-                  defaultValue={item.price}
-                  disabled={disabled}
-                  min={0}
-                  onBlur={(e) => { const p = Number(e.target.value); if (!isNaN(p) && p !== item.price) onUpdate(item.id, { price: p }); }}
-                  title="Cena Kč"
-                  type="number"
-                />
-                <button
-                  aria-label="Smazat položku"
-                  className="ml-auto w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition shrink-0"
-                  disabled={disabled}
-                  onClick={() => onDelete(item.id)}
-                  type="button"
-                >
-                  <MIcon name="close" size={15} />
-                </button>
-              </div>
-              <input
-                className="bg-white/50 border border-white/60 rounded-lg py-1 px-2 text-[11px] text-stone-600 w-full outline-none focus:border-amber-400/60"
-                defaultValue={item.allergens}
-                disabled={disabled}
-                onBlur={(e) => { if (e.target.value !== item.allergens) onUpdate(item.id, { allergens: e.target.value }); }}
-                placeholder="Alergeny: 1, 3, 7…"
-                title="Čísla alergenů oddělená čárkou (1–14)"
-              />
+                onClick={() => onEdit?.(item)}
+                title="Upravit"
+                type="button"
+              >
+                <MIcon name="edit" size={16} />
+              </button>
             </div>
           ))}
         </div>
@@ -507,6 +556,8 @@ export default function MenuPage({
   currentMenu: initialCurrentMenu,
   currentWeekLabel,
   currentWeekStart,
+  defaultMealPrice,
+  defaultSoupPrice,
   nextMenu: initialNextMenu,
   nextHolidayNames,
   nextWeekLabel,
@@ -529,6 +580,7 @@ export default function MenuPage({
   const [isDragging, setIsDragging] = useState(false);
   const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
   const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<number | null>(null);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -637,8 +689,8 @@ export default function MenuPage({
       const newItem = await actionAddMenuItem({
         day, type,
         code: type === "Polévka" ? "A" : "1",
-        name: type === "Polévka" ? "Nová polévka" : "Nové jídlo",
-        price: type === "Polévka" ? 35 : 120,
+        name: "",
+        price: type === "Polévka" ? defaultSoupPrice : defaultMealPrice,
         weekStart: currentWeekStart,
       });
       setCurrentMenu((prev) => {
@@ -651,8 +703,9 @@ export default function MenuPage({
           },
         };
       });
+      setEditingItem(newItem);
     });
-  }, [currentWeekStart]);
+  }, [currentWeekStart, defaultSoupPrice, defaultMealPrice]);
 
   const handleDeleteNextWeek = () => {
     setConfirmDeleteNext(false);
@@ -810,11 +863,10 @@ export default function MenuPage({
           onCloseDay={(day) => {
             startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
           }}
-          onDelete={(id) => setConfirmDeleteItemId(id)}
+          onEdit={(item) => setEditingItem(item)}
           onOpenDay={(day) => {
             startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
           }}
-          onUpdate={handleUpdate}
           todayCode={visibleTodayCode}
           weekStart={activeWeekStart}
         />
@@ -885,8 +937,7 @@ export default function MenuPage({
                 iconColor="#D97706"
                 items={displayDaySoups}
                 onAdd={() => handleAdd(activeDay, "Polévka")}
-                onDelete={(id) => setConfirmDeleteItemId(id)}
-                onUpdate={handleUpdate}
+                onEdit={(item) => setEditingItem(item)}
                 title="Polévky"
               />
               <MenuSection
@@ -898,8 +949,7 @@ export default function MenuPage({
                 iconColor="#EA580C"
                 items={displayDayMeals}
                 onAdd={() => handleAdd(activeDay, "Jídlo")}
-                onDelete={(id) => setConfirmDeleteItemId(id)}
-                onUpdate={handleUpdate}
+                onEdit={(item) => setEditingItem(item)}
                 title="Jídla"
               />
               {!isReadOnly && editMode && (
@@ -916,6 +966,17 @@ export default function MenuPage({
           )}
         </div>
       </div>
+
+      {/* Menu item edit modal */}
+      {editingItem !== null && (
+        <MenuItemEditModal
+          disabled={isPending}
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onRequestDelete={(id) => { setEditingItem(null); setConfirmDeleteItemId(id); }}
+          onSave={(id, updates) => handleUpdate(id, updates)}
+        />
+      )}
 
       {/* Confirm modals */}
       {confirmDeleteItemId !== null && (

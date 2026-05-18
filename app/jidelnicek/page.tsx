@@ -1,6 +1,7 @@
 import { getFullMenu, getMenuWeekLabel, getTodayDayCode, getMondayISO, getNextMondayISO } from "@/lib/menu";
 import { getHolidayName } from "@/lib/holidays";
 import MenuPage from "@/app/components/MenuPage";
+import { getSettings } from "@/lib/settings";
 import path from "path";
 import fs from "fs";
 
@@ -33,6 +34,10 @@ export default async function JidelnicekPage() {
   const currentHolidayNames = buildHolidayMap(currentWeekStart);
   const nextHolidayNames = buildHolidayMap(nextWeekStart);
 
+  const settings = getSettings();
+  const defaultSoupPrice = parseInt(settings.defaultSoupPrice) || 30;
+  const defaultMealPrice = parseInt(settings.defaultMealPrice) || 110;
+
   const pdfsDir = path.join(process.cwd(), "data", "pdfs");
   const hasPdfCurrent = fs.existsSync(path.join(pdfsDir, `${currentWeekStart}.pdf`));
   const hasPdfNext = fs.existsSync(path.join(pdfsDir, `${nextWeekStart}.pdf`));
@@ -43,6 +48,8 @@ export default async function JidelnicekPage() {
       currentWeekLabel={currentWeekLabel}
       currentWeekStart={currentWeekStart}
       currentHolidayNames={currentHolidayNames}
+      defaultMealPrice={defaultMealPrice}
+      defaultSoupPrice={defaultSoupPrice}
       hasPdfCurrent={hasPdfCurrent}
       hasPdfNext={hasPdfNext}
       nextMenu={nextMenu}
