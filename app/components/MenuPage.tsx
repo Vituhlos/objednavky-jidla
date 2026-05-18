@@ -683,23 +683,50 @@ export default function MenuPage({
   return (
     <div className="k-shell">
 
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900">Jídelníček LIMA</span>
-        {activeWeekLabel && (
-          <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
-        )}
+      {/* Header */}
+      <div
+        className="px-5 py-3 border-b border-white/50 flex items-center gap-3 shrink-0"
+        style={{ background: "rgba(255,255,255,0.28)" }}
+      >
+        {/* Week navigation pill */}
+        <div className="glass-soft rounded-2xl p-1 flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => activeWeek === "next" && handleWeekSwitch("current")}
+            disabled={activeWeek === "current"}
+            className="w-7 h-7 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-slate-800 transition disabled:opacity-30"
+          >
+            <MIcon name="chevron_left" size={16} />
+          </button>
+          <span className="text-[12.5px] font-semibold font-display text-slate-800 px-2">
+            {activeWeek === "next"
+              ? `Příští${nextWeekLabel ? ` – ${nextWeekLabel}` : " týden"}`
+              : `Týden${activeWeekLabel ? ` ${activeWeekLabel}` : ""}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => activeWeek === "current" && handleWeekSwitch("next")}
+            disabled={activeWeek === "next" || !hasNextWeek}
+            className="w-7 h-7 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-slate-800 transition disabled:opacity-30"
+          >
+            <MIcon name="chevron_right" size={16} />
+          </button>
+        </div>
         {hasPdfActive && (
-          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-            download href={`${apiBase}/api/menu/pdf/${activeWeekStart}`}>
-            ↓ PDF
+          <a
+            download
+            href={`${apiBase}/api/menu/pdf/${activeWeekStart}`}
+            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-slate-600"
+          >
+            <MIcon name="download" size={13} /> PDF
           </a>
         )}
+        <div className="flex-1" />
         {isAdmin && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {activeWeek === "current" && (
               <button
-                className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
+                className={`hidden md:inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1.5 rounded-2xl glass-btn ${editMode ? "text-slate-900" : "text-slate-600"}`}
                 onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
                 type="button"
               >
@@ -708,7 +735,7 @@ export default function MenuPage({
             )}
             {activeWeek === "next" && hasNextWeek && (
               <button
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
+                className="hidden md:inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1.5 rounded-2xl glass-btn-danger transition disabled:opacity-50"
                 disabled={isPending}
                 onClick={() => setConfirmDeleteNext(true)}
                 type="button"
@@ -717,66 +744,14 @@ export default function MenuPage({
               </button>
             )}
             <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1.5 rounded-2xl glass-btn text-slate-600"
               onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
               type="button"
             >
-              <MIcon name="upload_file" size={14} /> Import PDF
+              <MIcon name="upload_file" size={14} />
+              <span className="hidden sm:inline">Import PDF</span>
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
-          {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
-          {isAdmin && (
-            <button
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-              onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
-              type="button"
-            >
-              <MIcon name="upload_file" size={13} /> PDF
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Week tabs */}
-      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">
-        <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
-          {(["current", "next"] as const).map((week) => {
-            const active = activeWeek === week;
-            const label = week === "current" ? "Aktuální týden" : "Příští týden";
-            return (
-              <button
-                key={week}
-                className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-[0.97] ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
-                onClick={() => handleWeekSwitch(week)}
-                style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
-                type="button"
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        {hasPdfActive && (
-          <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
-            download href={`${apiBase}/api/menu/pdf/${activeWeekStart}`}>
-            ↓ PDF
-          </a>
-        )}
-        {isAdmin && activeWeek === "current" && (
-          <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
-            type="button"
-          >
-            {editMode ? "Zavřít" : "Upravit"}
-          </button>
         )}
       </div>
 
