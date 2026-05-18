@@ -308,7 +308,7 @@ const AllergenBadges = memo(function AllergenBadges({ allergens }: { allergens: 
         <span
           key={n}
           title={ALLERGEN_NAMES[n]}
-          className="inline-block text-[9.5px] font-semibold leading-none px-1 py-0.5 rounded"
+          className="inline-block text-[11px] font-semibold leading-none px-1.5 py-0.5 rounded"
           style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
         >
           {n}
@@ -399,8 +399,9 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
                     disabled={disabled}
                     onClick={() => toggleAllergen(n)}
                     title={ALLERGEN_NAMES[n]}
+                    aria-label={`Alergen ${n}: ${ALLERGEN_NAMES[n]}`}
                     type="button"
-                    className="w-8 h-8 rounded-lg text-[12px] font-bold transition active:scale-95"
+                    className="w-11 h-11 rounded-lg text-[13px] font-bold transition active:scale-95"
                     style={active
                       ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 6px -1px rgba(234,88,12,0.30)" }
                       : { background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.6)", color: "#78716c" }
@@ -444,23 +445,23 @@ const WeekItem = memo(function WeekItem({
 }) {
   return (
     <div className="flex items-start gap-1.5 py-1">
-      <span className="font-mono text-[10.5px] text-stone-400 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
-      <span className="flex-1 min-w-0 text-[12.5px] font-medium text-stone-800 leading-snug">
+      <span className="font-mono text-[11px] text-stone-600 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
+      <span className="flex-1 min-w-0 text-[13px] font-medium text-stone-800 leading-snug">
         {item.name}
         {item.allergens && <AllergenBadges allergens={item.allergens} />}
       </span>
       {editMode ? (
         <button
-          className="w-6 h-6 rounded-lg inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0 mt-[1px]"
+          aria-label="Upravit"
+          className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0 mt-[1px]"
           disabled={disabled}
           onClick={() => onEdit(item)}
-          title="Upravit"
           type="button"
         >
-          <MIcon name="edit" size={12} />
+          <MIcon name="edit" size={14} />
         </button>
       ) : (
-        <span className="shrink-0 text-[11.5px] font-semibold text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
+        <span className="shrink-0 text-[12px] font-semibold text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
       )}
     </div>
   );
@@ -537,12 +538,12 @@ const MenuSection = memo(function MenuSection({
             key={item.id}
             className={`flex items-start gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
           >
-            <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
+            <span className="font-mono text-[11px] text-stone-600 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
             <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
               {item.name}
               {item.allergens && <AllergenBadges allergens={item.allergens} />}
             </span>
-            <span className="shrink-0 font-semibold text-[12.5px] text-stone-500 tabular-nums mt-[2px]">{item.price} Kč</span>
+            <span className="shrink-0 font-semibold text-[12.5px] text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
           </div>
         ))
       )}
