@@ -43,8 +43,10 @@ function shouldSkip(line: string): boolean {
 }
 
 // Extract allergen numbers from end of line, e.g. "(1a/b,3,7)" → "1,3,7"
+// Also handles broken PDFs where opening "(" is missing: "1a/b,3,7)"
 function extractAllergens(text: string): { name: string; allergens: string } {
-  const m = text.match(/\s*\(([\d,/a-z]+)\)\s*$/i);
+  const m = text.match(/\s*\(([\d,/a-z]+)\)\s*$/i)
+           ?? text.match(/\s+([\d][,/\da-z]*)\)\s*$/i);
   if (!m) return { name: text.trim(), allergens: "" };
   const raw = m[1].split(",").map((s) => {
     const num = parseInt(s.trim(), 10);
