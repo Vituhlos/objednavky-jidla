@@ -114,4 +114,12 @@ const GLOBAL_MIGRATIONS: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 4,
+    name: "tenant_city_plan",
+    up: (db) => {
+      db.prepare(`ALTER TABLE tenants ADD COLUMN city TEXT NOT NULL DEFAULT ''`).run();
+      db.prepare(`ALTER TABLE tenants ADD COLUMN plan TEXT NOT NULL DEFAULT 'standard'`).run();
+    },
+  },
 ];

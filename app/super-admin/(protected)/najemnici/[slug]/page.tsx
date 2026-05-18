@@ -22,8 +22,8 @@ export default async function TenantUsersPage({ params }: { params: Promise<{ sl
   if (!tenant) notFound();
 
   const rows = getTenantDb(slug)
-    .prepare("SELECT id, email, first_name, last_name, role, active FROM users ORDER BY role DESC, first_name ASC")
-    .all() as { id: number; email: string; first_name: string; last_name: string; role: string; active: number }[];
+    .prepare("SELECT id, email, first_name, last_name, role, active, created_at FROM users ORDER BY role DESC, first_name ASC")
+    .all() as { id: number; email: string; first_name: string; last_name: string; role: string; active: number; created_at: string }[];
 
   const users = rows.map((r) => ({
     id: r.id,
@@ -32,6 +32,7 @@ export default async function TenantUsersPage({ params }: { params: Promise<{ sl
     lastName: r.last_name,
     role: r.role as "user" | "admin",
     active: r.active === 1,
+    joinedAt: r.created_at,
   }));
 
   return <TenantUsersRescue tenantName={tenant.display_name} tenantSlug={slug} users={users} />;

@@ -11,6 +11,8 @@ interface TenantRow {
   join_code: string;
   active: number;
   created_at: string;
+  city: string;
+  plan: string;
 }
 
 function getTenantUserCount(slug: string): number {
@@ -25,7 +27,7 @@ function getTenantUserCount(slug: string): number {
 
 export default function NajemniciPage() {
   const rows = getGlobalDb()
-    .prepare("SELECT id, slug, display_name, join_code, active, created_at FROM tenants ORDER BY created_at DESC")
+    .prepare("SELECT id, slug, display_name, join_code, active, created_at, city, plan FROM tenants ORDER BY created_at DESC")
     .all() as TenantRow[];
 
   const tenants = rows.map((t) => ({
@@ -36,6 +38,8 @@ export default function NajemniciPage() {
     active: t.active === 1,
     createdAt: t.created_at,
     userCount: getTenantUserCount(t.slug),
+    city: t.city ?? "",
+    plan: t.plan ?? "standard",
   }));
 
   return <TenantManager tenants={tenants} />;

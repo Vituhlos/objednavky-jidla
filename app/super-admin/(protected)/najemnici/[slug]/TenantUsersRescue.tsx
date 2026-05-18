@@ -13,6 +13,12 @@ interface UserRow {
   lastName: string;
   role: "user" | "admin";
   active: boolean;
+  joinedAt: string;
+}
+
+function czechDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
 }
 
 function initials(u: UserRow): string {
@@ -80,6 +86,16 @@ export default function TenantUsersRescue({
             </p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/t/${tenantSlug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <MIcon name="open_in_new" size={14} /> Otevřít kantýnu
+          </a>
+        </div>
       </div>
 
       {/* No-admin warning */}
@@ -123,6 +139,7 @@ export default function TenantUsersRescue({
               <th style={{ width: "34%" }}>Uživatel</th>
               <th>E-mail</th>
               <th>Role</th>
+              <th>Připojen</th>
               <th style={{ textAlign: "right" }}>Akce</th>
             </tr>
           </thead>
@@ -175,6 +192,9 @@ export default function TenantUsersRescue({
                       </span>
                     )}
                   </td>
+                  <td className="py-3.5">
+                    <span className="text-[12.5px] text-slate-700 tabular-nums">{czechDate(user.joinedAt)}</span>
+                  </td>
                   <td className="py-3.5" style={{ textAlign: "right" }}>
                     {user.active && (
                       isAdmin ? (
@@ -205,13 +225,23 @@ export default function TenantUsersRescue({
             })}
             {users.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-8 text-center text-[13px] text-slate-400">
+                <td colSpan={5} className="py-8 text-center text-[13px] text-slate-400">
                   Kantýna nemá žádné uživatele.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        <div
+          className="px-4 py-2.5 border-t border-white/50 flex items-center justify-between text-[11.5px] text-slate-500"
+          style={{ background: "rgba(255,255,255,0.25)" }}
+        >
+          <span>Celkem <strong className="text-slate-700">{users.length}</strong> uživatelů</span>
+          <span className="inline-flex items-center gap-1.5">
+            <MIcon name="info" size={13} className="text-slate-400" />
+            Akce v záchranném režimu se zapisují do audit logu.
+          </span>
+        </div>
       </div>
 
       {confirm && (

@@ -25,9 +25,12 @@ export async function saCreateTenant(formData: FormData): Promise<{ error?: stri
   const existing = getGlobalDb().prepare("SELECT id FROM tenants WHERE slug = ?").get(slug);
   if (existing) return { error: `Tenant se slugem "${slug}" již existuje.` };
 
+  const city = ((formData.get("city") as string | null) ?? "").trim();
+  const plan = ((formData.get("plan") as string | null) ?? "standard").trim() || "standard";
+
   getGlobalDb().prepare(
-    "INSERT INTO tenants (slug, display_name, join_code) VALUES (?, ?, ?)"
-  ).run(slug, displayName, joinCode);
+    "INSERT INTO tenants (slug, display_name, join_code, city, plan) VALUES (?, ?, ?, ?, ?)"
+  ).run(slug, displayName, joinCode, city, plan);
 
   // Initialize tenant DB (runs all migrations)
   getTenantDb(slug);

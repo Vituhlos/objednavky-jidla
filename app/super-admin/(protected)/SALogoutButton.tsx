@@ -19,9 +19,9 @@ export default function SALogoutButton() {
     <button
       onClick={handleLogout}
       disabled={loading}
-      style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "0.3rem 0.65rem", color: "#fff", cursor: "pointer", fontSize: 13 }}
+      className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-soft text-slate-600 hover:text-slate-900 transition-colors"
     >
-      <MIcon name="logout" size={16} />
+      <MIcon name="logout" size={14} />
       {loading ? "…" : "Odhlásit"}
     </button>
   );
