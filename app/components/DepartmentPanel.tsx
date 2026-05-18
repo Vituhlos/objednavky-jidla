@@ -291,10 +291,17 @@ function OrderEditModal({
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startY: number; currentY: number } | null>(null);
+  const touchDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
   const handleCancelRef = useRef(handleCancel);
   useEffect(() => { handleCancelRef.current = handleCancel; });
+
+  useEffect(() => {
+    return () => {
+      if (touchDismissTimer.current) clearTimeout(touchDismissTimer.current);
+    };
+  }, []);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const body = sheetRef.current?.querySelector(".modal-sheet__body") as HTMLElement | null;
@@ -318,7 +325,7 @@ function OrderEditModal({
     if (currentY > 80) {
       sheetRef.current.style.transition = "transform 0.25s ease-in";
       sheetRef.current.style.transform = "translateY(110%)";
-      setTimeout(() => handleCancelRef.current(), 220);
+      touchDismissTimer.current = setTimeout(() => handleCancelRef.current(), 220);
     } else {
       sheetRef.current.style.transition = "transform 0.3s cubic-bezier(.2,.8,.2,1)";
       sheetRef.current.style.transform = "";
@@ -720,14 +727,20 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
   const activeRows = data.rows.filter(hasOrderRowContent);
   const modalRow = modalState ? (data.rows.find((r) => r.id === modalState.rowId) ?? null) : null;
 
+  const currentDeptNameRef = useRef(data.name);
+  useEffect(() => { currentDeptNameRef.current = data.name; }, [data.name]);
+
   const handleAddAndOpen = async () => {
     if (isAdding) return;
     setIsAdding(true);
     setAddError(null);
+    const deptAtStart = data.name;
     try {
       const rowId = await onAddRow(data.name);
+      if (currentDeptNameRef.current !== deptAtStart) return;
       setModalState({ rowId, isNew: true });
     } catch {
+      if (currentDeptNameRef.current !== deptAtStart) return;
       setAddError("Nepodařilo se přidat řádek.");
     } finally {
       setIsAdding(false);

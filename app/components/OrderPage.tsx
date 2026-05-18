@@ -211,6 +211,7 @@ export default function OrderPage({
 
   const [orderStatus, setOrderStatus] = useState(initialData.order.status);
   const orderId = initialData.order.id;
+  const orderIdRef = useRef(orderId);
   const [sentAt, setSentAt] = useState(initialData.order.sentAt);
   const [isPending, startTransition] = useTransition();
   const [sendError, setSendError] = useState<string | null>(null);
@@ -229,6 +230,7 @@ export default function OrderPage({
   const prevOrderIdRef = useRef(initialData.order.id);
   if (prevOrderIdRef.current !== initialData.order.id) {
     prevOrderIdRef.current = initialData.order.id;
+    orderIdRef.current = initialData.order.id;
     setDepartments(initialData.departments);
     departmentsRef.current = initialData.departments;
     setOrderStatus(initialData.order.status);
@@ -513,11 +515,11 @@ export default function OrderPage({
           setDepartments((prev) => patchRow(prev, rowId, updated));
         } catch {
           setSendError("Nepodařilo se uložit změny. Zkuste to znovu.");
-          router.refresh();
+          doRefresh();
         }
       });
     },
-    [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, router]
+    [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, doRefresh]
   );
 
   const handleReopen = useCallback(() => {
@@ -578,15 +580,18 @@ export default function OrderPage({
   const handleSend = () => {
     if (isSent) return;
     setSendError(null);
+    const sentForOrderId = orderId;
     startTransition(async () => {
       try {
         await actionSendOrder(orderId);
+        if (orderIdRef.current !== sentForOrderId) return;
         setOrderStatus("sent");
         setSentAt(new Date().toISOString());
         setJustSent(true);
         if (justSentTimer.current) clearTimeout(justSentTimer.current);
         justSentTimer.current = setTimeout(() => setJustSent(false), 2800);
       } catch (error) {
+        if (orderIdRef.current !== sentForOrderId) return;
         setSendError(
           error instanceof Error ? error.message : "Odeslání se nezdařilo. Zkuste to znovu."
         );
@@ -653,7 +658,14 @@ export default function OrderPage({
   useEffect(() => {
     return () => {
       if (justSentTimer.current) clearTimeout(justSentTimer.current);
-      if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
+      if (pendingDeleteTimer.current) {
+        clearTimeout(pendingDeleteTimer.current);
+        pendingDeleteTimer.current = null;
+        if (pendingDeleteRef.current) {
+          actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
+          pendingDeleteRef.current = null;
+        }
+      }
     };
   }, []);
 
