@@ -235,12 +235,12 @@ const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat polévku"
-                          className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
                           style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        ><MIcon name="add" size={18} /></button>
+                        ><MIcon name="add" size={13} />Přidat</button>
                       )}
                     </div>
                     {displaySoups.map((item) => (
@@ -258,12 +258,12 @@ const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat jídlo"
-                          className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
+                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
                           style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        ><MIcon name="add" size={18} /></button>
+                        ><MIcon name="add" size={13} />Přidat</button>
                       )}
                     </div>
                     {displayMeals.map((item) => (
