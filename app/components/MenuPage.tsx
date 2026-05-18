@@ -22,6 +22,14 @@ const DAY_LABELS: Record<string, string> = {
   Po: "Pondělí", Út: "Úterý", St: "Středa", Čt: "Čtvrtek", Pá: "Pátek",
 };
 
+function formatWeekRange(weekStart: string): string {
+  const [year, month, day] = weekStart.split("-").map(Number);
+  const monday = new Date(year, month - 1, day);
+  const friday = new Date(year, month - 1, day + 4);
+  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+  return `${fmt(monday)} – ${fmt(friday)}`;
+}
+
 const AutoTextarea = memo(function AutoTextarea({ defaultValue, disabled, onCommit, placeholder, title }: {
   defaultValue: string; disabled: boolean; placeholder?: string; title?: string;
   onCommit: (value: string) => void;
@@ -170,58 +178,54 @@ const MatrixCell = memo(function MatrixCell({
 }) {
   if (editMode) {
     return (
-      <div className="space-y-1 py-0.5">
+      <div className="space-y-1.5 py-0.5">
         <div className="flex items-start gap-1">
           <input
-            className="flex-1 min-w-0 bg-white/50 border border-white/60 rounded-lg py-1 px-2 text-[12px] text-stone-800 outline-none focus:border-amber-400/60"
+            className="flex-1 min-w-0 bg-white/70 border border-stone-200 rounded-lg py-1.5 px-2.5 text-[13px] text-stone-800 outline-none focus:border-amber-400"
             defaultValue={item.name}
             disabled={disabled}
             onBlur={(e) => { if (e.target.value !== item.name) onUpdate(item.id, { name: e.target.value }); }}
             placeholder="Název"
           />
           <button
-            className="shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
+            className="shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 transition mt-0.5"
             disabled={disabled}
             onClick={() => onDelete(item.id)}
             type="button"
           >
-            <MIcon name="close" size={11} />
+            <MIcon name="delete" size={13} />
           </button>
         </div>
         <div className="flex items-center gap-1.5">
           <input
-            className="w-9 bg-white/50 border border-white/60 rounded-lg py-0.5 px-1 text-[10px] font-mono text-stone-600 text-center outline-none focus:border-amber-400/60"
+            className="w-10 bg-white/70 border border-stone-200 rounded-lg py-1 px-1.5 text-[10px] font-mono text-stone-500 text-center outline-none focus:border-amber-400"
             defaultValue={item.code}
             disabled={disabled}
             onBlur={(e) => { if (e.target.value !== item.code) onUpdate(item.id, { code: e.target.value }); }}
             title="Kód"
           />
           <input
-            className="flex-1 min-w-0 bg-white/50 border border-white/60 rounded-lg py-0.5 px-1.5 text-[10px] text-stone-500 outline-none focus:border-amber-400/60"
+            className="flex-1 min-w-0 bg-white/70 border border-stone-200 rounded-lg py-1 px-2 text-[10px] text-stone-500 outline-none focus:border-amber-400"
             defaultValue={item.allergens}
             disabled={disabled}
             onBlur={(e) => { if (e.target.value !== item.allergens) onUpdate(item.id, { allergens: e.target.value }); }}
-            placeholder="Alergeny…"
+            placeholder="Alergeny 1,3,7…"
           />
-          <span className="shrink-0 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full text-amber-700 whitespace-nowrap"
-            style={{ background: "rgba(245,158,11,0.12)" }}>
-            {displayPrice} Kč
-          </span>
         </div>
+        <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full text-amber-700"
+          style={{ background: "rgba(245,158,11,0.13)" }}>
+          {displayPrice}Kč
+        </span>
       </div>
     );
   }
   return (
     <div className="py-0.5">
-      <div className="flex items-start justify-between gap-1.5">
-        <div className="flex-1 min-w-0">
-          <div className="text-[12.5px] text-stone-800 leading-snug font-medium">{item.name}</div>
-          {item.allergens && <AllergenBadges allergens={item.allergens} />}
-          <div className="font-mono text-[9.5px] text-stone-400 mt-0.5">{item.code}</div>
-        </div>
-        <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full text-amber-700 mt-0.5 whitespace-nowrap"
-          style={{ background: "rgba(245,158,11,0.12)" }}>
-          {displayPrice} Kč
+      <div className="text-[13px] text-stone-800 leading-snug">{item.name}</div>
+      <div className="mt-1.5">
+        <span className="inline-block text-[11.5px] font-semibold px-2 py-0.5 rounded-full text-amber-700"
+          style={{ background: "rgba(245,158,11,0.13)" }}>
+          {displayPrice}Kč
         </span>
       </div>
     </div>
@@ -280,27 +284,26 @@ const MatrixTable = memo(function MatrixTable({
     );
   }
 
-  const FIRST_COL_W = 156;
-  const DAY_COL_W = 188;
-  const cellBorder = "1px solid rgba(255,255,255,0.45)";
-  const sepBorder = "2px solid rgba(245,158,11,0.16)";
+  const FIRST_COL_W = 148;
+  const DAY_COL_W = 196;
+  const cellBorder = "1px solid #f0ece6";
+  const sepBorder = "2px solid rgba(245,158,11,0.15)";
+  const todayBg = "rgba(254,243,199,0.55)";
 
   const stickyFirstBase: React.CSSProperties = {
     position: "sticky",
     left: 0,
-    background: "rgba(248,246,242,0.88)",
-    backdropFilter: "blur(12px)",
-    borderRight: cellBorder,
+    background: "#faf8f5",
+    borderRight: "1px solid #ede9e2",
     zIndex: 10,
   };
 
   return (
     <div style={{
-      borderRadius: 24,
-      background: "rgba(255,255,255,0.45)",
-      backdropFilter: "blur(20px) saturate(180%)",
-      border: "1px solid rgba(255,255,255,0.6)",
-      boxShadow: "0 4px 24px -8px rgba(0,0,0,0.07)",
+      borderRadius: 16,
+      background: "#fff",
+      border: "1px solid #ede9e2",
+      boxShadow: "0 2px 16px -4px rgba(0,0,0,0.08)",
       overflow: "clip",
     }}>
       <div style={{ overflowX: "auto" }}>
@@ -323,11 +326,12 @@ const MatrixTable = memo(function MatrixTable({
                 ...stickyFirstBase,
                 zIndex: 30,
                 top: 0,
-                padding: "10px 14px",
-                borderBottom: cellBorder,
+                padding: "12px 16px",
+                borderBottom: "1px solid #ede9e2",
                 textAlign: "left",
+                background: "#faf8f5",
               }}>
-                <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-400">Položka</span>
+                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e" }}>Položka</span>
               </th>
               {DAY_ORDER.map((day) => {
                 const isToday = day === todayCode;
@@ -338,37 +342,30 @@ const MatrixTable = memo(function MatrixTable({
                     position: "sticky",
                     top: 0,
                     zIndex: 20,
-                    padding: "10px 14px",
-                    background: isToday ? "rgba(245,158,11,0.10)" : "rgba(255,255,255,0.60)",
-                    backdropFilter: "blur(12px)",
-                    borderBottom: cellBorder,
-                    borderLeft: cellBorder,
+                    padding: "12px 16px",
+                    background: isToday ? todayBg : "#fff",
+                    borderBottom: "1px solid #ede9e2",
+                    borderLeft: "1px solid #ede9e2",
                     textAlign: "left",
                   }}>
-                    <div className="flex items-start justify-between gap-1">
-                      <div>
-                        <div className={`font-display font-bold text-[20px] leading-none ${isToday ? "text-amber-600" : "text-stone-900"}`}>
-                          {dayDates[day]}
-                        </div>
-                        <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-amber-500" : "text-stone-500"}`}>
-                          {DAY_LABELS[day]}
-                        </div>
-                      </div>
-                      {isToday && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0 mt-0.5"
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
-                          Dnes
-                        </span>
-                      )}
+                    <div style={{
+                      fontFamily: "var(--font-display, sans-serif)",
+                      fontSize: 14,
+                      fontWeight: isToday ? 700 : 500,
+                      color: isToday ? "#d97706" : "#44403c",
+                    }}>
+                      {DAY_LABELS[day]}
                     </div>
                     {isClosed && (
-                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9.5px] font-semibold text-stone-400 px-1.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(26,18,8,0.06)" }}>
+                      <div style={{ marginTop: 4 }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, color: "#a8a29e",
+                          background: "#f5f5f4", borderRadius: 99, padding: "1px 6px",
+                        }}>
                           {holidayName ?? "Zavřeno"}
                         </span>
                         {editMode && !holidayName && (
-                          <button className="text-[9px] font-semibold text-stone-400 hover:text-stone-600 transition"
+                          <button style={{ fontSize: 10, color: "#78716c", marginLeft: 4, fontWeight: 600 }}
                             disabled={disabled} onClick={() => onOpenDay(day)} type="button">
                             Otevřít
                           </button>
@@ -376,13 +373,9 @@ const MatrixTable = memo(function MatrixTable({
                       </div>
                     )}
                     {editMode && !isClosed && (
-                      <button
-                        className="mt-1.5 text-[9px] font-semibold text-red-400 hover:text-red-600 transition block"
-                        disabled={disabled}
-                        onClick={() => onCloseDay(day)}
-                        type="button"
-                      >
-                        Uzavřít den
+                      <button style={{ fontSize: 10, color: "#f87171", fontWeight: 600, marginTop: 4, display: "block" }}
+                        disabled={disabled} onClick={() => onCloseDay(day)} type="button">
+                        Uzavřít
                       </button>
                     )}
                   </th>
@@ -394,21 +387,22 @@ const MatrixTable = memo(function MatrixTable({
           <tbody>
             {/* Soup rows */}
             {Array.from({ length: soupCount }, (_, i) => (
-              <tr key={`soup-${i}`} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.16)" }}>
+              <tr key={`soup-${i}`}>
                 <td style={{
                   ...stickyFirstBase,
-                  padding: "10px 14px",
+                  padding: "12px 16px",
                   borderBottom: i === soupCount - 1 ? sepBorder : cellBorder,
+                  verticalAlign: "middle",
                 }}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg inline-flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(59,130,246,0.12)" }}>
-                      <MIcon name="soup_kitchen" size={13} fill style={{ color: "#2563eb" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "rgba(59,130,246,0.10)",
+                    }}>
+                      <MIcon name="soup_kitchen" size={15} fill style={{ color: "#3b82f6" }} />
                     </div>
-                    <div>
-                      <div className="font-display font-semibold text-[12px] text-stone-700 leading-tight">Polévka {i + 1}</div>
-                      <div className="font-mono text-[9px] text-stone-400">P{i + 1}</div>
-                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#292524" }}>Polévka {i + 1}</span>
                   </div>
                 </td>
                 {DAY_ORDER.map((day) => {
@@ -417,29 +411,31 @@ const MatrixTable = memo(function MatrixTable({
                   const isToday = day === todayCode;
                   return (
                     <td key={day} style={{
-                      padding: "8px 12px",
+                      padding: "12px 16px",
                       borderBottom: i === soupCount - 1 ? sepBorder : cellBorder,
                       borderLeft: cellBorder,
-                      background: isToday ? "rgba(245,158,11,0.04)" : undefined,
+                      background: isToday ? todayBg : undefined,
                       verticalAlign: "top",
                     }}>
                       {isClosed ? (
-                        <span className="text-[11px] text-stone-300">—</span>
+                        <span style={{ color: "#d4d0cc", fontSize: 12 }}>—</span>
                       ) : item ? (
                         <MatrixCell item={item} displayPrice={soupPrice} editMode={editMode}
                           disabled={disabled} onDelete={onDelete} onUpdate={onUpdate} />
                       ) : editMode ? (
                         <button
-                          className="w-full text-[11px] font-semibold text-stone-300 rounded-xl py-2 px-2 hover:border-amber-300 hover:text-amber-600 transition border-2 border-dashed border-stone-200/70"
+                          style={{
+                            width: "100%", fontSize: 12, fontWeight: 600, color: "#c4b9ac",
+                            border: "1.5px dashed #d8cfc5", borderRadius: 10,
+                            padding: "8px 0", background: "transparent", cursor: "pointer",
+                          }}
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka")}
                           type="button"
                         >
                           + Přidat
                         </button>
-                      ) : (
-                        <span className="text-[11px] text-stone-200">—</span>
-                      )}
+                      ) : null}
                     </td>
                   );
                 })}
@@ -448,21 +444,22 @@ const MatrixTable = memo(function MatrixTable({
 
             {/* Meal rows */}
             {Array.from({ length: mealCount }, (_, i) => (
-              <tr key={`meal-${i}`} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.16)" }}>
+              <tr key={`meal-${i}`}>
                 <td style={{
                   ...stickyFirstBase,
-                  padding: "10px 14px",
+                  padding: "12px 16px",
                   borderBottom: i < mealCount - 1 ? cellBorder : undefined,
+                  verticalAlign: "middle",
                 }}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg inline-flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(234,88,12,0.10)" }}>
-                      <MIcon name="restaurant" size={13} fill style={{ color: "#EA580C" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "rgba(234,88,12,0.10)",
+                    }}>
+                      <MIcon name="restaurant" size={15} fill style={{ color: "#ea580c" }} />
                     </div>
-                    <div>
-                      <div className="font-display font-semibold text-[12px] text-stone-700 leading-tight">Jídlo {i + 1}</div>
-                      <div className="font-mono text-[9px] text-stone-400">J{i + 1}</div>
-                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#292524" }}>Jídlo {i + 1}</span>
                   </div>
                 </td>
                 {DAY_ORDER.map((day) => {
@@ -471,29 +468,31 @@ const MatrixTable = memo(function MatrixTable({
                   const isToday = day === todayCode;
                   return (
                     <td key={day} style={{
-                      padding: "8px 12px",
+                      padding: "12px 16px",
                       borderBottom: i < mealCount - 1 ? cellBorder : undefined,
                       borderLeft: cellBorder,
-                      background: isToday ? "rgba(245,158,11,0.04)" : undefined,
+                      background: isToday ? todayBg : undefined,
                       verticalAlign: "top",
                     }}>
                       {isClosed ? (
-                        <span className="text-[11px] text-stone-300">—</span>
+                        <span style={{ color: "#d4d0cc", fontSize: 12 }}>—</span>
                       ) : item ? (
                         <MatrixCell item={item} displayPrice={mealPrice} editMode={editMode}
                           disabled={disabled} onDelete={onDelete} onUpdate={onUpdate} />
                       ) : editMode ? (
                         <button
-                          className="w-full text-[11px] font-semibold text-stone-300 rounded-xl py-2 px-2 hover:border-amber-300 hover:text-amber-600 transition border-2 border-dashed border-stone-200/70"
+                          style={{
+                            width: "100%", fontSize: 12, fontWeight: 600, color: "#c4b9ac",
+                            border: "1.5px dashed #d8cfc5", borderRadius: 10,
+                            padding: "8px 0", background: "transparent", cursor: "pointer",
+                          }}
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo")}
                           type="button"
                         >
                           + Přidat
                         </button>
-                      ) : (
-                        <span className="text-[11px] text-stone-200">—</span>
-                      )}
+                      ) : null}
                     </td>
                   );
                 })}
@@ -854,27 +853,34 @@ export default function MenuPage({
         </div>
       </div>
 
-      {/* Week tabs */}
-      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">
-        <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
-          {(["current", "next"] as const).map((week) => {
-            const active = activeWeek === week;
-            const label = week === "current" ? "Aktuální týden" : "Příští týden";
-            return (
-              <button
-                key={week}
-                className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-[0.97] ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
-                onClick={() => handleWeekSwitch(week)}
-                style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
-                type="button"
-              >
-                {label}
-              </button>
-            );
-          })}
+      {/* Week picker pill */}
+      <div className="flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
+        <div className="flex items-center gap-0 rounded-2xl overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.7)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
+          <button
+            className="px-3 py-2 text-stone-500 hover:text-stone-800 hover:bg-white/80 transition disabled:opacity-30"
+            disabled={activeWeek === "current"}
+            onClick={() => handleWeekSwitch("current")}
+            type="button"
+            style={{ fontSize: 15, lineHeight: 1 }}
+          >
+            ‹
+          </button>
+          <span className="px-2 py-2 text-[13px] font-semibold text-stone-700 select-none whitespace-nowrap">
+            Týden {formatWeekRange(activeWeekStart)}
+          </span>
+          <button
+            className="px-3 py-2 text-stone-500 hover:text-stone-800 hover:bg-white/80 transition disabled:opacity-30"
+            disabled={activeWeek === "next" || !hasNextWeek}
+            onClick={() => handleWeekSwitch("next")}
+            type="button"
+            style={{ fontSize: 15, lineHeight: 1 }}
+          >
+            ›
+          </button>
         </div>
         {hasPdfActive && (
-          <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
+          <a className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
             download href={`/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
