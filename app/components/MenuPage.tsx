@@ -159,10 +159,10 @@ const WeekGrid = memo(function WeekGrid({
         return (
           <div
             key={day}
-            className="glass rounded-3xl overflow-hidden"
+            className="glass-card rounded-3xl overflow-hidden"
             style={isToday ? {
               borderColor: "rgba(245,158,11,0.38)",
-              boxShadow: "0 8px 32px -8px rgba(245,158,11,0.22), inset 0 0 0 0px transparent",
+              boxShadow: "0 8px 32px -8px rgba(245,158,11,0.22)",
             } : {}}
           >
             {/* Day header */}
@@ -493,7 +493,7 @@ const MenuSection = memo(function MenuSection({
   onEdit?: (item: MenuItem) => void;
 }) {
   return (
-    <div className="glass rounded-3xl overflow-hidden">
+    <div className="glass-card rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: accent }}>
         <MIcon name={icon} size={17} fill style={{ color: iconColor }} />
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
@@ -878,7 +878,7 @@ export default function MenuPage({
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
           {isDayClosed ? (
-            <div className="glass rounded-3xl overflow-hidden">
+            <div className="glass-card rounded-3xl overflow-hidden">
               <div
                 className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40"
                 style={{ background: "rgba(245,158,11,0.08)" }}
