@@ -238,9 +238,9 @@ const WeekGrid = memo(function WeekGrid({
                           className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 14 }}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        >+</button>
+                        ><MIcon name="add" size={18} /></button>
                       )}
                     </div>
                     {displaySoups.map((item) => (
@@ -261,9 +261,9 @@ const WeekGrid = memo(function WeekGrid({
                           className="ml-auto w-8 h-8 rounded-full inline-flex items-center justify-center text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", fontSize: 14 }}
+                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        >+</button>
+                        ><MIcon name="add" size={18} /></button>
                       )}
                     </div>
                     {displayMeals.map((item) => (
@@ -453,7 +453,7 @@ const WeekItem = memo(function WeekItem({
       {editMode ? (
         <button
           aria-label="Upravit"
-          className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0 mt-[1px]"
+          className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-stone-500 bg-stone-100/70 hover:text-amber-600 hover:bg-amber-50 transition shrink-0 mt-[1px]"
           disabled={disabled}
           onClick={() => onEdit(item)}
           type="button"
