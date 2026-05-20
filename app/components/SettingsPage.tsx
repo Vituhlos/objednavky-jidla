@@ -515,6 +515,7 @@ export default function SettingsPage({
       telegramBotToken: fd.get("telegramBotToken") as string,
       telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
       telegramAppUrl: fd.get("telegramAppUrl") as string,
+      prodUrl: fd.get("prodUrl") as string,
     };
     setSaveStatus("idle");
     startTransition(async () => {
@@ -1201,6 +1202,15 @@ export default function SettingsPage({
               </div>
 
             </form>
+
+              {/* Systém tab — prodUrl */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
+                <Section icon="science" title="Vývojová verze">
+                  <Field hint="Pokud je vyplněno, zobrazí se na objednávkové stránce upozornění s odkazem na produkci. Nechte prázdné pro vypnutí banneru." label="URL produkční verze">
+                    <input className="modal-input w-full max-w-sm" defaultValue={settings.prodUrl} name="prodUrl" placeholder="https://jidlo.pbas.cz" type="url" />
+                  </Field>
+                </Section>
+              </div>
 
             {/* ── Systém — non-form sections ── */}
             {activeTab === "system" && (

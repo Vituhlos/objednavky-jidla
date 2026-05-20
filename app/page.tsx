@@ -61,7 +61,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       autoSendTime={s.autoSendTime}
       autoSendError={s.autoSendLastError && s.autoSendErrorAcked !== "true" ? s.autoSendLastError : undefined}
       autoSendErrorTs={s.autoSendLastErrorTs || undefined}
-      prodUrl={process.env.NEXT_PUBLIC_PROD_URL || undefined}
+      prodUrl={s.prodUrl || undefined}
     />
   );
 }

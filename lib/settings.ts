@@ -51,6 +51,7 @@ export interface AppSettings {
   autoSendLastError: string;
   autoSendLastErrorTs: string;
   autoSendErrorAcked: string;
+  prodUrl: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -97,6 +98,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   autoSendLastError: "auto_send_last_error",
   autoSendLastErrorTs: "auto_send_last_error_ts",
   autoSendErrorAcked: "auto_send_error_acked",
+  prodUrl: "prod_url",
 };
 
 function envDefaults(): AppSettings {
@@ -145,6 +147,7 @@ function envDefaults(): AppSettings {
     autoSendLastError: "",
     autoSendLastErrorTs: "",
     autoSendErrorAcked: "true",
+    prodUrl: "",
   };
 }
 
