@@ -319,6 +319,14 @@ const BUTTON_MAP: Record<string, string> = {
 
 // ─── Telegram API helpers ─────────────────────────────────────────────────────
 
+async function sendTyping(token: string, chatId: string): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, action: "typing" }),
+  }).catch(() => {});
+}
+
 async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
   await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
     method: "POST",
@@ -422,12 +430,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Quick-command buttons
-    if (data === "cmd:stav") await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
-    if (data === "cmd:souhrn") await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
-    if (data === "cmd:menu") await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
-    if (data === "cmd:zitra") await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
-    if (data === "cmd:tyden") await sendTelegramToChat(chatId, formatTyden());
-    if (data === "cmd:pizza") await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
+    if (data === "cmd:stav") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard()); }
+    if (data === "cmd:souhrn") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard()); }
+    if (data === "cmd:menu") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard()); }
+    if (data === "cmd:zitra") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard()); }
+    if (data === "cmd:tyden") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, formatTyden()); }
+    if (data === "cmd:pizza") { await sendTyping(s.telegramBotToken, chatId); await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard()); }
     if (data === "cmd:nastaveni") await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
 
     // Admin inline actions
@@ -438,6 +446,7 @@ export async function POST(req: NextRequest) {
           await sendTelegramToChat(chatId, "⚠️ Objednávka je již odeslána.");
         } else {
           try {
+            await sendTyping(s.telegramBotToken, chatId);
             await sendOrder(orderData.order.id, "manual");
             broadcast();
             await sendTelegramMessage("✅ Objednávka byla odeslána přes Telegram.");
@@ -516,8 +525,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (effectiveCmd === "/stav") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
   } else if (effectiveCmd === "/souhrn") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
   } else if (effectiveCmd === "/menu" || effectiveCmd.startsWith("/menu ")) {
     const dayArg = effectiveCmd.startsWith("/menu ") ? effectiveCmd.slice(6).trim() : "";
@@ -533,12 +544,16 @@ export async function POST(req: NextRequest) {
       await sendTelegramToChat(chatId, formatMenu(), buildMenuKeyboard());
     }
   } else if (effectiveCmd === "/tyden") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatTyden());
   } else if (effectiveCmd === "/pizza") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
   } else if (effectiveCmd === "/zitra") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
   } else if (effectiveCmd === "/statistiky") {
+    await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatStatistiky());
   } else if (effectiveCmd === "/nastaveni" || effectiveCmd === "/upozorneni") {
     await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
@@ -638,6 +653,7 @@ export async function POST(req: NextRequest) {
     if (!isTelegramAdmin(chatId)) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
+      await sendTyping(s.telegramBotToken, chatId);
       await sendTelegramToChat(chatId, formatChybi());
     }
   } else if (effectiveCmd === "/pomoc" || effectiveCmd === "/help") {
