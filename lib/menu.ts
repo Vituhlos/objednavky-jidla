@@ -69,12 +69,26 @@ function mapRow(row: Record<string, unknown>): MenuItem {
   };
 }
 
+// Synthetic "Zavřeno" marker returned for manually-closed days
+function zavrenoItem(day: string): MenuItem {
+  return { id: 0, weekLabel: null, day, type: "Jídlo", code: "0", name: "Zavřeno", price: 0, allergens: "" };
+}
+
+function getClosedDays(db: ReturnType<typeof getDb>, weekStart: string): Set<string> {
+  const rows = db.prepare("SELECT day FROM menu_day_closed WHERE week_start = ?").all(weekStart) as { day: string }[];
+  return new Set(rows.map((r) => r.day));
+}
+
 export function getMenuItemsForDay(day: string, weekStart?: string): {
   soups: MenuItem[];
   meals: MenuItem[];
 } {
   const db = getDb();
   const ws = weekStart ?? getMondayISO();
+  const isManuallyClosed = db.prepare(
+    "SELECT 1 FROM menu_day_closed WHERE week_start = ? AND day = ?"
+  ).get(ws, day);
+  if (isManuallyClosed) return { soups: [], meals: [zavrenoItem(day)] };
   const items = db
     .prepare(
       "SELECT * FROM menu_items WHERE day = ? AND (week_start = ? OR week_start IS NULL) ORDER BY type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
@@ -133,6 +147,7 @@ export function getFullMenu(weekStart?: string): Record<
 > {
   const db = getDb();
   const ws = weekStart ?? getMondayISO();
+  const closedDays = getClosedDays(db, ws);
   const all = db
     .prepare(
       "SELECT * FROM menu_items WHERE week_start = ? OR week_start IS NULL ORDER BY day, type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"
@@ -141,9 +156,14 @@ export function getFullMenu(weekStart?: string): Record<
   const result: Record<string, { soups: MenuItem[]; meals: MenuItem[] }> = {};
   for (const raw of all) {
     const item = mapRow(raw);
+    if (closedDays.has(item.day)) continue; // hidden while day is manually closed
     if (!result[item.day]) result[item.day] = { soups: [], meals: [] };
     if (item.type === "Polévka") result[item.day].soups.push(item);
     else result[item.day].meals.push(item);
+  }
+  // Inject synthetic "Zavřeno" marker for manually-closed days
+  for (const day of closedDays) {
+    result[day] = { soups: [], meals: [zavrenoItem(day)] };
   }
   return result;
 }
@@ -336,15 +356,16 @@ export function deleteMenuItem(id: number): void {
 }
 
 export function closeDay(dayCode: string, weekStart: string): void {
-  const db = getDb();
-  db.transaction(() => {
-    db.prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ?").run(dayCode, weekStart);
-    db.prepare("INSERT INTO menu_items (week_start, day, type, code, name, price) VALUES (?, ?, 'Jídlo', '0', 'Zavřeno', 0)").run(weekStart, dayCode);
-  })();
+  getDb().prepare(
+    "INSERT OR REPLACE INTO menu_day_closed (week_start, day) VALUES (?, ?)"
+  ).run(weekStart, dayCode);
 }
 
 export function openDay(dayCode: string, weekStart: string): void {
-  getDb().prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ? AND name = 'Zavřeno'").run(dayCode, weekStart);
+  const db = getDb();
+  db.prepare("DELETE FROM menu_day_closed WHERE week_start = ? AND day = ?").run(weekStart, dayCode);
+  // Clean up old-style "Zavřeno" sentinels from the previous closeDay implementation
+  db.prepare("DELETE FROM menu_items WHERE day = ? AND week_start = ? AND name = 'Zavřeno'").run(dayCode, weekStart);
 }
 
 // Keep replaceMenu for backward compatibility (replaces current week)

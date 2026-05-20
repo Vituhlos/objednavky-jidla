@@ -113,6 +113,14 @@ export async function actionSendOrder(orderId: number): Promise<void> {
   await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
+  try {
+    const { sendTelegramToSubscribers } = await import("@/lib/telegram");
+    const { getTodayOrderData } = await import("@/lib/orders");
+    const data = getTodayOrderData();
+    const totalPeople = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
+    const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`);
+  } catch {}
 }
 
 export async function actionConfirmMenuImport(

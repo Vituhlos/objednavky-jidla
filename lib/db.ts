@@ -205,10 +205,20 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_morning_menu INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_order_sent INTEGER NOT NULL DEFAULT 1"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1"); } catch {}
+  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_reminder_time TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_morning_menu_time TEXT DEFAULT NULL"); } catch {}
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
-  // Indexes for frequently queried columns (idempotent)
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS menu_day_closed (
+      week_start TEXT NOT NULL,
+      day        TEXT NOT NULL,
+      PRIMARY KEY (week_start, day)
+    )
+  `).run();
+
+  // Performance indexes (idempotent)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);
     CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date);

@@ -10,7 +10,7 @@ import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
-import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification } from "./telegram";
+import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
 import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -71,7 +71,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
     saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
-    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek · ${data.totalPrice} Kč`);
+    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek  ·  💰 ${data.totalPrice} Kč`);
   } catch (err) {
     console.error("[scheduler] Auto-send selhal:", err);
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -147,6 +147,11 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
     return;
   }
 
+  // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
+  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
+
+  await sendTelegramToAdmins(`⚠️ <b>Chybí jídelníček</b>\n<b>${dayCode}</b> · Uzávěrka je v <b>${s.cutoffTime}</b>\n\nPřidejte jídla v aplikaci nebo importujte PDF.`);
+
   await sendEmail({
     to: recipients,
     subject: "Chybí jídelníček LIMA",
@@ -155,7 +160,6 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
 <p>Přejděte do aplikace a importujte PDF nebo přidejte položky ručně.</p>`,
     text: `Jídelníček LIMA pro dnešní den (${dayCode}) není naplněný. Uzávěrka je v ${s.cutoffTime}. Přejděte do aplikace a importujte jídelníček.`,
   });
-  logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
   console.log(`[scheduler] Upozornění na chybějící jídelníček odesláno (${dayCode}).`);
 }
 
@@ -255,8 +259,11 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
       lines.push("<b>Jídla</b>");
       menu.meals.forEach((item) => lines.push(`  • ${item.name}`));
     }
+
     text = lines.join("\n");
   }
+
+  text += `\n\n⏰ Uzávěrka je v <b>${s.cutoffTime}</b>`;
 
   await sendTelegramToSubscribers("notify_morning_menu", text);
 }
@@ -274,9 +281,79 @@ async function checkTelegramReminder(s: AppSettings, currentTime: string, jsDay:
   if (data.order.status === "sent") return;
   if (isTodayClosed(data)) return;
 
-  await sendTelegramReminderNotification(
-    `⏰ <b>Uzávěrka za ${minutes} minut</b>\nObjednávka za dnešek ještě není odeslaná — uzávěrka je v <b>${s.cutoffTime}</b>.`,
+  const db = getDb();
+  const now = getPragueNow();
+  const twoWeeksAgo = new Date(now);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const recentPeople = db.prepare(`
+    SELECT DISTINCT r.person_name FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE r.person_name != '' AND o.date >= ? AND o.id != ? AND o.status = 'sent'
+  `).all(twoWeeksAgo.toISOString().slice(0, 10), data.order.id) as { person_name: string }[];
+  const orderedToday = new Set(
+    data.departments.flatMap((d) => d.rows.filter((r) => r.personName).map((r) => r.personName))
   );
+  const missingCount = recentPeople.filter((r) => !orderedToday.has(r.person_name)).length;
+  const missingLine = missingCount > 0
+    ? `\n👥 Ještě neobjednali: <b>${missingCount} ${missingCount === 1 ? "osoba" : missingCount < 5 ? "osoby" : "osob"}</b>`
+    : "";
+
+  await sendTelegramReminderNotification(
+    `⏰ <b>Uzávěrka v ${s.cutoffTime}</b> — zbývá ${minutes} minut${missingLine}`,
+  );
+}
+
+async function checkPersonalMorningMenu(currentTime: string, jsDay: number): Promise<void> {
+  if (!JS_TO_DAY_CODE[jsDay]) return;
+  const subs = getPersonalMorningMenuSubscribers(currentTime);
+  if (subs.length === 0) return;
+
+  const s = getSettings();
+  const dayCode = JS_TO_DAY_CODE[jsDay];
+  const now = getPragueNow();
+  const dateStr = now.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+  const menu = getMenuItemsForDay(dayCode);
+
+  const lines = [`🍽 <b>Jídelníček ${dateStr}</b>`, ""];
+  if (menu.soups.length === 0 && menu.meals.length === 0) {
+    lines.push("Jídelníček zatím není k dispozici.");
+  } else {
+    if (menu.soups.length > 0) {
+      lines.push("<b>Polévky</b>");
+      menu.soups.forEach((item) => lines.push(`  • ${item.name}`));
+      lines.push("");
+    }
+    if (menu.meals.length > 0) {
+      lines.push("<b>Jídla</b>");
+      menu.meals.forEach((item) => lines.push(`  • ${item.name}`));
+    }
+  }
+  lines.push("", `⏰ Uzávěrka je v <b>${s.cutoffTime}</b>`);
+  const text = lines.join("\n");
+
+  for (const sub of subs) {
+    await sendTelegramToChat(sub.chatId, text);
+  }
+}
+
+async function checkPersonalReminders(currentTime: string, jsDay: number): Promise<void> {
+  if (!JS_TO_DAY_CODE[jsDay]) return;
+  const subs = getPersonalReminderSubscribers(currentTime);
+  if (subs.length === 0) return;
+  const data = getTodayOrderData();
+  if (data.order.status === "sent" || isTodayClosed(data)) return;
+  const s = getSettings();
+  const [h, m] = s.cutoffTime.split(":").map(Number);
+  const cutoffTotal = h * 60 + m;
+  const [ch, cm] = currentTime.split(":").map(Number);
+  const remaining = cutoffTotal - (ch * 60 + cm);
+  const remainingText = remaining > 0 ? ` — zbývá ${remaining} minut` : "";
+  for (const sub of subs) {
+    await sendTelegramToChat(
+      sub.chatId,
+      `⏰ <b>Připomenutí objednávky</b>\nUzávěrka v <b>${s.cutoffTime}</b>${remainingText}`,
+    );
+  }
 }
 
 export function startScheduler(): void {
@@ -293,6 +370,8 @@ export function startScheduler(): void {
       await checkPushReminder(s, currentTime, jsDay);
       await checkMorningMenu(s, currentTime, jsDay);
       await checkTelegramReminder(s, currentTime, jsDay);
+      await checkPersonalReminders(currentTime, jsDay);
+      await checkPersonalMorningMenu(currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }

@@ -27,8 +27,10 @@ export default async function JidelnicekPage() {
   const currentUser = await getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
   const settings = getSettings();
-  const soupPrice = Number(settings.defaultSoupPrice) || 30;
-  const mealPrice = Number(settings.defaultMealPrice) || 110;
+  const defaultSoupPrice = parseInt(settings.defaultSoupPrice) || 30;
+  const defaultMealPrice = parseInt(settings.defaultMealPrice) || 110;
+  const soupPrice = defaultSoupPrice;
+  const mealPrice = defaultMealPrice;
   const currentWeekStart = getMondayISO();
   const nextWeekStart = getNextMondayISO();
 
@@ -50,6 +52,8 @@ export default async function JidelnicekPage() {
       currentWeekLabel={currentWeekLabel}
       currentWeekStart={currentWeekStart}
       currentHolidayNames={currentHolidayNames}
+      defaultMealPrice={defaultMealPrice}
+      defaultSoupPrice={defaultSoupPrice}
       hasPdfCurrent={hasPdfCurrent}
       hasPdfNext={hasPdfNext}
       isAdmin={isAdmin}

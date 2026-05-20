@@ -11,6 +11,8 @@ export interface TelegramSubscription {
   notifyMorningMenu: boolean;
   notifyOrderSent: boolean;
   notifyMenuImported: boolean;
+  personalReminderTime: string | null;
+  personalMorningMenuTime: string | null;
   registeredAt: string;
 }
 
@@ -18,6 +20,8 @@ type DbRow = {
   id: number; chat_id: string; first_name: string; username: string;
   is_admin: number; notify_reminder: number;
   notify_morning_menu: number; notify_order_sent: number; notify_menu_imported: number;
+  personal_reminder_time: string | null;
+  personal_morning_menu_time: string | null;
   registered_at: string;
 };
 
@@ -35,8 +39,30 @@ export function getTelegramSubscriptions(): TelegramSubscription[] {
     notifyMorningMenu: r.notify_morning_menu === 1,
     notifyOrderSent: r.notify_order_sent === 1,
     notifyMenuImported: r.notify_menu_imported === 1,
+    personalReminderTime: r.personal_reminder_time ?? null,
+    personalMorningMenuTime: r.personal_morning_menu_time ?? null,
     registeredAt: r.registered_at,
   }));
+}
+
+export function setPersonalReminderTime(chatId: string, time: string | null): void {
+  getDb()
+    .prepare("UPDATE telegram_subscriptions SET personal_reminder_time = ? WHERE chat_id = ?")
+    .run(time, chatId);
+}
+
+export function getPersonalReminderSubscribers(time: string): TelegramSubscription[] {
+  return getTelegramSubscriptions().filter((s) => s.personalReminderTime === time);
+}
+
+export function setPersonalMorningMenuTime(chatId: string, time: string | null): void {
+  getDb()
+    .prepare("UPDATE telegram_subscriptions SET personal_morning_menu_time = ? WHERE chat_id = ?")
+    .run(time, chatId);
+}
+
+export function getPersonalMorningMenuSubscribers(time: string): TelegramSubscription[] {
+  return getTelegramSubscriptions().filter((s) => s.personalMorningMenuTime === time);
 }
 
 export function getTelegramSubscription(chatId: string): TelegramSubscription | null {
@@ -269,9 +295,11 @@ export async function setTelegramCommands(): Promise<{ ok: boolean; description?
     { command: "pizza", description: "Aktuální nabídka pizzerie" },
     { command: "statistiky", description: "Statistiky posledních 7 dní" },
     { command: "nastaveni", description: "Nastavení notifikací" },
+    { command: "nastavit", description: "Osobní připomenutí: /nastavit reminder HH:MM" },
     { command: "pozvat", description: "QR kód pro přidání kolegy" },
     { command: "pomoc", description: "Seznam příkazů" },
     { command: "admin", description: "Admin příkazy (pouze pro adminy)" },
+    { command: "pdf", description: "PDF objednávky nebo jídelníčku (pouze admin)" },
   ];
   try {
     const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setMyCommands`, {

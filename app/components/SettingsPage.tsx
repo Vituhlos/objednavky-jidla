@@ -66,6 +66,28 @@ const ACTION_LABELS: Record<string, string> = {
   menu_reminder: "Upozornění na chybějící menu",
 };
 
+function getNextAutoSend(enabled: string, time: string, daysStr: string): string {
+  if (enabled !== "true") return "Vypnuto";
+  const days = daysStr.split(",").map((d) => d.trim()).filter(Boolean);
+  if (days.length === 0 || !time) return "Nenastaveno";
+  const JS_TO_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" };
+  const DAY_NAMES: Record<string, string> = { Po: "pondělí", "Út": "úterý", St: "středu", "Čt": "čtvrtek", "Pá": "pátek" };
+  try {
+    const p = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
+    const curDay = p.getDay();
+    const curTime = `${String(p.getHours()).padStart(2, "0")}:${String(p.getMinutes()).padStart(2, "0")}`;
+    for (let offset = 0; offset < 7; offset++) {
+      const jsDay = (curDay + offset) % 7;
+      const code = JS_TO_CODE[jsDay];
+      if (!code || !days.includes(code)) continue;
+      if (offset === 0 && curTime >= time) continue;
+      const label = offset === 0 ? "Dnes" : offset === 1 ? "Zítra" : `V ${DAY_NAMES[code] ?? code}`;
+      return `${label} v ${time}`;
+    }
+  } catch { /* ignore */ }
+  return `Příštích ${days[0]} v ${time}`;
+}
+
 function formatTs(ts: string): string {
   if (!ts) return "—";
   const normalized =
@@ -320,9 +342,10 @@ export default function SettingsPage({
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
-  const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean } | null>(null);
+  const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean; url?: string } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
+  const [auditFilter, setAuditFilter] = useState<string>("all");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
   const [newDeptName, setNewDeptName] = useState("");
@@ -891,6 +914,11 @@ export default function SettingsPage({
                   <Field hint="e-mail(y) kam přijde upozornění při selhání auto-send — prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
                     <input className="modal-input" defaultValue={settings.autoSendFailureEmail} name="autoSendFailureEmail" placeholder="admin@firma.cz" type="email" />
                   </Field>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px]" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                    <MIcon name="event_upcoming" size={14} style={{ color: "#D97706" }} />
+                    <span className="text-stone-500">Příští odeslání:</span>
+                    <span className="font-semibold text-stone-700">{getNextAutoSend(settings.autoSendEnabled, settings.autoSendTime, settings.autoSendDays)}</span>
+                  </div>
                 </Section>
 
               </div>
@@ -1357,35 +1385,53 @@ export default function SettingsPage({
             )}
 
             {/* Audit log */}
-            <Section icon="history" title="Historie změn">
+            <Section icon="history" title="Historie změn" action={
+              initialAuditLog.length > 0 ? (
+                <select
+                  className="text-[11.5px] px-2 py-1 rounded-lg glass-btn text-stone-600 font-medium bg-transparent cursor-pointer"
+                  value={auditFilter}
+                  onChange={(e) => setAuditFilter(e.target.value)}
+                >
+                  <option value="all">Vše ({initialAuditLog.length})</option>
+                  {Object.entries(ACTION_LABELS).filter(([key]) => initialAuditLog.some((e) => e.action === key)).map(([key, label]) => (
+                    <option key={key} value={key}>{label} ({initialAuditLog.filter((e) => e.action === key).length})</option>
+                  ))}
+                </select>
+              ) : undefined
+            }>
               {initialAuditLog.length === 0 ? (
                 <p className="text-[12.5px] text-stone-400 text-center py-2">Zatím žádné záznamy.</p>
-              ) : (
-                <div className="overflow-x-auto -mx-4 -mb-4">
-                  <table className="w-full text-[12px]">
-                    <thead>
-                      <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                        <th className="text-left px-4 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Čas</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Akce</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
-                        <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {initialAuditLog.map((entry) => (
-                        <tr key={entry.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                          <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTs(entry.ts)}</td>
-                          <td className="px-3 py-2 font-medium text-stone-700">{ACTION_LABELS[entry.action] ?? entry.action}</td>
-                          <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.department ?? "—"}</td>
-                          <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.personName ?? "—"}</td>
-                          <td className="px-3 py-2 text-stone-400 hidden md:table-cell">{entry.details ?? ""}</td>
+              ) : (() => {
+                const filtered = auditFilter === "all" ? initialAuditLog : initialAuditLog.filter((e) => e.action === auditFilter);
+                return filtered.length === 0 ? (
+                  <p className="text-[12.5px] text-stone-400 py-2">Žádné záznamy tohoto typu.</p>
+                ) : (
+                  <div className="overflow-x-auto -mx-4 -mb-4">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                          <th className="text-left px-4 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Čas</th>
+                          <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide">Akce</th>
+                          <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Oddělení</th>
+                          <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden sm:table-cell">Osoba</th>
+                          <th className="text-left px-3 py-2 font-display font-semibold text-stone-500 text-[10.5px] uppercase tracking-wide hidden md:table-cell">Detail</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {filtered.map((entry) => (
+                          <tr key={entry.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
+                            <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTs(entry.ts)}</td>
+                            <td className="px-3 py-2 font-medium text-stone-700">{ACTION_LABELS[entry.action] ?? entry.action}</td>
+                            <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.department ?? "—"}</td>
+                            <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.personName ?? "—"}</td>
+                            <td className="px-3 py-2 text-stone-400 hidden md:table-cell">{entry.details ?? ""}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </Section>
               </>
             )}
@@ -1417,6 +1463,12 @@ export default function SettingsPage({
                               </span>
                               <span className="text-[11px] text-stone-400">
                                 {sub.isAdmin ? "Admin" : "Uživatel"} · registrován {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
+                              </span>
+                              <span className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyReminder ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-400"}`} title="Připomenutí uzávěrky">🔔</span>
+                                <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyMorningMenu ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-400"}`} title="Ranní jídelníček">🌅</span>
+                                <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyMenuImported ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-400"}`} title="Nový jídelníček">📋</span>
+                                {sub.personalReminderTime && <span className="text-[10.5px] px-1.5 py-0.5 rounded-full font-medium bg-amber-50 text-amber-600">⏰ {sub.personalReminderTime}</span>}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1450,27 +1502,43 @@ export default function SettingsPage({
                   </Section>
 
                   <Section icon="notifications" title="Co bot hlásí">
-                    <ul className="text-[12.5px] text-stone-600 space-y-1.5">
-                      <li className="flex items-center gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a" }} /> Objednávka odeslána (auto-send)</li>
-                      <li className="flex items-center gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626" }} /> Auto-send selhal</li>
-                    </ul>
-                    <p className="text-[12px] text-stone-400 mt-1">Notifikace jdou každému registrovanému uživateli do jeho soukromého chatu.</p>
+                    <div className="space-y-2 text-[12.5px]">
+                      <div className="flex items-start gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a", marginTop: 2 }} /><span className="text-stone-600"><b>Objednávka odeslána</b> — upozornění adminu (auto-send i ruční)</span></div>
+                      <div className="flex items-start gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626", marginTop: 2 }} /><span className="text-stone-600"><b>Selhání auto-send</b> — upozornění adminům</span></div>
+                      <div className="flex items-start gap-2"><MIcon name="wb_sunny" size={14} fill style={{ color: "#D97706", marginTop: 2 }} /><span className="text-stone-600"><b>Ranní jídelníček</b> — uživatelé se zapnutým 🌅</span></div>
+                      <div className="flex items-start gap-2"><MIcon name="alarm" size={14} fill style={{ color: "#7c3aed", marginTop: 2 }} /><span className="text-stone-600"><b>Připomenutí uzávěrky</b> — uživatelé se zapnutým 🔔 (nebo osobní čas ⏰)</span></div>
+                      <div className="flex items-start gap-2"><MIcon name="menu_book" size={14} fill style={{ color: "#0284c7", marginTop: 2 }} /><span className="text-stone-600"><b>Nový jídelníček</b> — uživatelé se zapnutým 📋</span></div>
+                    </div>
                   </Section>
 
                   <Section icon="terminal" title="Dostupné příkazy">
-                    <ul className="text-[12.5px] text-stone-600 space-y-1.5 font-mono">
-                      <li><span className="text-amber-700">/stav</span> <span className="font-sans text-stone-500">— podrobný přehled objednávky (plné názvy)</span></li>
-                      <li><span className="text-amber-700">/souhrn</span> <span className="font-sans text-stone-500">— kompaktní tabulka (jméno + kód jídla)</span></li>
-                      <li><span className="text-amber-700">/menu</span> <span className="font-sans text-stone-500">— dnešní jídelníček</span></li>
-                      <li><span className="text-amber-700">/zitra</span> <span className="font-sans text-stone-500">— jídelníček na zítřek</span></li>
-                      <li><span className="text-amber-700">/statistiky</span> <span className="font-sans text-stone-500">— statistiky posledních 7 dní</span></li>
-                      <li><span className="text-amber-700">/nastaveni</span> <span className="font-sans text-stone-500">— nastavení notifikací (inline tlačítka)</span></li>
-                      <li><span className="text-amber-700">/pozvat</span> <span className="font-sans text-stone-500">— QR kód pro přidání kolegy</span></li>
-                      <li><span className="text-amber-700">/odeslat</span> <span className="font-sans text-stone-500">— ruční odeslání <span className="text-stone-400">(jen admin)</span></span></li>
-                      <li><span className="text-amber-700">/zrusit</span> <span className="font-sans text-stone-500">— znovu otevřít odeslanou objednávku <span className="text-stone-400">(jen admin)</span></span></li>
-                      <li><span className="text-amber-700">/nastavit cas HH:MM</span> <span className="font-sans text-stone-500">— změnit čas auto-odesílání <span className="text-stone-400">(jen admin)</span></span></li>
-                      <li><span className="text-amber-700">/pomoc</span> <span className="font-sans text-stone-500">— seznam příkazů</span></li>
-                    </ul>
+                    <div className="grid gap-x-4 gap-y-1 text-[12px]" style={{ gridTemplateColumns: "auto 1fr" }}>
+                      {([
+                        ["/stav", "podrobný přehled objednávky (plné názvy)", false],
+                        ["/souhrn", "kompaktní tabulka (jméno + kód jídla)", false],
+                        ["/menu", "dnešní jídelníček (nebo /menu Po Út St)", false],
+                        ["/tyden", "jídelníček na celý týden s výběrem dne", false],
+                        ["/zitra", "jídelníček na zítřek", false],
+                        ["/pizza", "aktuální nabídka pizzerie", false],
+                        ["/statistiky", "statistiky posledních 7 dní", false],
+                        ["/nastaveni", "nastavení notifikací (inline tlačítka)", false],
+                        ["/nastavit reminder HH:MM", "nastavit osobní připomenutí", false],
+                        ["/zrusit reminder", "zrušit osobní připomenutí", false],
+                        ["/pozvat", "QR kód pro přidání kolegy", false],
+                        ["/pomoc", "seznam příkazů", false],
+                        ["/pdf", "stáhnout PDF objednávky nebo jídelníčku", true],
+                        ["/odeslat", "ruční odeslání objednávky", true],
+                        ["/zrusit", "znovu otevřít odeslanou objednávku", true],
+                        ["/nastavit cas HH:MM", "změnit čas auto-odesílání", true],
+                        ["/admin", "admin panel (odeslat, kdo chybí…)", true],
+                        ["/zprava [text]", "rozeslat zprávu všem uživatelům", true],
+                      ] as [string, string, boolean][]).map(([cmd, desc, adminOnly]) => (
+                        <div key={cmd} className="contents">
+                          <span className="font-mono font-semibold text-amber-700 py-0.5">{cmd}</span>
+                          <span className="text-stone-500 py-0.5">{desc}{adminOnly && <span className="ml-1 text-[10.5px] text-stone-400">(jen admin)</span>}</span>
+                        </div>
+                      ))}
+                    </div>
                   </Section>
                 </div>
 
@@ -1540,6 +1608,12 @@ export default function SettingsPage({
                       </span>
                     )}
                   </div>
+                  {webhookInfo?.url && (
+                    <div className="flex items-center gap-2 mt-1 text-[11.5px] text-stone-400">
+                      <MIcon name="link" size={13} />
+                      <span className="font-mono truncate">{webhookInfo.url}</span>
+                    </div>
+                  )}
                 </Section>
 
                 {/* Telegram help modal */}
@@ -1628,10 +1702,14 @@ export default function SettingsPage({
                               ["/stav", "přehled dnešní objednávky"],
                               ["/souhrn", "kompaktní tabulka s kódy"],
                               ["/menu", "dnešní jídelníček"],
+                              ["/tyden", "jídelníček na celý týden"],
                               ["/zitra", "jídelníček na zítřek"],
+                              ["/pizza", "nabídka pizzerie"],
                               ["/statistiky", "statistiky (7 dní)"],
                               ["/nastaveni", "nastavení notifikací"],
+                              ["/nastavit reminder HH:MM", "osobní připomenutí"],
                               ["/pozvat", "QR kód pro kolegy"],
+                              ["/pdf", "PDF objednávky/jídelníčku (admin)"],
                               ["/odeslat", "odeslání objednávky (admin)"],
                               ["/zrusit", "znovu otevřít objednávku (admin)"],
                               ["/nastavit cas HH:MM", "změnit čas auto-odesílání (admin)"],

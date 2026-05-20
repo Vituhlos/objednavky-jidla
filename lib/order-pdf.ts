@@ -95,12 +95,18 @@ function calcRowHeight(doc: PDFKit.PDFDocument, row: OrderRowEnriched, idx: numb
   return Math.max(maxH + ROW_PAD, 20);
 }
 
+function cellVCenter(doc: PDFKit.PDFDocument, font: string, text: string, width: number, y: number, rh: number): number {
+  const h = doc.font(font).fontSize(FONT_BODY).heightOfString(text, { width });
+  return y + Math.max(0, (rh - h) / 2);
+}
+
 function drawMealCell(
   doc: PDFKit.PDFDocument,
   row: OrderRowEnriched,
   x: number,
   y: number,
   width: number,
+  rh: number,
 ) {
   const lines: Array<{ code: string; rest: string }> = [];
   if (row.mainItem) {
@@ -118,22 +124,26 @@ function drawMealCell(
     return;
   }
 
-  let lineY = y + 4;
-  for (const line of lines) {
-    const fullText = line.code ? `${line.code}  ${line.rest}` : line.rest;
-    const lineH = doc.font(FONT).fontSize(FONT_BODY).heightOfString(fullText, { width: width - 6 });
+  const lineHeights = lines.map(line => {
+    const full = line.code ? `${line.code}  ${line.rest}` : line.rest;
+    return doc.font(FONT).fontSize(FONT_BODY).heightOfString(full, { width: width - 6 });
+  });
+  const totalH = lineHeights.reduce((s, h) => s + h, 0);
+  let lineY = y + Math.max(0, (rh - totalH) / 2);
+
+  lines.forEach((line, i) => {
     if (line.code) {
       doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
         .text(line.code, x + 3, lineY, { lineBreak: false });
-      const codeW = doc.widthOfString(line.code + "  ");
+      const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(line.code + "  ");
       doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
         .text(line.rest, x + 3 + codeW, lineY, { width: width - 6 - codeW, lineBreak: false });
     } else {
       doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
         .text(line.rest, x + 3, lineY, { width: width - 6, lineBreak: false });
     }
-    lineY += lineH;
-  }
+    lineY += lineHeights[i];
+  });
 }
 
 function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: number): number {
@@ -164,33 +174,38 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
     COL_DEFS.forEach((col, colIdx) => {
       if (colIdx === 3) {
         if (hasNoMeal) {
-          doc.font(FONT_ITALIC).fontSize(FONT_BODY).fillColor("#9CA3AF")
-            .text("bez jídla", x + 3, y + 4, { width: col.width - 6, align: col.align });
+          const ty = cellVCenter(doc, FONT_ITALIC, "bez jídla", col.width - 6, y, rh);
+          doc.font(FONT_ITALIC).fontSize(FONT_BODY + 2).fillColor("#6B7280")
+            .text("bez jídla", x + 3, ty, { width: col.width - 6, align: "center" });
         } else {
-          drawMealCell(doc, row, x, y, col.width);
+          drawMealCell(doc, row, x, y, col.width, rh);
         }
       } else if (colIdx === 2) {
         if (!row.soupItem) {
-          const midY = y + rh / 2;
-          const midX = x + col.width / 2;
-          doc.strokeColor("#BBBBBB").lineWidth(0.8)
-            .moveTo(midX - 14, midY).lineTo(midX + 14, midY).stroke();
+          doc.strokeColor("#CCCCCC").lineWidth(0.7)
+            .moveTo(x + 3, y + 3).lineTo(x + col.width - 3, y + rh - 3).stroke();
         } else {
           const soup = row.soupItem;
+          const fullText = soup.code ? `${soup.code}  ${soup.name}` : soup.name;
+          const ty = cellVCenter(doc, FONT, fullText, col.width - 6, y, rh);
           if (soup.code) {
             doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.code, x + 3, y + 4, { lineBreak: false });
-            const codeW = doc.widthOfString(soup.code + "  ");
+              .text(soup.code, x + 3, ty, { lineBreak: false });
+            const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(soup.code + "  ");
             doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.name, x + 3 + codeW, y + 4, { width: col.width - 6 - codeW, lineBreak: false });
+              .text(soup.name, x + 3 + codeW, ty, { width: col.width - 6 - codeW, lineBreak: false });
           } else {
             doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.name, x + 3, y + 4, { width: col.width - 6 });
+              .text(soup.name, x + 3, ty, { width: col.width - 6 });
           }
         }
       } else {
-        doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-          .text(col.value(row, idx), x + 3, y + 4, { width: col.width - 6, align: col.align });
+        const text = col.value(row, idx);
+        const isNote = colIdx === 5 && !!text;
+        const font = isNote ? FONT_BOLD : FONT;
+        const ty = cellVCenter(doc, font, text, col.width - 6, y, rh);
+        doc.font(font).fontSize(FONT_BODY).fillColor("#30343A")
+          .text(text, x + 3, ty, { width: col.width - 6, align: col.align });
       }
       x += col.width;
     });
@@ -222,7 +237,8 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
 
 interface SummaryRow {
   personName: string;
-  item: string;
+  itemCode: string;
+  itemName: string;
   count: string;
   details: string;
 }
@@ -237,14 +253,10 @@ interface SummaryColDef {
 const SUMMARY_COL_DEFS: SummaryColDef[] = [
   { header: "#", width: 24, align: "center", value: (_, i) => String(i + 1) },
   { header: "Jméno", width: 130, align: "left", value: (r) => r.personName || "–" },
-  { header: "Položka", width: 368, align: "left", value: (r) => r.item },
+  { header: "Položka", width: 368, align: "left", value: (r) => r.itemCode ? `${r.itemCode}  ${r.itemName}` : r.itemName },
   { header: "Počet", width: 55, align: "center", value: (r) => r.count },
   { header: "Poznámka / přílohy", width: 208.89, align: "left", value: (r) => r.details },
 ];
-
-function itemLabel(code: string | number | null | undefined, name: string): string {
-  return code ? `${code}  ${name}` : name;
-}
 
 function rowDetails(row: OrderRowEnriched): string {
   return [extraCell(row), row.note].filter(Boolean).join("\n");
@@ -254,27 +266,29 @@ function toSummaryRows(row: OrderRowEnriched): SummaryRow[] {
   const rows: SummaryRow[] = [];
   const details = rowDetails(row);
   let detailsUsed = false;
-  const add = (item: string, count: number | string) => {
+  const add = (itemCode: string, itemName: string, count: number | string) => {
     rows.push({
       personName: row.personName || "–",
-      item,
+      itemCode,
+      itemName,
       count: String(count),
       details: detailsUsed ? "" : details,
     });
     detailsUsed = true;
   };
 
-  if (row.soupItem) add(`Polévka ${itemLabel(row.soupItem.code, row.soupItem.name)}`, 1);
-  if (row.soupItem2) add(`Polévka ${itemLabel(row.soupItem2.code, row.soupItem2.name)}`, 1);
-  if (row.mainItem) add(itemLabel(row.mainItem.code, row.mainItem.name), row.mealCount || 1);
+  if (row.soupItem) add(row.soupItem.code ? `Polévka ${row.soupItem.code}` : "", row.soupItem.code ? row.soupItem.name : `Polévka ${row.soupItem.name}`, 1);
+  if (row.soupItem2) add(row.soupItem2.code ? `Polévka ${row.soupItem2.code}` : "", row.soupItem2.code ? row.soupItem2.name : `Polévka ${row.soupItem2.name}`, 1);
+  if (row.mainItem) add(row.mainItem.code ? String(row.mainItem.code) : "", row.mainItem.name, row.mealCount || 1);
   for (const { item, count } of row.extraMealItems) {
-    add(itemLabel(item.code, item.name), count);
+    add(item.code ? String(item.code) : "", item.name, count);
   }
 
   if (rows.length === 0 && details) {
     rows.push({
       personName: row.personName || "–",
-      item: "Přílohy / poznámka",
+      itemCode: "",
+      itemName: "Přílohy / poznámka",
       count: "",
       details,
     });
@@ -286,11 +300,17 @@ function toSummaryRows(row: OrderRowEnriched): SummaryRow[] {
 function calcSummaryRowHeight(doc: PDFKit.PDFDocument, row: SummaryRow, idx: number): number {
   doc.font(FONT).fontSize(FONT_BODY);
   let maxH = 0;
-  for (const col of SUMMARY_COL_DEFS) {
-    const text = col.value(row, idx);
-    const h = doc.heightOfString(text, { width: col.width - 6 });
+  SUMMARY_COL_DEFS.forEach((col, colIdx) => {
+    let effectiveWidth = col.width - 6;
+    if (colIdx === 2 && row.itemCode) {
+      doc.font(FONT_BOLD).fontSize(FONT_BODY);
+      effectiveWidth -= doc.widthOfString(row.itemCode + "  ");
+      doc.font(FONT).fontSize(FONT_BODY);
+    }
+    const text = colIdx === 2 ? row.itemName : col.value(row, idx);
+    const h = doc.heightOfString(text, { width: effectiveWidth });
     if (h > maxH) maxH = h;
-  }
+  });
   return Math.max(maxH + ROW_PAD, 20);
 }
 
@@ -318,15 +338,24 @@ function drawSummaryHeader(doc: PDFKit.PDFDocument, y: number): number {
 
 function drawSummaryRow(doc: PDFKit.PDFDocument, row: SummaryRow, idx: number, y: number): number {
   const rh = calcSummaryRowHeight(doc, row, idx);
-  const bg = idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8";
+  const hasNote = !!row.details?.trim();
+  const bg = hasNote ? "#FFFBEB" : (idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8");
   doc.rect(TABLE_X, y, TABLE_W, rh).fill(bg);
 
   let x = TABLE_X;
-  doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A");
-  for (const col of SUMMARY_COL_DEFS) {
-    doc.text(col.value(row, idx), x + 3, y + 4, { width: col.width - 6, align: col.align });
+  SUMMARY_COL_DEFS.forEach((col, colIdx) => {
+    if (colIdx === 2 && row.itemCode) {
+      doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(row.itemCode, x + 3, y + 4, { lineBreak: false });
+      const codeW = doc.widthOfString(row.itemCode + "  ");
+      doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(row.itemName, x + 3 + codeW, y + 4, { width: col.width - 6 - codeW });
+    } else {
+      doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+        .text(col.value(row, idx), x + 3, y + 4, { width: col.width - 6, align: col.align });
+    }
     x += col.width;
-  }
+  });
 
   doc.strokeColor("#C0B8A8").lineWidth(0.5);
   doc.rect(TABLE_X, y, TABLE_W, rh).stroke();
@@ -413,7 +442,13 @@ export async function buildOrderPdfAttachment(
     doc.font(FONT).fontSize(11).fillColor("#888").text("Žádné aktivní řádky.", MARGIN, y);
   } else {
     for (const department of activeDepartments) {
-      y = drawSummarySection(doc, department, y);
+      const activeRows = getSubmittedRows(department.rows);
+      y = ensureSpace(doc, y, 50);
+      doc.font(FONT_BOLD).fontSize(11).fillColor("#B55233");
+      doc.text(department.emailLabel, MARGIN, y, { lineBreak: false });
+      y += 15;
+      y = drawTable(doc, activeRows, y);
+      y += 10;
     }
   }
 
