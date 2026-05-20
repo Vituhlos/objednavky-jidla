@@ -545,6 +545,32 @@ export async function actionChangePassword(oldPassword: string, newPassword: str
   getDb().prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(newPassword), user.id);
 }
 
+export async function actionGetTodayUnorderedUsers(): Promise<Array<{
+  id: number; firstName: string; lastName: string; defaultDepartment: string | null;
+}>> {
+  await requireAdmin();
+  const { getDb } = await import("@/lib/db");
+  const { getPragueNow, toLocalISODate } = await import("@/lib/time");
+  const today = toLocalISODate(getPragueNow());
+  return (getDb().prepare(`
+    SELECT u.id, u.first_name, u.last_name, u.default_department
+    FROM users u
+    WHERE u.active = 1
+    AND u.id NOT IN (
+      SELECT DISTINCT r.user_id FROM order_rows r
+      JOIN orders o ON r.order_id = o.id
+      WHERE o.date = ? AND r.user_id IS NOT NULL
+        AND (r.soup_item_id IS NOT NULL OR r.main_item_id IS NOT NULL OR r.roll_count > 0)
+    )
+    ORDER BY u.last_name, u.first_name
+  `).all(today) as Record<string, unknown>[]).map((r) => ({
+    id: r.id as number,
+    firstName: r.first_name as string,
+    lastName: r.last_name as string,
+    defaultDepartment: r.default_department as string | null,
+  }));
+}
+
 export async function actionGetMyHistory(): Promise<Array<{
   date: string;
   department: string;

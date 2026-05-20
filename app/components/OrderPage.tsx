@@ -913,6 +913,15 @@ export default function OrderPage({
 
   const showOfflineBanner = hasEverConnected && !sseConnected;
 
+  type UnorderedUser = { id: number; firstName: string; lastName: string; defaultDepartment: string | null };
+  const [unorderedUsers, setUnorderedUsers] = useState<UnorderedUser[]>([]);
+  const [unorderedOpen, setUnorderedOpen] = useState(false);
+  const isToday = selectedDate === todayDate;
+  useEffect(() => {
+    if (!isAdmin || !isToday) return;
+    actionGetTodayUnorderedUsers().then(setUnorderedUsers).catch(() => {});
+  }, [isAdmin, isToday, orderStatus]);
+
   return (
     <div className="k-shell">
 
@@ -1175,6 +1184,44 @@ export default function OrderPage({
               </>
             );
           })()}
+
+          {/* ── Admin: kdo neobjednal ── */}
+          {isAdmin && isToday && unorderedUsers.length > 0 && (
+            <div className="glass-soft rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setUnorderedOpen((v) => !v)}
+                className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-black/[0.03] transition"
+              >
+                <span
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold text-white shrink-0"
+                  style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                >
+                  {unorderedUsers.length}
+                </span>
+                <span className="text-[13px] font-semibold text-stone-700 flex-1 text-left">
+                  {unorderedUsers.length === 1 ? "1 osoba ještě neobjednala" : `${unorderedUsers.length} lidí ještě neobjednalo`}
+                </span>
+                <MIcon name={unorderedOpen ? "expand_less" : "expand_more"} size={18} style={{ color: "#a8a29e" }} />
+              </button>
+              {unorderedOpen && (
+                <div className="px-4 pb-3 flex flex-wrap gap-2 border-t border-white/40 pt-2.5">
+                  {unorderedUsers.map((u) => (
+                    <span
+                      key={u.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium text-stone-700"
+                      style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(0,0,0,0.07)" }}
+                    >
+                      {u.firstName} {u.lastName}
+                      {u.defaultDepartment && (
+                        <span className="text-[10.5px] text-stone-400">{u.defaultDepartment}</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {noMenu ? (
             /* ── Closed / no-menu banner ── */
