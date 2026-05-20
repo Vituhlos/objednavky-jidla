@@ -43,11 +43,15 @@ export async function POST(req: NextRequest) {
     ).run(firstName.trim(), lastName.trim(), hashPassword(password), existingInactive.id);
     userId = existingInactive.id;
   } else {
-    const { count } = db.prepare("SELECT COUNT(*) as count FROM users WHERE active = 1").get() as { count: number };
-    role = count === 0 ? "admin" : "user";
-    const result = db.prepare(
-      "INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)"
-    ).run(normalizedEmail, firstName.trim(), lastName.trim(), hashPassword(password), role);
+    const result = db.transaction(() => {
+      const { count } = db.prepare("SELECT COUNT(*) as count FROM users WHERE active = 1").get() as { count: number };
+      const newRole = count === 0 ? "admin" : "user";
+      const ins = db.prepare(
+        "INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)"
+      ).run(normalizedEmail, firstName.trim(), lastName.trim(), hashPassword(password), newRole);
+      return { lastInsertRowid: ins.lastInsertRowid, role: newRole };
+    })();
+    role = result.role;
     userId = result.lastInsertRowid as number;
   }
 
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: req.headers.get("x-forwarded-proto") === "https",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   });

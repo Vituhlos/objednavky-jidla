@@ -1,8 +1,10 @@
 import { getDb } from "./db";
-import { createHash } from "crypto";
+import crypto from "crypto";
 
 function hashPin(pin: string): string {
-  return createHash("sha256").update(pin.trim()).digest("hex");
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(pin.trim(), salt, 64);
+  return salt.toString("hex") + ":" + hash.toString("hex");
 }
 
 export interface AppSettings {
@@ -186,9 +188,26 @@ export function saveSettings(updates: Partial<AppSettings>): void {
 export function checkPin(pin: string): boolean {
   const stored = getSetting("settings_pin");
   const expected = stored ?? (process.env.SETTINGS_PIN ?? "1234");
-  // Backward compat: if stored value isn't a 64-char hex hash, compare plaintext (first run)
-  if (expected.length !== 64) {
-    return pin.trim() === expected.trim();
+
+  // New scrypt format: "<saltHex>:<hashHex>" (salt=32 chars, hash=128 chars, colon = 1 → total 161)
+  if (expected.includes(":")) {
+    const [saltHex, hashHex] = expected.split(":");
+    if (saltHex && hashHex) {
+      try {
+        const derived = crypto.scryptSync(pin.trim(), Buffer.from(saltHex, "hex"), 64);
+        return crypto.timingSafeEqual(derived, Buffer.from(hashHex, "hex"));
+      } catch {
+        return false;
+      }
+    }
   }
-  return hashPin(pin) === expected;
+
+  // Legacy SHA-256 format: exactly 64-char hex string
+  if (expected.length === 64 && /^[0-9a-f]{64}$/.test(expected)) {
+    const sha256 = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+    return sha256 === expected;
+  }
+
+  // Plaintext (first-run env var, e.g. "1234")
+  return pin.trim() === expected.trim();
 }

@@ -182,8 +182,8 @@ export async function actionDeleteMenuItem(id: number): Promise<void> {
 }
 
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
-  await requireAuth();
-  const row = addPizzaRow(orderId);
+  const user = await requireAuth();
+  const row = addPizzaRow(orderId, user.id);
   revalidatePath("/pizza");
   broadcast();
   return row;
@@ -193,7 +193,13 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
-  await requireAuth();
+  const user = await requireAuth();
+  const { getDb } = await import("@/lib/db");
+  const existing = getDb()
+    .prepare("SELECT user_id FROM pizza_order_rows WHERE id = ?")
+    .get(rowId) as { user_id: number | null } | undefined;
+  if (!existing) throw new Error("Řádek nebyl nalezen.");
+  if (existing.user_id !== user.id && user.role !== "admin") throw new Error("Forbidden");
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
   broadcast();
@@ -201,7 +207,13 @@ export async function actionUpdatePizzaRow(
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
-  await requireAuth();
+  const user = await requireAuth();
+  const { getDb } = await import("@/lib/db");
+  const existing = getDb()
+    .prepare("SELECT user_id FROM pizza_order_rows WHERE id = ?")
+    .get(rowId) as { user_id: number | null } | undefined;
+  if (!existing) throw new Error("Řádek nebyl nalezen.");
+  if (existing.user_id !== user.id && user.role !== "admin") throw new Error("Forbidden");
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
   broadcast();
@@ -503,6 +515,7 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
 }
 
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
+  await requireAdmin();
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
   if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
@@ -515,6 +528,7 @@ export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: nu
 }
 
 export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
+  await requireAdmin();
   return getTelegramSubscriptions();
 }
 

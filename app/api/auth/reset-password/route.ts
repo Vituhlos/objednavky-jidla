@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePasswordResetToken, consumePasswordResetToken, hashPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!checkRateLimit(`reset-password:${ip}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Příliš mnoho pokusů. Zkuste to za chvíli." }, { status: 429 });
+  }
+
   const body = await req.json() as { token?: string; password?: string };
   const { token, password } = body;
 
