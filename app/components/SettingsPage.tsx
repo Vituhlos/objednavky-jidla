@@ -681,7 +681,7 @@ export default function SettingsPage({
             <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
               <div
                 className="flex p-1 rounded-2xl gap-0.5"
-                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+                style={{ width: "max-content", background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}
               >
                 {TABS.map((tab) => (
                   <button
@@ -689,7 +689,7 @@ export default function SettingsPage({
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
                     className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-black/[0.05]"
                     }`}
                     style={activeTab === tab.id ? {
                       background: "linear-gradient(135deg,#F59E0B,#EA580C)",

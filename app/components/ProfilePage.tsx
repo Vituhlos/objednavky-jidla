@@ -25,6 +25,7 @@ type Stats = {
   totalOrders: number;
   thisMonthOrders: number;
   favoriteDish: string | null;
+  monthlySpending: number;
 };
 
 function formatDate(iso: string) {
@@ -254,9 +255,10 @@ export default function ProfilePage({
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 p-4 pt-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 pt-0">
             <StatCard icon="restaurant" label="Celkem obědů" value={String(stats.totalOrders)} />
             <StatCard icon="calendar_today" label="Tento měsíc" value={String(stats.thisMonthOrders)} />
+            <StatCard icon="payments" label="Výdaje / měsíc" value={stats.monthlySpending > 0 ? `${stats.monthlySpending} Kč` : "—"} />
             <StatCard icon="star" label="Oblíbené" value={stats.favoriteDish ? stats.favoriteDish.split(" ").slice(0, 2).join(" ") : "—"} />
           </div>
         </div>

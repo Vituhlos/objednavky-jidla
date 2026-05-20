@@ -10,6 +10,7 @@ import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import { actionGetTodayUnorderedUsers } from "@/app/actions";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -223,6 +224,7 @@ export default function OrderPage({
   autoSendTime = "08:00",
   autoSendError,
   autoSendErrorTs,
+  prodUrl,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -243,6 +245,7 @@ export default function OrderPage({
   autoSendTime?: string;
   autoSendError?: string;
   autoSendErrorTs?: string;
+  prodUrl?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -729,8 +732,28 @@ export default function OrderPage({
 
   const showOfflineBanner = hasEverConnected && !sseConnected;
 
+  type UnorderedUser = { id: number; firstName: string; lastName: string; defaultDepartment: string | null };
+  const [unorderedUsers, setUnorderedUsers] = useState<UnorderedUser[]>([]);
+  const [unorderedOpen, setUnorderedOpen] = useState(false);
+  const isToday = selectedDate === todayDate;
+  useEffect(() => {
+    if (!isAdmin || !isToday) return;
+    actionGetTodayUnorderedUsers().then(setUnorderedUsers).catch(() => {});
+  }, [isAdmin, isToday, orderStatus]);
+
   return (
     <div className="k-shell">
+
+      {/* ── Dev version banner ── */}
+      {prodUrl && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b" style={{ background: "rgba(59,130,246,0.08)", borderColor: "rgba(59,130,246,0.18)" }}>
+          <MIcon name="science" size={15} style={{ color: "#2563eb", flexShrink: 0 }} />
+          <span className="text-[12px] font-semibold text-blue-700 flex-1">Vývojová verze — objednávky se neposílají do restaurace.</span>
+          <a href={prodUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11.5px] font-semibold text-blue-600 underline underline-offset-2 whitespace-nowrap">
+            Přejít na produkci →
+          </a>
+        </div>
+      )}
 
       {/* ── Auto-send failure banner ── */}
       {autoSendError && (
@@ -974,6 +997,44 @@ export default function OrderPage({
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
                 style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
+            </div>
+          )}
+
+          {/* ── Admin: kdo neobjednal ── */}
+          {isAdmin && isToday && unorderedUsers.length > 0 && (
+            <div className="glass-soft rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setUnorderedOpen((v) => !v)}
+                className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-black/[0.03] transition"
+              >
+                <span
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold text-white shrink-0"
+                  style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                >
+                  {unorderedUsers.length}
+                </span>
+                <span className="text-[13px] font-semibold text-stone-700 flex-1 text-left">
+                  {unorderedUsers.length === 1 ? "1 osoba ještě neobjednala" : `${unorderedUsers.length} lidí ještě neobjednalo`}
+                </span>
+                <MIcon name={unorderedOpen ? "expand_less" : "expand_more"} size={18} style={{ color: "#a8a29e" }} />
+              </button>
+              {unorderedOpen && (
+                <div className="px-4 pb-3 flex flex-wrap gap-2 border-t border-white/40 pt-2.5">
+                  {unorderedUsers.map((u) => (
+                    <span
+                      key={u.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium text-stone-700"
+                      style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(0,0,0,0.07)" }}
+                    >
+                      {u.firstName} {u.lastName}
+                      {u.defaultDepartment && (
+                        <span className="text-[10.5px] text-stone-400">{u.defaultDepartment}</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
