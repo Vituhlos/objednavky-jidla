@@ -821,40 +821,32 @@ export default function MenuPage({
         </div>
       </div>
 
-      {/* Week picker pill */}
+      {/* Week picker tabs */}
       <div className="flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
-        <div className="flex items-center rounded-2xl overflow-hidden"
-          style={{ background: "rgba(255,255,255,0.7)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl"
+          style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
-            className="flex items-center justify-center transition active:scale-95 disabled:opacity-25"
-            disabled={activeWeek === "current"}
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40"
             onClick={() => handleWeekSwitch("current")}
             type="button"
-            style={{
-              width: 36, height: 36,
-              fontSize: 20, fontWeight: 600, lineHeight: 1,
-              color: activeWeek === "current" ? "#c4b9ac" : "#ea580c",
-              borderRight: "1px solid #ede9e2",
-            }}
+            style={activeWeek === "current"
+              ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
+              : {}}
           >
-            ‹
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "current" ? "text-white/80" : "text-stone-500"}`}>Aktuální</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "current" ? "text-white" : "text-stone-700"}`}>{formatWeekRange(currentWeekStart)}</span>
           </button>
-          <span className="px-3 py-2 text-[13px] font-semibold text-stone-700 select-none whitespace-nowrap">
-            Týden {formatWeekRange(activeWeekStart)}
-          </span>
           <button
-            className="flex items-center justify-center transition active:scale-95 disabled:opacity-25"
-            disabled={activeWeek === "next" || !hasNextWeek}
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40"
+            disabled={!hasNextWeek}
             onClick={() => handleWeekSwitch("next")}
             type="button"
-            style={{
-              width: 36, height: 36,
-              fontSize: 20, fontWeight: 600, lineHeight: 1,
-              color: (activeWeek === "next" || !hasNextWeek) ? "#c4b9ac" : "#ea580c",
-              borderLeft: "1px solid #ede9e2",
-            }}
+            style={activeWeek === "next"
+              ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
+              : {}}
           >
-            ›
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "next" ? "text-white/80" : "text-stone-500"}`}>Příští</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "next" ? "text-white" : "text-stone-700"}`}>{hasNextWeek ? formatWeekRange(nextWeekStart) : "—"}</span>
           </button>
         </div>
         {hasPdfActive && (
