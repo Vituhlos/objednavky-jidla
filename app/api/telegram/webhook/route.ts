@@ -305,6 +305,21 @@ function buildMainReplyKeyboard(isAdmin: boolean) {
 const REMINDER_TEXT = "⏰ <b>Osobní připomenutí</b>\n\nVyber čas kdy ti bot každý pracovní den pošle připomenutí uzávěrky:";
 const REMINDER_TIMES = ["09:30", "10:00", "10:30", "11:00", "11:15", "11:30"];
 
+const CAS_TEXT = "🕐 <b>Čas auto-odesílání</b>\n\nVyber čas kdy se objednávka každý den automaticky odešle:";
+const CAS_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30"];
+
+function buildCasKeyboard(currentTime: string | null) {
+  const row1 = CAS_TIMES.slice(0, 3).map((t) => ({
+    text: currentTime === t ? `✅ ${t}` : t,
+    callback_data: `cas:${t}`,
+  }));
+  const row2 = CAS_TIMES.slice(3).map((t) => ({
+    text: currentTime === t ? `✅ ${t}` : t,
+    callback_data: `cas:${t}`,
+  }));
+  return { inline_keyboard: [row1, row2] };
+}
+
 function buildReminderKeyboard(currentTime: string | null) {
   const row1 = REMINDER_TIMES.slice(0, 3).map((t) => ({
     text: currentTime === t ? `✅ ${t}` : t,
@@ -544,6 +559,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Výběr času auto-odesílání (admin)
+    if (data.startsWith("cas:") && messageId && isTelegramAdmin(chatId)) {
+      const val = data.slice(4);
+      if (/^\d{2}:\d{2}$/.test(val)) {
+        saveSettings({ autoSendTime: val });
+        await editMessageText(s.telegramBotToken, chatId, messageId, CAS_TEXT + `\n\n✅ Nastaveno na <b>${val}</b>.`, buildCasKeyboard(val));
+      }
+    }
+
     // PDF stažení — jen pro adminy
     if (data.startsWith("pdf:") && isTelegramAdmin(chatId)) {
       if (data === "pdf:objednavka") {
@@ -663,7 +687,7 @@ export async function POST(req: NextRequest) {
     const dayArg = effectiveCmd.startsWith("/menu ") ? effectiveCmd.slice(6).trim() : "";
     const dayCode = dayArg ? DAY_INPUT_MAP[dayArg] : null;
     if (dayArg && !dayCode) {
-      await sendTelegramToChat(chatId, "⚠️ Neznámý den. Použij zkratku: <code>Po Ut St Ct Pa</code>");
+      await sendTelegramToChat(chatId, "⚠️ Neznámý den — vyber ze seznamu:", buildTydenKeyboard());
     } else if (dayCode) {
       const jsDay = Object.entries({ 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" }).find(([, v]) => v === dayCode)?.[0];
       const date = jsDay ? getDateForDay(getPragueNow(), Number(jsDay)) : getPragueNow();
@@ -704,17 +728,13 @@ export async function POST(req: NextRequest) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
       const time = effectiveCmd.replace("/nastavit cas ", "").trim();
-      if (!/^\d{1,2}:\d{2}$/.test(time)) {
-        await sendTelegramToChat(chatId, "⚠️ Neplatný formát. Použij např. <code>/nastavit cas 08:00</code>");
+      const [hh, mm] = time.split(":").map(Number);
+      if (!/^\d{1,2}:\d{2}$/.test(time) || hh > 23 || mm > 59) {
+        await sendTelegramToChat(chatId, CAS_TEXT, buildCasKeyboard(null));
       } else {
-        const [hh, mm] = time.split(":").map(Number);
-        if (hh > 23 || mm > 59) {
-          await sendTelegramToChat(chatId, "⚠️ Neplatný čas.");
-        } else {
-          const padded = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-          saveSettings({ autoSendTime: padded });
-          await sendTelegramToChat(chatId, `✅ Čas auto-odesílání nastaven na <b>${padded}</b>.`);
-        }
+        const padded = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+        saveSettings({ autoSendTime: padded });
+        await sendTelegramToChat(chatId, CAS_TEXT + `\n\n✅ Nastaveno na <b>${padded}</b>.`, buildCasKeyboard(padded));
       }
     }
   } else if (effectiveCmd === "/odeslat") {
@@ -758,21 +778,17 @@ export async function POST(req: NextRequest) {
     }
   } else if (effectiveCmd.startsWith("/nastavit reminder ")) {
     const time = effectiveCmd.replace("/nastavit reminder ", "").trim();
-    if (!/^\d{1,2}:\d{2}$/.test(time)) {
-      await sendTelegramToChat(chatId, "⚠️ Neplatný formát. Použij např. <code>/nastavit reminder 11:00</code>");
+    const [hh, mm] = time.split(":").map(Number);
+    if (!/^\d{1,2}:\d{2}$/.test(time) || hh > 23 || mm > 59) {
+      await sendTelegramToChat(chatId, REMINDER_TEXT, buildReminderKeyboard(null));
     } else {
-      const [hh, mm] = time.split(":").map(Number);
-      if (hh > 23 || mm > 59) {
-        await sendTelegramToChat(chatId, "⚠️ Neplatný čas.");
-      } else {
-        const padded = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-        setPersonalReminderTime(chatId, padded);
-        await sendTelegramToChat(chatId, `✅ Osobní připomenutí nastaveno na <b>${padded}</b>.\n\nPro zrušení pošli <code>/zrusit reminder</code>.`);
-      }
+      const padded = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+      setPersonalReminderTime(chatId, padded);
+      await sendTelegramToChat(chatId, REMINDER_TEXT, buildReminderKeyboard(padded));
     }
   } else if (effectiveCmd === "/zrusit reminder") {
     setPersonalReminderTime(chatId, null);
-    await sendTelegramToChat(chatId, "✅ Osobní připomenutí bylo zrušeno.");
+    await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
   } else if (effectiveCmd === "/admin") {
     if (!isTelegramAdmin(chatId)) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
