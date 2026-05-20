@@ -10,7 +10,7 @@ import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
-import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification } from "./telegram";
+import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers } from "./telegram";
 import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -71,7 +71,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
     saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
-    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek · ${data.totalPrice} Kč`);
+    await sendTelegramToAdmins(`✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek · ${data.totalPrice} Kč`);
   } catch (err) {
     console.error("[scheduler] Auto-send selhal:", err);
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -257,6 +257,7 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
       lines.push("<b>Jídla</b>");
       menu.meals.forEach((item) => lines.push(`  • ${item.name}`));
     }
+
     text = lines.join("\n");
   }
 
@@ -276,9 +277,46 @@ async function checkTelegramReminder(s: AppSettings, currentTime: string, jsDay:
   if (data.order.status === "sent") return;
   if (isTodayClosed(data)) return;
 
-  await sendTelegramReminderNotification(
-    `⏰ <b>Uzávěrka za ${minutes} minut</b>\nObjednávka za dnešek ještě není odeslaná — uzávěrka je v <b>${s.cutoffTime}</b>.`,
+  const db = getDb();
+  const now = getPragueNow();
+  const twoWeeksAgo = new Date(now);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const recentPeople = db.prepare(`
+    SELECT DISTINCT r.person_name FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE r.person_name != '' AND o.date >= ? AND o.id != ? AND o.status = 'sent'
+  `).all(twoWeeksAgo.toISOString().slice(0, 10), data.order.id) as { person_name: string }[];
+  const orderedToday = new Set(
+    data.departments.flatMap((d) => d.rows.filter((r) => r.personName).map((r) => r.personName))
   );
+  const missingCount = recentPeople.filter((r) => !orderedToday.has(r.person_name)).length;
+  const missingLine = missingCount > 0
+    ? `\n👥 Ještě neobjednali: <b>${missingCount} ${missingCount === 1 ? "osoba" : missingCount < 5 ? "osoby" : "osob"}</b>`
+    : "";
+
+  await sendTelegramReminderNotification(
+    `⏰ <b>Uzávěrka v ${s.cutoffTime}</b> — zbývá ${minutes} minut${missingLine}`,
+  );
+}
+
+async function checkPersonalReminders(currentTime: string, jsDay: number): Promise<void> {
+  if (!JS_TO_DAY_CODE[jsDay]) return;
+  const subs = getPersonalReminderSubscribers(currentTime);
+  if (subs.length === 0) return;
+  const data = getTodayOrderData();
+  if (data.order.status === "sent" || isTodayClosed(data)) return;
+  const s = getSettings();
+  const [h, m] = s.cutoffTime.split(":").map(Number);
+  const cutoffTotal = h * 60 + m;
+  const [ch, cm] = currentTime.split(":").map(Number);
+  const remaining = cutoffTotal - (ch * 60 + cm);
+  const remainingText = remaining > 0 ? ` — zbývá ${remaining} minut` : "";
+  for (const sub of subs) {
+    await sendTelegramToChat(
+      sub.chatId,
+      `⏰ <b>Připomenutí objednávky</b>\nUzávěrka v <b>${s.cutoffTime}</b>${remainingText}`,
+    );
+  }
 }
 
 export function startScheduler(): void {
@@ -295,6 +333,7 @@ export function startScheduler(): void {
       await checkPushReminder(s, currentTime, jsDay);
       await checkMorningMenu(s, currentTime, jsDay);
       await checkTelegramReminder(s, currentTime, jsDay);
+      await checkPersonalReminders(currentTime, jsDay);
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }

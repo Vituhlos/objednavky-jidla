@@ -11,6 +11,7 @@ export interface TelegramSubscription {
   notifyMorningMenu: boolean;
   notifyOrderSent: boolean;
   notifyMenuImported: boolean;
+  personalReminderTime: string | null;
   registeredAt: string;
 }
 
@@ -18,6 +19,7 @@ type DbRow = {
   id: number; chat_id: string; first_name: string; username: string;
   is_admin: number; notify_reminder: number;
   notify_morning_menu: number; notify_order_sent: number; notify_menu_imported: number;
+  personal_reminder_time: string | null;
   registered_at: string;
 };
 
@@ -35,8 +37,19 @@ export function getTelegramSubscriptions(): TelegramSubscription[] {
     notifyMorningMenu: r.notify_morning_menu === 1,
     notifyOrderSent: r.notify_order_sent === 1,
     notifyMenuImported: r.notify_menu_imported === 1,
+    personalReminderTime: r.personal_reminder_time ?? null,
     registeredAt: r.registered_at,
   }));
+}
+
+export function setPersonalReminderTime(chatId: string, time: string | null): void {
+  getDb()
+    .prepare("UPDATE telegram_subscriptions SET personal_reminder_time = ? WHERE chat_id = ?")
+    .run(time, chatId);
+}
+
+export function getPersonalReminderSubscribers(time: string): TelegramSubscription[] {
+  return getTelegramSubscriptions().filter((s) => s.personalReminderTime === time);
 }
 
 export function getTelegramSubscription(chatId: string): TelegramSubscription | null {
