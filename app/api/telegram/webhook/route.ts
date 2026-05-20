@@ -302,6 +302,24 @@ function buildMainReplyKeyboard(isAdmin: boolean) {
   return { keyboard: rows, resize_keyboard: true };
 }
 
+const REMINDER_TEXT = "⏰ <b>Osobní připomenutí</b>\n\nVyber čas kdy ti bot každý pracovní den pošle připomenutí uzávěrky:";
+const REMINDER_TIMES = ["09:30", "10:00", "10:30", "11:00", "11:15", "11:30"];
+
+function buildReminderKeyboard(currentTime: string | null) {
+  const row1 = REMINDER_TIMES.slice(0, 3).map((t) => ({
+    text: currentTime === t ? `✅ ${t}` : t,
+    callback_data: `reminder:${t}`,
+  }));
+  const row2 = REMINDER_TIMES.slice(3).map((t) => ({
+    text: currentTime === t ? `✅ ${t}` : t,
+    callback_data: `reminder:${t}`,
+  }));
+  const rows: object[][] = [row1, row2];
+  if (currentTime) rows.push([{ text: "❌ Zrušit připomenutí", callback_data: "reminder:cancel" }]);
+  rows.push([{ text: "← Zpět na nastavení", callback_data: "cmd:nastaveni" }]);
+  return { inline_keyboard: rows };
+}
+
 function buildPdfKeyboard() {
   return {
     inline_keyboard: [[
@@ -486,14 +504,7 @@ export async function POST(req: NextRequest) {
         await editMessageReplyMarkup(s.telegramBotToken, chatId, messageId, buildSettingsKeyboard(chatId));
       } else if (data === "toggle:personal_reminder") {
         const sub = getTelegramSubscription(chatId);
-        if (sub?.personalReminderTime) {
-          setPersonalReminderTime(chatId, null);
-          await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
-        } else {
-          await editMessageText(s.telegramBotToken, chatId, messageId,
-            SETTINGS_TEXT + "\n\n⏰ Pro nastavení osobního připomenutí pošli:\n<code>/nastavit reminder HH:MM</code>",
-            buildSettingsKeyboard(chatId));
-        }
+        await editMessageText(s.telegramBotToken, chatId, messageId, REMINDER_TEXT, buildReminderKeyboard(sub?.personalReminderTime ?? null));
       }
     }
 
@@ -518,6 +529,18 @@ export async function POST(req: NextRequest) {
         const date = getDateForDay(getPragueNow(), jsDay);
         const dateStr = date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
         await editMessageText(s.telegramBotToken, chatId, messageId, formatMenuForDay(code, dateStr), buildDayViewKeyboard());
+      }
+    }
+
+    // Výběr času osobního připomenutí
+    if (data.startsWith("reminder:") && messageId) {
+      const val = data.slice(9);
+      if (val === "cancel") {
+        setPersonalReminderTime(chatId, null);
+        await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
+      } else if (/^\d{2}:\d{2}$/.test(val)) {
+        setPersonalReminderTime(chatId, val);
+        await editMessageText(s.telegramBotToken, chatId, messageId, REMINDER_TEXT, buildReminderKeyboard(val));
       }
     }
 
