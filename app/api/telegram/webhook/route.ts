@@ -78,23 +78,28 @@ function formatStav(): string {
     weekday: "long", day: "numeric", month: "numeric",
   });
   const sent = data.order.status === "sent";
+  const totalPeople = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
   const statusLine = sent
-    ? `✅ <b>Odesláno</b>  ·  👥 ${data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length} osob  ·  💰 ${data.totalPrice} Kč`
-    : `📝 <b>Rozepsáno</b>  ·  👥 ${data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length} osob  ·  💰 ${data.totalPrice} Kč`;
+    ? `✅ <b>Odesláno</b>  ·  👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`
+    : `📝 <b>Rozepsáno</b>  ·  👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`;
   const lines: string[] = [`📋 <b>Objednávka ${dateStr}</b>`, statusLine];
-  data.departments.forEach((dept) => {
-    const active = dept.rows.filter((r) => r.personName);
-    if (active.length === 0) return;
-    lines.push("");
-    lines.push(`<b>📂 ${dept.label}</b>`);
-    active.forEach((r) => {
-      const parts: string[] = [];
-      if (r.soupItem) parts.push(`🍲 ${r.soupItem.name}`);
-      if (r.mainItem) parts.push(`<i>${r.mainItem.name}</i>`);
-      const detail = parts.length > 0 ? `  —  ${parts.join("  +  ")}` : "";
-      lines.push(`  • <b>${r.personName}</b>${detail}`);
+  if (totalPeople === 0) {
+    lines.push("", "<i>Zatím nikdo neobjednal.</i>");
+  } else {
+    data.departments.forEach((dept) => {
+      const active = dept.rows.filter((r) => r.personName);
+      if (active.length === 0) return;
+      lines.push("");
+      lines.push(`<b>📂 ${dept.label}</b>`);
+      active.forEach((r) => {
+        const parts: string[] = [];
+        if (r.soupItem) parts.push(`🍲 ${r.soupItem.name}`);
+        if (r.mainItem) parts.push(`<i>${r.mainItem.name}</i>`);
+        const detail = parts.length > 0 ? `  —  ${parts.join("  +  ")}` : "";
+        lines.push(`  • <b>${r.personName}</b>${detail}`);
+      });
     });
-  });
+  }
   return lines.join("\n");
 }
 
@@ -256,14 +261,20 @@ function buildWelcomeKeyboard() {
   };
 }
 
-function buildStavKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "🔄 Obnovit", callback_data: "cmd:stav" },
-      { text: "📊 Souhrn", callback_data: "cmd:souhrn" },
-      { text: "🍽 Jídelníček", callback_data: "cmd:menu" },
-    ]],
-  };
+function buildStavKeyboard(chatId = "") {
+  const isAdmin = chatId ? isTelegramAdmin(chatId) : false;
+  const isSent = isAdmin ? getTodayOrderData().order.status === "sent" : false;
+  const rows: object[][] = [[
+    { text: "🔄 Obnovit", callback_data: "cmd:stav" },
+    { text: "📊 Souhrn", callback_data: "cmd:souhrn" },
+    { text: "🍽 Jídelníček", callback_data: "cmd:menu" },
+  ]];
+  if (isAdmin) {
+    rows.push(isSent
+      ? [{ text: "🔓 Znovu otevřít objednávku", callback_data: "admin:zrusit" }]
+      : [{ text: "📤 Odeslat objednávku", callback_data: "admin:odeslat" }]);
+  }
+  return { inline_keyboard: rows };
 }
 
 function buildMenuKeyboard() {
@@ -297,7 +308,7 @@ function buildMainReplyKeyboard(isAdmin: boolean) {
     rows.push([{ text: "🌐 Otevřít appku", web_app: { url: telegramAppUrl } }]);
   }
   if (isAdmin) {
-    rows.push([{ text: "👑 Admin" }]);
+    rows.push([{ text: "👑 Admin" }, { text: "📄 PDF" }]);
   }
   return { keyboard: rows, resize_keyboard: true };
 }
@@ -345,13 +356,36 @@ function buildPdfKeyboard() {
 }
 
 function buildTydenKeyboard() {
+  const todayCode = DAY_CODE[getPragueNow().getDay()];
+  const DAYS = [
+    { label: "Po", cb: "day:Po", code: "Po" },
+    { label: "Út", cb: "day:Ut", code: "Út" },
+    { label: "St", cb: "day:St", code: "St" },
+    { label: "Čt", cb: "day:Ct", code: "Čt" },
+    { label: "Pá", cb: "day:Pa", code: "Pá" },
+  ];
+  return {
+    inline_keyboard: [DAYS.map((d) => ({
+      text: d.code === todayCode ? `• ${d.label} •` : d.label,
+      callback_data: d.cb,
+    }))],
+  };
+}
+
+function buildStatisticsKeyboard() {
   return {
     inline_keyboard: [[
-      { text: "Po", callback_data: "day:Po" },
-      { text: "Út", callback_data: "day:Ut" },
-      { text: "St", callback_data: "day:St" },
-      { text: "Čt", callback_data: "day:Ct" },
-      { text: "Pá", callback_data: "day:Pa" },
+      { text: "🔄 Obnovit", callback_data: "cmd:statistiky" },
+      { text: "📋 Objednávka", callback_data: "cmd:stav" },
+    ]],
+  };
+}
+
+function buildAdminChybiKeyboard() {
+  return {
+    inline_keyboard: [[
+      { text: "🔄 Obnovit", callback_data: "admin:chybi" },
+      { text: "← Admin panel", callback_data: "cmd:admin" },
     ]],
   };
 }
@@ -374,6 +408,7 @@ function buildAdminKeyboard() {
         ? [{ text: "🔓 Znovu otevřít objednávku", callback_data: "admin:zrusit" }]
         : [{ text: "📤 Odeslat objednávku", callback_data: "admin:odeslat" }],
       [{ text: "👥 Kdo ještě neobjednal", callback_data: "admin:chybi" }],
+      [{ text: "📄 PDF objednávky", callback_data: "pdf:objednavka" }, { text: "📋 PDF jídelníčku", callback_data: "pdf:jidelnicek" }],
     ],
   };
 }
@@ -387,6 +422,7 @@ const BUTTON_MAP: Record<string, string> = {
   "🍕 pizza":         "/pizza",
   "⚙️ nastavení":     "/nastaveni",
   "👑 admin":         "/admin",
+  "📄 pdf":           "/pdf",
 };
 
 // ─── Telegram API helpers ─────────────────────────────────────────────────────
@@ -525,13 +561,20 @@ export async function POST(req: NextRequest) {
 
     // Quick-command buttons — editujeme existující zprávu místo posílání nové
     if (messageId) {
-      if (data === "cmd:stav") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatStav(), buildStavKeyboard()); }
-      if (data === "cmd:souhrn") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatSouhrn(), buildStavKeyboard()); }
+      if (data === "cmd:stav") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatStav(), buildStavKeyboard(chatId)); }
+      if (data === "cmd:souhrn") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatSouhrn(), buildStavKeyboard(chatId)); }
       if (data === "cmd:menu") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatMenu(), buildMenuKeyboard()); }
       if (data === "cmd:zitra") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatZitra(), buildMenuKeyboard()); }
       if (data === "cmd:tyden") { await editMessageText(s.telegramBotToken, chatId, messageId, "📅 <b>Jídelníček na týden</b>\n\nVyber den:", buildTydenKeyboard()); }
       if (data === "cmd:pizza") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, await formatPizza(), buildPizzaKeyboard()); }
       if (data === "cmd:nastaveni") await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
+      if (data === "cmd:statistiky") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatStatistiky(), buildStatisticsKeyboard()); }
+      if (data === "cmd:admin" && isTelegramAdmin(chatId)) {
+        const od = getTodayOrderData();
+        await editMessageText(s.telegramBotToken, chatId, messageId,
+          "👑 <b>Admin příkazy</b>\n\n" + `Objednávka: ${od.order.status === "sent" ? "✅ Odeslána" : "📝 Rozepsána"}\n\n` + "Pro hromadnou zprávu všem:\n<code>/zprava [text]</code>",
+          buildAdminKeyboard());
+      }
 
       // Navigace v týdenním jídelníčku
       const DAY_CB: Record<string, { code: string; jsDay: number }> = {
@@ -602,6 +645,7 @@ export async function POST(req: NextRequest) {
             await sendTyping(s.telegramBotToken, chatId);
             await sendOrder(orderData.order.id, "manual");
             broadcast();
+            if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "✅ <b>Objednávka odeslána.</b>", buildStavKeyboard(chatId));
             await sendTelegramToAdmins("✅ Objednávka byla odeslána přes Telegram.");
           } catch (err) {
             await sendTelegramToChat(chatId, `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`);
@@ -615,11 +659,13 @@ export async function POST(req: NextRequest) {
         } else {
           reopenOrder(orderData.order.id);
           broadcast();
+          if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "🔓 <b>Objednávka znovu otevřena.</b>", buildStavKeyboard(chatId));
           await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
         }
       }
       if (data === "admin:chybi") {
-        await sendTelegramToChat(chatId, formatChybi());
+        if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, formatChybi(), buildAdminChybiKeyboard());
+        else await sendTelegramToChat(chatId, formatChybi(), buildAdminChybiKeyboard());
       }
     }
 
@@ -656,18 +702,26 @@ export async function POST(req: NextRequest) {
   if (cmd === "/start") {
     const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, senderUsername);
     const name = firstName ? `, <b>${firstName}</b>` : "";
-    const adminNote = isAdmin && isNew
-      ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky přes tlačítka níže."
+    if (!isNew) {
+      await sendTelegramToChat(
+        chatId,
+        `👋 Vítej zpět${name}! Tady jsou tvé možnosti:`,
+        buildMainReplyKeyboard(isAdmin),
+      );
+      return new Response("ok");
+    }
+    const adminNote = isAdmin
+      ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky přímo z bota."
       : "";
     const welcomeText =
       `👋 Vítej${name}!\n\n` +
       `Jsem bot systému <b>Objednávky LIMA</b> — firemního objednávání obědů.${adminNote}\n\n` +
-      `<b>Co ti posílám:</b>\n` +
-      `  🔔 Upozornění před uzávěrkou objednávek\n` +
-      `  🌅 Ranní jídelníček (pokud si zapneš)\n` +
-      `  📬 Potvrzení o odeslání objednávky\n` +
-      `  📋 Notifikaci při importu nového jídelníčku\n\n` +
-      `Vše ovládáš přes tlačítka dole nebo příkazy jako /menu, /stav apod.`;
+      `<b>Co ti bot nabídne:</b>\n` +
+      `  🍽 Jídelníček, objednávka a pizza kdykoliv\n` +
+      `  🔔 Připomenutí před uzávěrkou (volitelné)\n` +
+      `  🌅 Ranní jídelníček (volitelné)\n` +
+      `  📋 Upozornění na nový jídelníček (volitelné)\n\n` +
+      `Uprav si notifikace přes <b>⚙️ Nastavení</b> nebo /nastaveni.`;
     await sendTelegramToChat(chatId, welcomeText, buildMainReplyKeyboard(isAdmin));
     return new Response("ok");
   }
@@ -679,10 +733,10 @@ export async function POST(req: NextRequest) {
 
   if (effectiveCmd === "/stav") {
     await sendTyping(s.telegramBotToken, chatId);
-    await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard());
+    await sendTelegramToChat(chatId, formatStav(), buildStavKeyboard(chatId));
   } else if (effectiveCmd === "/souhrn") {
     await sendTyping(s.telegramBotToken, chatId);
-    await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard());
+    await sendTelegramToChat(chatId, formatSouhrn(), buildStavKeyboard(chatId));
   } else if (effectiveCmd === "/menu" || effectiveCmd.startsWith("/menu ")) {
     const dayArg = effectiveCmd.startsWith("/menu ") ? effectiveCmd.slice(6).trim() : "";
     const dayCode = dayArg ? DAY_INPUT_MAP[dayArg] : null;
@@ -706,7 +760,7 @@ export async function POST(req: NextRequest) {
     await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
   } else if (effectiveCmd === "/statistiky") {
     await sendTyping(s.telegramBotToken, chatId);
-    await sendTelegramToChat(chatId, formatStatistiky());
+    await sendTelegramToChat(chatId, formatStatistiky(), buildStatisticsKeyboard());
   } else if (effectiveCmd === "/nastaveni" || effectiveCmd === "/upozorneni") {
     await sendTelegramToChat(chatId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
   } else if (effectiveCmd === "/pozvat") {
@@ -821,7 +875,7 @@ export async function POST(req: NextRequest) {
       await sendTelegramToChat(chatId, "⛔ Tento příkaz může použít pouze admin.");
     } else {
       await sendTyping(s.telegramBotToken, chatId);
-      await sendTelegramToChat(chatId, formatChybi());
+      await sendTelegramToChat(chatId, formatChybi(), buildAdminChybiKeyboard());
     }
   } else if (effectiveCmd === "/pomoc" || effectiveCmd === "/help") {
     const admin = isTelegramAdmin(chatId);
