@@ -948,7 +948,7 @@ export default function OrderPage({
               <div className="overflow-x-auto no-scrollbar px-4">
                 <div
                   className="flex p-1 rounded-2xl gap-0.5"
-                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+                  style={{ width: "max-content", background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}
                 >
                   {availableDates!.map((date) => {
                     const isActive = date === selectedDate;
