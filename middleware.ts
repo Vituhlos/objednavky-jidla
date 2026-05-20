@@ -4,16 +4,22 @@ import { getSessionUser } from "./lib/auth";
 export const runtime = "nodejs";
 
 const COOKIE_NAME = "session_token";
-const PUBLIC_PATHS = ["/login", "/register", "/zapomenute-heslo", "/reset-hesla", "/api/auth"];
-const PROTECTED_PATHS = ["/nastaveni"];
+
+// Vše ostatní vyžaduje přihlášení — přidej sem pouze skutečně veřejné cesty
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/zapomenute-heslo",
+  "/reset-hesla",
+  "/api/auth",
+  "/api/telegram/webhook", // externí webhook — má vlastní ochranu (secret token)
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
-
-  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
-  if (!isProtected) return NextResponse.next();
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {

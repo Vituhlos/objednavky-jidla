@@ -9,7 +9,9 @@ export type AuditAction =
   | "order_clear"
   | "auto_send"
   | "menu_reminder"
-  | "menu_imap_import";
+  | "menu_imap_import"
+  | "login_success"
+  | "login_failure";
 
 export interface AuditEntry {
   id: number;
