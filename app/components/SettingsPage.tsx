@@ -1373,6 +1373,7 @@ export default function SettingsPage({
                               </span>
                               <span className="text-[11px] text-stone-400">
                                 {sub.isAdmin ? "Admin" : "Uživatel"} · registrován {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
+                                {sub.personalReminderTime && <span className="ml-1.5 text-amber-600 font-medium">⏰ {sub.personalReminderTime}</span>}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

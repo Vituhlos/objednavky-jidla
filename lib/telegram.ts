@@ -282,9 +282,11 @@ export async function setTelegramCommands(): Promise<{ ok: boolean; description?
     { command: "pizza", description: "Aktuální nabídka pizzerie" },
     { command: "statistiky", description: "Statistiky posledních 7 dní" },
     { command: "nastaveni", description: "Nastavení notifikací" },
+    { command: "nastavit", description: "Osobní připomenutí: /nastavit reminder HH:MM" },
     { command: "pozvat", description: "QR kód pro přidání kolegy" },
     { command: "pomoc", description: "Seznam příkazů" },
     { command: "admin", description: "Admin příkazy (pouze pro adminy)" },
+    { command: "pdf", description: "PDF objednávky nebo jídelníčku (pouze admin)" },
   ];
   try {
     const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setMyCommands`, {
