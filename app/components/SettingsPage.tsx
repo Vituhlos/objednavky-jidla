@@ -516,9 +516,6 @@ export default function SettingsPage({
       telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
       telegramAppUrl: fd.get("telegramAppUrl") as string,
     };
-    const newPin = (fd.get("newPin") as string).trim();
-    if (newPin) updates.settingsPin = newPin;
-
     setSaveStatus("idle");
     startTransition(async () => {
       try {
@@ -1131,16 +1128,6 @@ export default function SettingsPage({
 
               </div>
 
-              {/* Systém tab — form part (PIN only) */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
-
-                <Section icon="lock" title="Zabezpečení">
-                  <Field hint="nechte prázdné pro zachování stávajícího PINu" label="Nový PIN (číslice)">
-                    <input className="modal-input w-36" inputMode="numeric" maxLength={8} name="newPin" pattern="[0-9]*" placeholder="ponechte prázdné" type="password" />
-                  </Field>
-                </Section>
-
-              </div>
 
               {/* Telegram tab — form part (token + toggle) */}
               <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
@@ -1218,6 +1205,21 @@ export default function SettingsPage({
             {/* ── Systém — non-form sections ── */}
             {activeTab === "system" && (
               <>
+                <Section icon="info" title="Verze aplikace">
+                  <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide">Verze</span>
+                      <span className="text-[13px] font-mono text-stone-700">{process.env.NEXT_PUBLIC_APP_VERSION ?? "—"}</span>
+                    </div>
+                    {process.env.NEXT_PUBLIC_COMMIT_SHA && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide">Commit</span>
+                        <span className="text-[13px] font-mono text-stone-700">{process.env.NEXT_PUBLIC_COMMIT_SHA}</span>
+                      </div>
+                    )}
+                  </div>
+                </Section>
+
                 <Section icon="build" title="Záloha a obnova dat">
               <p className="text-[12.5px] text-stone-500">
                 Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.

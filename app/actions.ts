@@ -389,13 +389,21 @@ export async function actionChangePassword(oldPassword: string, newPassword: str
   if (newPassword.length < 6) throw new Error("Nové heslo musí mít alespoň 6 znaků.");
   const { getDb } = await import("@/lib/db");
   const { verifyPassword, hashPassword } = await import("@/lib/auth");
+  const { cookies } = await import("next/headers");
   const row = getDb()
     .prepare("SELECT password_hash FROM users WHERE id = ?")
     .get(user.id) as { password_hash: string } | undefined;
   if (!row || !verifyPassword(oldPassword, row.password_hash)) {
     throw new Error("Stávající heslo je nesprávné.");
   }
+  const currentToken = (await cookies()).get("session_token")?.value;
   getDb().prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(newPassword), user.id);
+  // Zneplatnit všechny ostatní sessions (current session zůstane aktivní)
+  if (currentToken) {
+    getDb().prepare("DELETE FROM sessions WHERE user_id = ? AND token != ?").run(user.id, currentToken);
+  } else {
+    getDb().prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);
+  }
 }
 
 export async function actionGetMyHistory(): Promise<Array<{
