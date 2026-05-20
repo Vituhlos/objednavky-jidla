@@ -1201,8 +1201,6 @@ export default function SettingsPage({
                 </Section>
               </div>
 
-            </form>
-
               {/* Systém tab — prodUrl */}
               <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
                 <Section icon="science" title="Vývojová verze">
@@ -1211,6 +1209,8 @@ export default function SettingsPage({
                   </Field>
                 </Section>
               </div>
+
+            </form>
 
             {/* ── Systém — non-form sections ── */}
             {activeTab === "system" && (
