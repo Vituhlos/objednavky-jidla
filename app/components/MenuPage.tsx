@@ -823,26 +823,36 @@ export default function MenuPage({
 
       {/* Week picker pill */}
       <div className="flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
-        <div className="flex items-center gap-0 rounded-2xl overflow-hidden"
+        <div className="flex items-center rounded-2xl overflow-hidden"
           style={{ background: "rgba(255,255,255,0.7)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
-            className="px-3 py-2 text-stone-500 hover:text-stone-800 hover:bg-white/80 transition disabled:opacity-30"
+            className="flex items-center justify-center transition active:scale-95 disabled:opacity-25"
             disabled={activeWeek === "current"}
             onClick={() => handleWeekSwitch("current")}
             type="button"
-            style={{ fontSize: 15, lineHeight: 1 }}
+            style={{
+              width: 36, height: 36,
+              fontSize: 20, fontWeight: 600, lineHeight: 1,
+              color: activeWeek === "current" ? "#c4b9ac" : "#ea580c",
+              borderRight: "1px solid #ede9e2",
+            }}
           >
             ‹
           </button>
-          <span className="px-2 py-2 text-[13px] font-semibold text-stone-700 select-none whitespace-nowrap">
+          <span className="px-3 py-2 text-[13px] font-semibold text-stone-700 select-none whitespace-nowrap">
             Týden {formatWeekRange(activeWeekStart)}
           </span>
           <button
-            className="px-3 py-2 text-stone-500 hover:text-stone-800 hover:bg-white/80 transition disabled:opacity-30"
+            className="flex items-center justify-center transition active:scale-95 disabled:opacity-25"
             disabled={activeWeek === "next" || !hasNextWeek}
             onClick={() => handleWeekSwitch("next")}
             type="button"
-            style={{ fontSize: 15, lineHeight: 1 }}
+            style={{
+              width: 36, height: 36,
+              fontSize: 20, fontWeight: 600, lineHeight: 1,
+              color: (activeWeek === "next" || !hasNextWeek) ? "#c4b9ac" : "#ea580c",
+              borderLeft: "1px solid #ede9e2",
+            }}
           >
             ›
           </button>
