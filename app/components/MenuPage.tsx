@@ -938,7 +938,7 @@ export default function MenuPage({
       <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b border-white/30 shrink-0">
         <button
           aria-label="Předchozí den"
-          className="h-9 px-3.5 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
           disabled={DAY_ORDER.indexOf(activeDay) === 0}
           onClick={() => changeDay("right")}
           type="button"
@@ -986,7 +986,7 @@ export default function MenuPage({
         </div>
         <button
           aria-label="Další den"
-          className="h-9 px-3.5 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
           disabled={DAY_ORDER.indexOf(activeDay) === 4}
           onClick={() => changeDay("left")}
           type="button"

@@ -983,12 +983,73 @@ export default function OrderPage({
         </div>
       )}
 
+      {/* ── Mobile compact day nav ── */}
+      {showDayPicker && (
+        <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b border-white/30 shrink-0">
+          <button
+            aria-label="Předchozí den"
+            className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+            disabled={(availableDates?.indexOf(selectedDate ?? "") ?? 0) <= 0}
+            onClick={() => {
+              const idx = availableDates!.indexOf(selectedDate ?? "");
+              if (idx > 0) { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${availableDates![idx - 1]}`); }); }
+            }}
+            type="button"
+          >
+            <MIcon name="arrow_back" size={18} />
+          </button>
+          <div className="flex-1 flex flex-col items-center gap-1.5">
+            <span className="font-display font-bold text-[16px] text-stone-900 leading-none">
+              {getDayLabel(selectedDate ?? todayDate ?? "", todayDate ?? "")}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {availableDates!.map((date) => {
+                const isActive = date === (selectedDate ?? todayDate);
+                return (
+                  <button
+                    key={date}
+                    aria-label={getDayLabel(date, todayDate!)}
+                    onClick={() => {
+                      if (!isActive) { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }
+                    }}
+                    type="button"
+                    style={{
+                      width: isActive ? "18px" : "7px",
+                      height: "7px",
+                      borderRadius: "999px",
+                      background: isActive ? "linear-gradient(135deg,#F59E0B,#EA580C)" : "rgba(26,18,8,0.15)",
+                      transition: "width 0.25s ease, background 0.2s",
+                      flexShrink: 0,
+                      border: "none",
+                      cursor: isActive ? "default" : "pointer",
+                      padding: 0,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <button
+            aria-label="Další den"
+            className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+            disabled={(availableDates?.indexOf(selectedDate ?? "") ?? 0) >= (availableDates?.length ?? 1) - 1}
+            onClick={() => {
+              const idx = availableDates!.indexOf(selectedDate ?? "");
+              if (idx < availableDates!.length - 1) { setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${availableDates![idx + 1]}`); }); }
+            }}
+            type="button"
+          >
+            <MIcon name="arrow_forward" size={18} />
+          </button>
+        </div>
+      )}
+
       {/* ── Scrollable main content ── */}
       <div className="flex-1 overflow-y-auto scroll-area p-4" {...(daySwipeProps as React.HTMLAttributes<HTMLDivElement>)}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
-            <div className="relative -mx-4">
+            <div className="hidden md:block relative -mx-4">
               <div className="overflow-x-auto no-scrollbar px-4">
                 <div
                   className="flex p-1 rounded-2xl gap-0.5"
