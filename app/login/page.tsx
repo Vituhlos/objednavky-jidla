@@ -134,6 +134,12 @@ export default function LoginPage() {
             Registrovat se
           </Link>
         </p>
+        <div style={{ marginTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: "1rem", textAlign: "center" }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#78716c", textDecoration: "none", fontWeight: 500 }}>
+            <MIcon name="arrow_back" size={14} />
+            Pokračovat bez přihlášení
+          </Link>
+        </div>
       </div>
       </div>
     </div>
