@@ -1275,11 +1275,13 @@ export default function SettingsPage({
                 </Section>
 
                 <Section icon="schedule" title="Automatické odeslání">
-                  <p className="text-[12.5px] text-stone-500">
-                    Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
-                  </p>
+                  <div className="flex items-center gap-3 pb-2 border-b border-white/40">
+                    <span className="text-[11.5px] font-semibold text-stone-600 shrink-0">Čas uzávěrky</span>
+                    <input className="modal-input w-28" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
+                    <span className="text-[10.5px] text-stone-400">zobrazuje se v hlavičce</span>
+                  </div>
                   <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
                       <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" aria-label="Čas odeslání" />
                     </Field>
@@ -1360,7 +1362,7 @@ export default function SettingsPage({
                     Appka se každé ráno připojí k e-mailové schránce a automaticky importuje jídelníček z PDF přílohy od LIMY.
                   </p>
                   <Toggle defaultChecked={settings.imapEnabled === "true"} label="Zapnout automatický import" name="imapEnabled" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Field hint="např. imap.gmail.com" label="IMAP server">
                       <input className="modal-input" defaultValue={settings.imapHost} name="imapHost" type="text" />
                     </Field>
@@ -1368,7 +1370,7 @@ export default function SettingsPage({
                       <input className="modal-input w-24" defaultValue={settings.imapPort} min="1" name="imapPort" type="number" />
                     </Field>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Field hint="Gmail adresa schránky" label="Uživatel (e-mail)">
                       <input className="modal-input" defaultValue={settings.imapUser} name="imapUser" type="email" />
                     </Field>
@@ -1379,7 +1381,7 @@ export default function SettingsPage({
                   <Field hint="e-mail od kterého chodí jídelníčky, např. info@lima.cz — prázdné = všechny nepřečtené maily" label="Filtr odesílatele">
                     <input className="modal-input" defaultValue={settings.imapSender} name="imapSender" placeholder="info@lima.cz" type="email" />
                   </Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Field hint="čas kdy se provede kontrola schránky" label="Čas kontroly">
                       <input className="modal-input w-32" defaultValue={settings.imapCheckTime} name="imapCheckTime" type="time" />
                     </Field>
@@ -1518,13 +1520,13 @@ export default function SettingsPage({
               </div>
 
               {/* Ceny tab */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-3" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
 
                 <Section icon="restaurant" title="Ceník jídel">
                   <p className="text-[12.5px] text-stone-500">
                     Výchozí ceny používané při importu jídelního lístku z webu. Existující položky v menu se nemění.
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <Field hint="Kč za porci" label="Výchozí cena polévky">
                       <input className="modal-input w-24" defaultValue={settings.defaultSoupPrice} min="0" name="defaultSoupPrice" type="number" />
                     </Field>
@@ -1538,7 +1540,7 @@ export default function SettingsPage({
                   <p className="text-[12.5px] text-stone-500">
                     Ceny příloh zobrazované v modalu a používané pro výpočet ceny řádku.
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <Field hint="Kč/ks" label="Houska">
                       <input className="modal-input w-24" defaultValue={settings.priceRoll} min="0" name="priceRoll" type="number" />
                     </Field>
@@ -1574,7 +1576,7 @@ export default function SettingsPage({
               </div>
 
               {/* Telegram tab — form part (token + toggle) */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-3" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
                 <Section icon="send" title="Telegram bot" action={
                   <div className="flex items-center gap-2">
                     {/* Status dot */}
