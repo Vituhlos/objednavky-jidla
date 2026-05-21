@@ -739,7 +739,7 @@ export default function OrderPage({
 
   // ── Day swipe (mobile) ────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { ref: _daySwipeRef, ...daySwipeProps } = useSwipeable({
+  const { ref: daySwipeRef, ...daySwipeProps } = useSwipeable({
     onSwipedLeft: () => {
       if (!availableDates || !showDayPicker) return;
       const idx = availableDates.indexOf(selectedDate ?? todayDate ?? "");
@@ -759,6 +759,7 @@ export default function OrderPage({
       }
     },
     preventScrollOnSwipe: true,
+    touchEventOptions: { passive: false },
     swipeDuration: 500,
     trackMouse: false,
   });
@@ -1045,7 +1046,7 @@ export default function OrderPage({
       )}
 
       {/* ── Scrollable main content ── */}
-      <div className="flex-1 overflow-y-auto scroll-area p-4" {...(daySwipeProps as React.HTMLAttributes<HTMLDivElement>)}>
+      <div ref={daySwipeRef} className="flex-1 overflow-y-auto scroll-area p-4" {...(daySwipeProps as React.HTMLAttributes<HTMLDivElement>)}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
