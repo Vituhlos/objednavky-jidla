@@ -985,10 +985,10 @@ export default function OrderPage({
 
       {/* ── Mobile compact day nav ── */}
       {showDayPicker && (
-        <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b border-white/30 shrink-0">
+        <div className="md:hidden flex items-center justify-center gap-1 px-4 py-2.5 border-b border-white/30 shrink-0">
           <button
             aria-label="Předchozí den"
-            className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+            className="w-9 h-9 inline-flex items-center justify-center text-stone-500 rounded-full hover:bg-black/8 active:bg-black/12 shrink-0 disabled:opacity-20 active:scale-90 transition-all"
             disabled={(availableDates?.indexOf(selectedDate ?? "") ?? 0) <= 0}
             onClick={() => {
               const idx = availableDates!.indexOf(selectedDate ?? "");
@@ -996,9 +996,9 @@ export default function OrderPage({
             }}
             type="button"
           >
-            <MIcon name="arrow_back" size={18} />
+            <MIcon name="arrow_back" size={22} />
           </button>
-          <div className="flex-1 flex flex-col items-center gap-1.5">
+          <div className="flex flex-col items-center gap-1.5 min-w-[130px]">
             <span className="font-display font-bold text-[16px] text-stone-900 leading-none">
               {getDayLabel(selectedDate ?? todayDate ?? "", todayDate ?? "")}
             </span>
@@ -1031,7 +1031,7 @@ export default function OrderPage({
           </div>
           <button
             aria-label="Další den"
-            className="w-10 h-10 rounded-2xl glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+            className="w-9 h-9 inline-flex items-center justify-center text-stone-500 rounded-full hover:bg-black/8 active:bg-black/12 shrink-0 disabled:opacity-20 active:scale-90 transition-all"
             disabled={(availableDates?.indexOf(selectedDate ?? "") ?? 0) >= (availableDates?.length ?? 1) - 1}
             onClick={() => {
               const idx = availableDates!.indexOf(selectedDate ?? "");
@@ -1039,7 +1039,7 @@ export default function OrderPage({
             }}
             type="button"
           >
-            <MIcon name="arrow_forward" size={18} />
+            <MIcon name="arrow_forward" size={22} />
           </button>
         </div>
       )}
