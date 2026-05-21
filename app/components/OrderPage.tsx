@@ -742,7 +742,7 @@ export default function OrderPage({
   const { ref: _daySwipeRef, ...daySwipeProps } = useSwipeable({
     onSwipedLeft: () => {
       if (!availableDates || !showDayPicker) return;
-      const idx = availableDates.indexOf(selectedDate ?? "");
+      const idx = availableDates.indexOf(selectedDate ?? todayDate ?? "");
       const next = idx + 1;
       if (next < availableDates.length) {
         setDaySwitchPending(true);
@@ -751,16 +751,16 @@ export default function OrderPage({
     },
     onSwipedRight: () => {
       if (!availableDates || !showDayPicker) return;
-      const idx = availableDates.indexOf(selectedDate ?? "");
+      const idx = availableDates.indexOf(selectedDate ?? todayDate ?? "");
       const prev = idx - 1;
       if (prev >= 0) {
         setDaySwitchPending(true);
         startTransition(() => { router.push(`/?date=${availableDates[prev]}`); });
       }
     },
-    preventScrollOnSwipe: false,
+    preventScrollOnSwipe: true,
+    swipeDuration: 500,
     trackMouse: false,
-    delta: 60,
   });
 
   type UnorderedUser = { id: number; firstName: string; lastName: string; defaultDepartment: string | null };
