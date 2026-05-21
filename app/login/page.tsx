@@ -134,9 +134,27 @@ export default function LoginPage() {
             Registrovat se
           </Link>
         </p>
-        <div style={{ marginTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: "1rem", textAlign: "center" }}>
-          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#78716c", textDecoration: "none", fontWeight: 500 }}>
-            <MIcon name="arrow_back" size={14} />
+        <div style={{ marginTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: "1rem" }}>
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 7,
+              padding: "0.6rem 1rem",
+              borderRadius: 14,
+              background: "rgba(255,255,255,0.55)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 1px 4px -1px rgba(0,0,0,0.06)",
+              textDecoration: "none",
+              color: "#57534e",
+              fontSize: 13,
+              fontWeight: 600,
+              transition: "background 0.15s",
+            }}
+          >
+            <MIcon name="storefront" size={16} style={{ color: "#D97706" }} />
             Pokračovat bez přihlášení
           </Link>
         </div>
