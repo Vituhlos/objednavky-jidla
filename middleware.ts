@@ -12,11 +12,17 @@ const PUBLIC_PATHS = [
   "/api/telegram/webhook", // externí webhook — má vlastní ochranu (secret token)
 ];
 
-export function middleware(request: NextRequest) {
+// Stránky přístupné i bez přihlášení (čtení/prohlížení)
+const GUEST_PATHS = ["/jidelnicek", "/api/sse", "/api/order-refresh"];
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
+
+  // Hlavní stránka a jídelníček jsou přístupné i bez přihlášení
+  if (pathname === "/" || GUEST_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {

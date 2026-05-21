@@ -916,6 +916,7 @@ export default function OrderPage({
   return (
     <div className="k-shell">
 
+
       {/* ── Auto-send failure banner ── */}
       {autoSendError && (
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b" style={{ background: "rgba(220,38,38,0.08)", borderColor: "rgba(220,38,38,0.18)" }}>
@@ -1229,20 +1230,6 @@ export default function OrderPage({
                 </div>
               )}
 
-<<<<<<< HEAD
-              {/* Prefill banner (sekce 6.6) */}
-              {prefillItem && (
-                <div
-                  className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
-                  style={{ borderColor: "rgba(245,158,11,0.35)", background: "rgba(254,243,199,0.5)" }}
-                  role="status"
-                >
-                  <div
-                    className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
-                    style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-                  >
-                    <MIcon name="add_shopping_cart" size={15} fill className="text-white" />
-=======
               {/* Login banner for unauthenticated users — mobile only (desktop uses sidebar) */}
               {currentUserId === undefined && !isAdmin && (
                 <div className="md:hidden glass rounded-2xl px-4 py-3 flex items-center gap-3" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }}>
@@ -1257,7 +1244,6 @@ export default function OrderPage({
                     <Link href="/register" className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-white transition hover:opacity-[0.88] no-underline" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
                       Registrovat
                     </Link>
->>>>>>> bf84e81 (Login karta v sidebaru na desktopu, banner jen na mobilu)
                   </div>
                   <div className="flex-1 min-w-0 leading-snug">
                     <div>
@@ -1312,52 +1298,87 @@ export default function OrderPage({
                 ))}
               </div>
 
-              {/* Bottom status bar */}
-              <div
-                className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3"
-                style={isSent ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" } : {}}
-              >
+              {/* Bottom status bar — centered, not full-width */}
+              <div className="flex justify-center">
                 <div
-                  className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
-                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.12)" }}
+                  className="glass rounded-2xl px-4 py-3 flex items-center gap-3"
+                  style={{
+                    width: "fit-content",
+                    minWidth: 0,
+                    ...(isSent ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" } : {}),
+                  }}
                 >
-                  <MIcon name={isSent ? "check_circle" : "schedule"} size={18} fill style={{ color: isSent ? "#16a34a" : "#D97706" }} />
-                </div>
-                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug min-w-0">
-                  {isSent ? (
-                    <>
-                      <strong className="text-green-700">Objednávka odeslána</strong>
-                      {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
-                    </>
-                  ) : isFutureDay ? (
-                    <>
-                      <strong>Objednávka dopředu.</strong>
-                      <span className="text-stone-500"> Odešle se automaticky v den samotný v {cutoffTime}.</span>
-                    </>
-                  ) : autoSendEnabled ? (
-                    <>
-                      <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávka se odešle automaticky — nemusíš nic dělat.</span>
-                    </>
-                  ) : (
-                    <>
-                      <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
-                    </>
+                  <div
+                    className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
+                    style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(100,116,139,0.1)" }}
+                  >
+                    <MIcon name={isSent ? "check_circle" : "lock"} size={18} fill style={{ color: isSent ? "#16a34a" : "#94a3b8" }} />
+                  </div>
+                  <div className="text-[12.5px] text-stone-700 leading-snug">
+                    {isSent ? (
+                      <>
+                        <strong className="text-green-700">Objednávka odeslána</strong>
+                        {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
+                        <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
+                      </>
+                    ) : isFutureDay ? (
+                      <>
+                        <strong>Objednávka dopředu.</strong>
+                        <span className="text-stone-500"> Odešle se automaticky {futureDayPhrase} v {cutoffTime}.</span>
+                      </>
+                    ) : (
+                      <>
+                        <strong>Uzávěrka v {cutoffTime}.</strong>
+                        <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
+                      </>
+                    )}
+                  </div>
+                  {!isSent && totalPrice > 0 && (
+                    <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
+                  )}
+                  {isAdmin && !isSent && (
+                    <button
+                      className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-btn text-stone-500"
+                      disabled={isPending}
+                      onClick={() => setClearConfirm(true)}
+                      type="button"
+                    >
+                      Smazat
+                    </button>
                   )}
                 </div>
-                {!isSent && totalPrice > 0 && (
-                  <div className="shrink-0 flex flex-col items-end leading-none">
-                    <span className="text-[11.5px] text-stone-500">Celkem</span>
-                    <span className="font-display font-extrabold text-[18px] text-stone-900 leading-none mt-0.5">
-                      {totalPrice}
-                      <span className="text-[12px] font-semibold text-stone-500 ml-1">Kč</span>
-                    </span>
-                  </div>
-                )}
               </div>
             </>
+          )}
+
+          {/* ── Dev environment notice — always at bottom ── */}
+          {prodUrl && (
+            <div className="flex justify-center pt-2">
+              <div
+                className="glass rounded-2xl px-5 py-4 flex items-center gap-4"
+                style={{ background: "rgba(37,99,235,0.07)", borderColor: "rgba(37,99,235,0.22)", maxWidth: 500, width: "100%" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(37,99,235,0.12)" }}
+                >
+                  <MIcon name="science" size={22} style={{ color: "#1d4ed8" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13.5px] font-bold text-blue-800 leading-snug">Vývojová verze</p>
+                  <p className="text-[12px] text-blue-600 leading-snug mt-0.5">Objednávky se neodesílají do restaurace — jde o testovací prostředí.</p>
+                </div>
+                <a
+                  href={prodUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 px-3.5 py-2 rounded-full text-[12px] font-semibold text-white no-underline whitespace-nowrap transition hover:opacity-[0.88] active:scale-[0.97]"
+                  style={{ background: "#1d4ed8", boxShadow: "0 2px 8px -2px rgba(29,78,216,0.45)" }}
+                >
+                  Produkce →
+                </a>
+              </div>
+            </div>
           )}
         </div>
       </div>
