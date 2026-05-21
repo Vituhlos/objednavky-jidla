@@ -954,7 +954,7 @@ export default function OrderPage({
 
       {/* ── Scrollable main content ── */}
       <main className="flex-1 overflow-y-auto scroll-area p-4">
-        <div className="flex flex-col gap-4 pb-28 md:pb-6">
+        <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
             <div className="relative -mx-4">

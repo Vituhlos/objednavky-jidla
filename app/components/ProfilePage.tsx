@@ -219,7 +219,7 @@ export default function ProfilePage({
         <span className="font-display font-bold text-[14px] text-stone-900">Můj profil</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-6 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-6 pb-nav">
         <div className="max-w-2xl mx-auto space-y-4">
 
         {/* Hero card */}

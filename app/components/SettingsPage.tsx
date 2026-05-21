@@ -676,7 +676,7 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-24">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav md:pb-24">
         <div className="max-w-2xl mx-auto space-y-3">
             {/* Tab bar */}
             <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
