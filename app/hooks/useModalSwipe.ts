@@ -24,7 +24,8 @@ export function useModalSwipe(onDismiss: () => void) {
     onSwiping: ({ deltaY }) => {
       const body = sheetElRef.current?.querySelector(".modal-sheet__body") as HTMLElement | null;
       if (body && body.scrollTop > 0) { setDragY(0); return; }
-      setDragY(Math.max(0, deltaY));
+      // deltaY = initialY - currentY, proto je záporné při tahu dolů → negujeme
+      setDragY(Math.max(0, -deltaY));
     },
     onSwipedDown: ({ absY, velocity }) => {
       if (absY > 80 || velocity > 0.5) dismiss();
@@ -32,6 +33,7 @@ export function useModalSwipe(onDismiss: () => void) {
     },
     onSwiped: ({ dir }) => { if (dir !== "Down") setDragY(0); },
     preventScrollOnSwipe: false,
+    touchEventOptions: { passive: false },
     trackMouse: false,
     delta: 10,
   });
