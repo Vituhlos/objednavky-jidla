@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Objednávka" };
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const params = await searchParams;

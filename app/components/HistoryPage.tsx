@@ -71,6 +71,7 @@ export default function HistoryPage({
 
   return (
     <div className="k-shell">
+      <h1 className="sr-only">Historie objednávek</h1>
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">

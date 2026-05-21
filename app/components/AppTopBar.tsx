@@ -6,14 +6,14 @@ import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
 
 const MAIN_NAV = [
-  { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
-  { href: "/jidelnicek", label: "Jídelníček LIMA",   shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
-  { href: "/pizza",      label: "Pizza",              shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
-  { href: "/historie",   label: "Historie",           shortLabel: "Historie",   icon: "history",         exact: false },
-  { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false },
+  { href: "/",           label: "Oběd",       shortLabel: "Oběd",       icon: "restaurant_menu", exact: true,  requiresAuth: false },
+  { href: "/jidelnicek", label: "Jídelníček", shortLabel: "Jídelníček", icon: "menu_book",       exact: false, requiresAuth: false },
+  { href: "/pizza",      label: "Pizza",      shortLabel: "Pizza",      icon: "local_pizza",     exact: false, requiresAuth: true  },
+  { href: "/historie",   label: "Historie",   shortLabel: "Historie",   icon: "history",         exact: false, requiresAuth: true  },
+  { href: "/nastaveni",  label: "Nastavení",  shortLabel: "Nastavení",  icon: "settings",        exact: false, requiresAuth: false },
 ];
 
-const PROFILE_NAV = { href: "/profil", label: "Můj profil", shortLabel: "Profil", icon: "account_circle", exact: false };
+const PROFILE_NAV = { href: "/profil", label: "Profil", shortLabel: "Profil", icon: "account_circle", exact: false, requiresAuth: true };
 
 const SidebarClock = memo(function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
@@ -70,11 +70,11 @@ function UserBadge({ user }: { user: UserInfo }) {
       <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Účet</div>
       <div className="text-[12px] text-stone-500 leading-snug mb-2.5">Přihlaste se pro přidání objednávky.</div>
       <div className="flex flex-col gap-1.5">
-        <Link href="/login" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
+        <Link href="/login" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
           <MIcon name="login" size={13} />
           Přihlásit se
         </Link>
-        <Link href="/register" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white no-underline transition hover:opacity-[0.88]" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}>
+        <Link href="/register" className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800 no-underline">
           <MIcon name="person_add" size={13} />
           Vytvořit účet
         </Link>
@@ -151,8 +151,9 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
         </div>
 
         <div className="mt-2 flex flex-col gap-0.5">
-          {desktopNav.map(({ href, label, icon, exact }) => {
+          {desktopNav.map(({ href, label, icon, exact, requiresAuth }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
+            const locked = requiresAuth && !initialUser;
             return (
               <Link
                 key={href}
@@ -169,6 +170,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
                 <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-500"}`}>
                   {label}
                 </span>
+                {locked && <MIcon name="lock" size={13} style={{ color: "#c4b5a4" }} />}
               </Link>
             );
           })}
@@ -190,14 +192,15 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
       <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {mobileNav.map(({ href, shortLabel, icon, exact }) => {
+          {mobileNav.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
+            const locked = requiresAuth && !initialUser;
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={isActive ? "page" : undefined}
-                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition relative"
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >
                 <MIcon
@@ -211,6 +214,11 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
                 </span>
                 {isActive && (
                   <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
+                )}
+                {locked && !isActive && (
+                  <span className="absolute top-1 right-1 w-3 h-3 flex items-center justify-center">
+                    <MIcon name="lock" size={9} style={{ color: "#c4b5a4" }} />
+                  </span>
                 )}
               </Link>
             );

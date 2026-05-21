@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Nastavení" };
 
 import { getSettings } from "@/lib/settings";
 import { getDepartments } from "@/lib/departments";

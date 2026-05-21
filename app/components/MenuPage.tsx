@@ -64,8 +64,8 @@ function resolveActiveDay(
   visibleTodayCode: string | null,
   currentDay?: string
 ): string {
-  if (currentDay && menu[currentDay]) return currentDay;
-  if (visibleTodayCode && menu[visibleTodayCode]) return visibleTodayCode;
+  if (currentDay && DAY_ORDER.includes(currentDay)) return currentDay;
+  if (visibleTodayCode && DAY_ORDER.includes(visibleTodayCode)) return visibleTodayCode;
   return DAY_ORDER.find((day) => menu[day]) ?? DAY_ORDER[0];
 }
 
@@ -759,6 +759,7 @@ export default function MenuPage({
 
   return (
     <div className="k-shell">
+      <h1 className="sr-only">Jídelníček</h1>
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
@@ -826,18 +827,18 @@ export default function MenuPage({
         <div className="flex items-center gap-1.5 p-1 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
-            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05]"
+            className="flex flex-col items-center px-3.5 py-2 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05] min-h-[44px] justify-center"
             onClick={() => handleWeekSwitch("current")}
             type="button"
             style={activeWeek === "current"
               ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
               : {}}
           >
-            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "current" ? "text-white/80" : "text-stone-500"}`}>Aktuální</span>
-            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "current" ? "text-white" : "text-stone-700"}`}>{formatWeekRange(currentWeekStart)}</span>
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "current" ? "text-white/80" : "text-stone-600"}`}>Aktuální</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "current" ? "text-white" : "text-stone-800"}`}>{formatWeekRange(currentWeekStart)}</span>
           </button>
           <button
-            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05]"
+            className="flex flex-col items-center px-3.5 py-2 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05] min-h-[44px] justify-center"
             disabled={!hasNextWeek}
             onClick={() => handleWeekSwitch("next")}
             type="button"
@@ -845,8 +846,8 @@ export default function MenuPage({
               ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
               : {}}
           >
-            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "next" ? "text-white/80" : "text-stone-500"}`}>Příští</span>
-            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "next" ? "text-white" : "text-stone-700"}`}>{hasNextWeek ? formatWeekRange(nextWeekStart) : "—"}</span>
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "next" ? "text-white/80" : "text-stone-600"}`}>Příští</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "next" ? "text-white" : "text-stone-800"}`}>{hasNextWeek ? formatWeekRange(nextWeekStart) : "—"}</span>
           </button>
         </div>
         {hasPdfActive && (
@@ -875,7 +876,7 @@ export default function MenuPage({
           return (
             <button
               key={day}
-              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
+              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition min-w-[44px] ${!hasData && !active ? "opacity-40" : ""}`}
               onClick={() => setActiveDay(day)}
               style={active
                 ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
@@ -883,8 +884,8 @@ export default function MenuPage({
               }
               type="button"
             >
-              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-500"}`}>{day}</span>
-              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-700"}`}>{dayDates[day]}</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-700"}`}>{day}</span>
+              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-900"}`}>{dayDates[day]}</span>
               {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
             </button>
           );

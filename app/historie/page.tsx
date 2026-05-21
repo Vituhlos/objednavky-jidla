@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Historie" };
 
 import { getOrderList } from "@/lib/orders";
 import { getPizzaOrderList } from "@/lib/pizza";

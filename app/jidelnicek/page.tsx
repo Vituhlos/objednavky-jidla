@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Jídelníček" };
 
 const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"] as const;
 

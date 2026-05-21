@@ -146,6 +146,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
 
   return (
     <div className="k-shell">
+      <h1 className="sr-only">Pizza</h1>
       {pendingDelete && (
         <div aria-live="polite" role="status" className="k-toast">
           <span>Řádek smazán</span>
@@ -288,7 +289,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
               <button
                 type="button"
                 onClick={() => setShowPizzaHelp(true)}
-                className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-white/60 transition text-[13px] font-bold"
+                className="w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-white/60 transition text-[13px] font-bold"
                 aria-label="Nápověda k výpočtu"
                 title="Jak se počítá cena?"
               >?</button>

@@ -743,7 +743,7 @@ export default function OrderPage({
 
   return (
     <div className="k-shell">
-
+      <h1 className="sr-only">Dnešní objednávka</h1>
 
       {/* ── Auto-send failure banner ── */}
       {autoSendError && (
@@ -822,14 +822,14 @@ export default function OrderPage({
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
+        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-600">
           {isFutureDay && !isSent && futureDayPhrase && (
-            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+            <span className="inline-flex items-center gap-1 text-stone-600 font-medium">
               <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
             </span>
           )}
           {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
+            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-600"}`}>
               <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
             </span>
           )}
@@ -865,7 +865,7 @@ export default function OrderPage({
         {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
         <button
           aria-label="Nápověda"
-          className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
+          className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
           onClick={() => setShowHelp(true)}
           type="button"
         >
@@ -878,7 +878,7 @@ export default function OrderPage({
         <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
         <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
         {activeOrderCount > 0 && (
-          <span className="text-[11px] text-stone-500 shrink-0">
+          <span className="text-[11px] text-stone-600 shrink-0">
             {activeOrderCount} · {totalPrice} Kč
           </span>
         )}
@@ -890,12 +890,12 @@ export default function OrderPage({
           title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
         />
         {isFutureDay && !isSent && futureDayPhrase && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
+          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-600 font-medium shrink-0">
             <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
           </span>
         )}
         {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
+          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-600"}`}>
             <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
@@ -931,14 +931,14 @@ export default function OrderPage({
           </button>
         )}
         {isFutureDay && !isSent && !noMenu && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
+          <span className="inline-flex items-center gap-1 text-[11px] text-stone-600 shrink-0">
             <MIcon name="schedule" size={12} />
             Auto
           </span>
         )}
         <button
           aria-label="Nápověda"
-          className="ml-auto w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
+          className="ml-auto w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
           onClick={() => setShowHelp(true)}
           type="button"
         >

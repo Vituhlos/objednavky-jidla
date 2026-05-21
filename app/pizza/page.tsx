@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Pizza" };
 
 import { getTodayPizzaOrderData } from "@/lib/pizza";
 import PizzaPage from "@/app/components/PizzaPage";

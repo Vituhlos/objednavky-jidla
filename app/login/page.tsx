@@ -42,6 +42,7 @@ export default function LoginPage() {
       <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
       {/* Card */}
       <div className="glass scale-in" style={{ width: "100%", maxWidth: 400, borderRadius: 24, padding: "2rem", position: "relative", zIndex: 10 }}>
+        <h1 className="sr-only">Přihlášení</h1>
         {/* Logo */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "1.75rem", gap: 10 }}>
           <div style={{
@@ -67,8 +68,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
-            <label className="auth-label">E-mail</label>
+            <label htmlFor="email" className="auth-label">E-mail</label>
             <input
+              id="email"
               autoComplete="email"
               className="auth-input"
               onChange={(e) => setEmail(e.target.value)}
@@ -80,9 +82,10 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="auth-label">Heslo</label>
+            <label htmlFor="password" className="auth-label">Heslo</label>
             <div style={{ position: "relative" }}>
               <input
+                id="password"
                 autoComplete="current-password"
                 className="auth-input"
                 onChange={(e) => setPassword(e.target.value)}
@@ -90,13 +93,13 @@ export default function LoginPage() {
                 required
                 type={showPassword ? "text" : "password"}
                 value={password}
-                style={{ paddingRight: "2.5rem" }}
+                style={{ paddingRight: "3rem" }}
               />
               <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword((s) => !s)}
-                style={{ position: "absolute", right: "0.65rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "0.25rem", color: "#9b8474" }}
+                style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", color: "#9b8474" }}
                 aria-label={showPassword ? "Skrýt heslo" : "Zobrazit heslo"}
               >
                 <MIcon name={showPassword ? "visibility_off" : "visibility"} size={17} />
@@ -105,11 +108,15 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div style={{
-              padding: "0.6rem 0.875rem", borderRadius: 12,
-              background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.22)",
-              color: "#b91c1c", fontSize: 13,
-            }}>
+            <div
+              role="alert"
+              aria-live="polite"
+              style={{
+                padding: "0.6rem 0.875rem", borderRadius: 12,
+                background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.22)",
+                color: "#b91c1c", fontSize: 13,
+              }}
+            >
               {error}
             </div>
           )}
@@ -123,26 +130,27 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: "center", marginTop: "1rem", fontSize: 13, color: "#9b8474" }}>
-          <Link href="/zapomenute-heslo" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>
+        <p style={{ textAlign: "center", marginTop: "0.75rem" }}>
+          <Link href="/zapomenute-heslo" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none", fontSize: 13, display: "inline-block", padding: "0.5rem 0.25rem" }}>
             Zapomněli jste heslo?
           </Link>
         </p>
-        <p style={{ textAlign: "center", marginTop: "0.5rem", fontSize: 13, color: "#9b8474" }}>
+        <p style={{ textAlign: "center", marginTop: "0.25rem", fontSize: 13, color: "#9b8474" }}>
           Ještě nemáte účet?{" "}
-          <Link href="/register" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none" }}>
+          <Link href="/register" style={{ color: "#D97706", fontWeight: 600, textDecoration: "none", display: "inline-block", padding: "0.5rem 0.25rem" }}>
             Registrovat se
           </Link>
         </p>
         <div style={{ marginTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: "1rem" }}>
           <Link
             href="/"
+            className="group"
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 7,
-              padding: "0.6rem 1rem",
+              padding: "0.75rem 1rem",
               borderRadius: 14,
               background: "rgba(255,255,255,0.55)",
               border: "1px solid rgba(0,0,0,0.08)",
@@ -151,8 +159,10 @@ export default function LoginPage() {
               color: "#57534e",
               fontSize: 13,
               fontWeight: 600,
-              transition: "background 0.15s",
+              transition: "background 0.2s, box-shadow 0.2s",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.85)"; e.currentTarget.style.boxShadow = "0 2px 8px -2px rgba(0,0,0,0.10)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.55)"; e.currentTarget.style.boxShadow = "0 1px 4px -1px rgba(0,0,0,0.06)"; }}
           >
             <MIcon name="storefront" size={16} style={{ color: "#D97706" }} />
             Pokračovat bez přihlášení

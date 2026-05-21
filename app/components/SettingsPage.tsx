@@ -117,7 +117,7 @@ function Section({ title, icon, children, helpContent, action }: { title: string
             type="button"
             onClick={() => setShowHelp((v) => !v)}
             aria-label="Nápověda"
-            className="w-7 h-7 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
+            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
           >
             <MIcon name="info" size={14} />
           </button>
@@ -663,6 +663,7 @@ export default function SettingsPage({
 
   return (
     <div className="k-shell">
+      <h1 className="sr-only">Nastavení</h1>
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
