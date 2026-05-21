@@ -677,7 +677,7 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav md:pb-24">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav md:pb-24">
         <div className="max-w-2xl mx-auto space-y-3">
             {/* Tab bar */}
             <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -875,16 +875,16 @@ export default function SettingsPage({
                 <Section icon="schedule" title="Automatické odeslání">
                   <div className="flex items-center gap-3 pb-2 border-b border-white/40">
                     <span className="text-[11.5px] font-semibold text-stone-600 shrink-0">Čas uzávěrky</span>
-                    <input className="modal-input w-28" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
+                    <input className="modal-input w-28" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" aria-label="Čas uzávěrky" />
                     <span className="text-[10.5px] text-stone-400">zobrazuje se v hlavičce</span>
                   </div>
                   <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
-                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
+                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" aria-label="Čas odeslání" />
                     </Field>
                     <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
-                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
+                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" aria-label="Minimální počet objednávek" />
                     </Field>
                   </div>
                   <Field label="Dny odeslání">
@@ -1741,7 +1741,7 @@ export default function SettingsPage({
             )}
 
         {/* Version info */}
-        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-500">
           <span>Objednávky LIMA</span>
           <span className="text-stone-300">·</span>
           <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>
@@ -1754,7 +1754,7 @@ export default function SettingsPage({
         </div>
 
         </div>
-      </main>
+      </div>
 
       {/* ── Floating save button ── */}
       {activeTab !== "oddeleni" && (

@@ -12,7 +12,7 @@ export default function Loading() {
         <div className="h-3.5 w-36 rounded-full shimmer" />
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4">
+      <div className="flex-1 overflow-y-auto scroll-area p-4">
         <div className="flex flex-col gap-4 pb-20">
           {/* Day picker */}
           <div className="h-10 w-full md:w-72 rounded-2xl shimmer" />
@@ -45,7 +45,7 @@ export default function Loading() {
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

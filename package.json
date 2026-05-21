@@ -47,8 +47,10 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/web-push": "^3.6.4",
+    "axe-core": "^4.11.4",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.4",
+    "playwright": "^1.60.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3"

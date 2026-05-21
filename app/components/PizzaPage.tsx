@@ -215,7 +215,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
       <div className="space-y-4 md:grid md:gap-4 md:space-y-0 md:items-start" style={{ gridTemplateColumns: "1fr 280px" }}>
         {/* Orders */}
         <section className="glass rounded-3xl overflow-hidden">
@@ -325,7 +325,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
           </section>
         )}
       </div>
-      </main>
+      </div>
 
       {showPizzaHelp && (
         <div className="modal-overlay" onClick={() => setShowPizzaHelp(false)}>

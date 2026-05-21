@@ -893,7 +893,7 @@ export default function MenuPage({
       </div>
 
       {/* Desktop: week grid */}
-      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3">
+      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3" tabIndex={0}>
         <WeekGrid
           dayDates={dayDates}
           disabled={isPending}

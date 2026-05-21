@@ -29,7 +29,7 @@ const SidebarClock = memo(function SidebarClock() {
 
   return (
     <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Dnes</div>
+      <div className="text-[11px] uppercase tracking-wider text-stone-600 font-semibold mb-0.5">Dnes</div>
       <div className="font-display font-bold text-[15px] text-stone-900">{timeStr}</div>
       <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
     </div>
@@ -91,7 +91,7 @@ function UserBadge({ user }: { user: UserInfo }) {
             {user.firstName} {user.lastName}
           </div>
           {user.role === "admin"
-            ? <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Admin</div>
+            ? <div className="text-[10px] text-amber-700 font-semibold mt-0.5">Admin</div>
             : <div className="text-[10px] text-stone-400 mt-0.5">Profil &amp; nastavení</div>
           }
         </div>
@@ -167,7 +167,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
                   fill={isActive}
                   style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
                 />
-                <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-500"}`}>
+                <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-600"}`}>
                   {label}
                 </span>
                 {locked && <MIcon name="lock" size={13} style={{ color: "#c4b5a4" }} />}

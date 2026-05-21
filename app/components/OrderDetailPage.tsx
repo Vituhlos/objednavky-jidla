@@ -237,7 +237,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
         <div className="grid md:grid-cols-3 gap-4">
           {isEmpty && (
             <div className="glass rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
@@ -275,7 +275,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
             );
           })}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

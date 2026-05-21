@@ -207,6 +207,7 @@ export default function ProfilePage({
 
   return (
     <div className="k-shell">
+      <h1 className="sr-only">Můj profil</h1>
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <MIcon name="account_circle" size={16} fill style={{ color: "#D97706" }} />
@@ -219,7 +220,7 @@ export default function ProfilePage({
         <span className="font-display font-bold text-[14px] text-stone-900">Můj profil</span>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-6 pb-nav">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-6 pb-nav">
         <div className="max-w-2xl mx-auto space-y-4">
 
         {/* Hero card */}
@@ -273,8 +274,9 @@ export default function ProfilePage({
           <form onSubmit={handleSaveProfile} className="p-4 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-semibold text-stone-600">Jméno</span>
+                <label htmlFor="profile-first-name" className="text-[11.5px] font-semibold text-stone-600">Jméno</label>
                 <input
+                  id="profile-first-name"
                   className="modal-input"
                   required
                   type="text"
@@ -284,8 +286,9 @@ export default function ProfilePage({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-semibold text-stone-600">Příjmení</span>
+                <label htmlFor="profile-last-name" className="text-[11.5px] font-semibold text-stone-600">Příjmení</label>
                 <input
+                  id="profile-last-name"
                   className="modal-input"
                   required
                   type="text"
@@ -305,9 +308,10 @@ export default function ProfilePage({
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="text-[11.5px] font-semibold text-stone-600">Výchozí oddělení</span>
+              <label htmlFor="profile-department" className="text-[11.5px] font-semibold text-stone-600">Výchozí oddělení</label>
               <span className="text-[10.5px] text-stone-400 -mt-0.5">Vaše oddělení bude označeno hvězdičkou v objednávce</span>
               <select
+                id="profile-department"
                 className="k-select"
                 value={defaultDepartment}
                 onChange={(e) => setDefaultDepartment(e.target.value)}
@@ -326,6 +330,7 @@ export default function ProfilePage({
                 style={{ width: 40, height: 22 }}
                 role="switch"
                 aria-checked={emailOrderConfirmation}
+                aria-label="E-mail při odeslání objednávky"
               >
                 <span
                   className="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform"
@@ -582,7 +587,7 @@ export default function ProfilePage({
         </div>
         </div>
 
-      </main>
+      </div>
     </div>
   );
 }
