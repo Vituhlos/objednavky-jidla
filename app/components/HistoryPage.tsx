@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSwipeable } from "react-swipeable";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
 import MIcon from "./MIcon";
@@ -34,12 +35,86 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function HistoryTable({ rows }: { rows: React.ReactNode[][] }) {
+const REVEAL_W = 76;
+
+function SwipeableHistoryRow({ href, date, status, isDraft }: {
+  href: string;
+  date: string;
+  status: string;
+  isDraft: boolean;
+}) {
+  const router = useRouter();
+  const [dragX, setDragX] = useState(0);
+  const revealed = dragX >= REVEAL_W;
+  const wasSwipedRef = useRef(false);
+
+  const handlers = useSwipeable({
+    onSwiping: ({ deltaX, dir }) => {
+      if (dir === "Left") {
+        wasSwipedRef.current = true;
+        setDragX(Math.min(Math.max(0, deltaX), REVEAL_W));
+      } else if (dir === "Right") {
+        setDragX(0);
+      }
+    },
+    onSwipedLeft: ({ absX }) => {
+      setDragX(absX >= REVEAL_W / 2 ? REVEAL_W : 0);
+      setTimeout(() => { wasSwipedRef.current = false; }, 100);
+    },
+    onSwipedRight: () => {
+      setDragX(0);
+      setTimeout(() => { wasSwipedRef.current = false; }, 100);
+    },
+    onSwiped: ({ dir }) => {
+      if (dir !== "Left" && dir !== "Right") setDragX(0);
+    },
+    preventScrollOnSwipe: false,
+    trackMouse: false,
+    delta: 10,
+  });
+
+  const { ref: swipeRef, ...swipeEventProps } = handlers;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-[12.5px]">
-        <tbody>{rows}</tbody>
-      </table>
+    <div
+      ref={swipeRef}
+      className={`relative overflow-hidden border-b border-white/30 last:border-0 select-none ${isDraft ? "opacity-60" : ""}`}
+    >
+      {/* Reveal action */}
+      <div
+        aria-hidden
+        className="absolute right-0 top-0 bottom-0 flex items-center justify-center"
+        style={{ width: REVEAL_W, background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+      >
+        <button
+          className="flex flex-col items-center justify-center gap-0.5 text-white text-[10px] font-bold w-full h-full"
+          onClick={() => router.push(href)}
+          type="button"
+        >
+          <MIcon name="arrow_forward" size={16} style={{ color: "white" }} />
+          Otevřít
+        </button>
+      </div>
+
+      {/* Row content */}
+      <div
+        className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors"
+        style={{
+          transform: `translateX(-${dragX}px)`,
+          transition: dragX === REVEAL_W || dragX === 0 ? "transform 0.2s ease" : "none",
+          background: "transparent",
+        }}
+        onClick={() => {
+          if (wasSwipedRef.current) return;
+          if (dragX > 0) { setDragX(0); return; }
+          router.push(href);
+        }}
+        {...(swipeEventProps as React.HTMLAttributes<HTMLDivElement>)}
+      >
+        <span className="font-semibold text-[12.5px] text-stone-800 flex-1">{formatDate(date)}</span>
+        <StatusBadge status={status} />
+        <MIcon name="chevron_right" size={16} style={{ color: "#d4c5b5", flexShrink: 0 }} />
+      </div>
     </div>
   );
 }
@@ -139,44 +214,59 @@ export default function HistoryPage({
               {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
-                    <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => {
-                    const isDraft = order.status !== "sent";
-                    return (
-                      <tr
-                        key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(`/historie/${order.id}`)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
-                        role="link"
-                        tabIndex={0}
-                      >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
-                        <td className="px-3 py-3 text-stone-400">
-                          <MIcon name="chevron_right" size={16} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Mobile swipeable rows */}
+              <div className="md:hidden">
+                {filteredOrders.map((order) => (
+                  <SwipeableHistoryRow
+                    key={order.id}
+                    href={`/historie/${order.id}`}
+                    date={order.date}
+                    status={order.status}
+                    isDraft={order.status !== "sent"}
+                  />
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-[12.5px]">
+                  <thead>
+                    <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                      <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Odesláno</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Řádků</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
+                      <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => {
+                      const isDraft = order.status !== "sent";
+                      return (
+                        <tr
+                          key={order.id}
+                          className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                          onClick={() => router.push(`/historie/${order.id}`)}
+                          onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
+                          role="link"
+                          tabIndex={0}
+                        >
+                          <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                          <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                          <td className="px-3 py-3 text-stone-500">{formatSentAt(order.sentAt)}</td>
+                          <td className="px-3 py-3 text-stone-500">{order.rowCount}</td>
+                          <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
+                          <td className="px-3 py-3 text-stone-400">
+                            <MIcon name="chevron_right" size={16} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
 
@@ -196,42 +286,57 @@ export default function HistoryPage({
               {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPizza.map((order) => {
-                    const isDraft = order.status !== "sent";
-                    return (
-                      <tr
-                        key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(`/historie/pizza/${order.id}`)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
-                        role="link"
-                        tabIndex={0}
-                      >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
-                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                        <td className="px-3 py-3 text-stone-400">
-                          <MIcon name="chevron_right" size={16} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Mobile swipeable rows */}
+              <div className="md:hidden">
+                {filteredPizza.map((order) => (
+                  <SwipeableHistoryRow
+                    key={order.id}
+                    href={`/historie/pizza/${order.id}`}
+                    date={order.date}
+                    status={order.status}
+                    isDraft={order.status !== "sent"}
+                  />
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-[12.5px]">
+                  <thead>
+                    <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
+                      <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Odesláno</th>
+                      <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Řádků</th>
+                      <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPizza.map((order) => {
+                      const isDraft = order.status !== "sent";
+                      return (
+                        <tr
+                          key={order.id}
+                          className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
+                          onClick={() => router.push(`/historie/pizza/${order.id}`)}
+                          onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
+                          role="link"
+                          tabIndex={0}
+                        >
+                          <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                          <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
+                          <td className="px-3 py-3 text-stone-500">{formatSentAt(order.sentAt)}</td>
+                          <td className="px-3 py-3 text-stone-500">{order.rowCount}</td>
+                          <td className="px-3 py-3 text-stone-400">
+                            <MIcon name="chevron_right" size={16} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
       </div>

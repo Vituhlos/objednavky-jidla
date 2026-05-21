@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef, memo } from "react";
+import { ModalSwipeShell } from "@/app/hooks/ModalSwipeShell";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -1628,7 +1629,7 @@ export default function SettingsPage({
                 {/* Telegram help modal */}
                 {showTelegramHelp && (
                   <div className="modal-overlay" onClick={() => setShowTelegramHelp(false)}>
-                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+                    <ModalSwipeShell className="modal-sheet" style={{ maxWidth: 520 }} onDismiss={() => setShowTelegramHelp(false)} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
                       <div className="modal-sheet__header">
                         <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
                         <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
@@ -1734,7 +1735,7 @@ export default function SettingsPage({
 
                         <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
                       </div>
-                    </div>
+                    </ModalSwipeShell>
                   </div>
                 )}
               </>

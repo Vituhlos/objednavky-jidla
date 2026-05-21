@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useEffect, useRef, memo } from "react";
+import { ModalSwipeShell } from "@/app/hooks/ModalSwipeShell";
 import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
@@ -329,7 +330,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
 
       {showPizzaHelp && (
         <div className="modal-overlay" onClick={() => setShowPizzaHelp(false)}>
-          <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+          <ModalSwipeShell className="modal-sheet" style={{ maxWidth: 460 }} onDismiss={() => setShowPizzaHelp(false)} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="modal-sheet__header">
               <h3 className="modal-sheet__title">Jak se počítá cena?</h3>
               <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>
@@ -359,7 +360,7 @@ export default function PizzaPage({ initialData, isAdmin }: { initialData: Pizza
               </div>
 
             </div>
-          </div>
+          </ModalSwipeShell>
         </div>
       )}
     </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo } from "react";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { ModalSwipeShell } from "@/app/hooks/ModalSwipeShell";
 import { useSwipeable } from "react-swipeable";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
@@ -361,6 +363,8 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
     onClose();
   };
 
+  const { sheetRef, sheetStyle, swipeProps } = useModalSwipe(onClose);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -369,7 +373,11 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
         aria-modal="true"
         aria-labelledby="item-edit-modal-title"
         onClick={(e) => e.stopPropagation()}
+        ref={sheetRef}
+        style={sheetStyle}
+        {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
+        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="item-edit-modal-title">
             Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
@@ -1132,8 +1140,9 @@ export default function MenuPage({
       {/* Import modal */}
       {isImportOpen && (
         <div className="modal-overlay" onClick={() => setImportState({ phase: "idle" })}>
-          <div
+          <ModalSwipeShell
             className={`modal-sheet${importState.phase === "preview" ? " !w-full sm:!w-[760px]" : ""}`}
+            onDismiss={() => setImportState({ phase: "idle" })}
             role="dialog"
             aria-modal="true"
             aria-labelledby="import-modal-title"
@@ -1217,7 +1226,7 @@ export default function MenuPage({
                 </button>
               </div>
             )}
-          </div>
+          </ModalSwipeShell>
         </div>
       )}
     </div>

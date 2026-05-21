@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
+import { useSwipeable } from "react-swipeable";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getHolidayEmoji } from "@/lib/holidays";
@@ -39,11 +41,11 @@ const HELP_ADVANCED = [
 
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
+  const { sheetRef, sheetStyle, swipeProps } = useModalSwipe(onClose);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
-    // iOS Safari: overflow:hidden on body doesn't prevent scroll — use position:fixed instead
     const scrollY = window.scrollY;
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
@@ -65,8 +67,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="help-modal-title"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 480 }}
+        ref={sheetRef}
+        style={{ maxWidth: 480, ...sheetStyle }}
+        {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
+        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
           <button
@@ -732,6 +737,32 @@ export default function OrderPage({
 
   const showOfflineBanner = hasEverConnected && !sseConnected;
 
+  // ── Day swipe (mobile) ────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { ref: _daySwipeRef, ...daySwipeProps } = useSwipeable({
+    onSwipedLeft: () => {
+      if (!availableDates || !showDayPicker) return;
+      const idx = availableDates.indexOf(selectedDate ?? "");
+      const next = idx + 1;
+      if (next < availableDates.length) {
+        setDaySwitchPending(true);
+        startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+      }
+    },
+    onSwipedRight: () => {
+      if (!availableDates || !showDayPicker) return;
+      const idx = availableDates.indexOf(selectedDate ?? "");
+      const prev = idx - 1;
+      if (prev >= 0) {
+        setDaySwitchPending(true);
+        startTransition(() => { router.push(`/?date=${availableDates[prev]}`); });
+      }
+    },
+    preventScrollOnSwipe: false,
+    trackMouse: false,
+    delta: 60,
+  });
+
   type UnorderedUser = { id: number; firstName: string; lastName: string; defaultDepartment: string | null };
   const [unorderedUsers, setUnorderedUsers] = useState<UnorderedUser[]>([]);
   const [unorderedOpen, setUnorderedOpen] = useState(false);
@@ -953,7 +984,7 @@ export default function OrderPage({
       )}
 
       {/* ── Scrollable main content ── */}
-      <div className="flex-1 overflow-y-auto scroll-area p-4">
+      <div className="flex-1 overflow-y-auto scroll-area p-4" {...(daySwipeProps as React.HTMLAttributes<HTMLDivElement>)}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
