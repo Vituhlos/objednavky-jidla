@@ -938,12 +938,12 @@ export default function MenuPage({
       <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b border-white/30 shrink-0">
         <button
           aria-label="Předchozí den"
-          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          className="h-9 px-3.5 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
           disabled={DAY_ORDER.indexOf(activeDay) === 0}
           onClick={() => changeDay("right")}
           type="button"
         >
-          <MIcon name="arrow_back" size={17} />
+          <MIcon name="arrow_back" size={18} />
         </button>
         <div className="flex-1 flex flex-col items-center gap-1.5">
           <span className="font-display font-bold text-[16px] text-stone-900 leading-none">
@@ -986,12 +986,12 @@ export default function MenuPage({
         </div>
         <button
           aria-label="Další den"
-          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          className="h-9 px-3.5 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
           disabled={DAY_ORDER.indexOf(activeDay) === 4}
           onClick={() => changeDay("left")}
           type="button"
         >
-          <MIcon name="arrow_forward" size={17} />
+          <MIcon name="arrow_forward" size={18} />
         </button>
       </div>
 
