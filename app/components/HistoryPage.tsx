@@ -120,7 +120,7 @@ export default function HistoryPage({
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-28 md:pb-8">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
       <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
         {/* LIMA orders */}
         <section className="glass rounded-3xl overflow-hidden">

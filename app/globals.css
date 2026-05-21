@@ -256,6 +256,10 @@ body {
   }
 }
 
+/* ── Safe-area bottom padding (accounts for fixed bottom nav + iOS home indicator) ── */
+.pb-nav { padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 768px) { .pb-nav { padding-bottom: 2rem; } }
+
 /* ── Scrollbars ── */
 .scroll-area { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .scroll-area::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -266,7 +270,8 @@ body {
 /* ── Shell (Next.js content area, accounts for fixed sidebar) ── */
 .k-shell {
   position: relative; z-index: 10;
-  height: 100vh; overflow: hidden;
+  height: 100vh; overflow: hidden; /* fallback */
+  height: 100dvh;                  /* adapts to browser toolbar on mobile */
   display: flex; flex-direction: column;
 }
 @media (min-width: 768px) {

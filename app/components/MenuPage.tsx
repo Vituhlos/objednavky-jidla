@@ -883,7 +883,7 @@ export default function MenuPage({
       </div>
 
       {/* Mobile: single day view */}
-      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-28">
+      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav">
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
           {isDayClosed ? (

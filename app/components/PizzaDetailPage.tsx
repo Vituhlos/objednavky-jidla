@@ -115,7 +115,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-28 md:pb-8 max-w-2xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav max-w-2xl mx-auto w-full">
         {/* Order rows */}
         <section className="glass rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
