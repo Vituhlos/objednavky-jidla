@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo } from "react";
+import { useSwipeable } from "react-swipeable";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
 import type { ParsedMenuItem, ParseResult } from "@/lib/parse-menu";
@@ -597,6 +598,7 @@ export default function MenuPage({
   }
   const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
   const [editMode, setEditMode] = useState(false);
+  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
   const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
@@ -750,11 +752,37 @@ export default function MenuPage({
   const displayDayMeals = dayMenu.meals.filter(i => i.name !== "Zavřeno");
 
   const dayDates: Record<string, number> = {};
+  const dayMonths: Record<string, number> = {};
   const weekBase = new Date(activeWeekStart + "T00:00:00");
   DAY_ORDER.forEach((d, i) => {
     const dt = new Date(weekBase);
     dt.setDate(weekBase.getDate() + i);
     dayDates[d] = dt.getDate();
+    dayMonths[d] = dt.getMonth() + 1;
+  });
+
+  const changeDay = useCallback((dir: "left" | "right") => {
+    const idx = DAY_ORDER.indexOf(activeDay);
+    const newIdx = dir === "left" ? Math.min(4, idx + 1) : Math.max(0, idx - 1);
+    if (newIdx === idx) return;
+    setSlideDir(dir);
+    setActiveDay(DAY_ORDER[newIdx]);
+  }, [activeDay]);
+
+  const setDayWithDir = useCallback((day: string) => {
+    const fromIdx = DAY_ORDER.indexOf(activeDay);
+    const toIdx = DAY_ORDER.indexOf(day);
+    if (fromIdx === toIdx) return;
+    setSlideDir(toIdx > fromIdx ? "left" : "right");
+    setActiveDay(day);
+  }, [activeDay]);
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => changeDay("left"),
+    onSwipedRight: () => changeDay("right"),
+    swipeDuration: 500,
+    preventScrollOnSwipe: true,
+    trackMouse: false,
   });
 
   return (
@@ -807,23 +835,54 @@ export default function MenuPage({
 
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
+        <div className="flex items-center gap-2 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
-          {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
-          {isAdmin && (
+          {hasNextWeek ? (
             <button
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-              onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
+              onClick={() => handleWeekSwitch(activeWeek === "current" ? "next" : "current")}
               type="button"
             >
-              <MIcon name="upload_file" size={13} /> PDF
+              {formatWeekRange(activeWeek === "current" ? currentWeekStart : nextWeekStart)}
+              <MIcon name="swap_horiz" size={13} />
+            </button>
+          ) : (
+            activeWeekLabel && <span className="text-[11px] text-stone-500 shrink-0">{activeWeekLabel}</span>
+          )}
+          {hasPdfActive && (
+            <a
+              className="w-8 h-8 inline-flex items-center justify-center rounded-xl glass-btn text-stone-600 shrink-0"
+              download
+              href={`/api/menu/pdf/${activeWeekStart}`}
+              aria-label="Stáhnout PDF jídelníčku"
+            >
+              <MIcon name="download" size={15} />
+            </a>
+          )}
+          {isAdmin && activeWeek === "current" && (
+            <button
+              className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn shrink-0 ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+              type="button"
+            >
+              {editMode ? "Zavřít" : "Upravit"}
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className="w-8 h-8 inline-flex items-center justify-center rounded-xl glass-btn text-stone-600 shrink-0"
+              onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
+              type="button"
+              aria-label="Importovat PDF jídelníčku"
+            >
+              <MIcon name="upload_file" size={15} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Week picker tabs */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
+      {/* Week picker tabs — desktop only, mobile uses topbar chip */}
+      <div className="hidden md:flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
         <div className="flex items-center gap-1.5 p-1 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
@@ -867,29 +926,65 @@ export default function MenuPage({
         )}
       </div>
 
-      {/* Day tabs — mobile only */}
-      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
-        {DAY_ORDER.map((day) => {
-          const active = activeDay === day;
-          const isToday = day === visibleTodayCode;
-          const hasData = !!activeMenu[day];
-          return (
-            <button
-              key={day}
-              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition min-w-[44px] ${!hasData && !active ? "opacity-40" : ""}`}
-              onClick={() => setActiveDay(day)}
-              style={active
-                ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
-                : { background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.7)" }
-              }
-              type="button"
-            >
-              <span className={`text-[11px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-700"}`}>{day}</span>
-              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-900"}`}>{dayDates[day]}</span>
-              {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
-            </button>
-          );
-        })}
+      {/* Day nav — mobile only: ← Čt 21.5 → + dot indicators */}
+      <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b border-white/30 shrink-0">
+        <button
+          aria-label="Předchozí den"
+          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          disabled={DAY_ORDER.indexOf(activeDay) === 0}
+          onClick={() => changeDay("right")}
+          type="button"
+        >
+          <MIcon name="arrow_back" size={17} />
+        </button>
+        <div className="flex-1 flex flex-col items-center gap-1.5">
+          <span className="font-display font-bold text-[16px] text-stone-900 leading-none">
+            {activeDay} {dayDates[activeDay]}.{dayMonths[activeDay]}
+            {visibleTodayCode === activeDay && (
+              <span
+                className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white align-middle"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              >
+                Dnes
+              </span>
+            )}
+          </span>
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="Dny v týdnu">
+            {DAY_ORDER.map((d) => {
+              const isActive = activeDay === d;
+              const isToday = visibleTodayCode === d;
+              return (
+                <button
+                  key={d}
+                  aria-label={DAY_LABELS[d]}
+                  aria-selected={isActive}
+                  role="tab"
+                  onClick={() => setDayWithDir(d)}
+                  type="button"
+                  className="transition-all duration-200 rounded-full"
+                  style={{
+                    width: isActive ? "18px" : "7px",
+                    height: "7px",
+                    background: isActive
+                      ? "linear-gradient(135deg,#F59E0B,#EA580C)"
+                      : isToday
+                        ? "rgba(245,158,11,0.45)"
+                        : "rgba(26,18,8,0.15)",
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <button
+          aria-label="Další den"
+          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          disabled={DAY_ORDER.indexOf(activeDay) === 4}
+          onClick={() => changeDay("left")}
+          type="button"
+        >
+          <MIcon name="arrow_forward" size={17} />
+        </button>
       </div>
 
       {/* Desktop: week grid */}
@@ -913,9 +1008,13 @@ export default function MenuPage({
         />
       </div>
 
-      {/* Mobile: single day view */}
-      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav">
-        <div className="space-y-3">
+      {/* Mobile: single day view with swipe */}
+      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" {...swipeHandlers}>
+        <div
+          key={activeDay}
+          className={`space-y-3 ${slideDir === "left" ? "slide-from-right" : slideDir === "right" ? "slide-from-left" : ""}`}
+          onAnimationEnd={() => setSlideDir(null)}
+        >
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
           {isDayClosed ? (
             <div className="glass-card rounded-3xl overflow-hidden">

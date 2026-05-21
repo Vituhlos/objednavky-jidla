@@ -204,15 +204,19 @@ body {
 .dept-rows-sent { opacity: 0.72; pointer-events: none; filter: saturate(0.7); }
 
 /* ── Animations ── */
-@keyframes fadeUp  { from{opacity:0;transform:translateY(8px)}  to{opacity:1;transform:translateY(0)} }
-@keyframes sheetUp { from{transform:translateY(100%)}           to{transform:translateY(0)} }
-@keyframes scaleIn { from{opacity:0;transform:scale(.97)}       to{opacity:1;transform:scale(1)} }
-@keyframes slideIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
-@keyframes k-spin  { to { transform: rotate(360deg); } }
-.fade-up  { animation: fadeUp  .3s ease both; }
-.sheet-up { animation: sheetUp .28s cubic-bezier(.2,.8,.2,1) both; }
-.scale-in { animation: scaleIn .22s ease both; }
-.slide-in { animation: slideIn .25s ease both; }
+@keyframes fadeUp       { from{opacity:0;transform:translateY(8px)}   to{opacity:1;transform:translateY(0)} }
+@keyframes sheetUp      { from{transform:translateY(100%)}            to{transform:translateY(0)} }
+@keyframes scaleIn      { from{opacity:0;transform:scale(.97)}        to{opacity:1;transform:scale(1)} }
+@keyframes slideIn      { from{opacity:0;transform:translateX(12px)}  to{opacity:1;transform:translateX(0)} }
+@keyframes slideFromRight { from{opacity:0;transform:translateX(48px)} to{opacity:1;transform:translateX(0)} }
+@keyframes slideFromLeft  { from{opacity:0;transform:translateX(-48px)} to{opacity:1;transform:translateX(0)} }
+@keyframes k-spin       { to { transform: rotate(360deg); } }
+.fade-up       { animation: fadeUp       .3s ease both; }
+.sheet-up      { animation: sheetUp      .28s cubic-bezier(.2,.8,.2,1) both; }
+.scale-in      { animation: scaleIn      .22s ease both; }
+.slide-in      { animation: slideIn      .25s ease both; }
+.slide-from-right { animation: slideFromRight .22s ease both; }
+.slide-from-left  { animation: slideFromLeft  .22s ease both; }
 
 /* ── Empty states ── */
 @keyframes empty-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
