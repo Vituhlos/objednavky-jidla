@@ -36,6 +36,17 @@ function formatDate(isoDate: string): string {
   return `${d}.${m}.${y}`;
 }
 
+function consolidateSoups(row: OrderRowEnriched): Array<{ soup: NonNullable<OrderRowEnriched["soupItem"]>; count: number }> {
+  const groups: Array<{ soup: NonNullable<OrderRowEnriched["soupItem"]>; count: number }> = [];
+  for (const soup of [row.soupItem, row.soupItem2]) {
+    if (!soup) continue;
+    const existing = groups.find((g) => g.soup.id === soup.id);
+    if (existing) existing.count++;
+    else groups.push({ soup, count: 1 });
+  }
+  return groups;
+}
+
 function extraCell(row: OrderRowEnriched): string {
   const parts: string[] = [];
   if (row.rollCount > 0) parts.push(`${row.rollCount}× Houska`);
@@ -69,10 +80,12 @@ const COL_DEFS: ColDef[] = [
   { header: "#",        width: 22,     align: "center", value: (_, i) => String(i + 1) },
   { header: "Jméno",    width: 105,    align: "left",   value: (r) => r.personName || "–" },
   { header: "Polévka",  width: 130,    align: "left",   value: (r) => {
-    const parts: string[] = [];
-    if (r.soupItem) parts.push(r.soupItem.code ? `${r.soupItem.code}  ${r.soupItem.name}` : r.soupItem.name);
-    if (r.soupItem2) parts.push(r.soupItem2.code ? `${r.soupItem2.code}  ${r.soupItem2.name}` : r.soupItem2.name);
-    return parts.length > 0 ? parts.join("\n") : "–";
+    const groups = consolidateSoups(r);
+    if (groups.length === 0) return "–";
+    return groups.map(({ soup, count }) => {
+      const prefix = count > 1 ? `${count}× ` : "";
+      return soup.code ? `${prefix}${soup.code}  ${soup.name}` : `${prefix}${soup.name}`;
+    }).join("\n");
   } },
   { header: "Jídlo",    width: 210,    align: "left",   value: (r) => {
     const parts: string[] = [];
@@ -186,25 +199,29 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
           drawMealCell(doc, row, x, y, col.width, rh);
         }
       } else if (colIdx === 2) {
-        const soups = [row.soupItem, row.soupItem2].filter(Boolean) as NonNullable<typeof row.soupItem>[];
-        if (soups.length === 0) {
+        const soupGroups = consolidateSoups(row);
+        if (soupGroups.length === 0) {
           doc.strokeColor("#CCCCCC").lineWidth(0.7)
             .moveTo(x + 3, y + 3).lineTo(x + col.width - 3, y + rh - 3).stroke();
         } else {
-          const lineTexts = soups.map(s => s.code ? `${s.code}  ${s.name}` : s.name);
+          const lineTexts = soupGroups.map(({ soup, count }) =>
+            (count > 1 ? `${count}× ` : "") + (soup.code ? `${soup.code}  ${soup.name}` : soup.name)
+          );
           const lineHeights = lineTexts.map(t => doc.font(FONT).fontSize(FONT_BODY).heightOfString(t, { width: col.width - 6 }));
           const totalH = lineHeights.reduce((s, h) => s + h, 0);
           let lineY = y + Math.max(0, (rh - totalH) / 2);
-          soups.forEach((soup, si) => {
+          soupGroups.forEach(({ soup, count }, si) => {
+            const countPfx = count > 1 ? `${count}× ` : "";
             if (soup.code) {
+              const prefix = countPfx + soup.code;
               doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
-                .text(soup.code, x + 3, lineY, { lineBreak: false });
-              const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(soup.code + "  ");
+                .text(prefix, x + 3, lineY, { lineBreak: false });
+              const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(prefix + "  ");
               doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
                 .text(soup.name, x + 3 + codeW, lineY, { width: col.width - 6 - codeW, lineBreak: false });
             } else {
               doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-                .text(soup.name, x + 3, lineY, { width: col.width - 6, lineBreak: false });
+                .text(countPfx + soup.name, x + 3, lineY, { width: col.width - 6, lineBreak: false });
             }
             lineY += lineHeights[si];
           });
@@ -287,8 +304,9 @@ function toSummaryRows(row: OrderRowEnriched): SummaryRow[] {
     detailsUsed = true;
   };
 
-  if (row.soupItem) add(row.soupItem.code ? `Polévka ${row.soupItem.code}` : "", row.soupItem.code ? row.soupItem.name : `Polévka ${row.soupItem.name}`, 1);
-  if (row.soupItem2) add(row.soupItem2.code ? `Polévka ${row.soupItem2.code}` : "", row.soupItem2.code ? row.soupItem2.name : `Polévka ${row.soupItem2.name}`, 1);
+  for (const { soup, count } of consolidateSoups(row)) {
+    add(soup.code ? `Polévka ${soup.code}` : "", soup.code ? soup.name : `Polévka ${soup.name}`, count);
+  }
   if (row.mainItem) add(row.mainItem.code ? String(row.mainItem.code) : "", row.mainItem.name, row.mealCount || 1);
   for (const { item, count } of row.extraMealItems) {
     add(item.code ? String(item.code) : "", item.name, count);
