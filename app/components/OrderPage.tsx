@@ -41,7 +41,7 @@ const HELP_ADVANCED = [
 
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
-  const { sheetRef, swipeProps } = useModalSwipe(onClose);
+  const { sheetRef } = useModalSwipe(onClose);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -69,7 +69,6 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
         style={{ maxWidth: 480 }}
-        {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">

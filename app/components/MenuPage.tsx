@@ -365,7 +365,7 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
     onClose();
   };
 
-  const { sheetRef, swipeProps } = useModalSwipe(onClose);
+  const { sheetRef } = useModalSwipe(onClose);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -376,7 +376,6 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
         aria-labelledby="item-edit-modal-title"
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
-        {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">

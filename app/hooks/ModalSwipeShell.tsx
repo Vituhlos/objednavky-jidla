@@ -9,14 +9,13 @@ type Props = HTMLAttributes<HTMLDivElement> & {
 };
 
 export function ModalSwipeShell({ onDismiss, className, style, children, ...props }: Props) {
-  const { sheetRef, swipeProps } = useModalSwipe(onDismiss);
+  const { sheetRef } = useModalSwipe(onDismiss);
   return (
     <div
       ref={sheetRef}
       className={className}
       style={style}
       {...props}
-      {...(swipeProps as HTMLAttributes<HTMLDivElement>)}
     >
       <div className="modal-sheet__drag-handle" aria-hidden />
       {children}
