@@ -128,8 +128,8 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
 
   return (
     <>
-      {/* ── Desktop sidebar (fixed, pouze od xl: / 1280px) ── */}
-      <aside className="hidden xl:flex fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
+      {/* ── Desktop sidebar — viditelný jen pokud pointer: fine (myš/trackpad) + ≥1280px, viz globals.css ── */}
+      <aside className="fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
         <div className="px-2 py-3">
           <span className="inline-flex items-center gap-2 font-display font-extrabold">
             <span
@@ -188,12 +188,12 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
       {/* ── Fade pod spodním navem (maskuje obsah) ── */}
       <div
         aria-hidden="true"
-        className="xl:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
+        className="mobile-nav-chrome fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
         style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
       />
 
-      {/* ── Bottom nav (mobil + tablet, skryto od xl: / 1280px) ── */}
-      <nav aria-label="Navigace" className="xl:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      {/* ── Bottom nav (mobil + tablet, skryto jen na desktopu s myší) ── */}
+      <nav aria-label="Navigace" className="mobile-nav-chrome fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5">
 
           {/* Tablet (768px – 1279px): všech 6 položek, rovnoměrně rozloženo */}

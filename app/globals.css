@@ -147,7 +147,7 @@ body {
 
 /* ── Layout chrome ── */
 .topbar          { background: rgba(255,255,255,0.42); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-.desktop-sidebar { background: rgba(255,255,255,0.5);  backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); }
+.desktop-sidebar { display: none; background: rgba(255,255,255,0.5); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); }
 .sheet-card      { background: rgba(255,255,255,0.92); }
 
 /* Sidebar active link */
@@ -262,7 +262,13 @@ body {
 
 /* ── Safe-area bottom padding (accounts for fixed bottom nav + iOS home indicator) ── */
 .pb-nav { padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
-@media (min-width: 1280px) { .pb-nav { padding-bottom: 2rem; } }
+/* Jen na skutečném desktopu (myš) se sidebar zobrazí a nav schová */
+@media (min-width: 1280px) and (pointer: fine) {
+  .pb-nav { padding-bottom: 2rem; }
+  .desktop-sidebar { display: flex; }
+  .mobile-nav-chrome { display: none; }
+  .k-shell { margin-left: 232px; }
+}
 
 /* ── Scrollbars ── */
 .scroll-area { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -286,9 +292,7 @@ body {
   height: 100vh; overflow: hidden; /* fallback */
   height: 100dvh;                  /* adapts to browser toolbar on mobile */
   display: flex; flex-direction: column;
-}
-@media (min-width: 1280px) {
-  .k-shell { margin-left: 232px; }
+  /* margin-left je nastaveno pouze v (min-width: 1280px) and (pointer: fine) výše */
 }
 
 /* ── Toast notifications ── */
