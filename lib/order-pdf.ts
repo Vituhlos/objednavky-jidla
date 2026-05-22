@@ -68,7 +68,12 @@ interface ColDef {
 const COL_DEFS: ColDef[] = [
   { header: "#",        width: 22,     align: "center", value: (_, i) => String(i + 1) },
   { header: "Jméno",    width: 105,    align: "left",   value: (r) => r.personName || "–" },
-  { header: "Polévka",  width: 130,    align: "left",   value: (r) => r.soupItem ? `${r.soupItem.code}  ${r.soupItem.name}` : "–" },
+  { header: "Polévka",  width: 130,    align: "left",   value: (r) => {
+    const parts: string[] = [];
+    if (r.soupItem) parts.push(r.soupItem.code ? `${r.soupItem.code}  ${r.soupItem.name}` : r.soupItem.name);
+    if (r.soupItem2) parts.push(r.soupItem2.code ? `${r.soupItem2.code}  ${r.soupItem2.name}` : r.soupItem2.name);
+    return parts.length > 0 ? parts.join("\n") : "–";
+  } },
   { header: "Jídlo",    width: 210,    align: "left",   value: (r) => {
     const parts: string[] = [];
     if (r.mainItem) parts.push(`${(r.mealCount || 1) > 1 ? `${r.mealCount}× ` : ""}${r.mainItem.code}  ${r.mainItem.name}`);
@@ -181,23 +186,28 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
           drawMealCell(doc, row, x, y, col.width, rh);
         }
       } else if (colIdx === 2) {
-        if (!row.soupItem) {
+        const soups = [row.soupItem, row.soupItem2].filter(Boolean) as NonNullable<typeof row.soupItem>[];
+        if (soups.length === 0) {
           doc.strokeColor("#CCCCCC").lineWidth(0.7)
             .moveTo(x + 3, y + 3).lineTo(x + col.width - 3, y + rh - 3).stroke();
         } else {
-          const soup = row.soupItem;
-          const fullText = soup.code ? `${soup.code}  ${soup.name}` : soup.name;
-          const ty = cellVCenter(doc, FONT, fullText, col.width - 6, y, rh);
-          if (soup.code) {
-            doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.code, x + 3, ty, { lineBreak: false });
-            const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(soup.code + "  ");
-            doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.name, x + 3 + codeW, ty, { width: col.width - 6 - codeW, lineBreak: false });
-          } else {
-            doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-              .text(soup.name, x + 3, ty, { width: col.width - 6 });
-          }
+          const lineTexts = soups.map(s => s.code ? `${s.code}  ${s.name}` : s.name);
+          const lineHeights = lineTexts.map(t => doc.font(FONT).fontSize(FONT_BODY).heightOfString(t, { width: col.width - 6 }));
+          const totalH = lineHeights.reduce((s, h) => s + h, 0);
+          let lineY = y + Math.max(0, (rh - totalH) / 2);
+          soups.forEach((soup, si) => {
+            if (soup.code) {
+              doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
+                .text(soup.code, x + 3, lineY, { lineBreak: false });
+              const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(soup.code + "  ");
+              doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+                .text(soup.name, x + 3 + codeW, lineY, { width: col.width - 6 - codeW, lineBreak: false });
+            } else {
+              doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
+                .text(soup.name, x + 3, lineY, { width: col.width - 6, lineBreak: false });
+            }
+            lineY += lineHeights[si];
+          });
         }
       } else {
         const text = col.value(row, idx);
