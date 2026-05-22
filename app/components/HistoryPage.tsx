@@ -80,11 +80,16 @@ function SwipeableHistoryRow({ href, date, status, isDraft }: {
       ref={swipeRef}
       className={`relative overflow-hidden border-b border-white/30 last:border-0 select-none ${isDraft ? "opacity-60" : ""}`}
     >
-      {/* Reveal action */}
+      {/* Reveal action — clipPath skryje reveal když dragX=0, odkryje při swipe */}
       <div
         aria-hidden
         className="absolute right-0 top-0 bottom-0 flex items-center justify-center rounded-l-2xl"
-        style={{ width: REVEAL_W, background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+        style={{
+          width: REVEAL_W,
+          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+          clipPath: `inset(0 0 0 ${Math.max(0, REVEAL_W - dragX)}px)`,
+          transition: dragX === REVEAL_W || dragX === 0 ? "clip-path 0.2s ease" : "none",
+        }}
       >
         <button
           className="flex flex-col items-center justify-center gap-0.5 text-white text-[10px] font-bold w-full h-full"
@@ -96,13 +101,12 @@ function SwipeableHistoryRow({ href, date, status, isDraft }: {
         </button>
       </div>
 
-      {/* Row content — relative + z-10 aby překrylo absolutně pozicovanou reveal akci */}
+      {/* Row content */}
       <div
-        className="relative z-10 flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors"
+        className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors"
         style={{
           transform: `translateX(-${dragX}px)`,
           transition: dragX === REVEAL_W || dragX === 0 ? "transform 0.2s ease" : "none",
-          background: "var(--paper)",
         }}
         onClick={() => {
           if (wasSwipedRef.current) return;
