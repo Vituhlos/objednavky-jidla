@@ -778,7 +778,7 @@ export default function OrderPage({
             </span>
           )}
         </div>
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
+        {!isSent && !isFutureDay && !noMenu && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
@@ -848,7 +848,7 @@ export default function OrderPage({
             <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
           </button>
         )}
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
+        {!isSent && !isFutureDay && !noMenu && (
           <button
             className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
             disabled={isPending}
