@@ -83,7 +83,7 @@ function SwipeableHistoryRow({ href, date, status, isDraft }: {
       {/* Reveal action */}
       <div
         aria-hidden
-        className="absolute right-0 top-0 bottom-0 flex items-center justify-center"
+        className="absolute right-0 top-0 bottom-0 flex items-center justify-center rounded-l-2xl"
         style={{ width: REVEAL_W, background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
       >
         <button
@@ -96,13 +96,13 @@ function SwipeableHistoryRow({ href, date, status, isDraft }: {
         </button>
       </div>
 
-      {/* Row content */}
+      {/* Row content — relative + z-10 aby překrylo absolutně pozicovanou reveal akci */}
       <div
-        className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors"
+        className="relative z-10 flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors"
         style={{
           transform: `translateX(-${dragX}px)`,
           transition: dragX === REVEAL_W || dragX === 0 ? "transform 0.2s ease" : "none",
-          background: "transparent",
+          background: "var(--paper)",
         }}
         onClick={() => {
           if (wasSwipedRef.current) return;
