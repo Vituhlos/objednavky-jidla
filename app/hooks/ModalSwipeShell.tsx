@@ -9,12 +9,12 @@ type Props = HTMLAttributes<HTMLDivElement> & {
 };
 
 export function ModalSwipeShell({ onDismiss, className, style, children, ...props }: Props) {
-  const { sheetRef, sheetStyle, swipeProps } = useModalSwipe(onDismiss);
+  const { sheetRef, swipeProps } = useModalSwipe(onDismiss);
   return (
     <div
       ref={sheetRef}
       className={className}
-      style={{ ...style, ...sheetStyle }}
+      style={style}
       {...props}
       {...(swipeProps as HTMLAttributes<HTMLDivElement>)}
     >

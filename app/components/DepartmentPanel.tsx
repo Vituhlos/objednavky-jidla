@@ -323,7 +323,7 @@ function OrderEditModal({
   useEffect(() => setMounted(true), []);
 
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
-  const { sheetRef, sheetStyle, swipeProps } = useModalSwipe(handleCancel);
+  const { sheetRef, swipeProps } = useModalSwipe(handleCancel);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancel(); };
@@ -397,7 +397,6 @@ function OrderEditModal({
         aria-labelledby="edit-modal-title"
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
-        style={sheetStyle}
         {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />

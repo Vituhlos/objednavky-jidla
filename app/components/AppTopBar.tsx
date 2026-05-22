@@ -15,6 +15,9 @@ const MAIN_NAV = [
 
 const PROFILE_NAV = { href: "/profil", label: "Profil", shortLabel: "Profil", icon: "account_circle", exact: false, requiresAuth: true };
 
+// Tablet nav: všechny položky najednou
+const TABLET_NAV = [...MAIN_NAV, PROFILE_NAV];
+
 const SidebarClock = memo(function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -115,18 +118,18 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
 
   const isAdmin = initialUser?.role === "admin";
 
-  // Mobile nav: max 5 items — admins swap /historie for /nastaveni
+  // Mobilní nav (< 768px): max 5 položek — admini nemají Historii, běžní nemají Nastavení
   const mobileNav = isAdmin
     ? [...MAIN_NAV.filter((n) => n.href !== "/historie"), PROFILE_NAV]
     : [...MAIN_NAV.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV];
 
-  // Desktop sidebar nav: just the main 5 — profile is accessible via the UserBadge name link
+  // Desktopový sidebar: 5 hlavních položek (profil přes UserBadge)
   const desktopNav = MAIN_NAV;
 
   return (
     <>
-      {/* ── Desktop sidebar (fixed, hidden on mobile) ── */}
-      <aside className="hidden md:flex fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
+      {/* ── Desktop sidebar (fixed, pouze od xl: / 1280px) ── */}
+      <aside className="hidden xl:flex fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
         <div className="px-2 py-3">
           <span className="inline-flex items-center gap-2 font-display font-extrabold">
             <span
@@ -182,47 +185,87 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
         </div>
       </aside>
 
-      {/* ── Mobile bottom fade (masks background bleed under nav) ── */}
+      {/* ── Fade pod spodním navem (maskuje obsah) ── */}
       <div
         aria-hidden="true"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
+        className="xl:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
         style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
       />
 
-      {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
-        <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {mobileNav.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            const locked = requiresAuth && !initialUser;
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition relative"
-                style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
-              >
-                <MIcon
-                  name={icon}
-                  size={20}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
-                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
-                  {shortLabel}
-                </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
-                )}
-                {locked && !isActive && (
-                  <span className="absolute top-1 right-1 w-3 h-3 flex items-center justify-center">
-                    <MIcon name="lock" size={9} style={{ color: "#c4b5a4" }} />
+      {/* ── Bottom nav (mobil + tablet, skryto od xl: / 1280px) ── */}
+      <nav aria-label="Navigace" className="xl:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="glass rounded-2xl px-1 py-1.5">
+
+          {/* Tablet (768px – 1279px): všech 6 položek, rovnoměrně rozloženo */}
+          <div className="hidden md:flex items-center justify-around">
+            {TABLET_NAV.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
+              const isActive = exact ? pathname === href : pathname.startsWith(href);
+              const locked = requiresAuth && !initialUser;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition relative"
+                  style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
+                >
+                  <MIcon
+                    name={icon}
+                    size={22}
+                    fill={isActive}
+                    style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
+                  />
+                  <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
+                    {shortLabel}
                   </span>
-                )}
-              </Link>
-            );
-          })}
+                  {isActive && (
+                    <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
+                  )}
+                  {locked && !isActive && (
+                    <span className="absolute top-1 right-1 w-3 h-3 flex items-center justify-center">
+                      <MIcon name="lock" size={9} style={{ color: "#c4b5a4" }} />
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Mobil (< 768px): 5 položek jako dosud */}
+          <div className="flex md:hidden items-center justify-around">
+            {mobileNav.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
+              const isActive = exact ? pathname === href : pathname.startsWith(href);
+              const locked = requiresAuth && !initialUser;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition relative"
+                  style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
+                >
+                  <MIcon
+                    name={icon}
+                    size={20}
+                    fill={isActive}
+                    style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
+                  />
+                  <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
+                    {shortLabel}
+                  </span>
+                  {isActive && (
+                    <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
+                  )}
+                  {locked && !isActive && (
+                    <span className="absolute top-1 right-1 w-3 h-3 flex items-center justify-center">
+                      <MIcon name="lock" size={9} style={{ color: "#c4b5a4" }} />
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
         </div>
       </nav>
     </>

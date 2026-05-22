@@ -363,7 +363,7 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
     onClose();
   };
 
-  const { sheetRef, sheetStyle, swipeProps } = useModalSwipe(onClose);
+  const { sheetRef, swipeProps } = useModalSwipe(onClose);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -374,7 +374,6 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
         aria-labelledby="item-edit-modal-title"
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
-        style={sheetStyle}
         {...(swipeProps as React.HTMLAttributes<HTMLDivElement>)}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
