@@ -147,7 +147,7 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Week grid (desktop card view) ─────────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, tabletDays, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -156,14 +156,16 @@ const WeekGrid = memo(function WeekGrid({
   editMode: boolean;
   disabled: boolean;
   weekStart: string;
+  tabletDays?: string[];
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
   onEdit: (item: MenuItem) => void;
   onCloseDay: (day: string) => void;
   onOpenDay: (day: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-3 items-start">
+    <div className="grid grid-cols-3 xl:grid-cols-5 gap-3 items-start">
       {DAY_ORDER.map((day) => {
+        const hiddenOnTablet = tabletDays && !tabletDays.includes(day);
         const isToday = day === todayCode;
         const { soups = [], meals = [] } = menu[day] ?? {};
         const holidayName = holidayNames[day];
@@ -175,7 +177,7 @@ const WeekGrid = memo(function WeekGrid({
         return (
           <div
             key={day}
-            className="glass-card rounded-3xl overflow-hidden"
+            className={`glass-card rounded-3xl overflow-hidden${hiddenOnTablet ? " xl:block hidden" : ""}`}
             style={isToday ? {
               borderColor: "rgba(245,158,11,0.38)",
               boxShadow: "0 8px 32px -8px rgba(245,158,11,0.22)",
@@ -797,7 +799,7 @@ export default function MenuPage({
       <h1 className="sr-only">Jídelníček</h1>
 
       {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
+      <div className="hidden lg:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-stone-900">Jídelníček LIMA</span>
         {activeWeekLabel && (
           <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
@@ -841,7 +843,7 @@ export default function MenuPage({
       </div>
 
       {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
+      <div className="lg:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-2 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
           {hasNextWeek ? (
@@ -889,7 +891,7 @@ export default function MenuPage({
       </div>
 
       {/* Week picker tabs — desktop only, mobile uses topbar chip */}
-      <div className="hidden md:flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
+      <div className="hidden lg:flex items-center gap-3 px-4 pt-3 pb-1 shrink-0">
         <div className="flex items-center gap-1.5 p-1 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
@@ -933,8 +935,8 @@ export default function MenuPage({
         )}
       </div>
 
-      {/* Day nav — mobile only: ← Čt 21.5 → + dot indicators */}
-      <div className="md:hidden flex items-center justify-center gap-1 px-4 py-2.5 border-b border-white/30 shrink-0">
+      {/* Day nav — also tablet (1024–1279px): controls 3-day window in WeekGrid */}
+      <div className="xl:hidden flex items-center justify-center gap-1 px-4 py-2.5 border-b border-white/30 shrink-0">
         <button
           aria-label="Předchozí den"
           className="w-9 h-9 inline-flex items-center justify-center text-stone-500 rounded-full hover:bg-black/8 active:bg-black/12 shrink-0 disabled:opacity-20 active:scale-90 transition-all"
@@ -994,9 +996,9 @@ export default function MenuPage({
         </button>
       </div>
 
-      {/* Desktop: week grid */}
+      {/* Desktop: week grid (3 cols at lg, 5 cols at xl) */}
 
-      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3" tabIndex={0}>
+      <div className="hidden lg:block flex-1 overflow-y-auto scroll-area px-4 pb-nav xl:pb-8 pt-3" tabIndex={0}>
         <WeekGrid
           dayDates={dayDates}
           disabled={isPending}
@@ -1011,13 +1013,14 @@ export default function MenuPage({
           onOpenDay={(day) => {
             startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
           }}
+          tabletDays={(() => { const i = Math.min(Math.max(0, DAY_ORDER.indexOf(activeDay) - 1), DAY_ORDER.length - 3); return DAY_ORDER.slice(i, i + 3); })()}
           todayCode={visibleTodayCode}
           weekStart={activeWeekStart}
         />
       </div>
 
       {/* Mobile: single day view with swipe */}
-      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" {...swipeHandlers}>
+      <div className="lg:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" {...swipeHandlers}>
         <div
           key={activeDay}
           className={`space-y-3 ${slideDir === "left" ? "slide-from-right" : slideDir === "right" ? "slide-from-left" : ""}`}

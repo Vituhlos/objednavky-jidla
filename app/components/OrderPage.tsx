@@ -168,11 +168,11 @@ function DayPickerScroll({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       {fadeLeft && (
-        <div className="md:hidden absolute left-0 top-0 bottom-0 w-8 rounded-l-2xl pointer-events-none"
+        <div className="xl:hidden absolute left-0 top-0 bottom-0 w-8 rounded-l-2xl pointer-events-none"
           style={{ background: "linear-gradient(to right, rgba(237,231,221,0.9), transparent)" }} />
       )}
       {fadeRight && (
-        <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 rounded-r-2xl pointer-events-none"
+        <div className="xl:hidden absolute right-0 top-0 bottom-0 w-8 rounded-r-2xl pointer-events-none"
           style={{ background: "linear-gradient(to left, rgba(237,231,221,0.9), transparent)" }} />
       )}
     </div>
@@ -848,7 +848,7 @@ export default function OrderPage({
       )}
 
       {/* ── Desktop info strip ── */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+      <div className="hidden xl:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
@@ -906,7 +906,7 @@ export default function OrderPage({
       </div>
 
       {/* ── Mobile info strip ── */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
+      <div className="xl:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
         <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
         <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
         {activeOrderCount > 0 && (
@@ -978,7 +978,7 @@ export default function OrderPage({
         </button>
       </div>
       {sendError && (
-        <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
+        <div role="alert" className="xl:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
           <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
           {sendError}
         </div>
@@ -986,7 +986,7 @@ export default function OrderPage({
 
       {/* ── Mobile compact day nav ── */}
       {showDayPicker && (
-        <div className="md:hidden flex items-center justify-center gap-1 px-4 py-2.5 border-b border-white/30 shrink-0">
+        <div className="lg:hidden flex items-center justify-center gap-1 px-4 py-2.5 border-b border-white/30 shrink-0">
           <button
             aria-label="Předchozí den"
             className="w-9 h-9 inline-flex items-center justify-center text-stone-500 rounded-full hover:bg-black/8 active:bg-black/12 shrink-0 disabled:opacity-20 active:scale-90 transition-all"
@@ -1047,10 +1047,10 @@ export default function OrderPage({
 
       {/* ── Scrollable main content ── */}
       <div ref={daySwipeRef} className="flex-1 overflow-y-auto scroll-area p-4" {...(daySwipeProps as React.HTMLAttributes<HTMLDivElement>)}>
-        <div className="flex flex-col gap-4 pb-nav md:pb-6">
+        <div className="flex flex-col gap-4 pb-nav xl:pb-6">
 
           {showDayPicker && (
-            <div className="hidden md:block relative -mx-4">
+            <div className="hidden lg:block relative -mx-4">
               <div className="overflow-x-auto no-scrollbar px-4">
                 <div
                   className="flex p-1 rounded-2xl gap-0.5"
@@ -1177,7 +1177,7 @@ export default function OrderPage({
 
               {/* Login banner for unauthenticated users — mobile only (desktop uses sidebar) */}
               {currentUserId === undefined && !isAdmin && (
-                <div className="md:hidden glass rounded-2xl px-4 py-3 flex items-center gap-3" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }}>
+                <div className="xl:hidden glass rounded-2xl px-4 py-3 flex items-center gap-3" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }}>
                   <MIcon name="person" size={20} fill style={{ color: "#D97706" }} />
                   <span className="text-[13px] text-stone-700 flex-1 leading-snug">
                     Pro přidání vlastní objednávky se přihlaste.

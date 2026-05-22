@@ -149,7 +149,7 @@ export default function HistoryPage({
       <h1 className="sr-only">Historie objednávek</h1>
 
       {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+      <div className="hidden xl:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-stone-900 flex-1">Historie objednávek</span>
         <span className="text-[12px] text-stone-500">
           <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
@@ -173,7 +173,7 @@ export default function HistoryPage({
       </div>
 
       {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
+      <div className="xl:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -196,8 +196,8 @@ export default function HistoryPage({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-      <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 xl:p-5 pb-nav">
+      <div className="space-y-4 xl:grid xl:grid-cols-2 xl:gap-4 xl:space-y-0 xl:items-start">
         {/* LIMA orders */}
         <section className="glass rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
@@ -216,7 +216,7 @@ export default function HistoryPage({
           ) : (
             <>
               {/* Mobile swipeable rows */}
-              <div className="md:hidden">
+              <div className="xl:hidden">
                 {filteredOrders.map((order) => (
                   <SwipeableHistoryRow
                     key={order.id}
@@ -228,7 +228,7 @@ export default function HistoryPage({
                 ))}
               </div>
               {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full text-[12.5px]">
                   <thead>
                     <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
@@ -288,7 +288,7 @@ export default function HistoryPage({
           ) : (
             <>
               {/* Mobile swipeable rows */}
-              <div className="md:hidden">
+              <div className="xl:hidden">
                 {filteredPizza.map((order) => (
                   <SwipeableHistoryRow
                     key={order.id}
@@ -300,7 +300,7 @@ export default function HistoryPage({
                 ))}
               </div>
               {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full text-[12.5px]">
                   <thead>
                     <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
