@@ -211,17 +211,24 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
           const totalH = lineHeights.reduce((s, h) => s + h, 0);
           let lineY = y + Math.max(0, (rh - totalH) / 2);
           soupGroups.forEach(({ soup, count }, si) => {
-            const countPfx = count > 1 ? `${count}× ` : "";
+            let curX = x + 3;
+            const avail = col.width - 6;
+            if (count > 1) {
+              const pfx = `${count}× `;
+              doc.font(FONT_BOLD).fontSize(FONT_BODY + 1).fillColor(TABLE_HEADER_BG)
+                .text(pfx, curX, lineY - 0.5, { lineBreak: false });
+              curX += doc.font(FONT_BOLD).fontSize(FONT_BODY + 1).widthOfString(pfx);
+            }
             if (soup.code) {
-              const prefix = countPfx + soup.code;
               doc.font(FONT_BOLD).fontSize(FONT_BODY).fillColor("#30343A")
-                .text(prefix, x + 3, lineY, { lineBreak: false });
-              const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(prefix + "  ");
+                .text(soup.code, curX, lineY, { lineBreak: false });
+              const codeW = doc.font(FONT_BOLD).fontSize(FONT_BODY).widthOfString(soup.code + "  ");
+              curX += codeW;
               doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-                .text(soup.name, x + 3 + codeW, lineY, { width: col.width - 6 - codeW, lineBreak: false });
+                .text(soup.name, curX, lineY, { width: avail - (curX - (x + 3)), lineBreak: false });
             } else {
               doc.font(FONT).fontSize(FONT_BODY).fillColor("#30343A")
-                .text(countPfx + soup.name, x + 3, lineY, { width: col.width - 6, lineBreak: false });
+                .text(soup.name, curX, lineY, { width: avail - (curX - (x + 3)), lineBreak: false });
             }
             lineY += lineHeights[si];
           });
