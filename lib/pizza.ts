@@ -23,6 +23,7 @@ export interface PizzaOrderRow {
   orderId: number;
   sortOrder: number;
   personName: string;
+  department: string;
   pizzaItemId: number | null;
   pizzaItem: PizzaItem | null;
   count: number;
@@ -66,6 +67,7 @@ function enrichRow(row: Record<string, unknown>, items: PizzaItem[]): PizzaOrder
     personName: (row.person_name as string) ?? "",
     pizzaItemId,
     pizzaItem,
+    department: (row.department as string) ?? "",
     count,
     rowPrice: pizzaItem ? pizzaItem.price * count : 0,
   };
@@ -152,11 +154,12 @@ export function addPizzaRow(orderId: number): PizzaOrderRow {
 
 export function updatePizzaRow(
   rowId: number,
-  updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>
+  updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): PizzaOrderRow {
   const db = getDb();
   const fieldMap: Record<string, string> = {
     personName: "person_name",
+    department: "department",
     pizzaItemId: "pizza_item_id",
     count: "count",
   };

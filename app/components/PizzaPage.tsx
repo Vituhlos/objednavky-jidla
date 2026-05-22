@@ -3,6 +3,7 @@
 import { useState, useTransition, useCallback, useEffect, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
+import type { DepartmentInfo } from "@/lib/departments";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
 import type { PizzaTotals } from "@/lib/pizza-utils";
@@ -26,11 +27,13 @@ const DAY_CODE_TO_JS: Record<string, number> = { Po: 1, Út: 2, St: 3, Čt: 4, P
 
 export default function PizzaPage({
   initialData,
+  departments = [],
   pizzaCutoffEnabled = false,
   pizzaCutoffTime = "",
   pizzaCutoffDays = "",
 }: {
   initialData: PizzaOrderData;
+  departments?: DepartmentInfo[];
   pizzaCutoffEnabled?: boolean;
   pizzaCutoffTime?: string;
   pizzaCutoffDays?: string;
@@ -94,7 +97,7 @@ export default function PizzaPage({
   }, [orderId, pizzaItems]);
 
   const handleUpdateRow = useCallback(
-    (rowId: number, updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>) => {
+    (rowId: number, updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>) => {
       setRows((prev) => recalcRows(prev.map((r) => (r.id === rowId ? { ...r, ...updates } : r)), pizzaItems));
       startTransition(async () => {
         const updated = await actionUpdatePizzaRow(rowId, updates);
@@ -280,9 +283,10 @@ export default function PizzaPage({
             </div>
           ) : (
             <>
-              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 font-display text-[10px] uppercase tracking-wide text-stone-500 font-semibold" style={{ gridTemplateColumns: "28px 1fr 2fr 90px 80px 80px 32px", background: "rgba(255,255,255,0.3)" }}>
+              <div className="hidden md:grid gap-3 px-4 py-1.5 border-b border-white/30 font-display text-[10px] uppercase tracking-wide text-stone-500 font-semibold" style={{ gridTemplateColumns: "28px 100px 110px 2fr 90px 80px 80px 32px", background: "rgba(255,255,255,0.3)" }}>
                 <span>#</span>
                 <span>Jméno</span>
+                <span>Oddělení</span>
                 <span>Pizza</span>
                 <span className="text-center">Ks</span>
                 <span className="text-right">Cena</span>
@@ -291,6 +295,7 @@ export default function PizzaPage({
               </div>
               {rows.map((row, idx) => (
                 <PizzaRow
+                  departments={departments}
                   idx={idx}
                   isClosed={isClosed}
                   isPending={isPending}
@@ -563,6 +568,7 @@ const PizzaRow = memo(function PizzaRow({
   row,
   idx,
   pizzaItems,
+  departments,
   isPending,
   isClosed,
   pricePerPizza,
@@ -572,10 +578,11 @@ const PizzaRow = memo(function PizzaRow({
   row: PizzaOrderRow;
   idx: number;
   pizzaItems: PizzaItem[];
+  departments: DepartmentInfo[];
   isPending: boolean;
   isClosed: boolean;
   pricePerPizza: number;
-  onUpdate: (rowId: number, updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>) => void;
+  onUpdate: (rowId: number, updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>) => void;
   onDelete: (rowId: number) => void;
 }) {
   const disabled = isPending || isClosed;
@@ -587,14 +594,30 @@ const PizzaRow = memo(function PizzaRow({
       <div className="md:hidden flex items-start gap-2 px-4 py-3">
         <span className="font-mono text-[11px] text-stone-400 w-5 pt-2 shrink-0">{idx + 1}</span>
         <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          <input
-            className="glass-soft rounded-xl px-3 py-1.5 text-[13px] w-full outline-none"
-            defaultValue={row.personName}
-            disabled={disabled}
-            onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
-            placeholder="Jméno..."
-            type="text"
-          />
+          <div className="flex gap-1.5">
+            <input
+              className="glass-soft rounded-xl px-3 py-1.5 text-[13px] outline-none flex-1 min-w-0"
+              defaultValue={row.personName}
+              disabled={disabled}
+              onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
+              placeholder="Jméno..."
+              type="text"
+            />
+            {departments.length > 0 && (
+              <select
+                className="k-select"
+                disabled={disabled}
+                onChange={(e) => onUpdate(row.id, { department: e.target.value })}
+                style={{ width: 100, flexShrink: 0 }}
+                value={row.department}
+              >
+                <option value="">Odděl.</option>
+                {departments.map((d) => (
+                  <option key={d.name} value={d.name}>{d.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <select
             className="k-select"
             disabled={disabled || pizzaItems.length === 0}
@@ -629,7 +652,7 @@ const PizzaRow = memo(function PizzaRow({
       </div>
 
       {/* Desktop */}
-      <div className="hidden md:grid items-center gap-3 px-4 py-2.5" style={{ gridTemplateColumns: `28px 1fr 2fr 90px 80px 80px ${isClosed ? "0px" : "32px"}` }}>
+      <div className="hidden md:grid items-center gap-3 px-4 py-2.5" style={{ gridTemplateColumns: `28px 100px 110px 2fr 90px 80px 80px ${isClosed ? "0px" : "32px"}` }}>
         <span className="font-mono text-[11px] text-stone-400">{idx + 1}</span>
         <input
           className="glass-soft rounded-xl px-3 py-1.5 text-[13px] outline-none"
@@ -639,6 +662,17 @@ const PizzaRow = memo(function PizzaRow({
           placeholder="Jméno..."
           type="text"
         />
+        <select
+          className="k-select"
+          disabled={disabled}
+          onChange={(e) => onUpdate(row.id, { department: e.target.value })}
+          value={row.department}
+        >
+          <option value="">—</option>
+          {departments.map((d) => (
+            <option key={d.name} value={d.name}>{d.label}</option>
+          ))}
+        </select>
         <PizzaSelect
           value={row.pizzaItemId}
           onChange={(v) => onUpdate(row.id, { pizzaItemId: v })}

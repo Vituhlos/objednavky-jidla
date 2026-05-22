@@ -185,4 +185,7 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_menu_items_day_week ON menu_items(week_start, day);
     CREATE INDEX IF NOT EXISTS idx_audit_log_ts ON audit_log(ts DESC);
   `);
+
+  // Add department column to pizza_order_rows (idempotent)
+  try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
 }

@@ -166,7 +166,7 @@ export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow>
 
 export async function actionUpdatePizzaRow(
   rowId: number,
-  updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>
+  updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
