@@ -749,7 +749,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
 
   return (
     <>
-      <section className="glass rounded-3xl overflow-hidden" style={{ borderColor: dc.border }}>
+      <section className="glass-card rounded-3xl overflow-hidden" style={{ borderColor: dc.border }}>
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-white/40" style={{ background: dc.bg }}>
           <div

@@ -117,7 +117,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav max-w-2xl mx-auto w-full">
         {/* Order rows */}
-        <section className="glass rounded-3xl overflow-hidden">
+        <section className="glass-card rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Objednávky</span>
@@ -182,7 +182,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
 
         {/* Summary */}
         {(pizzaCounts.size > 0 || totals.finalTotal > 0) && (
-          <section className="glass rounded-3xl overflow-hidden">
+          <section className="glass-card rounded-3xl overflow-hidden">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(79,138,83,0.07)" }}>
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
               <span className="font-display font-bold text-[13.5px] text-stone-900">Souhrn</span>

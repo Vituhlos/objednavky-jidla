@@ -48,9 +48,9 @@ body {
   .glass { backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }
   .glass-soft, .glass-btn, .glass-btn-danger, .glass-dim { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 }
-.orb-sky   { background: #fed7aa; opacity: 0.6;  top: -100px;    left: -100px;  width: 400px; height: 400px; }
-.orb-amber { background: #fde68a; opacity: 0.5;  bottom: -120px; right: -80px;  width: 440px; height: 440px; }
-.orb-mint  { background: #bbf7d0; opacity: 0.32; top: 35%;       right: 18%;    width: 260px; height: 260px; }
+.orb-sky   { background: #fed7aa; opacity: 0.2;  top: -100px;    left: -100px;  width: 400px; height: 400px; }
+.orb-amber { background: #fde68a; opacity: 0.16; bottom: -120px; right: -80px;  width: 440px; height: 440px; }
+.orb-mint  { background: #bbf7d0; opacity: 0.1;  top: 35%;       right: 18%;    width: 260px; height: 260px; }
 
 /* ── Liquid Glass ── */
 

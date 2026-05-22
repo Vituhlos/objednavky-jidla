@@ -105,7 +105,7 @@ function formatTs(ts: string): string {
 function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
   const [showHelp, setShowHelp] = useState(false);
   return (
-    <div className="glass rounded-3xl overflow-hidden">
+    <div className="glass-card rounded-3xl overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
         {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
@@ -682,7 +682,7 @@ export default function SettingsPage({
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav md:pb-24">
         {!unlocked ? (
           /* PIN lock */
-          <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
+          <div className="glass-card rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
             <div className="flex flex-col items-center gap-4 p-8">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(234,88,12,0.15))" }}>
                 <MIcon name="lock" size={28} fill style={{ color: "#EA580C" }} />

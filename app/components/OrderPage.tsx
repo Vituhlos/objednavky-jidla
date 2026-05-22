@@ -921,7 +921,7 @@ export default function OrderPage({
 
           {noMenu ? (
             /* ── Closed / no-menu banner ── */
-            <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
+            <div className="glass-card rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
               <div className="flex flex-col items-center text-center px-6 py-8 md:py-10 gap-3">
                 <div
                   className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -961,7 +961,7 @@ export default function OrderPage({
           ) : (
             <>
               {menuEmpty && !isSent && (
-                <div className="glass rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
+                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
                   style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)" }}>
                   <MIcon name="warning" size={16} style={{ color: "#D97706" }} />
                   <span className="text-stone-700">
@@ -995,7 +995,7 @@ export default function OrderPage({
 
               {/* Bottom status bar */}
               <div
-                className="glass rounded-2xl px-4 py-3 flex items-center gap-3"
+                className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3"
                 style={isSent ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" } : {}}
               >
                 <div

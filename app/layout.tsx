@@ -27,14 +27,14 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Kantýna",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#32ADE6",
+  themeColor: "#EA580C",
   viewportFit: "cover",
 };
 

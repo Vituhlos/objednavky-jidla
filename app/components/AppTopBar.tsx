@@ -101,7 +101,7 @@ export default function AppTopBar() {
       />
 
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
           {NAV.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);

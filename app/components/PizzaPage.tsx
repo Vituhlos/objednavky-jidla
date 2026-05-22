@@ -238,7 +238,7 @@ export default function PizzaPage({
         </div>
       )}
       {!isClosed && pizzaItems.length === 0 && (
-        <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
+        <div className="mx-4 mt-4 p-3.5 glass-card rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
           <strong>Ceník není načten.</strong>{" "}
           Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
         </div>
@@ -247,7 +247,7 @@ export default function PizzaPage({
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
       <div className="space-y-4 md:grid md:gap-4 md:space-y-0 md:items-start" style={{ gridTemplateColumns: "1fr 280px" }}>
         {/* Orders */}
-        <section className="glass rounded-3xl overflow-hidden">
+        <section className="glass-card rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Objednávky</span>
@@ -313,7 +313,7 @@ export default function PizzaPage({
 
         {/* Summary */}
         {(pizzaCounts.size > 0 || pizzaItems.length > 0) && (
-          <section className="glass rounded-3xl overflow-hidden">
+          <section className="glass-card rounded-3xl overflow-hidden">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(79,138,83,0.07)" }}>
               <MIcon name="receipt_long" size={17} fill style={{ color: "#4F8A53" }} />
               <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Souhrn</span>
