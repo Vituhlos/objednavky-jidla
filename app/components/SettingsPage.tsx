@@ -13,6 +13,7 @@ import {
   actionReorderDepartments,
   actionReopenOrder,
   actionResendOrder,
+  actionSendOrder,
   actionClearOrder,
   actionCheckImap,
   actionSendTestPush,
@@ -352,6 +353,7 @@ export default function SettingsPage({
   const [showAddDept, setShowAddDept] = useState(false);
   const [reopenDone, setReopenDone] = useState(false);
   const [resendStatus, setResendStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [sendStatus, setSendStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
   const [clearConfirm, setClearConfirm] = useState(false);
   const [clearDone, setClearDone] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -800,14 +802,43 @@ export default function SettingsPage({
                 {todayOrder.status === "draft" && !clearDone && (
                   <div className="flex flex-col gap-2 pt-1 border-t border-white/40">
                     <p className="text-[12.5px] text-stone-500">Objednávka je otevřená.</p>
-                    <button
-                      className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger"
-                      disabled={isPending}
-                      onClick={() => setClearConfirm(true)}
-                      type="button"
-                    >
-                      <MIcon name="delete" size={14} /> Smazat celou objednávku
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                        disabled={isPending || sendStatus === "pending"}
+                        onClick={() => {
+                          setSendStatus("pending");
+                          startTransition(async () => {
+                            try {
+                              await actionSendOrder(todayOrder.id);
+                              setSendStatus("done");
+                            } catch {
+                              setSendStatus("error");
+                            }
+                          });
+                        }}
+                        type="button"
+                      >
+                        <MIcon name="send" size={14} />
+                        {sendStatus === "pending" ? "Odesílám…" : "Odeslat ručně"}
+                      </button>
+                      <button
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger"
+                        disabled={isPending}
+                        onClick={() => setClearConfirm(true)}
+                        type="button"
+                      >
+                        <MIcon name="delete" size={14} /> Smazat celou objednávku
+                      </button>
+                    </div>
+                    {sendStatus === "done" && (
+                      <p className="text-[12px] text-green-700 inline-flex items-center gap-1.5">
+                        <MIcon name="check_circle" size={13} fill /> Objednávka byla odeslána.
+                      </p>
+                    )}
+                    {sendStatus === "error" && (
+                      <p className="text-[12px] text-red-500">Chyba při odesílání. Zkontrolujte SMTP nastavení.</p>
+                    )}
                   </div>
                 )}
                 {clearDone && (
