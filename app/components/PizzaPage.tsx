@@ -22,10 +22,29 @@ function recalcRows(rows: PizzaOrderRow[], items: PizzaItem[]): PizzaOrderRow[] 
 
 type PizzaPendingDelete = { rowId: number; rowData: PizzaOrderRow };
 
-export default function PizzaPage({ initialData }: { initialData: PizzaOrderData }) {
+const DAY_CODE_TO_JS: Record<string, number> = { Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5 };
+
+export default function PizzaPage({
+  initialData,
+  pizzaCutoffEnabled = false,
+  pizzaCutoffTime = "",
+  pizzaCutoffDays = "",
+}: {
+  initialData: PizzaOrderData;
+  pizzaCutoffEnabled?: boolean;
+  pizzaCutoffTime?: string;
+  pizzaCutoffDays?: string;
+}) {
   const [rows, setRows] = useState(initialData.rows);
   const [pizzaItems, setPizzaItems] = useState(initialData.pizzaItems);
   const [orderId] = useState(initialData.order.id);
+  const isClosed = initialData.order.status === "sent";
+
+  const showCutoffBanner = pizzaCutoffEnabled && !!pizzaCutoffTime && !isClosed && (() => {
+    const allowedDays = pizzaCutoffDays.split(",").map((d) => DAY_CODE_TO_JS[d.trim()]).filter(Boolean);
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
+    return allowedDays.includes(now.getDay());
+  })();
   const [isPending, startTransition] = useTransition();
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
@@ -203,7 +222,19 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
         </div>
       </div>
 
-      {pizzaItems.length === 0 && (
+      {isClosed && (
+        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-orange-200/80 text-[12.5px] text-orange-800 flex items-center gap-2.5" style={{ background: "rgba(234,88,12,0.07)" }}>
+          <MIcon name="lock" size={15} fill style={{ color: "#EA580C", flexShrink: 0 }} />
+          <span><strong>Objednávka je uzavřena.</strong> Uzávěrka proběhla automaticky — objednávky již nelze měnit.</span>
+        </div>
+      )}
+      {showCutoffBanner && (
+        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-amber-200/80 text-[12.5px] text-amber-800 flex items-center gap-2.5" style={{ background: "rgba(245,158,11,0.07)" }}>
+          <MIcon name="schedule" size={15} fill style={{ color: "#D97706", flexShrink: 0 }} />
+          <span>Uzávěrka objednávek pizzy je dnes v <strong>{pizzaCutoffTime}</strong>.</span>
+        </div>
+      )}
+      {!isClosed && pizzaItems.length === 0 && (
         <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
           <strong>Ceník není načten.</strong>{" "}
           Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
@@ -223,18 +254,20 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
                 {totals.pricePerPerson > 0 && ` · ${totals.pricePerPerson} Kč/os.`}
               </span>
             )}
-            <button
-              className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-              disabled={isAddingRow || isPending}
-              onClick={handleAddRow}
-              type="button"
-            >
-              {isAddingRow
-                ? <MIcon name="refresh" size={13} style={{ animation: "k-spin 0.8s linear infinite" }} />
-                : <MIcon name="add" size={13} />}
-              {isAddingRow ? "Přidávám" : "Přidat"}
-            </button>
+            {!isClosed && (
+              <button
+                className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                disabled={isAddingRow || isPending}
+                onClick={handleAddRow}
+                type="button"
+              >
+                {isAddingRow
+                  ? <MIcon name="refresh" size={13} style={{ animation: "k-spin 0.8s linear infinite" }} />
+                  : <MIcon name="add" size={13} />}
+                {isAddingRow ? "Přidávám" : "Přidat"}
+              </button>
+            )}
           </div>
 
           {rows.length === 0 ? (
@@ -259,6 +292,7 @@ export default function PizzaPage({ initialData }: { initialData: PizzaOrderData
               {rows.map((row, idx) => (
                 <PizzaRow
                   idx={idx}
+                  isClosed={isClosed}
                   isPending={isPending}
                   key={row.id}
                   onDelete={handleDeleteRow}
@@ -530,6 +564,7 @@ const PizzaRow = memo(function PizzaRow({
   idx,
   pizzaItems,
   isPending,
+  isClosed,
   pricePerPizza,
   onUpdate,
   onDelete,
@@ -538,10 +573,12 @@ const PizzaRow = memo(function PizzaRow({
   idx: number;
   pizzaItems: PizzaItem[];
   isPending: boolean;
+  isClosed: boolean;
   pricePerPizza: number;
   onUpdate: (rowId: number, updates: Partial<{ personName: string; pizzaItemId: number | null; count: number }>) => void;
   onDelete: (rowId: number) => void;
 }) {
+  const disabled = isPending || isClosed;
   const adjustedPrice = row.pizzaItem && pricePerPizza > 0 ? pricePerPizza * row.count : 0;
 
   return (
@@ -553,14 +590,14 @@ const PizzaRow = memo(function PizzaRow({
           <input
             className="glass-soft rounded-xl px-3 py-1.5 text-[13px] w-full outline-none"
             defaultValue={row.personName}
-            disabled={isPending}
+            disabled={disabled}
             onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
             placeholder="Jméno..."
             type="text"
           />
           <select
             className="k-select"
-            disabled={isPending || pizzaItems.length === 0}
+            disabled={disabled || pizzaItems.length === 0}
             onChange={(e) => onUpdate(row.id, { pizzaItemId: e.target.value ? Number(e.target.value) : null })}
             value={row.pizzaItemId ?? ""}
           >
@@ -572,30 +609,32 @@ const PizzaRow = memo(function PizzaRow({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <div className="flex items-center gap-1">
-            <button aria-label="Snížit počet" className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
+            <button aria-label="Snížit počet" className="stepper-btn" disabled={disabled || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
             <span className="stepper-count">{row.count}</span>
-            <button aria-label="Zvýšit počet" className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
+            <button aria-label="Zvýšit počet" className="stepper-btn" disabled={disabled || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
           </div>
           <span className="text-[11px] text-stone-500">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
-          <button
-            aria-label="Smazat řádek"
-            className="w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
-            disabled={isPending}
-            onClick={() => onDelete(row.id)}
-            type="button"
-          >
-            <MIcon name="close" size={16} />
-          </button>
+          {!isClosed && (
+            <button
+              aria-label="Smazat řádek"
+              className="w-11 h-11 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 transition"
+              disabled={disabled}
+              onClick={() => onDelete(row.id)}
+              type="button"
+            >
+              <MIcon name="close" size={16} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Desktop */}
-      <div className="hidden md:grid items-center gap-3 px-4 py-2.5" style={{ gridTemplateColumns: "28px 1fr 2fr 90px 80px 80px 32px" }}>
+      <div className="hidden md:grid items-center gap-3 px-4 py-2.5" style={{ gridTemplateColumns: `28px 1fr 2fr 90px 80px 80px ${isClosed ? "0px" : "32px"}` }}>
         <span className="font-mono text-[11px] text-stone-400">{idx + 1}</span>
         <input
           className="glass-soft rounded-xl px-3 py-1.5 text-[13px] outline-none"
           defaultValue={row.personName}
-          disabled={isPending}
+          disabled={disabled}
           onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
           placeholder="Jméno..."
           type="text"
@@ -604,24 +643,26 @@ const PizzaRow = memo(function PizzaRow({
           value={row.pizzaItemId}
           onChange={(v) => onUpdate(row.id, { pizzaItemId: v })}
           items={pizzaItems}
-          disabled={isPending || pizzaItems.length === 0}
+          disabled={disabled || pizzaItems.length === 0}
         />
         <div className="flex items-center gap-1 justify-center">
-          <button aria-label="Snížit počet" className="stepper-btn" disabled={isPending || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
+          <button aria-label="Snížit počet" className="stepper-btn" disabled={disabled || row.count <= 1} onClick={() => onUpdate(row.id, { count: row.count - 1 })} type="button">−</button>
           <span className="stepper-count">{row.count}</span>
-          <button aria-label="Zvýšit počet" className="stepper-btn" disabled={isPending || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
+          <button aria-label="Zvýšit počet" className="stepper-btn" disabled={disabled || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
         </div>
         <span className="text-[12.5px] text-stone-500 text-right">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
         <span className="text-[12.5px] font-semibold text-stone-800 text-right">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : "–"}</span>
-        <button
-          aria-label="Smazat řádek"
-          className="w-10 h-10 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 active:text-red-400 hover:bg-red-50/80 transition"
-          disabled={isPending}
-          onClick={() => onDelete(row.id)}
-          type="button"
-        >
-          <MIcon name="close" size={15} />
-        </button>
+        {!isClosed && (
+          <button
+            aria-label="Smazat řádek"
+            className="w-10 h-10 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 active:text-red-400 hover:bg-red-50/80 transition"
+            disabled={disabled}
+            onClick={() => onDelete(row.id)}
+            type="button"
+          >
+            <MIcon name="close" size={15} />
+          </button>
+        )}
       </div>
     </div>
   );
