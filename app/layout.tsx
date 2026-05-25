@@ -47,13 +47,21 @@ export default function RootLayout({
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
       <body className={inter.className}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-stone-900 focus:rounded-xl focus:shadow-lg focus:text-sm focus:font-semibold focus:outline-none"
+        >
+          Přeskočit na obsah
+        </a>
         <div className="stage-bg" aria-hidden>
           <div className="orb orb-sky" />
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
         <AppTopBar />
-        {children}
+        <main id="main-content">
+          {children}
+        </main>
         <SwRegister />
       </body>
     </html>

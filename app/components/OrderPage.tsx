@@ -831,7 +831,7 @@ export default function OrderPage({
       )}
 
       {/* ── Scrollable main content ── */}
-      <main className="flex-1 overflow-y-auto scroll-area p-4">
+      <div className="flex-1 overflow-y-auto scroll-area p-4">
         <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 pb-nav lg:pb-6">
 
           {showDayPicker && (
@@ -979,7 +979,7 @@ export default function OrderPage({
             </>
           )}
         </div>
-      </main>
+      </div>
 
       {/* ── Modals ── */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
