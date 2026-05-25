@@ -123,7 +123,7 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
-                    <th className="w-8 px-3 py-2"></th>
+                    <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,7 +179,7 @@ export default function HistoryPage({
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
                     <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="w-8 px-3 py-2"></th>
+                    <th className="w-8 px-3 py-2"><span className="sr-only">Otevřít</span></th>
                   </tr>
                 </thead>
                 <tbody>

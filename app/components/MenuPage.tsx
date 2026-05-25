@@ -884,7 +884,7 @@ export default function MenuPage({
             );
           })}
         </div>
-        <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav lg:pb-8">
+        <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav lg:pb-8" tabIndex={0}>
           <div className="max-w-7xl mx-auto w-full overflow-x-auto lg:overflow-x-visible snap-x lg:snap-none no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
             <WeekGrid
               dayDates={dayDates}

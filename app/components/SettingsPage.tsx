@@ -943,7 +943,7 @@ export default function SettingsPage({
 
                 <Section icon="schedule" title="Provoz">
                   <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
-                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" />
+                    <input className="modal-input w-32" defaultValue={settings.cutoffTime} name="cutoffTime" type="time" aria-label="Čas uzávěrky" />
                   </Field>
                 </Section>
 
@@ -954,10 +954,10 @@ export default function SettingsPage({
                   <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
-                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
+                      <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" aria-label="Čas odeslání" />
                     </Field>
                     <Field hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
-                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" />
+                      <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" aria-label="Minimální počet objednávek" />
                     </Field>
                   </div>
                   <Field label="Dny odeslání">
@@ -1757,7 +1757,7 @@ export default function SettingsPage({
             )}
 
         {/* Version info */}
-        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-500">
           <span>Objednávky LIMA</span>
           <span className="text-stone-300">·</span>
           <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>

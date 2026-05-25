@@ -625,9 +625,6 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
     <div
       className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 active:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
       onClick={!isSent ? onEdit : undefined}
-      role={!isSent ? "button" : undefined}
-      tabIndex={!isSent ? 0 : undefined}
-      onKeyDown={!isSent ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(); } } : undefined}
     >
       {/* Avatar */}
       <span
@@ -691,6 +688,17 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
       <div className="shrink-0 font-display font-bold text-[13px] text-stone-800">
         {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="text-stone-400 font-normal">—</span>}
       </div>
+
+      {/* Keyboard-accessible edit button (sr-only, becomes visible on focus) */}
+      {!isSent && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="sr-only focus:not-sr-only focus:shrink-0 focus:px-2 focus:py-1 focus:rounded-xl focus:bg-white focus:text-stone-700 focus:text-[11px] focus:font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400"
+        >
+          Upravit
+        </button>
+      )}
 
       {/* Delete button — always visible on mobile, hover-only on desktop */}
       {!isSent && (

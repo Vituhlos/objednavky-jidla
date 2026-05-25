@@ -762,7 +762,7 @@ export default function OrderPage({
               </span>
             )}
             {!isFutureDay && !isSent && isPastCutoff && (
-              <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
+              <span className="inline-flex items-center gap-1 text-orange-700 font-medium">
                 <MIcon name="schedule" size={13} />
                 <span className="hidden md:inline">Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}</span>
                 <span className="md:hidden">Po uzávěrce{autoSendEnabled ? " · auto" : ""}</span>
@@ -776,7 +776,7 @@ export default function OrderPage({
               </span>
             )}
             {activeOrderCount > 0 && (
-              <span className="text-stone-400">
+              <span className="text-stone-600">
                 <span className="hidden md:inline">{activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč</span>
                 <span className="md:hidden">{activeOrderCount} · {totalPrice} Kč</span>
               </span>

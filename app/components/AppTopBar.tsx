@@ -27,7 +27,7 @@ const SidebarClock = memo(function SidebarClock() {
 
   return (
     <div className="glass-soft rounded-2xl p-3">
-      <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Dnes</div>
+      <div className="text-[11px] uppercase tracking-wider text-stone-600 font-semibold mb-0.5">Dnes</div>
       <div className="font-display font-bold text-[15px] text-stone-900">{timeStr}</div>
       <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
     </div>
@@ -80,7 +80,7 @@ export default function AppTopBar() {
                   fill={isActive}
                   style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
                 />
-                <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-500"}`}>
+                <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-600"}`}>
                   {label}
                 </span>
               </Link>
