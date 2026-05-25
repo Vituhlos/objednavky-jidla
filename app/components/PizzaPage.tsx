@@ -7,6 +7,7 @@ import type { DepartmentInfo } from "@/lib/departments";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 import type { PizzaTotals } from "@/lib/pizza-utils";
 import {
   actionAddPizzaRow,
@@ -56,6 +57,7 @@ export default function PizzaPage({
   const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showPizzaHelp, setShowPizzaHelp] = useState(false);
+  const { sheetRef: pizzaHelpSheetRef } = useModalSwipe(useCallback(() => setShowPizzaHelp(false), []));
   const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
   const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,7 +345,8 @@ export default function PizzaPage({
 
       {showPizzaHelp && (
         <div className="modal-overlay" onClick={() => setShowPizzaHelp(false)}>
-          <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()} ref={pizzaHelpSheetRef}>
+            <div className="modal-sheet__drag-handle" aria-hidden />
             <div className="modal-sheet__header">
               <h3 className="modal-sheet__title">Jak se počítá cena?</h3>
               <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>

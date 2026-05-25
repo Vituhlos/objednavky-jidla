@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, memo } from "react";
+import { useState, useTransition, useRef, useEffect, memo, useCallback } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -29,6 +29,7 @@ import {
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 
 const ACCENT_OPTIONS = [
   { value: "blue",   label: "Modrá" },
@@ -338,6 +339,7 @@ export default function SettingsPage({
   const [webhookMsg, setWebhookMsg] = useState("");
   const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
+  const { sheetRef: telegramHelpSheetRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
@@ -1644,7 +1646,8 @@ export default function SettingsPage({
                 {/* Telegram help modal */}
                 {showTelegramHelp && (
                   <div className="modal-overlay" onClick={() => setShowTelegramHelp(false)}>
-                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()} ref={telegramHelpSheetRef}>
+                      <div className="modal-sheet__drag-handle" aria-hidden />
                       <div className="modal-sheet__header">
                         <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
                         <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>

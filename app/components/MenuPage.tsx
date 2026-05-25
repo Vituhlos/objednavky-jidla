@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 
 // Controlled textarea that auto-grows to fit its content (used in modal)
 function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
@@ -347,6 +348,8 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
     });
   };
 
+  const { sheetRef } = useModalSwipe(onClose);
+
   const handleSave = () => {
     const allergenStr = [...activeAllergens].sort((a, b) => a - b).join(",");
     onSave(item.id, { code, name, allergens: allergenStr });
@@ -361,7 +364,9 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
         aria-modal="true"
         aria-labelledby="item-edit-modal-title"
         onClick={(e) => e.stopPropagation()}
+        ref={sheetRef}
       >
+        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="item-edit-modal-title">
             Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
@@ -599,6 +604,7 @@ export default function MenuPage({
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { sheetRef: importSheetRef } = useModalSwipe(useCallback(() => setImportState({ phase: "idle" }), []));
 
   const hasNextWeek = Object.keys(initialNextMenu).length > 0;
   const activeWeekStart = activeWeek === "current" ? currentWeekStart : nextWeekStart;
@@ -1044,7 +1050,9 @@ export default function MenuPage({
             aria-modal="true"
             aria-labelledby="import-modal-title"
             onClick={(e) => e.stopPropagation()}
+            ref={importSheetRef}
           >
+            <div className="modal-sheet__drag-handle" aria-hidden />
             <div className="modal-sheet__header">
               <h3 className="modal-sheet__title" id="import-modal-title">
                 {importState.phase === "preview" ? "Náhled importu" : "Importovat PDF jídelníčku"}

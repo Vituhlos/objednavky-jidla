@@ -7,6 +7,7 @@ import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 
 type RowUpdates = Partial<{
   personName: string;
@@ -289,48 +290,10 @@ function OrderEditModal({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startY: number; currentY: number } | null>(null);
-  const touchDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
   const handleCancelRef = useRef(handleCancel);
-  useEffect(() => { handleCancelRef.current = handleCancel; });
-
-  useEffect(() => {
-    return () => {
-      if (touchDismissTimer.current) clearTimeout(touchDismissTimer.current);
-    };
-  }, []);
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const body = sheetRef.current?.querySelector(".modal-sheet__body") as HTMLElement | null;
-    if (body && body.scrollTop > 0) return;
-    dragState.current = { startY: e.touches[0].clientY, currentY: 0 };
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!dragState.current || !sheetRef.current) return;
-    const delta = e.touches[0].clientY - dragState.current.startY;
-    if (delta <= 0) { dragState.current = null; sheetRef.current.style.transform = ""; return; }
-    dragState.current.currentY = delta;
-    sheetRef.current.style.transition = "none";
-    sheetRef.current.style.transform = `translateY(${delta}px)`;
-  };
-
-  const handleTouchEnd = () => {
-    if (!dragState.current || !sheetRef.current) return;
-    const { currentY } = dragState.current;
-    dragState.current = null;
-    if (currentY > 80) {
-      sheetRef.current.style.transition = "transform 0.25s ease-in";
-      sheetRef.current.style.transform = "translateY(110%)";
-      touchDismissTimer.current = setTimeout(() => handleCancelRef.current(), 220);
-    } else {
-      sheetRef.current.style.transition = "transform 0.3s cubic-bezier(.2,.8,.2,1)";
-      sheetRef.current.style.transform = "";
-    }
-  };
+  handleCancelRef.current = handleCancel;
+  const { sheetRef } = useModalSwipe(handleCancel);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelRef.current(); };
@@ -402,9 +365,6 @@ function OrderEditModal({
         aria-modal="true"
         aria-labelledby="edit-modal-title"
         onClick={(e) => e.stopPropagation()}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
-        onTouchStart={handleTouchStart}
         ref={sheetRef}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />

@@ -10,6 +10,7 @@ import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
+import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -36,6 +37,7 @@ const HELP_ADVANCED = [
 
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
+  const { sheetRef } = useModalSwipe(onClose);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -62,8 +64,10 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="help-modal-title"
         onClick={(e) => e.stopPropagation()}
+        ref={sheetRef}
         style={{ maxWidth: 480 }}
       >
+        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
           <button
