@@ -49,11 +49,21 @@ export async function POST(request: NextRequest) {
 
   const parsed = parseMenuText(rawText);
 
-  if (parsed.items.length === 0) {
+  // Tvrdé selhání: parser vrátil prázdno NEBO torzo (málo dní/jídel, žádná
+  // polévka, položky bez názvu…). Radši import zahodíme, než abychom tiše
+  // uložili rozbitý jídelníček a zjistili to až v appce.
+  if (!parsed.sanity.ok) {
     return NextResponse.json(
       {
         error:
-          "Z PDF se nepodařilo načíst žádná jídla. Zkontrolujte, zda jde o správný soubor jídelníčku LIMA.",
+          parsed.items.length === 0
+            ? "Z PDF se nepodařilo načíst žádná jídla. Zkontrolujte, zda jde o správný soubor jídelníčku LIMA."
+            : "Jídelníček se načetl jen částečně — výsledek vypadá neúplně. " +
+              "Zkontrolujte PDF nebo zda LIMA nezměnila formát.",
+        warnings: parsed.sanity.warnings,
+        daysFound: parsed.sanity.daysFound,
+        mealCount: parsed.sanity.mealCount,
+        soupCount: parsed.sanity.soupCount,
         rawTextPreview: parsed.rawTextPreview,
       },
       { status: 422 }

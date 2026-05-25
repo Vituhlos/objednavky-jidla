@@ -6,12 +6,97 @@ export interface ParsedMenuItem {
   allergens: string;
 }
 
+export interface MenuSanity {
+  ok: boolean;           // false = výsledek je podezřelý, nedoporučuje se tiše uložit
+  warnings: string[];    // lidsky čitelné popisy toho, co nesedí
+  daysFound: string[];   // které dny se podařilo načíst, např. ["Po","Út","St"]
+  mealCount: number;     // počet jídel (typ "Jídlo", bez polévek)
+  soupCount: number;     // počet polévek
+}
+
 export interface ParseResult {
   weekLabel: string | null;
   weekStart: string | null;
   items: ParsedMenuItem[];
   rawTextPreview: string;
   tmpPdfName?: string;
+  sanity: MenuSanity;
+}
+
+// Očekávané pracovní dny v jídelníčku LIMA (Po–Pá).
+const EXPECTED_DAYS = ["Po", "Út", "St", "Čt", "Pá"];
+
+// Sanity check na VÝSLEDEK parsování. Nekontroluje tvar dat (od toho je
+// TypeScript), ale jestli výsledek dává smysl jako jídelníček — tj. jestli se
+// parser tiše nerozbil na změně formátu PDF. Cílem je selhat NAHLAS, ne uložit
+// prázdno/torzo a zjistit to až v appce.
+export function checkMenuSanity(
+  items: ParsedMenuItem[],
+  weekStart: string | null
+): MenuSanity {
+  const warnings: string[] = [];
+
+  // Které dny se reálně objevily (bez ohledu na pořadí).
+  const daysFound = EXPECTED_DAYS.filter((d) => items.some((it) => it.day === d));
+  const meals = items.filter((it) => it.type === "Jídlo" && it.name !== "Zavřeno");
+  const soups = items.filter((it) => it.type === "Polévka");
+
+  // 1) Nepřečetl se začátek/datum týdne → nejde spolehlivě zařadit do kalendáře.
+  if (!weekStart) {
+    warnings.push("Nepodařilo se přečíst datum týdne z PDF (řádek „Týden …“).");
+  }
+
+  // 2) Chybí celé dny. Pár dní zavřeno je OK, ale když jsou < 3, něco je špatně.
+  const missingDays = EXPECTED_DAYS.filter((d) => !daysFound.includes(d));
+  if (daysFound.length < 3) {
+    warnings.push(
+      `Načetly se jen ${daysFound.length} dny (${daysFound.join(", ") || "žádný"}). ` +
+      `Chybí: ${missingDays.join(", ")}. Čekám aspoň 3 z 5.`
+    );
+  } else if (missingDays.length > 0) {
+    warnings.push(`Chybí některé dny: ${missingDays.join(", ")}. (Může jít o zavřeno.)`);
+  }
+
+  // 3) Den bez jediného jídla = parser nejspíš ztratil řádky uprostřed.
+  for (const d of daysFound) {
+    const mealsThatDay = meals.filter((it) => it.day === d).length;
+    if (mealsThatDay === 0) {
+      warnings.push(`Den ${d} nemá žádné jídlo — parser možná přeskočil řádky.`);
+    }
+  }
+
+  // 4) Podezřele málo jídel celkem. LIMA mívá ~5 jídel/den × ~5 dní.
+  //    Pod ~8 položek za celý týden je skoro jistě torzo.
+  if (meals.length < 8) {
+    warnings.push(`Načteno jen ${meals.length} jídel za celý týden — to je podezřele málo.`);
+  }
+
+  // 5) Žádné polévky napříč týdnem je taky varovný signál (LIMA je vždy má).
+  if (soups.length === 0) {
+    warnings.push("Nenačetla se ani jedna polévka — zkontrolujte formát PDF.");
+  }
+
+  // 6) Položky bez názvu = chyba extrakce.
+  const emptyNames = items.filter((it) => it.name.trim() === "").length;
+  if (emptyNames > 0) {
+    warnings.push(`${emptyNames} položek nemá název.`);
+  }
+
+  // "ok" je pravda jen když nic nehoří. Měkká varování (chybějící den kvůli
+  // zavřeno) sama o sobě ok neshazují — shazují ho jen tvrdé signály.
+  const hardFail =
+    meals.length < 8 ||
+    daysFound.length < 3 ||
+    soups.length === 0 ||
+    emptyNames > 0;
+
+  return {
+    ok: !hardFail,
+    warnings,
+    daysFound,
+    mealCount: meals.length,
+    soupCount: soups.length,
+  };
 }
 
 const DEN_MAP: Record<string, string> = {
@@ -267,5 +352,6 @@ export function parseMenuText(rawText: string): ParseResult {
     weekStart,
     items,
     rawTextPreview: rawText.slice(0, 1000),
+    sanity: checkMenuSanity(items, weekStart),
   };
 }
