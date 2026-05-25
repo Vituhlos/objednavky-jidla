@@ -25,7 +25,7 @@ export default function PageHeader({
           <span className="hidden md:inline">{title}</span>
         </span>
         {meta && (
-          <span className="hidden md:inline-flex text-[12px] text-stone-500 shrink-0">{meta}</span>
+          <span className="hidden md:inline-block text-[12px] text-stone-500 shrink-0">{meta}</span>
         )}
         {actions && (
           <div className="flex items-center gap-2 md:gap-3 shrink-0">{actions}</div>
