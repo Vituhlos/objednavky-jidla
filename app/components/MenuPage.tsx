@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import PageHeader from "./PageHeader";
 
 // Controlled textarea that auto-grows to fit its content (used in modal)
 function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
@@ -745,60 +746,49 @@ export default function MenuPage({
   return (
     <div className="k-shell">
 
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900">Jídelníček LIMA</span>
-        {activeWeekLabel && (
-          <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
-        )}
-        {hasPdfActive && (
-          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-            download href={`/api/menu/pdf/${activeWeekStart}`}>
-            ↓ PDF
-          </a>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
-            type="button"
-          >
-            {editMode ? "Zavřít úpravu" : "Upravit ručně"}
-          </button>
-          {activeWeek === "next" && hasNextWeek && (
+      <PageHeader
+        title="Jídelníček LIMA"
+        meta={activeWeekLabel ? (
+          <>
+            <span className="hidden md:inline">Týden </span>
+            <strong className="text-stone-700">{activeWeekLabel}</strong>
+          </>
+        ) : undefined}
+        actions={
+          <>
+            {hasPdfActive && (
+              <a className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
+                download href={`/api/menu/pdf/${activeWeekStart}`}>
+                ↓ PDF
+              </a>
+            )}
             <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
-              disabled={isPending}
-              onClick={() => setConfirmDeleteNext(true)}
+              className={`hidden md:inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
               type="button"
             >
-              Smazat příští týden
+              {editMode ? "Zavřít úpravu" : "Upravit ručně"}
             </button>
-          )}
-          <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-            onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
-            type="button"
-          >
-            <MIcon name="upload_file" size={14} /> Import PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
-          {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
-          <button
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-            onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
-            type="button"
-          >
-            <MIcon name="upload_file" size={13} /> PDF
-          </button>
-        </div>
-      </div>
+            {activeWeek === "next" && hasNextWeek && (
+              <button
+                className="hidden md:inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => setConfirmDeleteNext(true)}
+                type="button"
+              >
+                Smazat příští týden
+              </button>
+            )}
+            <button
+              className="inline-flex items-center gap-1 md:gap-1.5 text-[11px] md:text-[12px] font-semibold px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-xl md:rounded-2xl glass-btn text-stone-600"
+              onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
+              type="button"
+            >
+              <MIcon name="upload_file" size={13} /> <span className="md:hidden">PDF</span><span className="hidden md:inline">Import PDF</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Week tabs */}
       <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">

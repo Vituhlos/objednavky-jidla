@@ -77,10 +77,10 @@ export default function HistoryPage({
         title="Historie objednávek"
         mobileTitle="Historie"
         meta={
-          <>
+          <span className="hidden md:inline">
             <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
             <strong className="text-stone-700">{pizzaSentCount}</strong> pizz
-          </>
+          </span>
         }
         actions={
           <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer select-none">

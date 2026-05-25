@@ -33,7 +33,7 @@ export default function PageHeader({
             <span className="hidden md:inline">{title}</span>
           </span>
           {meta && (
-            <span className="hidden md:inline-block text-[12px] text-stone-500 shrink-0">{meta}</span>
+            <span className="inline-block text-[11px] md:text-[12px] text-stone-500 shrink-0">{meta}</span>
           )}
         </div>
         {trailing && <div className="shrink-0">{trailing}</div>}

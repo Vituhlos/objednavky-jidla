@@ -98,10 +98,10 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
         title={`Pizza ${formatDateWithDay(order.date)}`}
         leading={backButton}
         meta={
-          <>
+          <span className="hidden md:inline-flex items-center gap-2">
             {statusBadge}
-            {sentAtChip && <> {sentAtChip}</>}
-          </>
+            {sentAtChip}
+          </span>
         }
         trailing={totalCount > 0 ? (
           <span className="font-display font-bold text-stone-900 text-[14px] md:text-[16px]">{totals.finalTotal} Kč</span>

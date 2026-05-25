@@ -197,11 +197,11 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
         mobileTitle={formatDateWithDay(order.date)}
         leading={backButton}
         meta={
-          <>
+          <span className="hidden md:inline-flex items-center gap-2">
             {statusBadge}
-            {sentAtChip && <> {sentAtChip}</>}
-            {order.extraEmail && <span className="hidden lg:inline text-[12px] text-stone-500"> Kopie: {order.extraEmail}</span>}
-          </>
+            {sentAtChip}
+            {order.extraEmail && <span className="hidden lg:inline">Kopie: {order.extraEmail}</span>}
+          </span>
         }
         trailing={totalPrice > 0 ? (
           <span className="font-display font-bold text-stone-900 text-[14px] md:text-[16px]">{totalPrice} Kč</span>
