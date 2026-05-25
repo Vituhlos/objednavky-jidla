@@ -147,7 +147,7 @@ const WeekGrid = memo(function WeekGrid({
   onOpenDay: (day: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-3 items-start">
+    <div className="grid grid-cols-5 gap-3 items-start min-w-[1100px] lg:min-w-0">
       {DAY_ORDER.map((day) => {
         const isToday = day === todayCode;
         const { soups = [], meals = [] } = menu[day] ?? {};
@@ -160,7 +160,8 @@ const WeekGrid = memo(function WeekGrid({
         return (
           <div
             key={day}
-            className="glass-card rounded-3xl overflow-hidden"
+            data-day={day}
+            className="glass-card rounded-3xl overflow-hidden snap-start lg:snap-align-none"
             style={isToday ? {
               borderColor: "rgba(245,158,11,0.38)",
               boxShadow: "0 8px 32px -8px rgba(245,158,11,0.22)",
@@ -851,26 +852,48 @@ export default function MenuPage({
         })}
       </div>
 
-      {/* Desktop: full week grid */}
-      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3">
-        <div className="max-w-7xl mx-auto w-full">
-          <WeekGrid
-            dayDates={dayDates}
-            disabled={isPending}
-            editMode={!isReadOnly && editMode}
-            holidayNames={activeHolidayNames}
-            menu={activeMenu}
-            onAdd={(day, type) => handleAdd(day, type)}
-            onCloseDay={(day) => {
-              startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
-            }}
-            onEdit={(item) => setEditingItem(item)}
-            onOpenDay={(day) => {
-              startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
-            }}
-            todayCode={visibleTodayCode}
-            weekStart={activeWeekStart}
-          />
+      {/* Desktop + tablet: week grid (tablet scrolls horizontally with day picker) */}
+      <div className="hidden md:flex flex-col flex-1 overflow-hidden pt-3">
+        <div className="max-w-7xl mx-auto w-full px-4 lg:hidden flex gap-1.5 pb-2 overflow-x-auto no-scrollbar shrink-0">
+          {DAY_ORDER.map((day) => {
+            const isToday = day === visibleTodayCode;
+            return (
+              <button
+                key={day}
+                onClick={() => {
+                  const el = document.querySelector(`[data-day="${day}"]`) as HTMLElement | null;
+                  el?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-btn text-[12px] font-semibold text-stone-700"
+                type="button"
+              >
+                <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-amber-600" : "text-stone-400"}`}>{day}</span>
+                <span className="font-display font-bold">{dayDates[day]}</span>
+                {isToday && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#F59E0B" }} />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav lg:pb-8">
+          <div className="max-w-7xl mx-auto w-full overflow-x-auto lg:overflow-x-visible snap-x lg:snap-none no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+            <WeekGrid
+              dayDates={dayDates}
+              disabled={isPending}
+              editMode={!isReadOnly && editMode}
+              holidayNames={activeHolidayNames}
+              menu={activeMenu}
+              onAdd={(day, type) => handleAdd(day, type)}
+              onCloseDay={(day) => {
+                startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
+              }}
+              onEdit={(item) => setEditingItem(item)}
+              onOpenDay={(day) => {
+                startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
+              }}
+              todayCode={visibleTodayCode}
+              weekStart={activeWeekStart}
+            />
+          </div>
         </div>
       </div>
 

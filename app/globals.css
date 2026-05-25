@@ -258,7 +258,7 @@ body {
 
 /* ── Safe-area bottom padding (accounts for fixed bottom nav + iOS home indicator) ── */
 .pb-nav { padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
-@media (min-width: 768px) { .pb-nav { padding-bottom: 2rem; } }
+@media (min-width: 1024px) { .pb-nav { padding-bottom: 2rem; } }
 
 /* ── Scrollbars ── */
 .scroll-area { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -274,7 +274,7 @@ body {
   height: 100dvh;                  /* adapts to browser toolbar on mobile */
   display: flex; flex-direction: column;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .k-shell { margin-left: 232px; }
 }
 
@@ -291,7 +291,7 @@ body {
   box-shadow: 0 4px 24px -6px rgba(26,18,8,0.3);
   animation: fadeUp .25s ease both;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .k-toast { bottom: 24px; }
 }
 .k-toast--success { background: rgba(21,128,61,0.9); }
@@ -313,7 +313,7 @@ body {
   background: #fef3c7; border-bottom: 1px solid #fde68a;
   font-size: 0.8rem; font-weight: 500; color: #92400e;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .k-offline { left: 232px; }
 }
 
