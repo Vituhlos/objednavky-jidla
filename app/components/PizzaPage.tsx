@@ -6,6 +6,7 @@ import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import type { DepartmentInfo } from "@/lib/departments";
 import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
+import PageHeader from "./PageHeader";
 import type { PizzaTotals } from "@/lib/pizza-utils";
 import {
   actionAddPizzaRow,
@@ -175,55 +176,36 @@ export default function PizzaPage({
         </div>
       )}
 
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900">Pizza</span>
-        {totalCount > 0 && (
-          <span className="text-[12px] text-stone-600">
+      <PageHeader
+        title="Pizza"
+        meta={totalCount > 0 ? (
+          <>
             <strong>{totalCount} ks</strong> · <strong className="text-stone-800">{totals.finalTotal} Kč</strong>
             {totals.pricePerPerson > 0 && <> · <strong className="text-amber-700">{totals.pricePerPerson} Kč/os.</strong></>}
-          </span>
-        )}
-        {scrapeStatus && <span className="text-[12px] text-emerald-600">{scrapeStatus}</span>}
-        {scrapeError && <span className="text-[12px] text-red-500 truncate max-w-xs">{scrapeError}</span>}
-        <div className="ml-auto">
-          <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-            disabled={isPending}
-            onClick={handleScrape}
-            type="button"
-          >
-            <MIcon name="refresh" size={14} />
-            {isPending ? "Načítám..." : "Aktualizovat ceník"}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza</span>
-          {totalCount > 0 && (
-            <span className="text-[12px] text-stone-700 font-semibold">
-              {totalCount} ks · {totals.finalTotal} Kč
-              {totals.pricePerPerson > 0 && <span className="text-amber-700"> · {totals.pricePerPerson} Kč/os.</span>}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
-          {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
-          {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
-          <button
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
-            disabled={isPending}
-            onClick={handleScrape}
-            type="button"
-          >
-            <MIcon name="refresh" size={13} />
-            {isPending ? "Načítám..." : "Aktualizovat ceník"}
-          </button>
-        </div>
-      </div>
+          </>
+        ) : undefined}
+        actions={
+          <>
+            {scrapeStatus && <span className="hidden md:inline text-[12px] text-emerald-600">{scrapeStatus}</span>}
+            {scrapeError && <span className="hidden md:inline text-[12px] text-red-500 truncate max-w-xs">{scrapeError}</span>}
+            <button
+              className="inline-flex items-center gap-1 md:gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+              disabled={isPending}
+              onClick={handleScrape}
+              type="button"
+            >
+              <MIcon name="refresh" size={14} />
+              <span className="hidden md:inline">{isPending ? "Načítám..." : "Aktualizovat ceník"}</span>
+            </button>
+          </>
+        }
+        secondaryRow={(scrapeStatus || scrapeError) ? (
+          <>
+            {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
+            {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
+          </>
+        ) : undefined}
+      />
 
       {isClosed && (
         <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-orange-200/80 text-[12.5px] text-orange-800 flex items-center gap-2.5" style={{ background: "rgba(234,88,12,0.07)" }}>

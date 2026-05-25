@@ -207,10 +207,10 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
           <span className="font-display font-bold text-stone-900 text-[14px] md:text-[16px]">{totalPrice} Kč</span>
         ) : undefined}
         actions={
-          <>
+          <div className="hidden md:flex items-center gap-2">
             {pdfButtons}
             {reopenBtn}
-          </>
+          </div>
         }
         secondaryRow={
           <>

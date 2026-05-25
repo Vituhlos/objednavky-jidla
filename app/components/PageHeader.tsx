@@ -38,7 +38,7 @@ export default function PageHeader({
         </div>
         {trailing && <div className="shrink-0">{trailing}</div>}
         {actions && (
-          <div className={`${secondaryRow ? "hidden md:flex" : "flex"} items-center gap-2 md:gap-3 shrink-0`}>{actions}</div>
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">{actions}</div>
         )}
         {searchBar && (
           <div className="hidden md:block shrink-0">{searchBar}</div>
