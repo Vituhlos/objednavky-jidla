@@ -5,6 +5,7 @@ import type { PizzaOrderData } from "@/lib/pizza";
 import { PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
 import type { PizzaTotals } from "@/lib/pizza-utils";
+import PageHeader from "./PageHeader";
 
 const DAYS_CS = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
 
@@ -59,17 +60,17 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
   const pricePerPizza = totals.pricePerPizza;
   const sent = order.status === "sent";
 
-  const BackButton = ({ mobile }: { mobile?: boolean }) => (
+  const backButton = (
     <Link
       href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+      className="inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 text-[13px] md:text-[12px] px-2 md:px-2.5 py-1 -ml-1 md:ml-0"
     >
-      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
+      <MIcon name="arrow_back" size={14} />
       <span>Historie</span>
     </Link>
   );
 
-  const StatusBadge = () => (
+  const statusBadge = (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
       style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
@@ -77,6 +78,10 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
       {sent ? "Odesláno" : "Koncept"}
     </span>
   );
+
+  const sentAtChip = order.sentAt ? (
+    <span className="text-[11px] md:text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>
+  ) : null;
 
   const pizzaCounts = new Map<string, number>();
   for (const r of rows) {
@@ -89,31 +94,25 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
   return (
     <div className="k-shell">
 
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <BackButton />
-        <span className="font-display font-bold text-[15px] text-stone-900">Pizza {formatDateWithDay(order.date)}</span>
-        <StatusBadge />
-        {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-        {totalCount > 0 && (
-          <span className="ml-auto font-display font-bold text-[16px] text-stone-900">{totals.finalTotal} Kč</span>
-        )}
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-2 px-4 py-2.5">
-          <BackButton mobile />
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza {formatDateWithDay(order.date)}</span>
-          {totalCount > 0 && (
-            <span className="font-display font-bold text-[14px] text-stone-900">{totals.finalTotal} Kč</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
-          <StatusBadge />
-          {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-        </div>
-      </div>
+      <PageHeader
+        title={`Pizza ${formatDateWithDay(order.date)}`}
+        leading={backButton}
+        meta={
+          <>
+            {statusBadge}
+            {sentAtChip && <> {sentAtChip}</>}
+          </>
+        }
+        trailing={totalCount > 0 ? (
+          <span className="font-display font-bold text-stone-900 text-[14px] md:text-[16px]">{totals.finalTotal} Kč</span>
+        ) : undefined}
+        secondaryRow={
+          <>
+            {statusBadge}
+            {sentAtChip}
+          </>
+        }
+      />
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav max-w-2xl mx-auto w-full">
         {/* Order rows */}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
 import MIcon from "./MIcon";
+import PageHeader from "./PageHeader";
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
   blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
@@ -135,17 +136,17 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
   );
   const isEmpty = activeDepts.length === 0;
 
-  const BackButton = ({ mobile }: { mobile?: boolean }) => (
+  const backButton = (
     <Link
       href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+      className="inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 text-[13px] md:text-[12px] px-2 md:px-2.5 py-1 -ml-1 md:ml-0"
     >
-      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
+      <MIcon name="arrow_back" size={14} />
       <span>Historie</span>
     </Link>
   );
 
-  const StatusBadge = () => (
+  const statusBadge = (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
       style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
@@ -154,9 +155,9 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
     </span>
   );
 
-  const ReopenBtn = ({ small }: { small?: boolean }) => canReopen ? (
+  const reopenBtn = canReopen ? (
     <button
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
+      className="inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 text-[11px] md:text-[12px] px-2.5 md:px-3.5 py-1.5 md:py-2"
       disabled={pending}
       onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
       type="button"
@@ -165,77 +166,61 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
     </button>
   ) : null;
 
+  const pdfButtons = sent && hasPdf ? (
+    <>
+      <a
+        href={`/api/orders/${order.id}/pdf`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 md:gap-1.5 font-semibold rounded-full glass-btn text-stone-600 text-[11px] md:text-[12px] px-2.5 md:px-3 py-1.5"
+      >
+        <MIcon name="picture_as_pdf" size={13} /> <span className="hidden md:inline">Zobrazit </span>PDF
+      </a>
+      <a
+        href={`/api/orders/${order.id}/pdf?download=1`}
+        className="inline-flex items-center gap-1 md:gap-1.5 font-semibold rounded-full glass-btn text-stone-600 text-[11px] md:text-[12px] px-2.5 md:px-3 py-1.5"
+      >
+        <MIcon name="download" size={13} /> Stáhnout
+      </a>
+    </>
+  ) : null;
+
+  const sentAtChip = order.sentAt ? (
+    <span className="text-[11px] md:text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>
+  ) : null;
+
   return (
     <div className="k-shell">
 
-      {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <BackButton />
-        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDateWithDay(order.date)}</span>
-        <StatusBadge />
-        {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-        {order.extraEmail && <span className="text-[12px] text-stone-500 hidden lg:inline">Kopie: {order.extraEmail}</span>}
-        <div className="ml-auto flex items-center gap-2">
-          {totalPrice > 0 && (
-            <span className="font-display font-bold text-[16px] text-stone-900 mr-1">{totalPrice} Kč</span>
-          )}
-          {sent && hasPdf && (
-            <>
-              <a
-                href={`/api/orders/${order.id}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
-              >
-                <MIcon name="picture_as_pdf" size={14} /> Zobrazit PDF
-              </a>
-              <a
-                href={`/api/orders/${order.id}/pdf?download=1`}
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
-              >
-                <MIcon name="download" size={14} /> Stáhnout
-              </a>
-            </>
-          )}
-          <ReopenBtn />
-        </div>
-      </div>
-
-      {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-2 px-4 py-2.5">
-          <BackButton mobile />
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">
-            {formatDateWithDay(order.date)}
-          </span>
-          {totalPrice > 0 && (
-            <span className="font-display font-bold text-[14px] text-stone-900">{totalPrice} Kč</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5 flex-wrap">
-          <StatusBadge />
-          {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-          <ReopenBtn small />
-          {sent && hasPdf && (
-            <>
-              <a
-                href={`/api/orders/${order.id}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
-              >
-                <MIcon name="picture_as_pdf" size={13} /> PDF
-              </a>
-              <a
-                href={`/api/orders/${order.id}/pdf?download=1`}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
-              >
-                <MIcon name="download" size={13} /> Stáhnout
-              </a>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title={`Objednávka ${formatDateWithDay(order.date)}`}
+        mobileTitle={formatDateWithDay(order.date)}
+        leading={backButton}
+        meta={
+          <>
+            {statusBadge}
+            {sentAtChip && <> {sentAtChip}</>}
+            {order.extraEmail && <span className="hidden lg:inline text-[12px] text-stone-500"> Kopie: {order.extraEmail}</span>}
+          </>
+        }
+        trailing={totalPrice > 0 ? (
+          <span className="font-display font-bold text-stone-900 text-[14px] md:text-[16px]">{totalPrice} Kč</span>
+        ) : undefined}
+        actions={
+          <>
+            {pdfButtons}
+            {reopenBtn}
+          </>
+        }
+        secondaryRow={
+          <>
+            {statusBadge}
+            {sentAtChip}
+            {reopenBtn}
+            {pdfButtons}
+          </>
+        }
+      />
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
         <div className="grid md:grid-cols-3 gap-4">
