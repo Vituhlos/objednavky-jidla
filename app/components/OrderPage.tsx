@@ -9,6 +9,7 @@ import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import PageHeader from "./PageHeader";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -744,136 +745,95 @@ export default function OrderPage({
         </div>
       )}
 
-      {/* ── Desktop info strip ── */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
-        <span
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
-          {isFutureDay && !isSent && futureDayPhrase && (
-            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
-              <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
-            </span>
-          )}
-          {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {!isFutureDay && !isSent && isPastCutoff && (
-            <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {isSent && sentAt && (
-            <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-              <MIcon name="check_circle" size={13} fill /> Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          {activeOrderCount > 0 && (
-            <span className="text-stone-400">
-              {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
-            </span>
-          )}
-        </div>
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <div className="flex items-center gap-2 shrink-0">
+      <PageHeader
+        title={dayStr}
+        leading={
+          <span
+            aria-label={sseConnected ? "Živé aktualizace aktivní" : "Připojování k živým aktualizacím…"}
+            aria-live="polite"
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
+            role="img"
+            title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+          />
+        }
+        meta={
+          <span className="inline-flex items-center gap-2 md:gap-3 flex-wrap">
+            {isFutureDay && !isSent && futureDayPhrase && (
+              <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+                <MIcon name="schedule" size={13} />
+                <span className="hidden md:inline">Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky</span>
+                <span className="md:hidden">{futureDayPhrase} {cutoffTime}</span>
+              </span>
+            )}
+            {!isFutureDay && !isSent && !isPastCutoff && countdown && (
+              <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
+                <MIcon name="schedule" size={13} />
+                <span className="hidden md:inline">Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}</span>
+                <span className="md:hidden">{countdown}{autoSendEnabled ? " · auto" : ""}</span>
+              </span>
+            )}
+            {!isFutureDay && !isSent && isPastCutoff && (
+              <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
+                <MIcon name="schedule" size={13} />
+                <span className="hidden md:inline">Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}</span>
+                <span className="md:hidden">Po uzávěrce{autoSendEnabled ? " · auto" : ""}</span>
+              </span>
+            )}
+            {isSent && sentAt && (
+              <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
+                <MIcon name="check_circle" size={13} fill />
+                <span className="hidden md:inline">Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="md:hidden">Odesláno</span>
+              </span>
+            )}
+            {activeOrderCount > 0 && (
+              <span className="text-stone-400">
+                <span className="hidden md:inline">{activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč</span>
+                <span className="md:hidden">{activeOrderCount} · {totalPrice} Kč</span>
+              </span>
+            )}
+            {sendError && <span className="hidden md:inline text-red-600">{sendError}</span>}
+          </span>
+        }
+        actions={
+          <>
+            {pushState !== "unsupported" && pushState !== "denied" && (
+              <button
+                onClick={handlePushToggle}
+                title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
+                className={`md:hidden shrink-0 w-9 h-9 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
+                type="button"
+              >
+                <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
+              </button>
+            )}
+            {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
+              <button
+                className="shrink-0 rounded-full font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition text-[12.5px] px-3.5 md:px-4 py-2 md:py-2.5"
+                disabled={isPending}
+                onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+                type="button"
+              >
+                {isPending ? "Odesílám…" : "Odeslat"}
+              </button>
+            )}
+            {isFutureDay && !isSent && !noMenu && (
+              <span className="md:hidden inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
+                <MIcon name="schedule" size={12} /> Auto
+              </span>
+            )}
             <button
-              className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              disabled={isPending}
-              onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+              aria-label="Nápověda"
+              className="rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0 w-8 h-8"
+              onClick={() => setShowHelp(true)}
               type="button"
             >
-              {isPending ? "Odesílám…" : "Odeslat"}
+              <MIcon name="info" size={16} />
             </button>
-          </div>
-        )}
-        {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
-        <button
-          aria-label="Nápověda"
-          className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={16} />
-        </button>
-      </div>
-
-      {/* ── Mobile info strip ── */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
-        <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-        <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
-        {activeOrderCount > 0 && (
-          <span className="text-[11px] text-stone-500 shrink-0">
-            {activeOrderCount} · {totalPrice} Kč
-          </span>
-        )}
-        <span
-          aria-label={sseConnected ? "Živé aktualizace aktivní" : "Připojování k živým aktualizacím…"}
-          aria-live="polite"
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          role="img"
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        {isFutureDay && !isSent && futureDayPhrase && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
-            <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
-          </span>
-        )}
-        {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-            <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {!isFutureDay && !isSent && isPastCutoff && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
-            <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {isSent && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-semibold shrink-0">
-            <MIcon name="check_circle" size={12} fill /> Odesláno
-          </span>
-        )}
-        {pushState !== "unsupported" && pushState !== "denied" && (
-          <button
-            onClick={handlePushToggle}
-            title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
-            className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
-            type="button"
-          >
-            <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
-          </button>
-        )}
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <button
-            className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
-            disabled={isPending}
-            onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-            type="button"
-          >
-            {isPending ? "Odesílám…" : "Odeslat"}
-          </button>
-        )}
-        {isFutureDay && !isSent && !noMenu && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
-            <MIcon name="schedule" size={12} />
-            Auto
-          </span>
-        )}
-        <button
-          aria-label="Nápověda"
-          className="ml-auto w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={17} />
-        </button>
-      </div>
+          </>
+        }
+      />
       {sendError && (
         <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
           <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
