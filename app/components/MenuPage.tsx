@@ -791,7 +791,7 @@ export default function MenuPage({
       />
 
       {/* Week tabs */}
-      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">
+      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0 max-w-5xl mx-auto w-full">
         <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
           {(["current", "next"] as const).map((week) => {
             const active = activeWeek === week;
@@ -853,23 +853,25 @@ export default function MenuPage({
 
       {/* Desktop: full week grid */}
       <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3">
-        <WeekGrid
-          dayDates={dayDates}
-          disabled={isPending}
-          editMode={!isReadOnly && editMode}
-          holidayNames={activeHolidayNames}
-          menu={activeMenu}
-          onAdd={(day, type) => handleAdd(day, type)}
-          onCloseDay={(day) => {
-            startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
-          }}
-          onEdit={(item) => setEditingItem(item)}
-          onOpenDay={(day) => {
-            startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
-          }}
-          todayCode={visibleTodayCode}
-          weekStart={activeWeekStart}
-        />
+        <div className="max-w-5xl mx-auto w-full">
+          <WeekGrid
+            dayDates={dayDates}
+            disabled={isPending}
+            editMode={!isReadOnly && editMode}
+            holidayNames={activeHolidayNames}
+            menu={activeMenu}
+            onAdd={(day, type) => handleAdd(day, type)}
+            onCloseDay={(day) => {
+              startTransition(async () => { await actionCloseDay(day, activeWeekStart); router.refresh(); });
+            }}
+            onEdit={(item) => setEditingItem(item)}
+            onOpenDay={(day) => {
+              startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
+            }}
+            todayCode={visibleTodayCode}
+            weekStart={activeWeekStart}
+          />
+        </div>
       </div>
 
       {/* Mobile: single day view */}
