@@ -21,11 +21,6 @@ const DC_DEFAULT = DEPT_COLORS.blue;
 
 const DAYS_CS = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
 
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
-}
-
 function formatDateWithDay(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dow = DAYS_CS[new Date(y, m - 1, d).getDay()];

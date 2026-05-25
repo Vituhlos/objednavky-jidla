@@ -132,7 +132,7 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -140,7 +140,6 @@ const WeekGrid = memo(function WeekGrid({
   holidayNames: Record<string, string | null>;
   editMode: boolean;
   disabled: boolean;
-  weekStart: string;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
   onEdit: (item: MenuItem) => void;
   onCloseDay: (day: string) => void;
@@ -891,7 +890,6 @@ export default function MenuPage({
                 startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
               }}
               todayCode={visibleTodayCode}
-              weekStart={activeWeekStart}
             />
           </div>
         </div>

@@ -15,7 +15,6 @@ import {
   actionUpdateRow,
   actionDeleteRow,
   actionSendOrder,
-  actionReopenOrder,
   actionDismissAutoSendError,
 } from "@/app/actions";
 
@@ -182,7 +181,6 @@ export default function OrderPage({
   holidayName,
   holidayDescription,
   autoSendEnabled = false,
-  autoSendTime = "08:00",
   autoSendError,
   autoSendErrorTs,
 }: {
@@ -198,7 +196,6 @@ export default function OrderPage({
   holidayName?: string | null;
   holidayDescription?: string | null;
   autoSendEnabled?: boolean;
-  autoSendTime?: string;
   autoSendError?: string;
   autoSendErrorTs?: string;
 }) {
@@ -522,14 +519,6 @@ export default function OrderPage({
     },
     [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, doRefresh]
   );
-
-  const handleReopen = useCallback(() => {
-    startTransition(async () => {
-      await actionReopenOrder(orderId);
-      setOrderStatus("draft");
-      setSentAt(null);
-    });
-  }, [orderId]);
 
   const commitDelete = useCallback((rowId: number) => {
     actionDeleteRow(rowId).catch(() => {});

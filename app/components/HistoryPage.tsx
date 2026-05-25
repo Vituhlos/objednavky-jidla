@@ -35,16 +35,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function HistoryTable({ rows }: { rows: React.ReactNode[][] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-[12.5px]">
-        <tbody>{rows}</tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function HistoryPage({
   orders,
   pizzaOrders,

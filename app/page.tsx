@@ -52,7 +52,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       selectedDate={selectedDate}
       todayDate={todayISO}
       autoSendEnabled={s.autoSendEnabled === "true"}
-      autoSendTime={s.autoSendTime}
       autoSendError={s.autoSendLastError && s.autoSendErrorAcked !== "true" ? s.autoSendLastError : undefined}
       autoSendErrorTs={s.autoSendLastErrorTs || undefined}
     />
