@@ -78,13 +78,20 @@ interface Props {
   hasPdfNext: boolean;
 }
 
+type ImportDiagnostics = {
+  warnings: string[];
+  daysFound: number;
+  mealCount: number;
+  soupCount: number;
+};
+
 type ImportState =
   | { phase: "idle" }
   | { phase: "uploading" }
   | { phase: "preview"; result: ParseResult; targetWeekStart: string; targetLabel: string; tmpPdfName?: string }
   | { phase: "saving" }
   | { phase: "done" }
-  | { phase: "error"; message: string };
+  | { phase: "error"; message: string; diagnostics?: ImportDiagnostics };
 
 // ── Preview table ──────────────────────────────────────────────────────────────
 
@@ -626,7 +633,11 @@ export default function MenuPage({
       const res = await fetch("/api/menu/import", { method: "POST", body: fd });
       const data = await res.json() as ParseResult;
       if (!res.ok) {
-        setImportState({ phase: "error", message: (data as { error?: string }).error ?? "Neznámá chyba." });
+        const err = data as { error?: string; warnings?: string[]; daysFound?: number; mealCount?: number; soupCount?: number };
+        const diagnostics = err.warnings !== undefined && err.daysFound !== undefined && err.mealCount !== undefined && err.soupCount !== undefined
+          ? { warnings: err.warnings, daysFound: err.daysFound, mealCount: err.mealCount, soupCount: err.soupCount }
+          : undefined;
+        setImportState({ phase: "error", message: err.error ?? "Neznámá chyba.", diagnostics });
         return;
       }
       const detectedStart = data.weekStart;
@@ -1065,9 +1076,30 @@ export default function MenuPage({
                 </>
               )}
               {importState.phase === "error" && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-[13px] text-red-700">
-                  <strong>Chyba:</strong> {importState.message}
-                  <button className="ml-3 text-[12px] font-semibold text-red-600 underline" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-[13px] text-red-700 space-y-3">
+                  <div>
+                    <strong>Chyba:</strong> {importState.message}
+                    <button className="ml-3 text-[12px] font-semibold text-red-600 underline" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
+                  </div>
+                  {importState.diagnostics && (
+                    <div className="pt-3 border-t border-red-200/70 space-y-2">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+                        <span><strong>Dnů:</strong> {importState.diagnostics.daysFound}/5</span>
+                        <span><strong>Jídel:</strong> {importState.diagnostics.mealCount}</span>
+                        <span><strong>Polévek:</strong> {importState.diagnostics.soupCount}</span>
+                      </div>
+                      {importState.diagnostics.warnings.length > 0 && (
+                        <div>
+                          <div className="text-[12px] font-semibold mb-1">Detekované problémy:</div>
+                          <ul className="list-disc pl-5 text-[12px] space-y-0.5 text-red-600">
+                            {importState.diagnostics.warnings.map((w, i) => (
+                              <li key={i}>{w}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {importState.phase === "preview" && (
