@@ -25,7 +25,7 @@ export default function PageHeader({
 
   return (
     <div className="border-b border-white/50 topbar shrink-0">
-      <div className="px-4 md:px-5 py-2.5 flex items-center gap-2 md:gap-3 max-w-5xl mx-auto w-full">
+      <div className="px-4 md:px-5 py-2.5 flex items-center gap-2 md:gap-3 max-w-7xl mx-auto w-full">
         {leading && <div className="shrink-0">{leading}</div>}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="font-display font-bold text-stone-900 text-[14px] md:text-[15px] truncate shrink min-w-0">
@@ -45,7 +45,7 @@ export default function PageHeader({
         )}
       </div>
       {(searchBar || secondaryRow) && (
-        <div className="md:hidden max-w-5xl mx-auto w-full">
+        <div className="md:hidden max-w-7xl mx-auto w-full">
           {secondaryRow && (
             <div className="flex items-center gap-2 px-4 pb-2.5 flex-wrap">{secondaryRow}</div>
           )}

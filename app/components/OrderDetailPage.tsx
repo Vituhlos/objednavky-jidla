@@ -223,7 +223,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
       />
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-        <div className="max-w-5xl mx-auto w-full grid md:grid-cols-3 gap-4">
+        <div className="max-w-7xl mx-auto w-full grid md:grid-cols-3 gap-4">
           {isEmpty && (
             <div className="glass-card rounded-2xl px-4 py-8 text-[13px] text-stone-400 text-center">
               Objednávka neobsahuje žádné položky.

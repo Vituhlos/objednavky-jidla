@@ -227,7 +227,7 @@ export default function PizzaPage({
       )}
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-      <div className="max-w-5xl mx-auto w-full space-y-4 md:grid md:gap-4 md:space-y-0 md:items-start" style={{ gridTemplateColumns: "1fr 280px" }}>
+      <div className="max-w-7xl mx-auto w-full space-y-4 md:grid md:gap-4 md:space-y-0 md:items-start" style={{ gridTemplateColumns: "1fr 280px" }}>
         {/* Orders */}
         <section className="glass-card rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
