@@ -101,11 +101,11 @@ body {
 }
 .glass-btn {
   position: relative;
-  background: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.82);
   backdrop-filter: blur(22px) saturate(180%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid rgba(26,18,8,0.1);
-  box-shadow: 0 1px 3px rgba(26,18,8,0.09), 0 1px 0 rgba(255,255,255,0.9) inset;
+  border: 1px solid rgba(26,18,8,0.18);
+  box-shadow: 0 1px 3px rgba(26,18,8,0.12), 0 1px 0 rgba(255,255,255,0.9) inset;
   cursor: pointer;
   transition: background .15s, box-shadow .15s, transform .12s;
 }
@@ -453,14 +453,14 @@ body {
 .modal-label { font-size: 0.75rem; font-weight: 600; color: var(--ink-2); }
 .modal-label-price { font-weight: 400; color: var(--ink-3); margin-left: 0.35rem; }
 .modal-input, .modal-select {
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.78);
   backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.68);
+  border: 1px solid rgba(26,18,8,0.16);
   border-radius: 14px; padding: 0.55rem 0.85rem;
   font-size: 1rem; color: var(--ink);
   font-family: var(--font-inter);
   outline: none; width: 100%;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 1px 2px rgba(26,18,8,0.04);
   transition: border-color .15s, box-shadow .15s;
 }
 @media (min-width: 640px) {

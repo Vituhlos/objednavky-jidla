@@ -162,15 +162,16 @@ const DeptRow = memo(function DeptRow({
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system" | "telegram";
+type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "telegram" | "system";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "objednavka", label: "Objednávka", icon: "assignment" },
-  { id: "email",      label: "E-mail & IMAP", icon: "mail" },
-  { id: "ceny",       label: "Ceny",       icon: "payments" },
-  { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
-  { id: "system",     label: "Systém",     icon: "build" },
-  { id: "telegram",   label: "Telegram",   icon: "send" },
+  { id: "objednavka",  label: "Provoz",    icon: "assignment" },
+  { id: "notifikace",  label: "Notifikace", icon: "notifications" },
+  { id: "ceny",        label: "Ceník",      icon: "payments" },
+  { id: "email",       label: "E-mail",     icon: "mail" },
+  { id: "oddeleni",    label: "Oddělení",   icon: "groups" },
+  { id: "telegram",    label: "Telegram",   icon: "send" },
+  { id: "system",      label: "Systém",     icon: "build" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -572,7 +573,8 @@ export default function SettingsPage({
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav lg:pb-24">
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav lg:pb-24">
+        <div className="max-w-2xl mx-auto w-full space-y-4">
         {!unlocked ? (
           /* PIN lock */
           <div className="glass-card rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
@@ -923,66 +925,6 @@ export default function SettingsPage({
                 </Section>
                 )}
 
-              </div>
-
-              {/* E-mail & IMAP tab */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "email" ? "flex" : "none" }}>
-
-                <Section icon="send" title="SMTP – odchozí pošta">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field hint="např. smtp.gmail.com" label="SMTP host">
-                      <input className="modal-input" defaultValue={settings.smtpHost} name="smtpHost" placeholder="smtp.example.com" type="text" />
-                    </Field>
-                    <Field hint="obvykle 587 nebo 465" label="Port">
-                      <input className="modal-input" defaultValue={settings.smtpPort} name="smtpPort" placeholder="587" type="number" />
-                    </Field>
-                    <Field label="Uživatel (e-mail)">
-                      <input className="modal-input" defaultValue={settings.smtpUser} name="smtpUser" placeholder="user@example.com" type="email" />
-                    </Field>
-                    <Field label="Heslo">
-                      <input className="modal-input" defaultValue={settings.smtpPass} name="smtpPass" placeholder="••••••••" type="password" />
-                    </Field>
-                    <Field hint="pokud prázdné, použije se uživatel" label="Odesílatel (From)">
-                      <input className="modal-input" defaultValue={settings.smtpFrom} name="smtpFrom" placeholder="Objednávky <orders@example.com>" type="text" />
-                    </Field>
-                    <Field hint="zaškrtněte pro port 465" label="TLS (SMTP Secure)">
-                      <Toggle defaultChecked={settings.smtpSecure === "true"} label="Použít TLS (SMTP Secure)" name="smtpSecure" />
-                    </Field>
-                  </div>
-                  <div className="flex items-center gap-3 pt-1">
-                    <button
-                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-                      disabled={isPending}
-                      onClick={handleSmtpTest}
-                      type="button"
-                    >
-                      Testovat připojení
-                    </button>
-                    {smtpTestMsg && (
-                      <span className={`text-[12px] font-medium ${smtpTestStatus === "ok" ? "text-emerald-600" : smtpTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
-                        {smtpTestMsg}
-                      </span>
-                    )}
-                  </div>
-                </Section>
-
-                <Section icon="send" title="E-mail objednávky">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field hint="můžete zadat více adres oddělených čárkou, středníkem nebo novým řádkem" label="Příjemci objednávky (To)">
-                      <EmailListInput defaultValue={settings.orderEmailTo} name="orderEmailTo" placeholder="vedouci@firma.cz, kuchyne@firma.cz" />
-                    </Field>
-                    <Field hint="uloží se k objednávce jako kopie a použije se při ručním i automatickém odeslání" label="Doplňkové kopie objednávky">
-                      <EmailListInput defaultValue={settings.orderExtraEmail} name="orderExtraEmail" placeholder="obchod@firma.cz; sklad@firma.cz" />
-                    </Field>
-                    <Field hint="pokud prázdné, Reply-To se nenastavuje; více adres je podporováno" label="Adresa pro odpovědi (Reply-To)">
-                      <EmailListInput defaultValue={settings.smtpReplyTo} name="smtpReplyTo" placeholder="jiri@example.com, objednavky@firma.cz" />
-                    </Field>
-                    <Field hint="kam chodí upozornění na chybějící jídelníček; pokud prázdné, použijí se příjemci objednávky" label="Příjemci upozornění (jídelníček)">
-                      <EmailListInput defaultValue={settings.reminderEmailTo} name="reminderEmailTo" placeholder="vedouci@firma.cz" />
-                    </Field>
-                  </div>
-                </Section>
-
                 <Section icon="menu_book" title="Automatický import jídelníčku" helpContent={
                   <div className="space-y-2.5 text-[12px] text-stone-600 pb-2">
                     <p className="font-semibold text-stone-800 text-[12.5px]">Jak nastavit automatický import z Gmailu</p>
@@ -1060,6 +1002,10 @@ export default function SettingsPage({
                   </div>
                 </Section>
 
+              </div>
+
+              {/* Notifikace tab — Push + odkazy na ostatní notifikační kanály */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "notifikace" ? "flex" : "none" }}>
                 <Section icon="notifications" title="Push notifikace">
                   <p className="text-[12.5px] text-stone-500">
                     Upozornění do prohlížeče před uzávěrkou. Každý si je povolí sám tlačítkem 🔔 na hlavní stránce.
@@ -1083,6 +1029,69 @@ export default function SettingsPage({
                         {pushTestMsg}
                       </span>
                     )}
+                  </div>
+                </Section>
+                <div className="glass-card rounded-3xl p-4 text-[12.5px] text-stone-600 space-y-2">
+                  <p>📨 <strong>E-mail příjemci alertů</strong> (auto-send selhal, chybí jídelníček) → nastav v <em>Provoz</em> tabu u příslušných sekcí.</p>
+                  <p>📱 <strong>Telegram notifikace</strong> → kompletní nastavení v <em>Telegram</em> tabu.</p>
+                </div>
+              </div>
+
+              {/* E-mail tab — SMTP + odesílatel objednávky */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "email" ? "flex" : "none" }}>
+
+                <Section icon="send" title="SMTP – odchozí pošta">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="např. smtp.gmail.com" label="SMTP host">
+                      <input className="modal-input" defaultValue={settings.smtpHost} name="smtpHost" placeholder="smtp.example.com" type="text" />
+                    </Field>
+                    <Field hint="obvykle 587 nebo 465" label="Port">
+                      <input className="modal-input" defaultValue={settings.smtpPort} name="smtpPort" placeholder="587" type="number" />
+                    </Field>
+                    <Field label="Uživatel (e-mail)">
+                      <input className="modal-input" defaultValue={settings.smtpUser} name="smtpUser" placeholder="user@example.com" type="email" />
+                    </Field>
+                    <Field label="Heslo">
+                      <input className="modal-input" defaultValue={settings.smtpPass} name="smtpPass" placeholder="••••••••" type="password" />
+                    </Field>
+                    <Field hint="pokud prázdné, použije se uživatel" label="Odesílatel (From)">
+                      <input className="modal-input" defaultValue={settings.smtpFrom} name="smtpFrom" placeholder="Objednávky <orders@example.com>" type="text" />
+                    </Field>
+                    <Field hint="zaškrtněte pro port 465" label="TLS (SMTP Secure)">
+                      <Toggle defaultChecked={settings.smtpSecure === "true"} label="Použít TLS (SMTP Secure)" name="smtpSecure" />
+                    </Field>
+                  </div>
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                      disabled={isPending}
+                      onClick={handleSmtpTest}
+                      type="button"
+                    >
+                      Testovat připojení
+                    </button>
+                    {smtpTestMsg && (
+                      <span className={`text-[12px] font-medium ${smtpTestStatus === "ok" ? "text-emerald-600" : smtpTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+                        {smtpTestMsg}
+                      </span>
+                    )}
+                  </div>
+                </Section>
+
+                <Section icon="send" title="E-mail objednávky">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field hint="můžete zadat více adres oddělených čárkou, středníkem nebo novým řádkem" label="Příjemci objednávky (To)">
+                      <EmailListInput defaultValue={settings.orderEmailTo} name="orderEmailTo" placeholder="vedouci@firma.cz, kuchyne@firma.cz" />
+                    </Field>
+                    <Field hint="uloží se k objednávce jako kopie a použije se při ručním i automatickém odeslání" label="Doplňkové kopie objednávky">
+                      <EmailListInput defaultValue={settings.orderExtraEmail} name="orderExtraEmail" placeholder="obchod@firma.cz; sklad@firma.cz" />
+                    </Field>
+                    <Field hint="pokud prázdné, Reply-To se nenastavuje; více adres je podporováno" label="Adresa pro odpovědi (Reply-To)">
+                      <EmailListInput defaultValue={settings.smtpReplyTo} name="smtpReplyTo" placeholder="jiri@example.com, objednavky@firma.cz" />
+                    </Field>
+                    <Field hint="kam chodí upozornění na chybějící jídelníček; pokud prázdné, použijí se příjemci objednávky" label="Příjemci upozornění (jídelníček)">
+                      <EmailListInput defaultValue={settings.reminderEmailTo} name="reminderEmailTo" placeholder="vedouci@firma.cz" />
+                    </Field>
                   </div>
                 </Section>
 
@@ -1674,6 +1683,7 @@ export default function SettingsPage({
 
           </>
         )}
+        </div>
       </div>
 
       {/* ── Floating save button ── */}
