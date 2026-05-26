@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
+import { getSettings } from "@/lib/settings";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -43,6 +44,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = getSettings();
+  const pizzaEnabled = settings.pizzaEnabled !== "false";
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
@@ -52,7 +55,7 @@ export default function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar />
+        <AppTopBar pizzaEnabled={pizzaEnabled} />
         {children}
         <SwRegister />
       </body>

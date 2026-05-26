@@ -104,6 +104,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
 }
 
 async function checkPizzaCutoff(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (s.pizzaEnabled === "false") return;
   if (s.pizzaCutoffEnabled !== "true") return;
   if (currentTime !== s.pizzaCutoffTime) return;
 

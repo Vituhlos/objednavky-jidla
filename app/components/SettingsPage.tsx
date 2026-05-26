@@ -510,6 +510,7 @@ export default function SettingsPage({
       telegramBotToken: fd.get("telegramBotToken") as string,
       telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
       telegramAppUrl: fd.get("telegramAppUrl") as string,
+      pizzaEnabled: fd.get("pizzaEnabled") === "on" ? "true" : "false",
       pizzaCutoffEnabled: fd.get("pizzaCutoffEnabled") === "on" ? "true" : "false",
       pizzaCutoffTime: fd.get("pizzaCutoffTime") as string,
       pizzaCutoffDays: DAY_OPTIONS
@@ -989,6 +990,14 @@ export default function SettingsPage({
                   </div>
                 </Section>
 
+                <Section icon="local_pizza" title="Pizza modul">
+                  <p className="text-[12.5px] text-stone-500">
+                    Pizza modul přidává do appky stránku Pizza, sekci v Historii a vlastní příkazy v Telegram botovi. Při vypnutí je vše skryto a scraper běží naprázdno (objednávky v DB zůstávají).
+                  </p>
+                  <Toggle defaultChecked={settings.pizzaEnabled !== "false"} label="Zapnout pizza modul" name="pizzaEnabled" />
+                </Section>
+
+                {settings.pizzaEnabled !== "false" && (
                 <Section icon="local_pizza" title="Pizza – uzávěrka">
                   <p className="text-[12.5px] text-stone-500">
                     V nastavenou dobu se objednávka pizzy automaticky uzavře — nikdo již nebude moci přidávat ani měnit objednávky.
@@ -1020,6 +1029,7 @@ export default function SettingsPage({
                     </div>
                   </Field>
                 </Section>
+                )}
 
               </div>
 
