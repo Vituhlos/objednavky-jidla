@@ -11,6 +11,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useDaySwipe } from "@/app/hooks/useDaySwipe";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -321,6 +322,20 @@ export default function OrderPage({
     selectedDateRef.current = selectedDate;
     setDaySwitchPending(false);
   }, [selectedDate]);
+
+  const goToDate = useCallback((delta: 1 | -1) => {
+    if (!availableDates || !showDayPicker) return;
+    const idx = availableDates.indexOf(selectedDate ?? "");
+    const next = idx + delta;
+    if (next < 0 || next >= availableDates.length) return;
+    setDaySwitchPending(true);
+    startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+  }, [availableDates, showDayPicker, selectedDate, router]);
+
+  const { swipeRef: daySwipeRef } = useDaySwipe(
+    useCallback(() => goToDate(1), [goToDate]),
+    useCallback(() => goToDate(-1), [goToDate]),
+  );
 
   useEffect(() => {
     if (!availableDates || !showDayPicker) return;
@@ -835,7 +850,7 @@ export default function OrderPage({
       )}
 
       {/* ── Scrollable main content ── */}
-      <div className="flex-1 overflow-y-auto scroll-area p-4">
+      <div className="flex-1 overflow-y-auto scroll-area p-4" ref={daySwipeRef as React.RefCallback<HTMLDivElement>}>
         <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 pb-nav lg:pb-6">
 
           {showDayPicker && (

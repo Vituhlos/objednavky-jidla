@@ -18,6 +18,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useDaySwipe } from "@/app/hooks/useDaySwipe";
 
 // Controlled textarea that auto-grows to fit its content (used in modal)
 function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
@@ -625,6 +626,19 @@ export default function MenuPage({
     setConfirmDeleteNext(false);
   };
 
+  const shiftDay = useCallback((delta: 1 | -1) => {
+    setActiveDay((prev) => {
+      const idx = DAY_ORDER.indexOf(prev);
+      const next = idx + delta;
+      if (next < 0 || next >= DAY_ORDER.length) return prev;
+      return DAY_ORDER[next];
+    });
+  }, []);
+  const { swipeRef: daySwipeRef } = useDaySwipe(
+    useCallback(() => shiftDay(1), [shiftDay]),
+    useCallback(() => shiftDay(-1), [shiftDay]),
+  );
+
   // ── Import ────────────────────────────────────────────────────────────────
 
   const handleFile = useCallback(async (file: File) => {
@@ -913,7 +927,7 @@ export default function MenuPage({
       </div>
 
       {/* Mobile: single day view */}
-      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav">
+      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" ref={daySwipeRef as React.RefCallback<HTMLDivElement>}>
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
           {isDayClosed ? (
