@@ -20,6 +20,14 @@ import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 import { useDaySwipe } from "@/app/hooks/useDaySwipe";
 
+function formatWeekRange(weekStart: string): string {
+  const [year, month, day] = weekStart.split("-").map(Number);
+  const monday = new Date(year, month - 1, day);
+  const friday = new Date(year, month - 1, day + 4);
+  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+  return `${fmt(monday)} – ${fmt(friday)}`;
+}
+
 // Controlled textarea that auto-grows to fit its content (used in modal)
 function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
   value: string; onChange: (v: string) => void; disabled: boolean; placeholder?: string;
@@ -822,23 +830,32 @@ export default function MenuPage({
       />
 
       {/* Week tabs */}
-      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0 max-w-7xl mx-auto w-full">
-        <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
-          {(["current", "next"] as const).map((week) => {
-            const active = activeWeek === week;
-            const label = week === "current" ? "Aktuální týden" : "Příští týden";
-            return (
-              <button
-                key={week}
-                className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-[0.97] ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
-                onClick={() => handleWeekSwitch(week)}
-                style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
-                type="button"
-              >
-                {label}
-              </button>
-            );
-          })}
+      <div className="flex items-center gap-3 px-4 pt-3 pb-1 shrink-0 max-w-7xl mx-auto w-full">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl"
+          style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
+          <button
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-white/70 disabled:hover:bg-transparent"
+            onClick={() => handleWeekSwitch("current")}
+            type="button"
+            style={activeWeek === "current"
+              ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
+              : {}}
+          >
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "current" ? "text-white/80" : "text-stone-600"}`}>Aktuální</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "current" ? "text-white" : "text-stone-800"}`}>{formatWeekRange(currentWeekStart)}</span>
+          </button>
+          <button
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-white/70 disabled:hover:bg-transparent"
+            disabled={!hasNextWeek}
+            onClick={() => handleWeekSwitch("next")}
+            type="button"
+            style={activeWeek === "next"
+              ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" }
+              : {}}
+          >
+            <span className={`text-[11px] font-semibold leading-none ${activeWeek === "next" ? "text-white/80" : "text-stone-600"}`}>Příští</span>
+            <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "next" ? "text-white" : "text-stone-800"}`}>{hasNextWeek ? formatWeekRange(nextWeekStart) : "—"}</span>
+          </button>
         </div>
         {hasPdfActive && (
           <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
