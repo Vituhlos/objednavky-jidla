@@ -6,6 +6,7 @@ import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
+import { useSwipeReveal } from "@/app/hooks/useSwipeReveal";
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -32,6 +33,68 @@ function StatusBadge({ status }: { status: string }) {
     >
       {sent ? "Odesláno" : "Koncept"}
     </span>
+  );
+}
+
+const REVEAL_W = 76;
+
+function SwipeableHistoryRow({
+  href,
+  date,
+  status,
+  isDraft,
+  rowCount,
+  sentAt,
+}: {
+  href: string;
+  date: string;
+  status: string;
+  isDraft: boolean;
+  rowCount: number;
+  sentAt: string | null;
+}) {
+  const router = useRouter();
+  const { containerRef, swipedRef, revealedRef, close } = useSwipeReveal(REVEAL_W);
+
+  const handleContentClick = () => {
+    if (swipedRef.current) return;       // ignore synthesized click after swipe
+    if (revealedRef.current) { close(); return; } // tap on open row → close
+    router.push(href);
+  };
+
+  return (
+    <div
+      ref={containerRef as React.RefCallback<HTMLDivElement>}
+      className={`relative overflow-hidden border-b border-white/30 last:border-0 select-none touch-pan-y ${isDraft ? "opacity-60" : ""}`}
+    >
+      <div
+        data-swipe-reveal
+        aria-hidden
+        className="absolute right-0 top-0 bottom-0 flex items-center justify-center"
+        style={{ width: REVEAL_W, background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+      >
+        <button
+          type="button"
+          className="flex flex-col items-center justify-center gap-0.5 text-white text-[10px] font-bold w-full h-full"
+          onClick={(e) => { e.stopPropagation(); router.push(href); }}
+        >
+          <MIcon name="arrow_forward" size={16} style={{ color: "white" }} />
+          Otevřít
+        </button>
+      </div>
+
+      <div
+        data-swipe-content
+        className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-white/50 transition-colors bg-white/0"
+        onClick={handleContentClick}
+      >
+        <span className="font-semibold text-[12.5px] text-stone-800 flex-1 min-w-0 truncate">{formatDate(date)}</span>
+        <StatusBadge status={status} />
+        <span className="text-[11px] text-stone-500 shrink-0 hidden xs:inline">{rowCount} ř.</span>
+        {sentAt && <span className="text-[11px] text-stone-400 shrink-0 hidden sm:inline">{formatSentAt(sentAt)}</span>}
+        <MIcon name="chevron_right" size={16} style={{ color: "#d4c5b5", flexShrink: 0 }} />
+      </div>
+    </div>
   );
 }
 
@@ -114,7 +177,21 @@ export default function HistoryPage({
               {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="md:hidden">
+              {filteredOrders.map((order) => (
+                <SwipeableHistoryRow
+                  key={order.id}
+                  href={`/historie/${order.id}`}
+                  date={order.date}
+                  status={order.status}
+                  isDraft={order.status !== "sent"}
+                  rowCount={order.rowCount}
+                  sentAt={order.sentAt}
+                />
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
@@ -152,6 +229,7 @@ export default function HistoryPage({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
 
@@ -171,7 +249,21 @@ export default function HistoryPage({
               {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="md:hidden">
+              {filteredPizza.map((order) => (
+                <SwipeableHistoryRow
+                  key={order.id}
+                  href={`/historie/pizza/${order.id}`}
+                  date={order.date}
+                  status={order.status}
+                  isDraft={order.status !== "sent"}
+                  rowCount={order.rowCount}
+                  sentAt={order.sentAt}
+                />
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
@@ -207,6 +299,7 @@ export default function HistoryPage({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>
