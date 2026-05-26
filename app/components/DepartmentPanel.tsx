@@ -7,6 +7,7 @@ import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import { DeptIcon } from "./dept-icon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 
 type RowUpdates = Partial<{
@@ -52,17 +53,7 @@ const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; gr
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
-// ── Department icons ──────────────────────────────────────
-
-const DEPT_ICONS: Partial<Record<Department, string>> = {
-  "Konstrukce": "home_work",
-  "Dílna":      "build",
-};
-
-function DeptIcon({ name, color }: { name: Department; color: string }) {
-  const icon = DEPT_ICONS[name] ?? "groups";
-  return <MIcon name={icon} size={18} fill style={{ color }} />;
-}
+// DeptIcon moved to ./dept-icon for reuse across pages
 
 // ── Modal stepper ─────────────────────────────────────────
 

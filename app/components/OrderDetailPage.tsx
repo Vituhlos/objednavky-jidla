@@ -7,6 +7,7 @@ import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
+import { DeptIcon } from "./dept-icon";
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
   blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
@@ -240,7 +241,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                     className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                     style={{ background: `${dc.icon}22` }}
                   >
-                    <MIcon name="groups" size={14} fill style={{ color: dc.icon }} />
+                    <DeptIcon name={dept.name} color={dc.icon} size={14} />
                   </div>
                   <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
                   <span className="text-[11px] text-stone-500">

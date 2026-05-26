@@ -97,7 +97,7 @@ export default function AppTopBar() {
       <div
         aria-hidden="true"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
-        style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
+        style={{ height: 80, background: "linear-gradient(to top, var(--bg) 30%, rgba(248,244,239,0) 100%)" }}
       />
 
       {/* ── Bottom nav pill (mobile + tablet, hidden on lg+) ── */}
