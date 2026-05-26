@@ -204,6 +204,42 @@ export async function sendTelegramToSubscribers(col: NotifyColumn, text: string)
   );
 }
 
+// Sends "objednávka odeslána" but personalizes the message per subscriber:
+// appends "Pro tebe: <items>, <price> Kč" if firstName matches any row.
+// Falls back to baseText only when no row matches.
+export async function sendTelegramOrderSent(
+  baseText: string,
+  rowsByPerson: Array<{ personName: string; description: string; price: number }>,
+): Promise<void> {
+  const s = getSettings();
+  if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
+  const subs = getSubscribersFor("notify_order_sent");
+  if (subs.length === 0) return;
+
+  await Promise.allSettled(
+    subs.map((sub) => {
+      const first = sub.firstName?.trim();
+      const mine = first
+        ? rowsByPerson.filter((r) => {
+            const n = r.personName.toLowerCase();
+            const f = first.toLowerCase();
+            // Match if firstName is a whole word in personName (start, after space, or whole match)
+            return n === f || n.startsWith(f + " ") || n.endsWith(" " + f) || n.includes(" " + f + " ");
+          })
+        : [];
+      const personalLines = mine
+        .map((r) => `  • ${r.description} <i>(${r.price} Kč)</i>`)
+        .join("\n");
+      const text = mine.length > 0
+        ? `${baseText}\n\n👉 <b>Pro tebe:</b>\n${personalLines}`
+        : baseText;
+      return sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
+        console.error(`[telegram] Chyba při odesílání na ${sub.chatId}:`, err),
+      );
+    }),
+  );
+}
+
 // Backward-compat alias
 export async function sendTelegramReminderNotification(text: string): Promise<void> {
   return sendTelegramToSubscribers("notify_reminder", text);

@@ -1,4 +1,4 @@
-import type { DepartmentData, OrderRowEnriched } from "./types";
+import type { DepartmentData, OrderRowEnriched, OrderData } from "./types";
 
 export function hasOrderRowContent(row: OrderRowEnriched): boolean {
   return Boolean(
@@ -52,4 +52,34 @@ export function joinDepartmentNames(names: string[]): string {
   if (names.length === 1) return names[0];
   if (names.length === 2) return `${names[0]} a ${names[1]}`;
   return `${names.slice(0, -1).join(", ")} a ${names[names.length - 1]}`;
+}
+
+// Flattens OrderData into a list of submitted rows suitable for Telegram
+// personalisation: one entry per row with personName + a single-line description.
+export function flattenSubmittedRows(data: OrderData): Array<{ personName: string; description: string; price: number }> {
+  const out: Array<{ personName: string; description: string; price: number }> = [];
+  for (const dept of data.departments) {
+    for (const row of dept.rows) {
+      if (!hasSubmittedOrderContent(row) || !row.personName.trim()) continue;
+      const parts: string[] = [];
+      if (row.mainItem) {
+        const count = row.mealCount > 1 ? `${row.mealCount}× ` : "";
+        parts.push(`${count}${row.mainItem.name}`);
+      }
+      for (const em of row.extraMealItems) {
+        parts.push(`${em.count > 1 ? `${em.count}× ` : ""}${em.item.name}`);
+      }
+      if (row.soupItem) parts.push(`polévka ${row.soupItem.name}`);
+      if (row.soupItem2) parts.push(row.soupItem2.name);
+      if (row.rollCount > 0) parts.push(`houska ×${row.rollCount}`);
+      if (row.breadDumplingCount > 0) parts.push(`h.knedlík ×${row.breadDumplingCount}`);
+      if (row.potatoDumplingCount > 0) parts.push(`b.knedlík ×${row.potatoDumplingCount}`);
+      out.push({
+        personName: row.personName,
+        description: parts.length > 0 ? parts.join(" + ") : "(prázdná objednávka)",
+        price: row.rowPrice,
+      });
+    }
+  }
+  return out;
 }

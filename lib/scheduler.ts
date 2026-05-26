@@ -11,7 +11,8 @@ import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
-import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
+import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, sendTelegramOrderSent, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
+import { flattenSubmittedRows } from "./order-utils";
 import webpush from "web-push";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -72,7 +73,10 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
     saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
-    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek  ·  💰 ${data.totalPrice} Kč`);
+    await sendTelegramOrderSent(
+      `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek  ·  💰 ${data.totalPrice} Kč`,
+      flattenSubmittedRows(data),
+    );
   } catch (err) {
     console.error("[scheduler] Auto-send selhal:", err);
     const errMsg = err instanceof Error ? err.message : String(err);

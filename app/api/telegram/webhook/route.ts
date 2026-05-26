@@ -5,6 +5,7 @@ import {
   sendTelegramMessage,
   sendTelegramToAdmins,
   sendTelegramToSubscribers,
+  sendTelegramOrderSent,
   registerTelegramUser,
   isTelegramAdmin,
   isTelegramRegistered,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/telegram";
 import { getDb } from "@/lib/db";
 import { getTodayOrderData, sendOrder, reopenOrder, getOrderPdfPath, orderPdfExists } from "@/lib/orders";
+import { flattenSubmittedRows } from "@/lib/order-utils";
 import { getMenuItemsForDay, getMondayISO } from "@/lib/menu";
 import fs from "fs";
 import path from "path";
@@ -251,6 +253,7 @@ function buildSettingsKeyboard(chatId: string) {
       [{ text: `⏰ Osobní čas jídelníčku${morningTimeLabel}`, callback_data: "toggle:personal_morning" }],
       [{ text: `📨 Odeslání objednávky  ${sub?.notifyOrderSent ? on : off}`, callback_data: "toggle:order_sent" }],
       [{ text: `📋 Nový jídelníček  ${sub?.notifyMenuImported ? on : off}`, callback_data: "toggle:menu_imported" }],
+      [{ text: "✖ Zavřít", callback_data: "close" }],
     ],
   };
 }
@@ -505,6 +508,14 @@ async function editMessageReplyMarkup(token: string, chatId: string, messageId: 
   }).catch(() => {});
 }
 
+async function deleteMessage(token: string, chatId: string, messageId: number): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${token}/deleteMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+  }).catch(() => {});
+}
+
 async function sendPhotoToChat(token: string, chatId: string, photoUrl: string, caption: string): Promise<void> {
   await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
     method: "POST",
@@ -587,6 +598,12 @@ export async function POST(req: NextRequest) {
     await answerCallbackQuery(s.telegramBotToken, cq.id);
 
     if (!isTelegramRegistered(chatId)) return new Response("ok");
+
+    // Close — smaže zprávu s inline keyboardem (uklidí konverzaci)
+    if (data === "close" && messageId) {
+      await deleteMessage(s.telegramBotToken, chatId, messageId);
+      return new Response("ok");
+    }
 
     // Notification toggles — update in-place
     if (data.startsWith("toggle:") && messageId) {
@@ -735,7 +752,10 @@ export async function POST(req: NextRequest) {
             if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "✅ <b>Objednávka odeslána.</b>", buildStavKeyboard(chatId));
             const totalPeople = orderData.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
             const dateStr = new Date(`${orderData.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-            await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${totalPeople} osob  ·  💰 ${orderData.totalPrice} Kč`);
+            await sendTelegramOrderSent(
+              `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${totalPeople} osob  ·  💰 ${orderData.totalPrice} Kč`,
+              flattenSubmittedRows(orderData),
+            );
           } catch (err) {
             await sendTelegramToChat(chatId, `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`);
           }
@@ -837,8 +857,15 @@ export async function POST(req: NextRequest) {
       `  🔔 Připomenutí před uzávěrkou (volitelné)\n` +
       `  🌅 Ranní jídelníček (volitelné)\n` +
       `  📋 Upozornění na nový jídelníček (volitelné)\n\n` +
-      `Uprav si notifikace přes <b>⚙️ Nastavení</b> nebo /nastaveni.`;
+      `Tlačítka dole tě dovedou kam potřebuješ. A hned si můžeš nastavit, co ti mám posílat 👇`;
     await sendTelegramToChat(chatId, welcomeText, buildMainReplyKeyboard(isAdmin));
+    // Onboarding: rovnou nabídnout úpravu notifikací (Připomenutí a Ranní menu
+    // jsou defaultně vypnuté — chceme aby je nový uživatel zapnul, pokud chce)
+    await sendTelegramToChat(
+      chatId,
+      "🔔 <b>Co ti mám posílat?</b>\n\nKlikni na řádek pro zapnutí/vypnutí. Když budeš hotov, zavři přes ✖.",
+      buildSettingsKeyboard(chatId),
+    );
     return new Response("ok");
   }
 
@@ -920,7 +947,10 @@ export async function POST(req: NextRequest) {
           broadcast();
           const tp = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
           const ds = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-          await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${ds}\n👥 ${tp} osob  ·  💰 ${data.totalPrice} Kč`);
+          await sendTelegramOrderSent(
+            `✅ <b>Objednávka odeslána</b>\n📅 ${ds}\n👥 ${tp} osob  ·  💰 ${data.totalPrice} Kč`,
+            flattenSubmittedRows(data),
+          );
         } catch (err) {
           await sendTelegramToChat(
             chatId,
