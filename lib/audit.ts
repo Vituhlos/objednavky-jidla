@@ -7,6 +7,7 @@ export type AuditAction =
   | "order_send"
   | "order_reopen"
   | "order_clear"
+  | "order_duplicate"
   | "auto_send"
   | "menu_reminder"
   | "menu_imap_import";

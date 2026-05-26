@@ -455,6 +455,26 @@ export interface OrderSummary {
   rowCount: number;
 }
 
+export interface OrderSummaryWithDepts extends OrderSummary {
+  depts: string[];          // names of departments with at least 1 non-empty row
+  peopleCount: number;      // distinct people with at least personName
+  totalPrice: number;       // sum of row prices (computed cheap)
+}
+
+export interface HistoryStats {
+  monthlyOrderCount: number;
+  monthlyOrderCountPrev: number;
+  monthlyPeopleCount: number;
+  monthlySum: number;
+  monthlyAvgPeoplePerDay: number;
+}
+
+export interface CalendarDay {
+  date: string;        // ISO YYYY-MM-DD
+  peopleCount: number;
+  totalPrice: number;
+}
+
 export function reopenOrder(orderId: number): void {
   getDb()
     .prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?")
@@ -484,6 +504,153 @@ export function getOrderList(): OrderSummary[] {
   }));
 }
 
+// Enriched summary — includes which depts have rows, how many people, and total price.
+// Price is computed in SQL using default pricing from settings (not 100% accurate for
+// custom-priced items, but good enough for history listing.)
+export function getOrderListWithDepts(): OrderSummaryWithDepts[] {
+  const db = getDb();
+  const settings = getSettings();
+  const defSoup = parseInt(settings.defaultSoupPrice) || 30;
+  const defMeal = parseInt(settings.defaultMealPrice) || 110;
+
+  const rows = db
+    .prepare(
+      `SELECT
+         o.id, o.date, o.status, o.sent_at, o.extra_email,
+         COUNT(r.id) AS row_count,
+         SUM(CASE WHEN trim(r.person_name) != '' THEN 1 ELSE 0 END) AS people_count,
+         GROUP_CONCAT(DISTINCT r.department) AS depts_csv,
+         /* approximate total price */
+         SUM(
+           CASE WHEN r.soup_item_id IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id), 0) ELSE 0 END +
+           CASE WHEN r.soup_item_id_2 IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id_2), 0) ELSE 0 END +
+           CASE WHEN r.main_item_id IS NOT NULL THEN (r.meal_count * COALESCE((SELECT price FROM menu_items WHERE id = r.main_item_id), 0)) ELSE 0 END +
+           r.roll_count * ${parseInt(settings.priceRoll) || 5} +
+           r.bread_dumpling_count * ${parseInt(settings.priceBreadDumpling) || 40} +
+           r.potato_dumpling_count * ${parseInt(settings.pricePotatoDumpling) || 45} +
+           r.ketchup_count * ${parseInt(settings.priceKetchup) || 20} +
+           r.tatarka_count * ${parseInt(settings.priceTatarka) || 20} +
+           r.bbq_count * ${parseInt(settings.priceBbq) || 20}
+         ) AS total_price
+       FROM orders o
+       LEFT JOIN order_rows r ON r.order_id = o.id
+       GROUP BY o.id
+       ORDER BY o.date DESC`
+    )
+    .all() as Record<string, unknown>[];
+
+  return rows.map((r) => {
+    const deptsCsv = (r.depts_csv as string | null) ?? "";
+    const depts = deptsCsv ? deptsCsv.split(",").filter(Boolean) : [];
+    return {
+      id: r.id as number,
+      date: r.date as string,
+      status: r.status as "draft" | "sent",
+      sentAt: (r.sent_at as string | null) ?? null,
+      extraEmail: (r.extra_email as string | null) ?? null,
+      rowCount: (r.row_count as number) ?? 0,
+      depts,
+      peopleCount: (r.people_count as number) ?? 0,
+      totalPrice: Math.round((r.total_price as number) ?? 0),
+    };
+  });
+}
+
+// History KPI stats — current vs previous calendar month, only sent orders.
+export function getHistoryStats(): HistoryStats {
+  const db = getDb();
+  const today = getPragueISODate();
+  const [yStr, mStr] = today.split("-");
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const ym = `${year}-${String(month).padStart(2, "0")}`;
+  const ymPrev = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+
+  const settings = getSettings();
+  const priceFormula = `
+    CASE WHEN r.soup_item_id IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id), 0) ELSE 0 END +
+    CASE WHEN r.soup_item_id_2 IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id_2), 0) ELSE 0 END +
+    CASE WHEN r.main_item_id IS NOT NULL THEN (r.meal_count * COALESCE((SELECT price FROM menu_items WHERE id = r.main_item_id), 0)) ELSE 0 END +
+    r.roll_count * ${parseInt(settings.priceRoll) || 5} +
+    r.bread_dumpling_count * ${parseInt(settings.priceBreadDumpling) || 40} +
+    r.potato_dumpling_count * ${parseInt(settings.pricePotatoDumpling) || 45} +
+    r.ketchup_count * ${parseInt(settings.priceKetchup) || 20} +
+    r.tatarka_count * ${parseInt(settings.priceTatarka) || 20} +
+    r.bbq_count * ${parseInt(settings.priceBbq) || 20}
+  `;
+
+  const monthlyRow = db
+    .prepare(
+      `SELECT
+         COUNT(DISTINCT o.id) AS order_count,
+         SUM(CASE WHEN trim(r.person_name) != '' THEN 1 ELSE 0 END) AS people_count,
+         SUM(${priceFormula}) AS total_sum
+       FROM orders o
+       LEFT JOIN order_rows r ON r.order_id = o.id
+       WHERE strftime('%Y-%m', o.date) = ? AND o.status = 'sent'`
+    )
+    .get(ym) as { order_count: number; people_count: number; total_sum: number };
+
+  const prevRow = db
+    .prepare(
+      `SELECT COUNT(DISTINCT o.id) AS order_count
+       FROM orders o
+       WHERE strftime('%Y-%m', o.date) = ? AND o.status = 'sent'`
+    )
+    .get(ymPrev) as { order_count: number };
+
+  const orderCount = monthlyRow.order_count || 0;
+  const peopleCount = monthlyRow.people_count || 0;
+  const totalSum = Math.round(monthlyRow.total_sum || 0);
+  const avgPeoplePerDay = orderCount > 0 ? Math.round((peopleCount / orderCount) * 10) / 10 : 0;
+
+  return {
+    monthlyOrderCount: orderCount,
+    monthlyOrderCountPrev: prevRow.order_count || 0,
+    monthlyPeopleCount: peopleCount,
+    monthlySum: totalSum,
+    monthlyAvgPeoplePerDay: avgPeoplePerDay,
+  };
+}
+
+// Heatmap data for a given month — every day with at least 1 sent order.
+export function getCalendarHeatmap(year: number, month: number): CalendarDay[] {
+  const db = getDb();
+  const settings = getSettings();
+  const ym = `${year}-${String(month).padStart(2, "0")}`;
+  const priceFormula = `
+    CASE WHEN r.soup_item_id IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id), 0) ELSE 0 END +
+    CASE WHEN r.soup_item_id_2 IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id_2), 0) ELSE 0 END +
+    CASE WHEN r.main_item_id IS NOT NULL THEN (r.meal_count * COALESCE((SELECT price FROM menu_items WHERE id = r.main_item_id), 0)) ELSE 0 END +
+    r.roll_count * ${parseInt(settings.priceRoll) || 5} +
+    r.bread_dumpling_count * ${parseInt(settings.priceBreadDumpling) || 40} +
+    r.potato_dumpling_count * ${parseInt(settings.pricePotatoDumpling) || 45} +
+    r.ketchup_count * ${parseInt(settings.priceKetchup) || 20} +
+    r.tatarka_count * ${parseInt(settings.priceTatarka) || 20} +
+    r.bbq_count * ${parseInt(settings.priceBbq) || 20}
+  `;
+  const rows = db
+    .prepare(
+      `SELECT
+         o.date,
+         SUM(CASE WHEN trim(r.person_name) != '' THEN 1 ELSE 0 END) AS people_count,
+         SUM(${priceFormula}) AS total_price
+       FROM orders o
+       LEFT JOIN order_rows r ON r.order_id = o.id
+       WHERE strftime('%Y-%m', o.date) = ? AND o.status = 'sent'
+       GROUP BY o.date
+       ORDER BY o.date`
+    )
+    .all(ym) as Array<{ date: string; people_count: number; total_price: number }>;
+  return rows.map((r) => ({
+    date: r.date,
+    peopleCount: r.people_count || 0,
+    totalPrice: Math.round(r.total_price || 0),
+  }));
+}
+
 export async function resendOrderEmail(orderId: number): Promise<void> {
   const db = getDb();
   const current = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId) as Record<string, unknown> | undefined;
@@ -504,6 +671,37 @@ export async function resendOrderEmail(orderId: number): Promise<void> {
 export function clearOrderRows(orderId: number): void {
   getDb().prepare("DELETE FROM order_rows WHERE order_id = ?").run(orderId);
   logAudit({ action: "order_clear", orderId });
+}
+
+export function duplicateOrderRows(sourceOrderId: number): { newOrderId: number; copiedRowCount: number } {
+  const db = getDb();
+  const todayOrder = getOrCreateTodayOrder();
+  if (todayOrder.status === "sent") {
+    throw new Error("Dnešní objednávka je již odeslána — duplikaci nelze provést.");
+  }
+  const sourceRows = db
+    .prepare("SELECT person_name, department FROM order_rows WHERE order_id = ? ORDER BY department, sort_order")
+    .all(sourceOrderId) as Array<{ person_name: string; department: string }>;
+
+  let copied = 0;
+  const insertStmt = db.prepare(
+    "INSERT INTO order_rows (order_id, department, sort_order, person_name) VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM order_rows WHERE order_id = ? AND department = ?), ?)"
+  );
+  for (const row of sourceRows) {
+    const name = (row.person_name ?? "").trim();
+    if (!name) continue;
+    // Skip if a row with the same person already exists today in the same dept
+    const exists = db
+      .prepare(
+        "SELECT 1 FROM order_rows WHERE order_id = ? AND department = ? AND lower(trim(person_name)) = lower(trim(?))"
+      )
+      .get(todayOrder.id, row.department, name);
+    if (exists) continue;
+    insertStmt.run(todayOrder.id, row.department, todayOrder.id, row.department, name);
+    copied++;
+  }
+  logAudit({ action: "order_duplicate", orderId: todayOrder.id, details: `from #${sourceOrderId}, ${copied} rows` });
+  return { newOrderId: todayOrder.id, copiedRowCount: copied };
 }
 
 export interface DeptSuggestion {

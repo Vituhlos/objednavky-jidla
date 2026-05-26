@@ -100,6 +100,82 @@ export async function getDeptSuggestions(
   return getDeptSuggestionsDb(department, limit);
 }
 
+export async function actionDuplicateOrder(
+  sourceOrderId: number,
+): Promise<{ newOrderId: number; copiedRowCount: number }> {
+  const { duplicateOrderRows } = await import("@/lib/orders");
+  const result = duplicateOrderRows(sourceOrderId);
+  revalidatePath("/");
+  broadcast();
+  return result;
+}
+
+export async function getHistoryStats() {
+  const { getHistoryStats: fn } = await import("@/lib/orders");
+  return fn();
+}
+
+export async function getCalendarHeatmap(year: number, month: number) {
+  const { getCalendarHeatmap: fn } = await import("@/lib/orders");
+  return fn(year, month);
+}
+
+export type HealthStatus = "ok" | "warning" | "error";
+export type SettingsHealth = {
+  smtp: { status: HealthStatus; sub: string };
+  autoSend: { status: HealthStatus; sub: string };
+  autoImport: { status: HealthStatus; sub: string };
+  push: { status: HealthStatus; sub: string };
+  pin: { status: HealthStatus; sub: string };
+  departments: { status: HealthStatus; sub: string };
+  prices: { status: HealthStatus; sub: string };
+};
+
+export async function getSettingsHealth(): Promise<SettingsHealth> {
+  const { getSettings: gs } = await import("@/lib/settings");
+  const { getDepartments: gd } = await import("@/lib/departments");
+  const settings = gs();
+  const depts = gd();
+
+  const smtpConfigured = !!(settings.smtpHost && settings.smtpUser && settings.smtpFrom);
+  const autoSendEnabled = settings.autoSendEnabled === "true";
+  const autoSendDays = settings.autoSendDays.split(",").map((s) => s.trim()).filter(Boolean);
+  const imapEnabled = settings.imapEnabled === "true";
+  const imapConfigured = !!(settings.imapHost && settings.imapUser);
+  const vapidConfigured = !!(settings.vapidPublicKey && settings.vapidPrivateKey);
+  const pinDefault = settings.settingsPin && /^(?:1234|[a-f0-9]{0,5})$/.test(settings.settingsPin) === false;
+  const defaultPin = !pinDefault;
+  const defaultsOk = parseInt(settings.defaultSoupPrice) > 0 && parseInt(settings.defaultMealPrice) > 0;
+
+  return {
+    smtp: smtpConfigured
+      ? { status: "ok", sub: settings.smtpHost }
+      : { status: "error", sub: "Nekonfigurováno" },
+    autoSend: autoSendEnabled && autoSendDays.length > 0 && settings.autoSendTime
+      ? { status: "ok", sub: `${autoSendDays.join(",")} v ${settings.autoSendTime}` }
+      : autoSendEnabled
+        ? { status: "warning", sub: "Chybí dny nebo čas" }
+        : { status: "error", sub: "Vypnuto" },
+    autoImport: imapEnabled && imapConfigured
+      ? { status: "ok", sub: settings.imapHost }
+      : imapEnabled
+        ? { status: "warning", sub: "Chybí konfigurace" }
+        : { status: "error", sub: "Vypnuto" },
+    push: vapidConfigured
+      ? { status: "ok", sub: "VAPID nastaveno" }
+      : { status: "error", sub: "Klíče chybí" },
+    pin: defaultPin
+      ? { status: "error", sub: "Default 1234 — změň PIN" }
+      : { status: "ok", sub: "Nastaven vlastní PIN" },
+    departments: depts.length > 0
+      ? { status: "ok", sub: `${depts.length} aktivních` }
+      : { status: "error", sub: "Žádné oddělení" },
+    prices: defaultsOk
+      ? { status: "ok", sub: `Polévka ${settings.defaultSoupPrice}, hlavní ${settings.defaultMealPrice}` }
+      : { status: "warning", sub: "Některé ceny chybí" },
+  };
+}
+
 export async function actionSendOrder(orderId: number): Promise<void> {
   await dbSendOrder(orderId);
   revalidatePath("/");

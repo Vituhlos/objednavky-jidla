@@ -25,6 +25,9 @@ import {
   actionGetTelegramBotInfo,
   actionGetTelegramWebhookStatus,
   actionSetTelegramCommands,
+  getSettingsHealth,
+  type SettingsHealth,
+  type HealthStatus,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { ConfirmModal } from "./ConfirmModal";
@@ -55,6 +58,54 @@ const DAY_OPTIONS = [
   { code: "Pá", label: "Pá" },
 ];
 
+const WEEKEND_DAYS = [
+  { code: "So", label: "So" },
+  { code: "Ne", label: "Ne" },
+];
+
+function ScheduleWeekStrip({ activeDays: initialActive, time }: { activeDays: string[]; time: string }) {
+  // Kontrolovaný state s checkboxy pro form submit
+  const [days, setDays] = useState<string[]>(initialActive);
+  const toggle = (code: string) => {
+    setDays((prev) => prev.includes(code) ? prev.filter((d) => d !== code) : [...prev, code]);
+  };
+  const all = [...DAY_OPTIONS, ...WEEKEND_DAYS];
+  return (
+    <>
+      <div className="schedule-week mt-1">
+        {all.map((d) => {
+          const isWeekend = d.code === "So" || d.code === "Ne";
+          const active = days.includes(d.code);
+          return (
+            <button
+              key={d.code}
+              type="button"
+              onClick={() => toggle(d.code)}
+              className={`schedule-day${active ? " active" : ""}${isWeekend ? " weekend" : ""}`}
+              aria-pressed={active}
+            >
+              <span className="schedule-day__name">{d.label}</span>
+              <span className="schedule-day__time">{active ? time : "—"}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Hidden checkboxes pro form submit — replicating original interface */}
+      <div className="sr-only" aria-hidden>
+        {DAY_OPTIONS.map((d) => (
+          <input
+            key={d.code}
+            type="checkbox"
+            name={`autoSendDay_${d.code}`}
+            checked={days.includes(d.code)}
+            onChange={() => toggle(d.code)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 const ACTION_LABELS: Record<string, string> = {
   row_add: "Přidání řádku",
   row_update: "Úprava řádku",
@@ -72,9 +123,10 @@ const ACTION_LABELS: Record<string, string> = {
 // ── Department row ────────────────────────────────────────────────────────────
 
 const DeptRow = memo(function DeptRow({
-  dept, onSave, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
+  dept, dailyCount = 0, onSave, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
 }: {
   dept: DepartmentInfo;
+  dailyCount?: number;
   onSave: (id: number, data: Partial<{ label: string; emailLabel: string; accent: string }>) => void;
   onDelete: (id: number) => void;
   onMoveUp: (id: number) => void;
@@ -82,80 +134,167 @@ const DeptRow = memo(function DeptRow({
   isFirst: boolean;
   isLast: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editingField, setEditingField] = useState<"label" | "emailLabel" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [label, setLabel] = useState(dept.label);
-  const [emailLabel, setEmailLabel] = useState(dept.emailLabel);
-  const [accent, setAccent] = useState(dept.accent);
+  const [showMenu, setShowMenu] = useState(false);
+  const [tempLabel, setTempLabel] = useState(dept.label);
+  const [tempEmailLabel, setTempEmailLabel] = useState(dept.emailLabel);
+  const menuRef = useRef<HTMLDivElement>(null);
   const dotColor = ACCENT_COLORS[dept.accent] ?? "#94a3b8";
 
-  if (!editing) {
-    return (
-      <div className="glass-soft rounded-2xl px-3 py-2.5 flex items-center gap-3">
-        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: dotColor }} />
-        <span className="text-[13px] font-semibold text-stone-800 flex-1 min-w-0 truncate">{dept.label}</span>
-        <span className="text-[11px] text-stone-400 hidden sm:inline shrink-0">({dept.name})</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            aria-label={`Přesunout ${dept.label} nahoru`}
-            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isFirst} onClick={() => onMoveUp(dept.id)} type="button"
-          >↑</button>
-          <button
-            aria-label={`Přesunout ${dept.label} dolů`}
-            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isLast} onClick={() => onMoveDown(dept.id)} type="button"
-          >↓</button>
-          <button
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg glass-btn text-stone-600"
-            onClick={() => setEditing(true)} type="button"
-          >Upravit</button>
-          <button
-            aria-label={`Smazat oddělení ${dept.label}`}
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg text-red-600 transition"
-            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}
-            onClick={() => setConfirmDelete(true)} type="button"
-          >Smazat</button>
-        </div>
-        {confirmDelete && (
-          <ConfirmModal
-            message={`Oddělení „${dept.label}" bude trvale smazáno.`}
-            onClose={() => setConfirmDelete(false)}
-            onConfirm={() => { onDelete(dept.id); setConfirmDelete(false); }}
-            title="Smazat oddělení"
-          />
-        )}
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
+
+  const handleLabelSave = () => {
+    if (tempLabel.trim() && tempLabel !== dept.label) {
+      onSave(dept.id, { label: tempLabel.trim() });
+    } else {
+      setTempLabel(dept.label);
+    }
+    setEditingField(null);
+  };
+
+  const handleEmailLabelSave = () => {
+    if (tempEmailLabel.trim() && tempEmailLabel !== dept.emailLabel) {
+      onSave(dept.id, { emailLabel: tempEmailLabel.trim() });
+    } else {
+      setTempEmailLabel(dept.emailLabel);
+    }
+    setEditingField(null);
+  };
 
   return (
-    <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <Field label="Zobrazovaný název">
-          <input className="modal-input" onChange={(e) => setLabel(e.target.value)} value={label} />
-        </Field>
-        <Field label="Název v e-mailu">
-          <input className="modal-input" onChange={(e) => setEmailLabel(e.target.value)} value={emailLabel} />
-        </Field>
-        <Field label="Barva">
-          <select className="k-select" onChange={(e) => setAccent(e.target.value)} value={accent}>
-            {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </Field>
+    <div className="dept-editor-row" data-dept-id={dept.id}>
+      <div
+        className="dept-editor-row__grip"
+        title="Přetáhni pro řazení"
+        aria-label={`Přesunout ${dept.label}`}
+      >
+        <MIcon name="drag_indicator" size={16} />
       </div>
-      <div className="flex gap-2">
-        <button
-          className="modal-btn modal-btn--primary"
-          onClick={() => { onSave(dept.id, { label, emailLabel, accent }); setEditing(false); }}
-          type="button"
-        >Uložit</button>
-        <button
-          className="modal-btn modal-btn--secondary"
-          onClick={() => { setLabel(dept.label); setEmailLabel(dept.emailLabel); setAccent(dept.accent); setEditing(false); }}
-          type="button"
-        >Zrušit</button>
+      <div
+        className="dept-editor-row__icon"
+        style={{ background: `${dotColor}22`, color: dotColor }}
+      >
+        <MIcon name="groups" size={15} fill />
       </div>
+      <div className="dept-editor-row__body">
+        {editingField === "label" ? (
+          <input
+            autoFocus
+            className="modal-input !py-1 !text-[13px] !font-bold"
+            value={tempLabel}
+            onChange={(e) => setTempLabel(e.target.value)}
+            onBlur={handleLabelSave}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleLabelSave();
+              if (e.key === "Escape") { setTempLabel(dept.label); setEditingField(null); }
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingField("label")}
+            className="dept-editor-row__name text-left hover:underline hover:underline-offset-2 truncate w-full"
+            title="Klik pro editaci"
+          >
+            {dept.label}
+          </button>
+        )}
+        {editingField === "emailLabel" ? (
+          <input
+            autoFocus
+            className="modal-input !py-0.5 !text-[11px] mt-1"
+            value={tempEmailLabel}
+            onChange={(e) => setTempEmailLabel(e.target.value)}
+            onBlur={handleEmailLabelSave}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleEmailLabelSave();
+              if (e.key === "Escape") { setTempEmailLabel(dept.emailLabel); setEditingField(null); }
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingField("emailLabel")}
+            className="dept-editor-row__sub text-left hover:underline hover:underline-offset-2 truncate w-full"
+            title="Klik pro editaci názvu v e-mailu"
+          >
+            Email štítek: {dept.emailLabel}
+          </button>
+        )}
+      </div>
+
+      {/* Color swatches */}
+      <div className="color-swatches">
+        {ACCENT_OPTIONS.map((opt) => {
+          const color = ACCENT_COLORS[opt.value];
+          const active = dept.accent === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              aria-label={`Barva ${opt.label}`}
+              title={opt.label}
+              onClick={() => onSave(dept.id, { accent: opt.value })}
+              className={`color-swatch${active ? " active" : ""}`}
+              style={{ background: color, ["--swatch-color" as string]: color }}
+            />
+          );
+        })}
+      </div>
+
+      <span
+        className={`dept-editor-row__count${dailyCount === 0 ? " dept-editor-row__count--zero" : ""}`}
+        title={dailyCount > 0 ? `${dailyCount} dnešních objednávek` : "Dnes nikdo neobjednal"}
+      >
+        {dailyCount} dnes
+      </span>
+
+      <div className="relative" ref={menuRef}>
+        <button
+          aria-label={`Menu oddělení ${dept.label}`}
+          type="button"
+          onClick={() => setShowMenu((v) => !v)}
+          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-400 hover:bg-white/70 hover:text-stone-700"
+        >
+          <MIcon name="more_horiz" size={16} />
+        </button>
+        {showMenu && (
+          <div className="row-menu-dropdown absolute right-0 top-full mt-1 z-30" style={{ minWidth: 160 }}>
+            <button
+              type="button"
+              disabled={isFirst}
+              onClick={() => { onMoveUp(dept.id); setShowMenu(false); }}
+              className="disabled:opacity-30"
+            >Přesunout nahoru</button>
+            <button
+              type="button"
+              disabled={isLast}
+              onClick={() => { onMoveDown(dept.id); setShowMenu(false); }}
+              className="disabled:opacity-30"
+            >Přesunout dolů</button>
+            <button
+              type="button"
+              className="row-menu-danger"
+              onClick={() => { setShowMenu(false); setConfirmDelete(true); }}
+            >Smazat oddělení</button>
+          </div>
+        )}
+      </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          message={`Oddělení „${dept.label}" bude trvale smazáno.`}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={() => { onDelete(dept.id); setConfirmDelete(false); }}
+          title="Smazat oddělení"
+        />
+      )}
     </div>
   );
 });
@@ -164,14 +303,42 @@ const DeptRow = memo(function DeptRow({
 
 type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "telegram" | "system";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "objednavka",  label: "Provoz",    icon: "assignment" },
-  { id: "notifikace",  label: "Notifikace", icon: "notifications" },
-  { id: "ceny",        label: "Ceník",      icon: "payments" },
-  { id: "email",       label: "E-mail",     icon: "mail" },
-  { id: "oddeleni",    label: "Oddělení",   icon: "groups" },
+const TABS: { id: Tab; label: string; icon: string; healthKey?: keyof SettingsHealth }[] = [
+  { id: "objednavka",  label: "Provoz",    icon: "schedule",       healthKey: "autoSend" },
+  { id: "notifikace",  label: "Notifikace", icon: "notifications", healthKey: "push" },
+  { id: "ceny",        label: "Ceník",      icon: "payments",      healthKey: "prices" },
+  { id: "email",       label: "E-mail",     icon: "mail",          healthKey: "smtp" },
+  { id: "oddeleni",    label: "Oddělení",   icon: "groups",        healthKey: "departments" },
   { id: "telegram",    label: "Telegram",   icon: "send" },
-  { id: "system",      label: "Systém",     icon: "build" },
+  { id: "system",      label: "Systém",     icon: "build",         healthKey: "pin" },
+];
+
+// Index for ⌘K search
+const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: string }> = [
+  { tab: "objednavka", field: "field-cutoffTime",      label: "Čas uzávěrky",            keywords: "uzávěrka cutoff čas hodina kdy uzavřít" },
+  { tab: "objednavka", field: "field-autoSendEnabled", label: "Automatické odeslání",    keywords: "auto send automatika odeslání schedule plán" },
+  { tab: "objednavka", field: "field-autoSendTime",    label: "Čas auto-odeslání",       keywords: "auto čas send" },
+  { tab: "objednavka", field: "field-autoSendDays",    label: "Dny auto-odeslání",       keywords: "auto dny send týden" },
+  { tab: "objednavka", field: "field-imapEnabled",     label: "Auto-import jídelníčku",  keywords: "imap import jídelníček menu pdf email" },
+  { tab: "objednavka", field: "field-pizzaCutoffTime", label: "Uzávěrka pizzy",          keywords: "pizza cutoff čas" },
+  { tab: "notifikace", field: "field-pushReminderMinutes", label: "Připomínka před uzávěrkou", keywords: "push notifikace připomínka reminder" },
+  { tab: "notifikace", field: "field-reminderEmailTo", label: "E-mailové připomínky",    keywords: "email připomínka reminder" },
+  { tab: "ceny",       field: "field-defaultSoupPrice", label: "Cena polévky",           keywords: "cena polévka soup price" },
+  { tab: "ceny",       field: "field-defaultMealPrice", label: "Cena hlavního jídla",    keywords: "cena jídlo meal hlavní" },
+  { tab: "ceny",       field: "field-priceRoll",        label: "Cena housky",            keywords: "houska rohlík cena příloha" },
+  { tab: "ceny",       field: "field-priceBreadDumpling", label: "Cena houskového knedlíku", keywords: "knedlík houskový cena příloha" },
+  { tab: "ceny",       field: "field-pricePotatoDumpling", label: "Cena bramborového knedlíku", keywords: "knedlík bramborový cena příloha" },
+  { tab: "email",      field: "field-smtpHost",         label: "SMTP server",            keywords: "smtp host server email gmail outlook" },
+  { tab: "email",      field: "field-smtpUser",         label: "SMTP uživatel",          keywords: "smtp user uživatel přihlášení login email" },
+  { tab: "email",      field: "field-smtpFrom",         label: "Odesílatel (From)",      keywords: "smtp from odesílatel adresa" },
+  { tab: "email",      field: "field-orderEmailTo",     label: "Příjemce objednávky",    keywords: "příjemce to email lima" },
+  { tab: "oddeleni",   field: "field-departments",     label: "Oddělení",               keywords: "oddělení department konstrukce dílna kanceláře" },
+  { tab: "telegram",   field: "field-telegramBotToken", label: "Telegram bot token",    keywords: "telegram bot token botfather" },
+  { tab: "telegram",   field: "field-telegramAppUrl",   label: "URL aplikace",          keywords: "telegram url aplikace webhook" },
+  { tab: "system",     field: "field-settingsPin",      label: "PIN",                    keywords: "pin heslo přístup zámek security" },
+  { tab: "system",     field: "field-backup",           label: "Záloha",                 keywords: "backup záloha export json" },
+  { tab: "system",     field: "field-restore",          label: "Obnova",                 keywords: "restore obnova import" },
+  { tab: "system",     field: "field-auditLog",         label: "Audit log",              keywords: "audit log historie změny" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -253,6 +420,29 @@ export default function SettingsPage({
   const confirmedPinRef = useRef("");
   const imapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
+
+  // Health check
+  const [health, setHealth] = useState<SettingsHealth | null>(null);
+  useEffect(() => {
+    if (!unlocked) return;
+    getSettingsHealth().then(setHealth).catch(() => {});
+  }, [unlocked, saveStatus]);
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!unlocked) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [unlocked]);
 
   useEffect(() => {
     if (activeTab !== "telegram") return;
@@ -559,6 +749,26 @@ export default function SettingsPage({
   const activeDays = settings.autoSendDays.split(",").map((d) => d.trim());
   const activeImapDays = settings.imapCheckDays.split(",").map((d) => d.trim());
 
+  // ⌘K search results
+  const sq = searchQuery.trim().toLowerCase();
+  const searchResults = sq
+    ? SETTINGS_INDEX.filter((item) =>
+        item.label.toLowerCase().includes(sq) || item.keywords.toLowerCase().includes(sq)
+      ).slice(0, 6)
+    : [];
+
+  const jumpToField = (tab: Tab, fieldId: string) => {
+    setActiveTab(tab);
+    setSearchQuery("");
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.classList.add("flash-highlight");
+      setTimeout(() => el.classList.remove("flash-highlight"), 1700);
+    }, 50);
+  };
+
   return (
     <div className="k-shell">
 
@@ -566,15 +776,84 @@ export default function SettingsPage({
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <MIcon name="settings" size={16} fill style={{ color: "#D97706" }} />
         <span className="font-display font-bold text-[15px] text-stone-900">Nastavení</span>
+        {unlocked && (
+          <div className="ml-auto relative">
+            <div className="search-pill">
+              <MIcon name="search" size={14} style={{ color: "#a8a29e" }} />
+              <input
+                ref={searchInputRef}
+                type="search"
+                placeholder="Hledat nastavení…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <span className="search-pill__kbd">⌘ K</span>
+            </div>
+            {searchResults.length > 0 && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-[320px] z-50 glass-card rounded-2xl overflow-hidden"
+                role="listbox"
+              >
+                {searchResults.map((r) => (
+                  <button
+                    key={`${r.tab}-${r.field}`}
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    onClick={() => jumpToField(r.tab, r.field)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] hover:bg-amber-50/60 border-b border-white/30 last:border-0"
+                  >
+                    <MIcon name={TABS.find((t) => t.id === r.tab)?.icon ?? "settings"} size={13} style={{ color: "#D97706", flexShrink: 0 }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-stone-900 truncate">{r.label}</div>
+                      <div className="text-[10.5px] text-stone-500">{TABS.find((t) => t.id === r.tab)?.label}</div>
+                    </div>
+                    <MIcon name="arrow_forward" size={13} style={{ color: "#a8a29e" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5">
+      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2">
         <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
+        {unlocked && (
+          <input
+            className="modal-input !py-1.5 !text-[12px] ml-auto"
+            placeholder="Hledat…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            type="search"
+            style={{ width: 160 }}
+          />
+        )}
       </div>
+      {/* Mobile search results */}
+      {unlocked && searchResults.length > 0 && (
+        <div className="md:hidden border-b border-white/40">
+          {searchResults.map((r) => (
+            <button
+              key={`${r.tab}-${r.field}`}
+              type="button"
+              onClick={() => jumpToField(r.tab, r.field)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[12.5px] bg-white/40"
+            >
+              <MIcon name={TABS.find((t) => t.id === r.tab)?.icon ?? "settings"} size={13} style={{ color: "#D97706" }} />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-stone-900">{r.label}</div>
+                <div className="text-[10.5px] text-stone-500">{TABS.find((t) => t.id === r.tab)?.label}</div>
+              </div>
+              <MIcon name="arrow_forward" size={13} />
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav lg:pb-24">
-        <div className="max-w-2xl mx-auto w-full space-y-4">
+        <div className="max-w-6xl mx-auto w-full">
         {!unlocked ? (
           /* PIN lock */
           <div className="glass-card rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
@@ -614,37 +893,135 @@ export default function SettingsPage({
           </div>
         ) : (
           <>
-            {/* Tab bar */}
-            <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-              <div
-                className="flex p-1 rounded-2xl gap-0.5"
-                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
-              >
-                {TABS.map((tab) => (
+            {/* Health overview banner */}
+            {health && (() => {
+              const items: Array<{ key: keyof SettingsHealth; label: string; icon: string }> = [
+                { key: "smtp",        label: "SMTP server",       icon: "send" },
+                { key: "autoSend",    label: "Auto-odeslání",     icon: "schedule" },
+                { key: "autoImport",  label: "Auto-import menu",  icon: "menu_book" },
+                { key: "push",        label: "Push notifikace",   icon: "notifications" },
+                { key: "pin",         label: "PIN",               icon: "lock" },
+                { key: "departments", label: "Oddělení",          icon: "groups" },
+              ];
+              const okCount = items.filter((it) => health[it.key].status === "ok").length;
+              const warnCount = items.filter((it) => health[it.key].status === "warning").length;
+              const errCount = items.filter((it) => health[it.key].status === "error").length;
+              const headline = errCount > 0
+                ? `${errCount} ${errCount === 1 ? "kritický problém" : "kritické problémy"}`
+                : warnCount > 0
+                  ? `${warnCount} ${warnCount === 1 ? "upozornění" : "upozornění"}`
+                  : "Vše hlavní funguje";
+              return (
+                <div className="glass-card rounded-3xl overflow-hidden mb-4">
+                  <div
+                    className="flex items-center gap-3 px-4 py-2.5 border-b border-white/40"
+                    style={{
+                      background: errCount > 0 ? "rgba(220,38,38,0.07)" :
+                                  warnCount > 0 ? "rgba(245,158,11,0.07)" :
+                                                  "rgba(34,197,94,0.07)",
+                    }}
+                  >
+                    <MIcon
+                      name={errCount > 0 ? "error" : warnCount > 0 ? "warning" : "check_circle"}
+                      size={16}
+                      fill
+                      style={{ color: errCount > 0 ? "#dc2626" : warnCount > 0 ? "#D97706" : "#16a34a" }}
+                    />
+                    <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">
+                      Stav konfigurace · <span className="font-normal text-stone-600">{headline}</span>
+                    </span>
+                    <span className="text-[11.5px] font-semibold text-stone-500">{okCount}/{items.length} OK</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 p-3">
+                    {items.map((it) => {
+                      const h = health[it.key];
+                      return (
+                        <div key={it.key} className={`status-badge status-badge--${h.status === "ok" ? "ok" : h.status === "warning" ? "warn" : "error"}`}>
+                          <div className="status-badge__icon">
+                            <MIcon name={h.status === "ok" ? "check_circle" : h.status === "warning" ? "warning" : "error"} size={13} fill />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="status-badge__title truncate">{it.label}</div>
+                            <div className="status-badge__sub truncate">{h.sub}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-5">
+            {/* Vertical tab bar (desktop) */}
+            <nav className="hidden lg:flex flex-col gap-1 sticky top-0 self-start">
+              {TABS.map((tab) => {
+                const h = tab.healthKey ? health?.[tab.healthKey] : null;
+                const dotClass = h?.status === "ok" ? "settings-tab__dot--ok"
+                              : h?.status === "warning" ? "settings-tab__dot--warn"
+                              : h?.status === "error" ? "settings-tab__dot--error"
+                              : "";
+                return (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
-                    }`}
-                    style={activeTab === tab.id ? {
-                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                    } : {}}
+                    className={`settings-tab${activeTab === tab.id ? " active" : ""}`}
                   >
-                    <MIcon name={tab.icon as "settings"} size={14} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                    <MIcon name={tab.icon as "settings"} size={15} fill={activeTab === tab.id} style={{ color: activeTab === tab.id ? "#D97706" : "#78716c" }} />
+                    <span className="settings-tab__label">{tab.label}</span>
                     {tab.id === "telegram" && telegramSubsLoaded && telegramSubs.length > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === "telegram" ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-amber-500/15 text-amber-700">
                         {telegramSubs.length}
                       </span>
                     )}
+                    {dotClass && <span className={`settings-tab__dot ${dotClass}`} aria-hidden />}
                   </button>
-                ))}
+                );
+              })}
+            </nav>
+
+            {/* Horizontal tab bar (mobile + tablet) */}
+            <div className="lg:hidden overflow-x-auto no-scrollbar -mx-1 px-1">
+              <div
+                className="flex p-1 rounded-2xl gap-0.5"
+                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+              >
+                {TABS.map((tab) => {
+                  const h = tab.healthKey ? health?.[tab.healthKey] : null;
+                  const dotClass = h?.status === "ok" ? "settings-tab__dot--ok"
+                                : h?.status === "warning" ? "settings-tab__dot--warn"
+                                : h?.status === "error" ? "settings-tab__dot--error"
+                                : "";
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                        activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                      }`}
+                      style={activeTab === tab.id ? {
+                        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                        boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                      } : {}}
+                    >
+                      <MIcon name={tab.icon as "settings"} size={14} />
+                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                      {tab.id === "telegram" && telegramSubsLoaded && telegramSubs.length > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === "telegram" ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                          {telegramSubs.length}
+                        </span>
+                      )}
+                      {dotClass && <span className={`settings-tab__dot ${dotClass} ml-0.5`} aria-hidden />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
+            <div className="space-y-4 mt-4 lg:mt-0">
 
             {/* ── Objednávka — non-form sections ── */}
             {activeTab === "objednavka" && todayOrder && (
@@ -855,24 +1232,12 @@ export default function SettingsPage({
                       <input className="modal-input w-24" defaultValue={settings.autoSendMinOrders} min="1" name="autoSendMinOrders" type="number" aria-label="Minimální počet objednávek" />
                     </Field>
                   </div>
-                  <Field label="Dny odeslání">
-                    <div className="flex gap-3 flex-wrap mt-0.5">
-                      {DAY_OPTIONS.map((d) => (
-                        <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
-                          <div className="relative shrink-0">
-                            <input
-                              className="peer sr-only"
-                              defaultChecked={activeDays.includes(d.code)}
-                              name={`autoSendDay_${d.code}`}
-                              type="checkbox"
-                            />
-                            <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-                            <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
-                          </div>
-                          <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <Field label="Dny odeslání" hint="Týdenní pruh — klikni na den pro zapnutí / vypnutí">
+                    {/* Visual week strip (controlled via hidden checkboxes for form submit) */}
+                    <ScheduleWeekStrip
+                      activeDays={activeDays}
+                      time={settings.autoSendTime || "08:00"}
+                    />
                   </Field>
                   <Field hint="e-mail(y) kam přijde upozornění při selhání auto-send — prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
                     <input className="modal-input" defaultValue={settings.autoSendFailureEmail} name="autoSendFailureEmail" placeholder="admin@firma.cz" type="email" />
@@ -1681,6 +2046,8 @@ export default function SettingsPage({
           )}
         </div>
 
+            </div>{/* /space-y-4 */}
+            </div>{/* /lg:grid */}
           </>
         )}
         </div>
