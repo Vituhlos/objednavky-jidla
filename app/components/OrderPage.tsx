@@ -3,7 +3,8 @@
 import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getHolidayEmoji } from "@/lib/holidays";
-import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
+import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry, MenuItem } from "@/lib/types";
+import type { DeptSuggestion } from "@/lib/orders";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { DepartmentPanel } from "./DepartmentPanel";
@@ -139,6 +140,22 @@ function getDayLabel(date: string, todayDate: string): string {
   return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d}.${m}.`;
 }
 
+function getDayTabParts(date: string, todayDate: string): { dow: string; num: string } {
+  const [y, m, d] = date.split("-").map(Number);
+  const obj = new Date(y, m - 1, d);
+  const wdShort = obj.toLocaleDateString("cs-CZ", { weekday: "short" }).replace(".", "");
+  const wdLong = obj.toLocaleDateString("cs-CZ", { weekday: "long" });
+  let dow: string;
+  if (date === todayDate) dow = "Dnes";
+  else if (date === addDays(todayDate, 1)) dow = "Zítra";
+  else dow = wdLong.charAt(0).toUpperCase() + wdLong.slice(1);
+  // Zkrátit pro mobil
+  if (dow !== "Dnes" && dow !== "Zítra" && dow.length > 7) {
+    dow = wdShort.charAt(0).toUpperCase() + wdShort.slice(1);
+  }
+  return { dow, num: `${d}. ${m}.` };
+}
+
 function getPragueNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
 }
@@ -171,6 +188,112 @@ function patchRow(departments: DepartmentData[], rowId: number, updated: OrderRo
   );
 }
 
+// ── Menu preview card ─────────────────────────────────────
+
+function MenuPreviewCard({
+  soups, meals, defaultSoupPrice, defaultMealPrice,
+}: {
+  soups: MenuItem[];
+  meals: MenuItem[];
+  defaultSoupPrice: number;
+  defaultMealPrice: number;
+}) {
+  const STORAGE_KEY = "kantyna_menu_preview_open";
+  const [open, setOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let stored: string | null = null;
+    try { stored = localStorage.getItem(STORAGE_KEY); } catch {}
+    if (stored !== null) {
+      setOpen(stored === "1");
+    } else {
+      // Default: open on desktop, collapsed on mobile (≤640px)
+      const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+      setOpen(!isMobile);
+    }
+  }, []);
+
+  const toggle = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
+
+  if (soups.length === 0 && meals.length === 0) return null;
+
+  // Cena rozsah
+  const allPrices = [
+    ...soups.map((s) => s.price || defaultSoupPrice),
+    ...meals.map((m) => m.price || defaultMealPrice),
+  ];
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  const priceLabel = minPrice === maxPrice ? `${minPrice} Kč` : `${minPrice}–${maxPrice} Kč`;
+  const subtitle = `${soups.length} ${soups.length === 1 ? "polévka" : soups.length < 5 ? "polévky" : "polévek"} · ${meals.length} ${meals.length === 1 ? "jídlo" : meals.length < 5 ? "jídla" : "jídel"} · ${priceLabel}`;
+
+  return (
+    <div className="glass-card overflow-hidden" style={{ borderRadius: 18 }}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open ?? false}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/30 transition hover:bg-white/40"
+        style={{ background: "rgba(254,243,199,0.4)" }}
+      >
+        <div
+          className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
+          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.4)" }}
+        >
+          <MIcon name="menu_book" size={16} fill className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-bold text-[14px] text-stone-900 leading-none">Dnešní menu</div>
+          <div className="text-[11.5px] text-stone-500 mt-0.5">{subtitle}</div>
+        </div>
+        <MIcon name={open ? "expand_less" : "expand_more"} size={18} style={{ color: "#78716c" }} />
+      </button>
+
+      {open && (
+        <div className="menu-preview__body px-4 py-3">
+          <div>
+            <div className="section-eyebrow mb-2">Polévky · {defaultSoupPrice} Kč</div>
+            <div className="space-y-1.5">
+              {soups.length === 0 ? (
+                <div className="text-[12px] text-stone-400">—</div>
+              ) : soups.map((s) => (
+                <div key={s.id} className="flex items-baseline gap-2 text-[12.5px] text-stone-700 leading-snug">
+                  {s.code && <span className="code-chip shrink-0">{s.code}</span>}
+                  <span className="min-w-0 break-words">{s.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-baseline justify-between mb-2 gap-2">
+              <span className="section-eyebrow">Hlavní jídla · {defaultMealPrice} Kč</span>
+              <a href="/jidelnicek" className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 whitespace-nowrap">
+                Celý jídelníček →
+              </a>
+            </div>
+            <div className="menu-preview__meals">
+              {meals.length === 0 ? (
+                <div className="text-[12px] text-stone-400">—</div>
+              ) : meals.map((m) => (
+                <div key={m.id} className="flex items-baseline gap-1.5 text-[12px] text-stone-700 leading-snug">
+                  {m.code && <span className="code-chip shrink-0">{m.code}</span>}
+                  <span className="min-w-0 break-words">{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────
 
 export default function OrderPage({
@@ -188,6 +311,9 @@ export default function OrderPage({
   autoSendEnabled = false,
   autoSendError,
   autoSendErrorTs,
+  suggestions = {},
+  prefillMain = null,
+  prefillSoup = null,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -203,6 +329,9 @@ export default function OrderPage({
   autoSendEnabled?: boolean;
   autoSendError?: string;
   autoSendErrorTs?: string;
+  suggestions?: Record<string, DeptSuggestion[]>;
+  prefillMain?: number | null;
+  prefillSoup?: number | null;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -228,6 +357,33 @@ export default function OrderPage({
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const pendingDeleteRef = useRef<PendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Prefill z jídelníčku (?prefill_main=ID / ?prefill_soup=ID)
+  const [prefill, setPrefill] = useState<{ mainItemId: number | null; soupItemId: number | null }>(() => ({
+    mainItemId: prefillMain,
+    soupItemId: prefillSoup,
+  }));
+  const prefillItem = useMemo(() => {
+    if (prefill.mainItemId) {
+      return initialData.todayMenu.meals.find((m) => m.id === prefill.mainItemId) ?? null;
+    }
+    if (prefill.soupItemId) {
+      return initialData.todayMenu.soups.find((s) => s.id === prefill.soupItemId) ?? null;
+    }
+    return null;
+  }, [prefill, initialData.todayMenu]);
+  // Po načtení vyčistit URL param (state už drží hodnotu)
+  useEffect(() => {
+    if (prefillMain !== null || prefillSoup !== null) {
+      router.replace("/", { scroll: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const consumePrefill = useCallback(() => {
+    const consumed = { mainItemId: prefill.mainItemId, soupItemId: prefill.soupItemId };
+    setPrefill({ mainItemId: null, soupItemId: null });
+    return consumed;
+  }, [prefill]);
 
   // Sync state when selected date changes — component isn't remounted, only gets new props
   const prevOrderIdRef = useRef(initialData.order.id);
@@ -457,10 +613,41 @@ export default function OrderPage({
       try {
         const pushEndpoint = await getPushEndpoint();
         const newRow = await actionAddRow(orderId, department, pushEndpoint);
+        // Konzumuj prefill — předvyplň main/soup pokud existuje
+        const consumed = consumePrefill();
+        let enriched: OrderRowEnriched = newRow;
+        if (consumed.mainItemId || consumed.soupItemId) {
+          const mainItem = consumed.mainItemId
+            ? initialData.todayMenu.meals.find((m) => m.id === consumed.mainItemId) ?? null
+            : null;
+          const soupItem = consumed.soupItemId
+            ? initialData.todayMenu.soups.find((s) => s.id === consumed.soupItemId) ?? null
+            : null;
+          enriched = {
+            ...newRow,
+            mainItemId: consumed.mainItemId,
+            soupItemId: consumed.soupItemId,
+            mainItem,
+            soupItem,
+            rowPrice: computeRowPrice(
+              newRow,
+              soupItem, null, mainItem, [], defaultSoupPrice, defaultMealPrice, extrasPrices,
+            ),
+          };
+          // Persist on server
+          startTransition(async () => {
+            try {
+              await actionUpdateRow(newRow.id, {
+                mainItemId: consumed.mainItemId ?? null,
+                soupItemId: consumed.soupItemId ?? null,
+              }, pushEndpoint);
+            } catch {}
+          });
+        }
         setDepartments((prev) =>
           recalcDepartments(
             prev.map((d) =>
-              d.name === department ? { ...d, rows: [...d.rows, newRow] } : d
+              d.name === department ? { ...d, rows: [...d.rows, enriched] } : d
             )
           )
         );
@@ -470,7 +657,33 @@ export default function OrderPage({
         throw new Error("add failed");
       }
     },
-    [orderId]
+    [orderId, getPushEndpoint, consumePrefill, initialData.todayMenu, defaultSoupPrice, defaultMealPrice, extrasPrices]
+  );
+
+  const handleAddRowWithName = useCallback(
+    async (department: Department, personName: string): Promise<number> => {
+      try {
+        const pushEndpoint = await getPushEndpoint();
+        const newRow = await actionAddRow(orderId, department, pushEndpoint);
+        const enriched = { ...newRow, personName };
+        setDepartments((prev) =>
+          recalcDepartments(
+            prev.map((d) =>
+              d.name === department ? { ...d, rows: [...d.rows, enriched] } : d
+            )
+          )
+        );
+        // Persist name on server too (fire-and-forget via update)
+        startTransition(async () => {
+          try { await actionUpdateRow(newRow.id, { personName }, pushEndpoint); } catch {}
+        });
+        return newRow.id;
+      } catch {
+        setSendError("Nepodařilo se přidat řádek. Zkuste to znovu.");
+        throw new Error("add failed");
+      }
+    },
+    [orderId, getPushEndpoint]
   );
 
   const handleUpdateRow = useCallback(
@@ -766,36 +979,33 @@ export default function OrderPage({
         }
         meta={
           <span className="inline-flex items-center gap-2 md:gap-3 flex-wrap">
-            {isFutureDay && !isSent && futureDayPhrase && (
-              <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
-                <MIcon name="schedule" size={13} />
-                <span className="hidden md:inline">Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky</span>
-                <span className="md:hidden">{futureDayPhrase} {cutoffTime}</span>
-              </span>
-            )}
-            {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-              <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-                <MIcon name="schedule" size={13} />
-                <span className="hidden md:inline">Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}</span>
-                <span className="md:hidden">{countdown}{autoSendEnabled ? " · auto" : ""}</span>
-              </span>
-            )}
-            {!isFutureDay && !isSent && isPastCutoff && (
-              <span className="inline-flex items-center gap-1 text-orange-700 font-medium">
-                <MIcon name="schedule" size={13} />
-                <span className="hidden md:inline">Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}</span>
-                <span className="md:hidden">Po uzávěrce{autoSendEnabled ? " · auto" : ""}</span>
-              </span>
-            )}
-            {isSent && sentAt && (
-              <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-                <MIcon name="check_circle" size={13} fill />
+            {isSent && sentAt ? (
+              <span className="status-pill status-pill--sent">
+                <MIcon name="check_circle" size={12} fill />
                 <span className="hidden md:inline">Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>
                 <span className="md:hidden">Odesláno</span>
               </span>
-            )}
+            ) : isFutureDay && futureDayPhrase ? (
+              <span className="status-pill status-pill--auto">
+                <MIcon name="schedule" size={12} />
+                <span className="hidden md:inline">Uzávěrka {futureDayPhrase} v {cutoffTime} · auto</span>
+                <span className="md:hidden">{futureDayPhrase} {cutoffTime}</span>
+              </span>
+            ) : !isFutureDay && !isPastCutoff && countdown ? (
+              <span className={`status-pill ${countdownMins !== null && countdownMins <= 10 ? "status-pill--past" : "status-pill--auto"}`}>
+                <MIcon name="schedule" size={12} />
+                <span className="hidden md:inline">Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · auto" : ""}</span>
+                <span className="md:hidden">{countdown}{autoSendEnabled ? " · auto" : ""}</span>
+              </span>
+            ) : !isFutureDay && isPastCutoff ? (
+              <span className="status-pill status-pill--past">
+                <MIcon name="schedule" size={12} />
+                <span className="hidden md:inline">Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · auto" : ""}</span>
+                <span className="md:hidden">Po uzávěrce{autoSendEnabled ? " · auto" : ""}</span>
+              </span>
+            ) : null}
             {activeOrderCount > 0 && (
-              <span className="text-stone-600">
+              <span className="text-stone-600 text-[11.5px]">
                 <span className="hidden md:inline">{activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč</span>
                 <span className="md:hidden">{activeOrderCount} · {totalPrice} Kč</span>
               </span>
@@ -854,35 +1064,28 @@ export default function OrderPage({
         <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 pb-nav lg:pb-6">
 
           {showDayPicker && (
-            <div className="relative -mx-4">
-              <div className="overflow-x-auto no-scrollbar px-4">
-                <div
-                  className="flex p-1 rounded-2xl gap-0.5"
-                  style={{ width: "max-content", background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}
-                >
+            <div className="relative -mx-4 sm:mx-0">
+              <div className="overflow-x-auto no-scrollbar px-4 sm:px-0" style={{ scrollSnapType: "x mandatory" }}>
+                <div className="day-tabs" style={{ width: "max-content" }}>
                   {availableDates!.map((date) => {
                     const isActive = date === selectedDate;
+                    const { dow, num } = getDayTabParts(date, todayDate!);
                     return (
                       <button
                         key={date}
-                        className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-black/[0.05]"
-                        }`}
+                        className={`day-tab${isActive ? " active" : ""}`}
                         onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
-                        style={isActive ? {
-                          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                          color: "white",
-                          boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                        } : {}}
+                        style={{ scrollSnapAlign: "start" }}
                         type="button"
                       >
-                        {getDayLabel(date, todayDate!)}
+                        <span className="dow">{dow}</span>
+                        <span className="num">{num}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
-              <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
+              <div className="sm:hidden absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
                 style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
             </div>
           )}
@@ -941,6 +1144,46 @@ export default function OrderPage({
                 </div>
               )}
 
+              {/* Prefill banner (sekce 6.6) */}
+              {prefillItem && (
+                <div
+                  className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
+                  style={{ borderColor: "rgba(245,158,11,0.35)", background: "rgba(254,243,199,0.5)" }}
+                  role="status"
+                >
+                  <div
+                    className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
+                    style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                  >
+                    <MIcon name="add_shopping_cart" size={15} fill className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0 leading-snug">
+                    <div>
+                      <strong className="text-stone-900">Vybráno: {prefillItem.name}</strong>
+                    </div>
+                    <div className="text-stone-600">Klikni na <strong>+ Přidat</strong> u svého oddělení — jídlo se předvyplní.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPrefill({ mainItemId: null, soupItemId: null })}
+                    className="shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-500 hover:bg-white/60 transition"
+                    aria-label="Zrušit výběr"
+                  >
+                    <MIcon name="close" size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Menu preview (sekce 5.1) */}
+              {!menuEmpty && (
+                <MenuPreviewCard
+                  soups={allSoups}
+                  meals={allMeals}
+                  defaultSoupPrice={defaultSoupPrice}
+                  defaultMealPrice={defaultMealPrice}
+                />
+              )}
+
               {/* Department panels — 3-col on desktop */}
               <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
                 {departments.map((dept) => (
@@ -954,9 +1197,11 @@ export default function OrderPage({
                     key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
+                    onAddRowWithName={handleAddRowWithName}
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
                     soups={allSoups}
+                    suggestions={suggestions[dept.name] ?? []}
                   />
                 ))}
               </div>
@@ -968,11 +1213,11 @@ export default function OrderPage({
               >
                 <div
                   className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
-                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(100,116,139,0.1)" }}
+                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.12)" }}
                 >
-                  <MIcon name={isSent ? "check_circle" : "lock"} size={18} fill style={{ color: isSent ? "#16a34a" : "#94a3b8" }} />
+                  <MIcon name={isSent ? "check_circle" : "schedule"} size={18} fill style={{ color: isSent ? "#16a34a" : "#D97706" }} />
                 </div>
-                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug">
+                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug min-w-0">
                   {isSent ? (
                     <>
                       <strong className="text-green-700">Objednávka odeslána</strong>
@@ -984,6 +1229,11 @@ export default function OrderPage({
                       <strong>Objednávka dopředu.</strong>
                       <span className="text-stone-500"> Odešle se automaticky v den samotný v {cutoffTime}.</span>
                     </>
+                  ) : autoSendEnabled ? (
+                    <>
+                      <strong>Uzávěrka v {cutoffTime}.</strong>
+                      <span className="text-stone-500"> Objednávka se odešle automaticky — nemusíš nic dělat.</span>
+                    </>
                   ) : (
                     <>
                       <strong>Uzávěrka v {cutoffTime}.</strong>
@@ -992,7 +1242,13 @@ export default function OrderPage({
                   )}
                 </div>
                 {!isSent && totalPrice > 0 && (
-                  <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
+                  <div className="shrink-0 flex flex-col items-end leading-none">
+                    <span className="text-[11.5px] text-stone-500">Celkem</span>
+                    <span className="font-display font-extrabold text-[18px] text-stone-900 leading-none mt-0.5">
+                      {totalPrice}
+                      <span className="text-[12px] font-semibold text-stone-500 ml-1">Kč</span>
+                    </span>
+                  </div>
                 )}
               </div>
             </>

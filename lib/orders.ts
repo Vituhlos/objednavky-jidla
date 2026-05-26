@@ -505,3 +505,36 @@ export function clearOrderRows(orderId: number): void {
   getDb().prepare("DELETE FROM order_rows WHERE order_id = ?").run(orderId);
   logAudit({ action: "order_clear", orderId });
 }
+
+export interface DeptSuggestion {
+  personName: string;
+  lastOrderedAt: string;
+}
+
+export function getDeptSuggestions(department: Department, limit = 4): DeptSuggestion[] {
+  const db = getDb();
+  const today = getPragueISODate();
+  const rows = db.prepare(`
+    SELECT
+      MIN(r.person_name) AS personName,
+      MAX(o.date) AS lastOrderedAt,
+      COUNT(*) AS cnt
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE r.department = ?
+      AND TRIM(r.person_name) != ''
+      AND o.date >= date(?, '-30 days')
+      AND o.date < ?
+      AND NOT EXISTS (
+        SELECT 1 FROM order_rows r2
+        JOIN orders o2 ON o2.id = r2.order_id
+        WHERE o2.date = ?
+          AND r2.department = r.department
+          AND lower(trim(r2.person_name)) = lower(trim(r.person_name))
+      )
+    GROUP BY lower(trim(r.person_name))
+    ORDER BY cnt DESC, lastOrderedAt DESC
+    LIMIT ?
+  `).all(department, today, today, today, limit) as Array<{ personName: string; lastOrderedAt: string }>;
+  return rows.map((r) => ({ personName: r.personName, lastOrderedAt: r.lastOrderedAt }));
+}

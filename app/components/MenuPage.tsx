@@ -149,7 +149,7 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, onAdd, onEdit, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, defaultSoupPrice, defaultMealPrice, filteredAllergens, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -157,15 +157,20 @@ const WeekGrid = memo(function WeekGrid({
   holidayNames: Record<string, string | null>;
   editMode: boolean;
   disabled: boolean;
+  defaultSoupPrice: number;
+  defaultMealPrice: number;
+  filteredAllergens: Set<number>;
   onAdd: (day: string, type: "Polévka" | "Jídlo") => void;
   onEdit: (item: MenuItem) => void;
   onCloseDay: (day: string) => void;
   onOpenDay: (day: string) => void;
 }) {
+  const todayIdx = todayCode ? DAY_ORDER.indexOf(todayCode) : -1;
   return (
     <div className="grid grid-cols-5 gap-3 items-start min-w-[1100px] lg:min-w-0">
-      {DAY_ORDER.map((day) => {
+      {DAY_ORDER.map((day, idx) => {
         const isToday = day === todayCode;
+        const isPast = todayIdx >= 0 && idx < todayIdx;
         const { soups = [], meals = [] } = menu[day] ?? {};
         const holidayName = holidayNames[day];
         const holidayEmoji = getHolidayEmoji(holidayName);
@@ -177,30 +182,23 @@ const WeekGrid = memo(function WeekGrid({
           <div
             key={day}
             data-day={day}
-            className="glass-card rounded-3xl overflow-hidden snap-start lg:snap-align-none"
-            style={isToday ? {
-              borderColor: "rgba(245,158,11,0.38)",
-              boxShadow: "0 8px 32px -8px rgba(245,158,11,0.22)",
-            } : {}}
+            className={`day-col snap-start lg:snap-align-none${isToday ? " is-today" : ""}${isPast ? " is-past" : ""}`}
           >
             {/* Day header */}
-            <div className="px-3 pt-3 pb-2.5 border-b border-white/40">
-              <div className="flex items-start justify-between gap-1">
-                <span className="font-display font-extrabold text-[28px] leading-none text-stone-950">{dayDates[day]}</span>
-                {isToday && (
-                  <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white mt-1 shrink-0"
-                    style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-                  >
-                    Dnes
-                  </span>
-                )}
+            <div className="flex items-start justify-between gap-1 mb-1">
+              <div>
+                <div className="font-display font-extrabold text-[30px] leading-none text-stone-950" style={{ letterSpacing: "-0.02em" }}>{dayDates[day]}</div>
+                <div className="text-[11px] font-semibold uppercase mt-1 text-stone-500" style={{ letterSpacing: "0.06em" }}>{DAY_LABELS[day]}</div>
               </div>
-              <span className="text-[12px] font-semibold mt-0.5 block text-stone-500">{DAY_LABELS[day]}</span>
+              {isToday ? (
+                <span className="day-badge day-badge--today">Dnes</span>
+              ) : isPast ? (
+                <span className="day-badge day-badge--past">Hotovo</span>
+              ) : null}
             </div>
 
             {isClosed ? (
-              <div className="px-3 py-3">
+              <div className="pt-1">
                 {holidayName ? (
                   <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.14)" }}>
                     <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-white/40">
@@ -241,57 +239,77 @@ const WeekGrid = memo(function WeekGrid({
                 )}
               </div>
             ) : !hasItems && !editMode ? (
-              <div className="px-3 py-5 text-[11.5px] text-stone-400 text-center">Jídla ještě nebyla zadána</div>
+              <div className="py-4 text-[11.5px] text-stone-400 text-center">Jídla ještě nebyla zadána</div>
             ) : (
-              <div className="px-3 py-2.5 space-y-3">
+              <div>
                 {/* Soups */}
                 {(displaySoups.length > 0 || editMode) && (
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.6)" }} />
-                      <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Polévky</span>
+                  <>
+                    <div className="cat-divider">
+                      <span className="cat-divider__label">Polévky</span>
+                      <span className="cat-divider__line"></span>
+                      <span className="cat-divider__price">{defaultSoupPrice} Kč</span>
                       {editMode && (
                         <button
                           aria-label="Přidat polévku"
-                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
+                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
                           style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        ><MIcon name="add" size={13} />Přidat</button>
+                        ><MIcon name="add" size={11} /></button>
                       )}
                     </div>
                     {displaySoups.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
+                      <WeekItem
+                        defaultPrice={defaultSoupPrice}
+                        disabled={disabled}
+                        editMode={editMode}
+                        filteredAllergens={filteredAllergens}
+                        item={item}
+                        key={item.id}
+                        isToday={isToday}
+                        onEdit={onEdit}
+                      />
                     ))}
                     {displaySoups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
-                  </div>
+                  </>
                 )}
                 {/* Meals */}
                 {(displayMeals.length > 0 || editMode) && (
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "rgba(234,88,12,0.55)" }} />
-                      <span className="font-display text-[10px] uppercase tracking-widest font-semibold text-stone-500">Jídla</span>
+                  <>
+                    <div className="cat-divider">
+                      <span className="cat-divider__label">Hlavní jídla</span>
+                      <span className="cat-divider__line"></span>
+                      <span className="cat-divider__price">{defaultMealPrice} Kč</span>
                       {editMode && (
                         <button
                           aria-label="Přidat jídlo"
-                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
+                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
                           style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
-                        ><MIcon name="add" size={13} />Přidat</button>
+                        ><MIcon name="add" size={11} /></button>
                       )}
                     </div>
                     {displayMeals.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
+                      <WeekItem
+                        defaultPrice={defaultMealPrice}
+                        disabled={disabled}
+                        editMode={editMode}
+                        filteredAllergens={filteredAllergens}
+                        item={item}
+                        key={item.id}
+                        isToday={isToday}
+                        onEdit={onEdit}
+                      />
                     ))}
                     {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
-                  </div>
+                  </>
                 )}
                 {editMode && (
-                  <div className="pt-1.5 pb-0.5">
+                  <div className="pt-2 pb-0.5">
                     <button
                       className="w-full text-[10.5px] font-semibold py-1.5 rounded-xl glass-btn-danger text-red-600"
                       disabled={disabled}
@@ -316,6 +334,83 @@ const ALLERGEN_NAMES: Record<number, string> = {
   6: "Sója", 7: "Mléko", 8: "Ořechy", 9: "Celer", 10: "Hořčice",
   11: "Sezam", 12: "Siřičitany", 13: "Vlčí bob", 14: "Měkkýši",
 };
+
+function parseAllergens(s: string): number[] {
+  if (!s) return [];
+  return s.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
+}
+
+function useAllergenFilter() {
+  const [filtered, setFiltered] = useState<Set<number>>(() => new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("kantyna_allergen_filter");
+      if (raw) {
+        const arr = JSON.parse(raw) as number[];
+        if (Array.isArray(arr)) setFiltered(new Set(arr.filter((n) => Number.isInteger(n) && n >= 1 && n <= 14)));
+      }
+    } catch {}
+  }, []);
+  const toggle = useCallback((n: number) => {
+    setFiltered((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n); else next.add(n);
+      try { localStorage.setItem("kantyna_allergen_filter", JSON.stringify([...next].sort((a, b) => a - b))); } catch {}
+      return next;
+    });
+  }, []);
+  const clear = useCallback(() => {
+    setFiltered(new Set());
+    try { localStorage.removeItem("kantyna_allergen_filter"); } catch {}
+  }, []);
+  return { filtered, toggle, clear };
+}
+
+function AllergenFilterDropdown({ filtered, onToggle, onClear, onClose }: {
+  filtered: Set<number>;
+  onToggle: (n: number) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", h);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", h); document.removeEventListener("keydown", esc); };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="allergen-filter-menu" role="dialog" aria-label="Filtr alergenů">
+      <div className="flex items-center justify-between mb-2 px-2">
+        <span className="text-[11px] font-semibold text-stone-600">Skrýt jídla s alergeny</span>
+        {filtered.size > 0 && (
+          <button type="button" onClick={onClear} className="text-[10.5px] font-semibold text-amber-700 hover:text-amber-800">
+            Vyčistit
+          </button>
+        )}
+      </div>
+      <div className="allergen-filter-menu__list">
+        {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => {
+          const active = filtered.has(n);
+          return (
+            <button
+              key={n}
+              type="button"
+              className={`allergen-filter-menu__item${active ? " active" : ""}`}
+              onClick={() => onToggle(n)}
+              aria-pressed={active}
+            >
+              <input type="checkbox" checked={active} readOnly tabIndex={-1} />
+              <span className="num">{n}</span>
+              <span className="truncate">{ALLERGEN_NAMES[n]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const AllergenBadges = memo(function AllergenBadges({ allergens }: { allergens: string }) {
   const nums = allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
@@ -458,33 +553,69 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
 }
 
 const WeekItem = memo(function WeekItem({
-  item, editMode, disabled, onEdit,
+  item, editMode, disabled, defaultPrice, filteredAllergens, isToday, onEdit,
 }: {
   item: MenuItem;
   editMode: boolean;
   disabled: boolean;
+  defaultPrice: number;
+  filteredAllergens: Set<number>;
+  isToday: boolean;
   onEdit: (item: MenuItem) => void;
 }) {
+  const router = useRouter();
+  const allergenNums = parseAllergens(item.allergens);
+  const hasFilteredAllergen = allergenNums.some((n) => filteredAllergens.has(n));
+  const filterActive = filteredAllergens.size > 0;
+  const priceDiffers = item.price > 0 && item.price !== defaultPrice;
+  const isSoup = item.type === "Polévka";
+  const prefillParam = isSoup ? "prefill_soup" : "prefill_main";
+  const tooltipText = filterActive && hasFilteredAllergen
+    ? `Obsahuje alergen ${allergenNums.filter(n => filteredAllergens.has(n)).join(", ")}, který jsi vyfiltroval`
+    : undefined;
+
   return (
-    <div className="flex items-start gap-1.5 py-1">
-      <span className="font-mono text-[11px] text-stone-600 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
-      <span className="flex-1 min-w-0 text-[13px] font-medium text-stone-800 leading-snug">
-        {item.name}
-        {item.allergens && <AllergenBadges allergens={item.allergens} />}
-      </span>
+    <div
+      className={`menu-row${filterActive && hasFilteredAllergen ? " menu-row--dimmed" : ""}`}
+      title={tooltipText}
+    >
+      <span className="menu-row__idx">{item.code}</span>
+      <div className="min-w-0">
+        <div className="menu-row__name">{item.name}</div>
+        {allergenNums.length > 0 && (
+          <div className="menu-row__allergens">
+            {allergenNums.map((n, i) => (
+              <span key={i}>
+                {i > 0 && " · "}
+                <span className={filterActive && filteredAllergens.has(n) ? "filtered" : ""}>{n}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {priceDiffers && (
+          <div className="text-[11px] font-semibold text-stone-500 mt-0.5 tabular-nums">{item.price} Kč</div>
+        )}
+      </div>
       {editMode ? (
         <button
           aria-label="Upravit"
-          className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-stone-500 bg-stone-100/70 hover:text-amber-600 hover:bg-amber-50 transition shrink-0 mt-[1px]"
+          className="absolute right-1 top-1 w-7 h-7 rounded-lg inline-flex items-center justify-center text-stone-500 bg-stone-100/70 hover:text-amber-600 hover:bg-amber-50 transition"
           disabled={disabled}
           onClick={() => onEdit(item)}
           type="button"
         >
-          <MIcon name="edit" size={14} />
+          <MIcon name="edit" size={13} />
         </button>
-      ) : (
-        <span className="shrink-0 text-[12px] font-semibold text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
-      )}
+      ) : isToday && !hasFilteredAllergen ? (
+        <button
+          type="button"
+          className="quick-order"
+          aria-label={`Objednat ${item.name}`}
+          onClick={(e) => { e.stopPropagation(); router.push(`/?${prefillParam}=${item.id}`); }}
+        >
+          <MIcon name="add" size={10} /> Objednat
+        </button>
+      ) : null}
     </div>
   );
 });
@@ -493,80 +624,60 @@ const WeekItem = memo(function WeekItem({
 
 const MenuSection = memo(function MenuSection({
   title,
-  icon,
-  accent,
-  iconColor,
+  defaultPrice,
   items,
   disabled,
   editMode,
   emptyLabel,
+  filteredAllergens,
+  isToday,
   onAdd,
   onEdit,
 }: {
   title: string;
-  icon: string;
-  accent: string;
-  iconColor: string;
+  defaultPrice: number;
   items: MenuItem[];
   disabled: boolean;
   editMode: boolean;
   emptyLabel: string;
+  filteredAllergens: Set<number>;
+  isToday: boolean;
   onAdd?: () => void;
   onEdit?: (item: MenuItem) => void;
 }) {
   return (
-    <div className="glass-card rounded-3xl overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: accent }}>
-        <MIcon name={icon} size={17} fill style={{ color: iconColor }} />
-        <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
+    <div>
+      <div className="cat-divider">
+        <span className="cat-divider__label">{title}</span>
+        <span className="cat-divider__line"></span>
+        <span className="cat-divider__price">{defaultPrice} Kč</span>
         {editMode && onAdd && (
           <button
-            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+            aria-label="Přidat"
+            className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full text-white hover:opacity-80 transition"
             disabled={disabled}
             onClick={onAdd}
             style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
             type="button"
           >
-            <MIcon name="add" size={13} /> Přidat
+            <MIcon name="add" size={12} />
           </button>
         )}
       </div>
       {items.length === 0 ? (
-        <div className="px-4 py-4 text-[12.5px] text-stone-400 text-center">{emptyLabel}</div>
-      ) : editMode ? (
-        <div className="px-4 divide-y divide-white/30">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-start gap-2 py-2.5">
-              <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
-              <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
-                {item.name}
-                {item.allergens && <AllergenBadges allergens={item.allergens} />}
-              </span>
-              <button
-                className="w-10 h-10 rounded-xl inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0"
-                disabled={disabled}
-                onClick={() => onEdit?.(item)}
-                title="Upravit"
-                type="button"
-              >
-                <MIcon name="edit" size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <div className="px-1 py-3 text-[12px] text-stone-400">{emptyLabel}</div>
       ) : (
-        items.map((item, i) => (
-          <div
+        items.map((item) => (
+          <WeekItem
             key={item.id}
-            className={`flex items-start gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
-          >
-            <span className="font-mono text-[11px] text-stone-600 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
-            <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
-              {item.name}
-              {item.allergens && <AllergenBadges allergens={item.allergens} />}
-            </span>
-            <span className="shrink-0 font-semibold text-[12.5px] text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
-          </div>
+            item={item}
+            editMode={editMode}
+            disabled={disabled}
+            defaultPrice={defaultPrice}
+            filteredAllergens={filteredAllergens}
+            isToday={isToday}
+            onEdit={(it) => onEdit?.(it)}
+          />
         ))
       )}
     </div>
@@ -610,6 +721,8 @@ export default function MenuPage({
   const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
   const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [showAllergenFilter, setShowAllergenFilter] = useState(false);
+  const { filtered: filteredAllergens, toggle: toggleAllergen, clear: clearAllergens } = useAllergenFilter();
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -787,14 +900,59 @@ export default function MenuPage({
 
       <PageHeader
         title="Jídelníček LIMA"
-        meta={activeWeekLabel ? (
-          <>
-            <span className="hidden md:inline">Týden </span>
-            <strong className="text-stone-700">{activeWeekLabel}</strong>
-          </>
-        ) : undefined}
+        leading={
+          <div
+            className="w-8 h-8 rounded-xl inline-flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.4)" }}
+          >
+            <MIcon name="menu_book" size={16} fill className="text-white" />
+          </div>
+        }
+        meta={(() => {
+          const totalMeals = Object.values(activeMenu).reduce((s, d) => s + d.meals.filter(m => m.name !== "Zavřeno").length + d.soups.filter(s => s.name !== "Zavřeno").length, 0);
+          const dayCount = Object.keys(activeMenu).filter(d => activeMenu[d] && (activeMenu[d].soups.some(i => i.name !== "Zavřeno") || activeMenu[d].meals.some(i => i.name !== "Zavřeno"))).length;
+          return (
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              {activeWeekLabel && (
+                <span className="text-stone-600 font-medium">
+                  <span className="hidden md:inline">Týden </span>
+                  {activeWeekLabel}
+                </span>
+              )}
+              {(dayCount > 0 || totalMeals > 0) && (
+                <span className="text-stone-500 hidden sm:inline">
+                  · {dayCount} {dayCount === 1 ? "den" : dayCount < 5 ? "dny" : "dní"} · {totalMeals} {totalMeals === 1 ? "položka" : totalMeals < 5 ? "položky" : "položek"}
+                </span>
+              )}
+            </span>
+          );
+        })()}
         actions={
           <>
+            <div className="relative">
+              <button
+                className={`hidden md:inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-2xl glass-btn ${filteredAllergens.size > 0 ? "text-amber-700" : "text-stone-600"}`}
+                onClick={() => setShowAllergenFilter((v) => !v)}
+                aria-expanded={showAllergenFilter}
+                type="button"
+              >
+                <MIcon name="filter_alt" size={13} fill={filteredAllergens.size > 0} />
+                Filtr alergenů
+                {filteredAllergens.size > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    {filteredAllergens.size}
+                  </span>
+                )}
+              </button>
+              {showAllergenFilter && (
+                <AllergenFilterDropdown
+                  filtered={filteredAllergens}
+                  onToggle={toggleAllergen}
+                  onClear={clearAllergens}
+                  onClose={() => setShowAllergenFilter(false)}
+                />
+              )}
+            </div>
             {hasPdfActive && (
               <a className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
                 download href={`/api/menu/pdf/${activeWeekStart}`}>
@@ -925,8 +1083,11 @@ export default function MenuPage({
           <div className="max-w-screen-2xl mx-auto w-full overflow-x-auto lg:overflow-x-visible snap-x lg:snap-none no-scrollbar">
             <WeekGrid
               dayDates={dayDates}
+              defaultMealPrice={defaultMealPrice}
+              defaultSoupPrice={defaultSoupPrice}
               disabled={isPending}
               editMode={!isReadOnly && editMode}
+              filteredAllergens={filteredAllergens}
               holidayNames={activeHolidayNames}
               menu={activeMenu}
               onAdd={(day, type) => handleAdd(day, type)}
@@ -999,30 +1160,32 @@ export default function MenuPage({
             </div>
           ) : (
             <>
-              <MenuSection
-                accent="rgba(245,158,11,0.12)"
-                disabled={isPending}
-                editMode={!isReadOnly && editMode}
-                emptyLabel="Žádné polévky pro tento den."
-                icon="restaurant"
-                iconColor="#D97706"
-                items={displayDaySoups}
-                onAdd={() => handleAdd(activeDay, "Polévka")}
-                onEdit={(item) => setEditingItem(item)}
-                title="Polévky"
-              />
-              <MenuSection
-                accent="rgba(234,88,12,0.1)"
-                disabled={isPending}
-                editMode={!isReadOnly && editMode}
-                emptyLabel="Žádná jídla pro tento den."
-                icon="restaurant_menu"
-                iconColor="#EA580C"
-                items={displayDayMeals}
-                onAdd={() => handleAdd(activeDay, "Jídlo")}
-                onEdit={(item) => setEditingItem(item)}
-                title="Jídla"
-              />
+              <div className={`day-col${activeDay === visibleTodayCode ? " is-today" : ""}`}>
+                <MenuSection
+                  defaultPrice={defaultSoupPrice}
+                  disabled={isPending}
+                  editMode={!isReadOnly && editMode}
+                  emptyLabel="Žádné polévky pro tento den."
+                  filteredAllergens={filteredAllergens}
+                  isToday={activeDay === visibleTodayCode}
+                  items={displayDaySoups}
+                  onAdd={() => handleAdd(activeDay, "Polévka")}
+                  onEdit={(item) => setEditingItem(item)}
+                  title="Polévky"
+                />
+                <MenuSection
+                  defaultPrice={defaultMealPrice}
+                  disabled={isPending}
+                  editMode={!isReadOnly && editMode}
+                  emptyLabel="Žádná jídla pro tento den."
+                  filteredAllergens={filteredAllergens}
+                  isToday={activeDay === visibleTodayCode}
+                  items={displayDayMeals}
+                  onAdd={() => handleAdd(activeDay, "Jídlo")}
+                  onEdit={(item) => setEditingItem(item)}
+                  title="Hlavní jídla"
+                />
+              </div>
               {!isReadOnly && editMode && (
                 <button
                   className="w-full text-[12px] font-semibold py-2 rounded-2xl glass-btn-danger text-red-600"

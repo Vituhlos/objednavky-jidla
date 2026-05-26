@@ -1,4 +1,4 @@
-import { getOrderDataForDate } from "@/lib/orders";
+import { getOrderDataForDate, getDeptSuggestions, type DeptSuggestion } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
@@ -7,7 +7,7 @@ import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string; prefill_main?: string; prefill_soup?: string }> }) {
   const params = await searchParams;
   const pragueNow = getPragueNow();
   const todayISO = toLocalISODate(pragueNow);
@@ -25,6 +25,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
+
+  const suggestions: Record<string, DeptSuggestion[]> = Object.fromEntries(
+    data.departments.map((d) => [d.name, getDeptSuggestions(d.name, 4)])
+  );
+
+  const prefillMain = params.prefill_main ? Number(params.prefill_main) : null;
+  const prefillSoup = params.prefill_soup ? Number(params.prefill_soup) : null;
 
   const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
@@ -54,6 +61,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       autoSendEnabled={s.autoSendEnabled === "true"}
       autoSendError={s.autoSendLastError && s.autoSendErrorAcked !== "true" ? s.autoSendLastError : undefined}
       autoSendErrorTs={s.autoSendLastErrorTs || undefined}
+      suggestions={suggestions}
+      prefillMain={prefillMain && Number.isFinite(prefillMain) ? prefillMain : null}
+      prefillSoup={prefillSoup && Number.isFinite(prefillSoup) ? prefillSoup : null}
     />
   );
 }

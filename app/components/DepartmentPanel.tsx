@@ -35,7 +35,9 @@ interface Props {
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
   extrasPrices?: ExtrasPrices;
+  suggestions?: { personName: string; lastOrderedAt: string }[];
   onAddRow: (department: Department) => Promise<number>;
+  onAddRowWithName?: (department: Department, personName: string) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
   onDeleteRow: (rowId: number) => void;
 }
@@ -328,7 +330,12 @@ function OrderEditModal({
   };
 
   const doSave = () => {
-    try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
+    try {
+      localStorage.setItem("lastFirstName", firstName.trim());
+      localStorage.setItem("lastLastName", lastName.trim());
+      // Sekce 5.2: zaznamenat jméno přihlášeného uživatele pro „ty" badge
+      localStorage.setItem("kantyna_my_name", personName);
+    } catch { /* */ }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
       .slice(1)
@@ -555,88 +562,103 @@ function getInitials(name: string): string {
   return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function getChips(row: OrderRowEnriched): string[] {
-  const chips: string[] = [];
-  if (row.rollCount > 0) chips.push(`Houska ×${row.rollCount}`);
-  if (row.breadDumplingCount > 0) chips.push(`H. kned. ×${row.breadDumplingCount}`);
-  if (row.potatoDumplingCount > 0) chips.push(`B. kned. ×${row.potatoDumplingCount}`);
-  if (row.ketchupCount > 0) chips.push(`Kečup ×${row.ketchupCount}`);
-  if (row.tatarkaCount > 0) chips.push(`Tatarka ×${row.tatarkaCount}`);
-  if (row.bbqCount > 0) chips.push(`BBQ ×${row.bbqCount}`);
-  return chips;
+function shortMealName(full: string, max = 16): string {
+  const firstClause = full.split(",")[0].trim();
+  return firstClause.length <= max ? firstClause : firstClause.slice(0, max - 1) + "…";
 }
 
-function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; onEdit: () => void; onDelete: () => void;
+function normalizeName(s: string): string {
+  return s.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+interface ExtraChip { label: string }
+function getExtraChips(row: OrderRowEnriched): ExtraChip[] {
+  const out: ExtraChip[] = [];
+  const pushIfAny = (n: number, label: string) => {
+    if (n > 0) out.push({ label: n === 1 ? `+ ${label}` : `+ ${n}× ${label}` });
+  };
+  pushIfAny(row.rollCount, "houska");
+  pushIfAny(row.breadDumplingCount, "h. knedlík");
+  pushIfAny(row.potatoDumplingCount, "b. knedlík");
+  pushIfAny(row.ketchupCount, "kečup");
+  pushIfAny(row.tatarkaCount, "tatarka");
+  pushIfAny(row.bbqCount, "BBQ");
+  return out;
+}
+
+function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean; isCurrentUser: boolean; onEdit: () => void; onDelete: () => void;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
-  const chips = getChips(row);
+  const extras = getExtraChips(row);
+  const hasFood = !!row.mainItem || !!row.soupItem || !!row.soupItem2 || row.extraMealItems.length > 0 || extras.length > 0;
 
   return (
     <div
-      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 active:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      style={isCurrentUser ? { background: "rgba(254,243,199,0.4)", borderColor: "rgba(245,158,11,0.35)" } : undefined}
       onClick={!isSent ? onEdit : undefined}
     >
       {/* Avatar */}
       <span
-        className="inline-flex items-center justify-center text-white font-semibold font-display shrink-0"
-        style={{ width: 34, height: 34, fontSize: 13, borderRadius: 999, background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
+        className="inline-flex items-center justify-center text-white font-display font-bold shrink-0"
+        style={{ width: 28, height: 28, fontSize: 11, borderRadius: 999, background: dc.grad, boxShadow: "0 0 0 2px rgba(255,255,255,0.85)" }}
+        aria-hidden
       >
         {getInitials(row.personName)}
       </span>
 
       {/* Body */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display font-semibold text-[14px] text-stone-900 leading-none">{row.personName || "—"}</span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-semibold text-[13px] text-stone-900 leading-tight">{row.personName || "—"}</span>
+          {isCurrentUser && <span className="ty-badge">ty</span>}
           {row.note && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[160px]" title={row.note}>
-              <MIcon name="edit" size={11} style={{ flexShrink: 0 }} />
+            <span className="inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-full bg-slate-100/80 text-stone-600 border border-slate-200/70 max-w-[140px]" title={row.note}>
+              <MIcon name="edit" size={10} style={{ flexShrink: 0 }} />
               <span className="truncate min-w-0">{row.note}</span>
             </span>
           )}
         </div>
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
-          {row.mainItem && (
-            <span className="text-[12.5px] text-stone-600 leading-snug">
-              {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
-              {row.mainItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.mainItem.code}</span>}
-              {row.mainItem.name}
-            </span>
-          )}
-          {row.extraMealItems.map((e, i) => (
-            <span key={i} className="text-[12.5px] text-stone-600 leading-snug">
-              <span className="text-stone-300 mx-0.5">+</span>
-              {e.count > 1 ? `${e.count}× ` : ""}
-              {e.item.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{e.item.code}</span>}
-              {e.item.name}
-            </span>
-          ))}
-          {(row.mainItem || row.extraMealItems.length > 0) && row.soupItem && (
-            <span className="text-stone-300 text-[11px]">·</span>
-          )}
-          {row.soupItem && (
-            <span className="text-[12.5px] text-stone-500 leading-snug">
-              {row.soupItem.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem.code}</span>}
-              {row.soupItem.name}
-            </span>
-          )}
-          {row.soupItem && row.soupItem2 && <span className="text-stone-300 text-[11px]">+</span>}
-          {row.soupItem2 && (
-            <span className="text-[12.5px] text-stone-500 leading-snug">
-              {row.soupItem2.code && <span className="font-mono text-[10.5px] text-stone-400 mr-0.5">{row.soupItem2.code}</span>}
-              {row.soupItem2.name}
-            </span>
-          )}
-          {!row.mainItem && !row.soupItem && <span className="text-[12.5px] text-stone-400">—</span>}
-          {chips.map((c) => (
-            <span key={c} className="text-[10.5px] px-1.5 py-0.5 rounded-full bg-white/70 border border-white/90 text-stone-500">{c}</span>
-          ))}
-        </div>
+        {hasFood ? (
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            {row.soupItem && (
+              <span className="meal-chip">
+                {row.soupItem.code && <>{row.soupItem.code} · </>}
+                {shortMealName(row.soupItem.name)}
+              </span>
+            )}
+            {row.soupItem2 && (
+              <span className="meal-chip">
+                {row.soupItem2.code && <>{row.soupItem2.code} · </>}
+                {shortMealName(row.soupItem2.name)}
+              </span>
+            )}
+            {row.mainItem && (
+              <span className="meal-chip">
+                {(row.mealCount || 1) > 1 ? `${row.mealCount}× ` : ""}
+                {row.mainItem.code && <>{row.mainItem.code} · </>}
+                {shortMealName(row.mainItem.name)}
+              </span>
+            )}
+            {row.extraMealItems.map((e, i) => (
+              <span key={i} className="meal-chip">
+                {e.count > 1 ? `${e.count}× ` : ""}
+                {e.item.code && <>{e.item.code} · </>}
+                {shortMealName(e.item.name)}
+              </span>
+            ))}
+            {extras.map((c) => (
+              <span key={c.label} className="meal-chip meal-chip--faded">{c.label}</span>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[11.5px] text-stone-400 mt-1">Vyber jídlo…</div>
+        )}
       </div>
 
       {/* Price */}
-      <div className="shrink-0 font-display font-bold text-[13px] text-stone-800">
+      <div className="shrink-0 font-display font-bold text-[13px] text-stone-900 tabular-nums">
         {row.rowPrice > 0 ? `${row.rowPrice} Kč` : <span className="text-stone-400 font-normal">—</span>}
       </div>
 
@@ -657,11 +679,56 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
           type="button"
           aria-label="Smazat"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
+          className="shrink-0 w-11 h-11 md:w-7 md:h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50/80 active:text-red-400 active:bg-red-50/80 transition md:opacity-0 md:group-hover:opacity-100"
         >
-          <MIcon name="close" size={15} />
+          <MIcon name="close" size={14} />
         </button>
       )}
+    </div>
+  );
+}
+
+// ── Empty state with suggestions ──────────────────────────
+
+function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion }: {
+  suggestions: { personName: string; lastOrderedAt: string }[];
+  accent: string;
+  isSent: boolean;
+  onPickSuggestion: (personName: string) => void;
+}) {
+  const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
+  if (isSent || suggestions.length === 0) {
+    return (
+      <div className="px-4 py-4">
+        <div className="text-[11.5px] text-stone-500 leading-relaxed">
+          Klikni na <strong>+ Přidat</strong> nahoře — zadáš jméno a vybereš jídlo.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="px-3.5 py-3 flex flex-col gap-2.5">
+      <div className="text-[11.5px] text-stone-500 leading-snug">
+        Klikni na někoho, kdo tu obvykle objednává — rovnou vyplním jméno a otevřu výběr jídla.
+      </div>
+      <div>
+        <div className="section-eyebrow mb-1.5">Také minule</div>
+        <div className="flex flex-wrap gap-1.5">
+          {suggestions.map((s) => (
+            <button
+              key={s.personName}
+              type="button"
+              className="suggest-chip"
+              onClick={() => onPickSuggestion(s.personName)}
+            >
+              <span className="suggest-chip__avatar" style={{ background: dc.grad }} aria-hidden>
+                {getInitials(s.personName)}
+              </span>
+              <span>{s.personName}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -676,11 +743,18 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deleteConfirmRowId, setDeleteConfirmRowId] = useState<number | null>(null);
+  const [myName, setMyName] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      setMyName(localStorage.getItem("kantyna_my_name") ?? "");
+    } catch {}
+  }, [data.rows]); // re-read after modal save
 
   const dc = DEPT_COLORS[data.accent] ?? DC_DEFAULT;
   const activeRows = data.rows.filter(hasOrderRowContent);
@@ -756,13 +830,20 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         {/* Rows */}
         <div className={isSent ? "dept-rows-sent" : ""}>
           {activeRows.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state__icon">
-                <MIcon name="groups" size={22} style={{ color: "#94a3b8" }} />
-              </div>
-              <p className="empty-state__title">Nikdo zatím neobjednal</p>
-              <p className="empty-state__sub">Přidejte první osobu tlačítkem výše</p>
-            </div>
+            <DeptEmptyState
+              suggestions={suggestions}
+              accent={data.accent}
+              isSent={isSent}
+              onPickSuggestion={async (name) => {
+                if (!onAddRowWithName) return;
+                try {
+                  const rowId = await onAddRowWithName(data.name, name);
+                  setModalState({ rowId, isNew: true });
+                } catch {
+                  setAddError("Nepodařilo se přidat řádek.");
+                }
+              }}
+            />
           ) : (
             activeRows.map((row) => (
               <OrderRow
@@ -770,6 +851,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
                 row={row}
                 accent={data.accent}
                 isSent={isSent}
+                isCurrentUser={!!myName && normalizeName(row.personName) === normalizeName(myName)}
                 onEdit={() => setModalState({ rowId: row.id, isNew: false })}
                 onDelete={() => setDeleteConfirmRowId(row.id)}
               />

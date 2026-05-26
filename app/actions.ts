@@ -16,6 +16,8 @@ import {
   reopenOrder,
   clearOrderRows,
   resendOrderEmail,
+  getDeptSuggestions as getDeptSuggestionsDb,
+  type DeptSuggestion,
 } from "@/lib/orders";
 import type { Department, OrderRowEnriched, MealEntry } from "@/lib/types";
 import {
@@ -89,6 +91,13 @@ export async function actionDeleteRow(rowId: number): Promise<void> {
   deleteOrderRow(rowId);
   revalidatePath("/");
   broadcast();
+}
+
+export async function getDeptSuggestions(
+  department: Department,
+  limit = 4,
+): Promise<DeptSuggestion[]> {
+  return getDeptSuggestionsDb(department, limit);
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
