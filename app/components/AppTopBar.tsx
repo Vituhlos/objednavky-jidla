@@ -34,8 +34,9 @@ const SidebarClock = memo(function SidebarClock() {
   );
 });
 
-export default function AppTopBar() {
+export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
   const pathname = usePathname();
+  const nav = pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza");
 
   return (
     <>
@@ -65,7 +66,7 @@ export default function AppTopBar() {
         </div>
 
         <div className="mt-2 flex flex-col gap-0.5">
-          {NAV.map(({ href, label, icon, exact }) => {
+          {nav.map(({ href, label, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -103,7 +104,7 @@ export default function AppTopBar() {
       {/* ── Bottom nav pill (mobile + tablet, hidden on lg+) ── */}
       <nav aria-label="Navigace" className="lg:hidden fixed left-2 right-2 z-40 max-w-md mx-auto" style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {NAV.map(({ href, shortLabel, icon, exact }) => {
+          {nav.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link

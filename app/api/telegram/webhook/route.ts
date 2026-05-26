@@ -306,13 +306,18 @@ function buildPizzaKeyboard() {
 }
 
 function buildMainReplyKeyboard(isAdmin: boolean) {
-  const { telegramAppUrl } = getSettings();
+  const { telegramAppUrl, pizzaEnabled } = getSettings();
   type KeyboardButton = { text: string } | { text: string; web_app: { url: string } };
   const rows: Array<Array<KeyboardButton>> = [
     [{ text: "📋 Objednávka" }, { text: "📊 Souhrn" }],
     [{ text: "🍽 Menu dnes" },  { text: "📅 Celý týden" }],
-    [{ text: "🍕 Pizza" },      { text: "⚙️ Nastavení" }],
   ];
+  // Bez pizzy: "Nastavení" zůstane samo na řádku
+  rows.push(
+    pizzaEnabled !== "false"
+      ? [{ text: "🍕 Pizza" }, { text: "⚙️ Nastavení" }]
+      : [{ text: "⚙️ Nastavení" }],
+  );
   if (telegramAppUrl) {
     rows.push([{ text: "🌐 Otevřít appku", web_app: { url: telegramAppUrl } }]);
   }
@@ -633,7 +638,14 @@ export async function POST(req: NextRequest) {
       if (data === "cmd:menu") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatMenu(), buildMenuKeyboard()); }
       if (data === "cmd:zitra") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatZitra(), buildMenuKeyboard()); }
       if (data === "cmd:tyden") { await editMessageText(s.telegramBotToken, chatId, messageId, "📅 <b>Jídelníček na týden</b>\n\nVyber den:", buildTydenKeyboard()); }
-      if (data === "cmd:pizza") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, await formatPizza(), buildPizzaKeyboard()); }
+      if (data === "cmd:pizza") {
+        if (s.pizzaEnabled === "false") {
+          await editMessageText(s.telegramBotToken, chatId, messageId, "🍕 Pizza modul je vypnutý.", { inline_keyboard: [[{ text: "✖ Zavřít", callback_data: "close" }]] });
+        } else {
+          await sendTyping(s.telegramBotToken, chatId);
+          await editMessageText(s.telegramBotToken, chatId, messageId, await formatPizza(), buildPizzaKeyboard());
+        }
+      }
       if (data === "cmd:nastaveni") await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
       if (data === "cmd:statistiky") { await sendTyping(s.telegramBotToken, chatId); await editMessageText(s.telegramBotToken, chatId, messageId, formatStatistiky(), buildStatisticsKeyboard()); }
       if (data === "cmd:admin" && isTelegramAdmin(chatId)) {
@@ -790,7 +802,7 @@ export async function POST(req: NextRequest) {
     const add = (id: string, title: string, text: string, description: string) =>
       results.push({ type: "article", id, title, description, input_message_content: { message_text: text, parse_mode: "HTML" } });
     if (show("menu")) add("menu", "🍽 Dnešní menu", formatMenu(), "Jídelníček pro dnešní den");
-    if (show("pizza")) add("pizza", "🍕 Pizza", await formatPizza(), "Aktuální nabídka pizzerie");
+    if (s.pizzaEnabled !== "false" && show("pizza")) add("pizza", "🍕 Pizza", await formatPizza(), "Aktuální nabídka pizzerie");
     if (show("stav")) add("stav", "📋 Stav objednávky", formatStav(), "Aktuální stav objednávky LIMA");
     if (show("souhrn")) add("souhrn", "📊 Souhrn", formatSouhrn(), "Kompaktní přehled objednávky");
     if (results.length === 0) add("menu", "🍽 Dnešní menu", formatMenu(), "Jídelníček pro dnešní den");
@@ -896,8 +908,12 @@ export async function POST(req: NextRequest) {
   } else if (effectiveCmd === "/tyden") {
     await sendTelegramToChat(chatId, "📅 <b>Jídelníček na týden</b>\n\nVyber den:", buildTydenKeyboard());
   } else if (effectiveCmd === "/pizza") {
-    await sendTyping(s.telegramBotToken, chatId);
-    await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
+    if (s.pizzaEnabled === "false") {
+      await sendTelegramToChat(chatId, "🍕 Pizza modul je vypnutý.");
+    } else {
+      await sendTyping(s.telegramBotToken, chatId);
+      await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
+    }
   } else if (effectiveCmd === "/zitra") {
     await sendTyping(s.telegramBotToken, chatId);
     await sendTelegramToChat(chatId, formatZitra(), buildMenuKeyboard());
@@ -1036,7 +1052,7 @@ export async function POST(req: NextRequest) {
         "/menu Po|Ut|St|Ct|Pa — jídelníček pro konkrétní den\n" +
         "/tyden — jídelníček na celý týden\n" +
         "/zitra — jídelníček na zítřek\n" +
-        "/pizza — aktuální nabídka pizzerie\n" +
+        (s.pizzaEnabled !== "false" ? "/pizza — aktuální nabídka pizzerie\n" : "") +
         "/statistiky — statistiky posledních 7 dní\n" +
         "/nastaveni — nastavení notifikací\n" +
         "/nastavit reminder HH:MM — osobní připomenutí (např. 11:00)\n" +

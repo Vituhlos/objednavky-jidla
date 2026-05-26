@@ -328,7 +328,7 @@ export async function setTelegramCommands(): Promise<{ ok: boolean; description?
     { command: "menu", description: "Dnešní jídelníček (nebo /menu Po Ut St Ct Pa)" },
     { command: "tyden", description: "Jídelníček na celý týden" },
     { command: "zitra", description: "Jídelníček na zítřek" },
-    { command: "pizza", description: "Aktuální nabídka pizzerie" },
+    ...(s.pizzaEnabled !== "false" ? [{ command: "pizza", description: "Aktuální nabídka pizzerie" }] : []),
     { command: "statistiky", description: "Statistiky posledních 7 dní" },
     { command: "nastaveni", description: "Nastavení notifikací" },
     { command: "nastavit", description: "Osobní připomenutí: /nastavit reminder HH:MM" },

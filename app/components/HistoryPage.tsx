@@ -101,9 +101,11 @@ function SwipeableHistoryRow({
 export default function HistoryPage({
   orders,
   pizzaOrders,
+  pizzaEnabled = true,
 }: {
   orders: OrderSummary[];
   pizzaOrders: PizzaOrderSummary[];
+  pizzaEnabled?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -131,8 +133,8 @@ export default function HistoryPage({
         mobileTitle="Historie"
         meta={
           <span className="hidden md:inline">
-            <strong className="text-stone-700">{sentCount}</strong> obědů ·{" "}
-            <strong className="text-stone-700">{pizzaSentCount}</strong> pizz
+            <strong className="text-stone-700">{sentCount}</strong> obědů
+            {pizzaEnabled && <> · <strong className="text-stone-700">{pizzaSentCount}</strong> pizz</>}
           </span>
         }
         actions={
@@ -234,6 +236,7 @@ export default function HistoryPage({
         </section>
 
         {/* Pizza orders */}
+        {pizzaEnabled && (
         <section className="glass-card rounded-3xl overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
@@ -302,6 +305,7 @@ export default function HistoryPage({
             </>
           )}
         </section>
+        )}
       </div>
       </div>
     </div>
