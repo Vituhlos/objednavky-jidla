@@ -834,7 +834,7 @@ export default function MenuPage({
         <div className="flex items-center gap-1.5 p-1 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.6)", border: "1px solid #ede9e2", boxShadow: "0 1px 6px -2px rgba(0,0,0,0.08)" }}>
           <button
-            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-white/70 disabled:hover:bg-transparent"
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05] disabled:hover:bg-transparent"
             onClick={() => handleWeekSwitch("current")}
             type="button"
             style={activeWeek === "current"
@@ -845,7 +845,7 @@ export default function MenuPage({
             <span className={`text-[13px] font-bold leading-tight mt-0.5 ${activeWeek === "current" ? "text-white" : "text-stone-800"}`}>{formatWeekRange(currentWeekStart)}</span>
           </button>
           <button
-            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-white/70 disabled:hover:bg-transparent"
+            className="flex flex-col items-center px-3.5 py-1.5 rounded-xl transition active:scale-[0.97] disabled:opacity-40 hover:bg-black/[0.05] disabled:hover:bg-transparent"
             disabled={!hasNextWeek}
             onClick={() => handleWeekSwitch("next")}
             type="button"
