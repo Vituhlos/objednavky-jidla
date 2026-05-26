@@ -111,20 +111,26 @@ function UserBadge({ user }: { user: UserInfo }) {
   );
 }
 
-export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
+export default function AppTopBar({ initialUser, pizzaEnabled = true }: { initialUser?: UserInfo; pizzaEnabled?: boolean }) {
   const pathname = usePathname();
 
   if (pathname === "/login" || pathname === "/register" || pathname === "/zapomenute-heslo" || pathname.startsWith("/reset-hesla")) return null;
 
   const isAdmin = initialUser?.role === "admin";
 
+  // Pizza modul: pokud vypnutý, vyfiltrovat z navů
+  const baseNav = pizzaEnabled ? MAIN_NAV : MAIN_NAV.filter((n) => n.href !== "/pizza");
+
   // Mobilní nav (< 768px): max 5 položek — admini nemají Historii, běžní nemají Nastavení
   const mobileNav = isAdmin
-    ? [...MAIN_NAV.filter((n) => n.href !== "/historie"), PROFILE_NAV]
-    : [...MAIN_NAV.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV];
+    ? [...baseNav.filter((n) => n.href !== "/historie"), PROFILE_NAV]
+    : [...baseNav.filter((n) => n.href !== "/nastaveni"), PROFILE_NAV];
+
+  // Tablet (768px – 1279px): všechny položky vč. profilu
+  const tabletNav = [...baseNav, PROFILE_NAV];
 
   // Desktopový sidebar: 5 hlavních položek (profil přes UserBadge)
-  const desktopNav = MAIN_NAV;
+  const desktopNav = baseNav;
 
   return (
     <>
@@ -198,7 +204,7 @@ export default function AppTopBar({ initialUser }: { initialUser?: UserInfo }) {
 
           {/* Tablet (768px – 1279px): všech 6 položek, rovnoměrně rozloženo */}
           <div className="hidden md:flex items-center justify-around">
-            {TABLET_NAV.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
+            {tabletNav.map(({ href, shortLabel, icon, exact, requiresAuth }) => {
               const isActive = exact ? pathname === href : pathname.startsWith(href);
               const locked = requiresAuth && !initialUser;
               return (

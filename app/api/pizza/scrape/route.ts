@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { scrapePizzaMenu } from "@/lib/pizza-scraper";
+import { getSettings } from "@/lib/settings";
 
 export async function GET() {
+  if (getSettings().pizzaEnabled === "false") {
+    return NextResponse.json({ error: "Pizza modul je vypnutý." }, { status: 404 });
+  }
   const user = await getCurrentUser();
   if (user?.role !== "admin") {
     return NextResponse.json({ error: "Nemáte oprávnění." }, { status: 403 });

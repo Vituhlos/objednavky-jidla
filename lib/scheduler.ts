@@ -3,6 +3,7 @@ import { getSettings, saveSettings } from "./settings";
 import type { AppSettings } from "./settings";
 import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
+import { getTodayPizzaOrderData, closePizzaOrder } from "./pizza";
 import { getMenuItemsForDay, getMondayISO } from "./menu";
 import { sendEmail } from "./email";
 import { logAudit } from "./audit";
@@ -99,6 +100,27 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
         console.error("[scheduler] Nepodařilo se odeslat upozornění na selhání:", mailErr);
       }
     }
+  }
+}
+
+async function checkPizzaCutoff(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {
+  if (s.pizzaEnabled === "false") return;
+  if (s.pizzaCutoffEnabled !== "true") return;
+  if (currentTime !== s.pizzaCutoffTime) return;
+
+  const allowedDays = s.pizzaCutoffDays
+    .split(",")
+    .map((d) => DAY_CODE_TO_JS[d.trim()])
+    .filter((n) => n !== undefined);
+  if (!allowedDays.includes(jsDay)) return;
+
+  const data = getTodayPizzaOrderData();
+  if (data.order.status === "sent") return;
+
+  const closed = closePizzaOrder(data.order.id);
+  if (closed) {
+    broadcast();
+    console.log(`[scheduler] Pizza objednávka ${data.order.id} uzavřena automaticky v ${currentTime}.`);
   }
 }
 
@@ -365,6 +387,7 @@ export function startScheduler(): void {
       const jsDay = now.getDay();
 
       await checkAutoSend(s, currentTime, jsDay);
+      await checkPizzaCutoff(s, currentTime, jsDay);
       await checkImapImport(s, currentTime, jsDay);
       await checkMenuReminder(s, currentTime, jsDay);
       await checkPushReminder(s, currentTime, jsDay);

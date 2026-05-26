@@ -517,6 +517,13 @@ export default function SettingsPage({
       telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
       telegramAppUrl: fd.get("telegramAppUrl") as string,
       prodUrl: fd.get("prodUrl") as string,
+      pizzaEnabled: fd.get("pizzaEnabled") === "on" ? "true" : "false",
+      pizzaCutoffEnabled: fd.get("pizzaCutoffEnabled") === "on" ? "true" : "false",
+      pizzaCutoffTime: fd.get("pizzaCutoffTime") as string,
+      pizzaCutoffDays: DAY_OPTIONS
+        .filter((d) => fd.get(`pizzaCutoffDay_${d.code}`) === "on")
+        .map((d) => d.code)
+        .join(","),
     };
     setSaveStatus("idle");
     startTransition(async () => {
@@ -916,6 +923,47 @@ export default function SettingsPage({
                     <span className="font-semibold text-stone-700">{getNextAutoSend(settings.autoSendEnabled, settings.autoSendTime, settings.autoSendDays)}</span>
                   </div>
                 </Section>
+
+                <Section icon="local_pizza" title="Pizza modul">
+                  <p className="text-[12.5px] text-stone-500">
+                    Pizza modul přidává do appky stránku Pizza, sekci v Historii a vlastní příkazy v Telegram botovi. Při vypnutí je vše skryto a scraper běží naprázdno (objednávky v DB zůstávají).
+                  </p>
+                  <Toggle defaultChecked={settings.pizzaEnabled !== "false"} label="Zapnout pizza modul" name="pizzaEnabled" />
+                </Section>
+
+                {settings.pizzaEnabled !== "false" && (
+                <Section icon="local_pizza" title="Pizza – uzávěrka">
+                  <p className="text-[12.5px] text-stone-500">
+                    V nastavenou dobu se objednávka pizzy automaticky uzavře — nikdo již nebude moci přidávat ani měnit objednávky.
+                  </p>
+                  <Toggle defaultChecked={settings.pizzaCutoffEnabled === "true"} label="Zapnout automatickou uzávěrku pizzy" name="pizzaCutoffEnabled" />
+                  <Field hint="čas kdy se objednávka uzavře" label="Čas uzávěrky">
+                    <input className="modal-input w-32" defaultValue={settings.pizzaCutoffTime} name="pizzaCutoffTime" type="time" />
+                  </Field>
+                  <Field label="Dny uzávěrky">
+                    <div className="flex gap-3 flex-wrap mt-0.5">
+                      {DAY_OPTIONS.map((d) => {
+                        const pizzaDays = settings.pizzaCutoffDays.split(",").map((x) => x.trim());
+                        return (
+                          <label className="flex items-center gap-1.5 cursor-pointer" key={d.code}>
+                            <div className="relative shrink-0">
+                              <input
+                                className="peer sr-only"
+                                defaultChecked={pizzaDays.includes(d.code)}
+                                name={`pizzaCutoffDay_${d.code}`}
+                                type="checkbox"
+                              />
+                              <div className="w-9 h-[20px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+                              <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[16px]" />
+                            </div>
+                            <span className="text-[12px] font-semibold text-stone-700">{d.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </Field>
+                </Section>
+                )}
 
               </div>
 

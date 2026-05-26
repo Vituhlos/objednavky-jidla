@@ -5,6 +5,7 @@ import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
 import OfflineBanner from "./components/OfflineBanner";
 import { getCurrentUser } from "@/lib/auth";
+import { getSettings } from "@/lib/settings";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -49,6 +50,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const user = await getCurrentUser().catch(() => null);
+  const settings = getSettings();
+  const pizzaEnabled = settings.pizzaEnabled !== "false";
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
@@ -64,7 +67,7 @@ export default async function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar initialUser={user} />
+        <AppTopBar initialUser={user} pizzaEnabled={pizzaEnabled} />
         <OfflineBanner />
         <main id="main-content">
           {children}

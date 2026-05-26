@@ -209,6 +209,13 @@ export function getPizzaOrderData(orderId: number): PizzaOrderData {
   };
 }
 
+export function closePizzaOrder(orderId: number): boolean {
+  const result = getDb()
+    .prepare("UPDATE pizza_orders SET status = 'sent', sent_at = datetime('now') WHERE id = ? AND status = 'draft'")
+    .run(orderId);
+  return result.changes > 0;
+}
+
 export function getPizzaOrderList(): PizzaOrderSummary[] {
   const db = getDb();
   const rows = db
