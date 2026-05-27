@@ -586,6 +586,14 @@ export async function POST(req: NextRequest) {
   const s = getSettings();
   if (s.telegramEnabled !== "true" || !s.telegramBotToken) return new Response("ok");
 
+  const configuredSecret = s.telegramWebhookSecret?.trim();
+  if (configuredSecret) {
+    const headerSecret = req.headers.get("X-Telegram-Bot-Api-Secret-Token");
+    if (headerSecret !== configuredSecret) {
+      return new Response("Forbidden", { status: 403 });
+    }
+  }
+
   let update: TelegramUpdate;
   try {
     update = await req.json();

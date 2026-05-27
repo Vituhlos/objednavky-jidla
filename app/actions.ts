@@ -27,8 +27,9 @@ import {
   replacePizzaItems,
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
-import { saveSettings, checkPin } from "@/lib/settings";
+import { getSettings, saveSettings, checkPin } from "@/lib/settings";
 import type { AppSettings } from "@/lib/settings";
+import { randomBytes } from "crypto";
 import {
   setTelegramWebhook,
   setTelegramCommands,
@@ -395,13 +396,28 @@ export async function actionDismissAutoSendError(): Promise<void> {
   revalidatePath("/");
 }
 
-export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
+export async function actionSetTelegramWebhook(): Promise<{
+  ok: boolean;
+  description?: string;
+  secretGenerated?: boolean;
+}> {
   await requireAdmin();
   const hdrs = await headers();
   const host = hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
-  return setTelegramWebhook(webhookUrl);
+
+  let secret = getSettings().telegramWebhookSecret?.trim();
+  let secretGenerated = false;
+  if (!secret) {
+    secret = randomBytes(32).toString("hex");
+    saveSettings({ telegramWebhookSecret: secret });
+    secretGenerated = true;
+  }
+
+  const result = await setTelegramWebhook(webhookUrl, secret);
+  revalidatePath("/nastaveni");
+  return { ...result, secretGenerated };
 }
 
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {

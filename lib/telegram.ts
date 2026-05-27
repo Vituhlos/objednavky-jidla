@@ -295,14 +295,21 @@ export async function getTelegramWebhookStatus(): Promise<{
   }
 }
 
-export async function setTelegramWebhook(webhookUrl: string): Promise<{ ok: boolean; description?: string }> {
+export async function setTelegramWebhook(
+  webhookUrl: string,
+  secretToken?: string,
+): Promise<{ ok: boolean; description?: string }> {
   const s = getSettings();
   if (!s.telegramBotToken) return { ok: false, description: "Bot token není nastaven." };
+  const token = secretToken?.trim() || s.telegramWebhookSecret?.trim();
+  if (!token) {
+    return { ok: false, description: "Webhook secret není nastaven. Uložte secret v nastavení nebo nechte ho vygenerovat." };
+  }
   try {
     const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setWebhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: webhookUrl }),
+      body: JSON.stringify({ url: webhookUrl, secret_token: token }),
     });
     return (await res.json()) as { ok: boolean; description?: string };
   } catch (err) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect, memo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -25,11 +26,13 @@ import {
   actionGetTelegramBotInfo,
   actionGetTelegramWebhookStatus,
   actionSetTelegramCommands,
+  actionSetAppUserRole,
   getSettingsHealth,
   type SettingsHealth,
   type HealthStatus,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
+import type { UserRow, UserRole } from "@/lib/users";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
@@ -302,7 +305,7 @@ const DeptRow = memo(function DeptRow({
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "telegram" | "system";
+type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "uzivatele" | "telegram" | "system";
 
 const TABS: { id: Tab; label: string; icon: string; healthKey?: keyof SettingsHealth }[] = [
   { id: "objednavka",  label: "Provoz",    icon: "schedule",       healthKey: "autoSend" },
@@ -310,6 +313,7 @@ const TABS: { id: Tab; label: string; icon: string; healthKey?: keyof SettingsHe
   { id: "ceny",        label: "Ceník",      icon: "payments",      healthKey: "prices" },
   { id: "email",       label: "E-mail",     icon: "mail",          healthKey: "smtp" },
   { id: "oddeleni",    label: "Oddělení",   icon: "groups",        healthKey: "departments" },
+  { id: "uzivatele",   label: "Uživatelé",  icon: "groups" },
   { id: "telegram",    label: "Telegram",   icon: "send" },
   { id: "system",      label: "Systém",     icon: "build",         healthKey: "pin" },
 ];
@@ -345,13 +349,21 @@ const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, adminUnlocked = false,
+  settings,
+  departments: initialDepts,
+  auditLog: initialAuditLog,
+  todayOrder,
+  adminUnlocked = false,
+  appUsers: initialAppUsers = [],
+  currentUserId,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
   adminUnlocked?: boolean;
+  appUsers?: UserRow[];
+  currentUserId?: number;
 }) {
   const [unlocked, setUnlocked] = useState(adminUnlocked);
   const [activeTab, setActiveTab] = useState<Tab>("objednavka");
@@ -403,6 +415,9 @@ export default function SettingsPage({
   const { sheetRef: telegramHelpSheetRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
+  const router = useRouter();
+  const [appUsers, setAppUsers] = useState<UserRow[]>(initialAppUsers);
+  const [appUserError, setAppUserError] = useState<string | null>(null);
   const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
   const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean; url?: string } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -610,6 +625,8 @@ export default function SettingsPage({
     };
     const newPin = (fd.get("newPin") as string).trim();
     if (newPin) updates.settingsPin = newPin;
+    const webhookSecret = (fd.get("telegramWebhookSecret") as string).trim();
+    if (webhookSecret) updates.telegramWebhookSecret = webhookSecret;
 
     setSaveStatus("idle");
     startTransition(async () => {
@@ -1559,6 +1576,40 @@ export default function SettingsPage({
                   <Field hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
                     <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
                   </Field>
+                  <Field
+                    hint="Telegram posílá tento token v hlavičce X-Telegram-Bot-Api-Secret-Token. Po změně znovu klikni „Nastavit webhook“."
+                    label="Webhook secret"
+                  >
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        className="modal-input font-mono text-[12px] flex-1"
+                        name="telegramWebhookSecret"
+                        placeholder={settings.telegramWebhookSecret ? "••••••••••••" : "vygenerujte nebo vložte secret"}
+                        type="password"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        className="modal-btn modal-btn--secondary shrink-0"
+                        onClick={() => {
+                          const input = formRef.current?.querySelector<HTMLInputElement>(
+                            'input[name="telegramWebhookSecret"]',
+                          );
+                          if (!input) return;
+                          const bytes = new Uint8Array(32);
+                          crypto.getRandomValues(bytes);
+                          input.value = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+                        }}
+                      >
+                        Vygenerovat
+                      </button>
+                    </div>
+                    {settings.telegramWebhookSecret ? (
+                      <p className="text-[11px] text-emerald-700 mt-1.5">Secret je uložen. Prázdné pole při uložení = beze změny.</p>
+                    ) : (
+                      <p className="text-[11px] text-amber-700 mt-1.5">Bez secretu webhook odmítne neověřené požadavky (403).</p>
+                    )}
+                  </Field>
                   <Field hint="každý pracovní den bot pošle ranní jídelníček odběratelům — prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
                     <input className="modal-input w-32" defaultValue={settings.telegramMorningMenuTime} name="telegramMorningMenuTime" placeholder="07:30" type="time" />
                   </Field>
@@ -1745,12 +1796,74 @@ export default function SettingsPage({
             )}
 
             {/* ── Telegram tab — non-form sections ── */}
+            {activeTab === "uzivatele" && (
+              <Section icon="groups" title={`Uživatelé aplikace (SSO)${appUsers.length > 0 ? ` (${appUsers.length})` : ""}`}>
+                <p className="text-[12.5px] text-stone-500 leading-relaxed">
+                  Účty z přihlášení přes OIDC. Role <b>admin</b> má přístup do Nastavení; ostatní mohou objednávat.
+                </p>
+                {appUserError && (
+                  <p className="text-[12px] text-red-600">{appUserError}</p>
+                )}
+                {appUsers.length === 0 ? (
+                  <p className="text-[12.5px] text-stone-400">Zatím se nikdo nepřihlásil přes SSO.</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {appUsers.map((u) => {
+                      const label = u.name || u.email || `${u.provider}:${u.subject}`;
+                      const isSelf = currentUserId === u.id;
+                      return (
+                        <div key={u.id} className="flex items-center gap-2 py-2 px-2 rounded-xl hover:bg-black/3 group">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
+                            style={{
+                              background: u.role === "admin"
+                                ? "linear-gradient(135deg,#F59E0B,#EA580C)"
+                                : "#a8a29e",
+                            }}
+                          >
+                            {label[0]?.toUpperCase() ?? "?"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[13px] font-semibold text-stone-800 truncate block">{label}</span>
+                            <span className="text-[11px] text-stone-400 truncate block">
+                              {u.email ?? "bez e-mailu"} · {u.role === "admin" ? "Admin" : "Uživatel"}
+                              {isSelf ? " · ty" : ""}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isSelf}
+                            title={isSelf ? "Nemůžeš si odebrat admin roli sám sobě" : undefined}
+                            onClick={async () => {
+                              setAppUserError(null);
+                              const nextRole: UserRole = u.role === "admin" ? "user" : "admin";
+                              try {
+                                await actionSetAppUserRole(u.id, nextRole);
+                                setAppUsers((prev) =>
+                                  prev.map((row) => (row.id === u.id ? { ...row, role: nextRole } : row)),
+                                );
+                              } catch (err) {
+                                setAppUserError(err instanceof Error ? err.message : "Změna role selhala.");
+                              }
+                            }}
+                            className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-40"
+                          >
+                            {u.role === "admin" ? "→ User" : "→ Admin"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Section>
+            )}
+
             {activeTab === "telegram" && (
               <>
                 <div className="flex flex-col gap-4">
 
                   {/* Subscriber list */}
-                  <Section icon="group" title={`Registrovaní uživatelé${telegramSubs.length > 0 ? ` (${telegramSubs.length})` : ""}`}>
+                  <Section icon="group" title={`Registrovaní uživatelé (Telegram)${telegramSubs.length > 0 ? ` (${telegramSubs.length})` : ""}`}>
                     {!telegramSubsLoaded ? (
                       <p className="text-[12.5px] text-stone-400">Načítám…</p>
                     ) : telegramSubs.length === 0 ? (
@@ -1852,8 +1965,13 @@ export default function SettingsPage({
 
                 <Section icon="integration_instructions" title="Nastavení webhooku">
                   <p className="text-[12.5px] text-stone-500">
-                    Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Klikni na tlačítko níže po každé změně domény nebo tokenu.
+                    Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Po změně tokenu nebo secretu ulož nastavení a znovu klikni „Nastavit webhook“.
                   </p>
+                  {!settings.telegramWebhookSecret && (
+                    <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                      Webhook secret zatím chybí — při „Nastavit webhook“ se vygeneruje automaticky (nebo ho zadej výše a ulož).
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       className="modal-btn modal-btn--secondary"
@@ -1863,10 +1981,15 @@ export default function SettingsPage({
                         setWebhookMsg("");
                         const res = await actionSetTelegramWebhook();
                         setWebhookStatus(res.ok ? "ok" : "error");
-                        setWebhookMsg(res.description ?? "");
+                        setWebhookMsg(
+                          res.secretGenerated
+                            ? `${res.description ?? ""} Secret byl vygenerován — ulož nastavení pro přehled.`.trim()
+                            : (res.description ?? ""),
+                        );
                         if (res.ok) {
                           const wh = await actionGetTelegramWebhookStatus();
                           setWebhookInfo(wh);
+                          if (res.secretGenerated) router.refresh();
                         }
                       }}
                       type="button"

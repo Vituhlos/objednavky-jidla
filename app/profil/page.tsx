@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
-import { getUserById, listUsers } from "@/lib/users";
+import { getUserById } from "@/lib/users";
 import { getBuildInfo } from "@/lib/build-info";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,6 @@ export default async function ProfilePage({
   const dbUser = userId ? getUserById(userId) : null;
   const build = getBuildInfo();
   const isAdmin = session?.user?.role === "admin";
-  const allUsers = isAdmin ? listUsers() : [];
 
   return (
     <div className="v2-shell">
@@ -48,21 +47,6 @@ export default async function ProfilePage({
               <span className="font-mono text-[12px] text-stone-600 text-right">{build.displayString}</span>
             </div>
           </div>
-
-          {isAdmin && allUsers.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-black/5 bg-white/40 p-4">
-              <div className="text-[13px] font-display font-bold text-stone-900 mb-3">Uživatelé aplikace</div>
-              <div className="grid gap-2 text-[12.5px]">
-                {allUsers.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between gap-3">
-                    <span className="text-stone-700 truncate">{u.email ?? u.name ?? `${u.provider}:${u.subject}`}</span>
-                    <span className="font-semibold text-stone-500 shrink-0">{u.role}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-stone-400 mt-3">Role měníš přes env <code className="bg-black/5 px-1 rounded">ADMIN_EMAILS</code> nebo akci v nastavení (brzy).</p>
-            </div>
-          )}
 
           <div className="mt-6 flex flex-wrap gap-2">
             {session?.user?.role === "admin" && (
