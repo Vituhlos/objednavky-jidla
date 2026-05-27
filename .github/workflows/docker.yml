@@ -52,6 +52,12 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: COMMIT_SHA=${{ github.sha }}
+          # Build metadata for in-app version diagnostics
+          # ISO timestamp is stable and human-readable; used in /api/version and UI.
+          # ref_name is branch or tag name (without refs/heads/ prefix).
+          build-args: |
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ github.run_started_at }}
+            GIT_REF=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

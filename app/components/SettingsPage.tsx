@@ -34,6 +34,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
 import { formatTs, getNextAutoSend, Section, Field, EmailListInput, Toggle } from "./settings/_shared";
+import { getBuildInfo } from "@/lib/build-info";
 
 const ACCENT_OPTIONS = [
   { value: "blue",   label: "Modrá" },
@@ -2041,13 +2042,17 @@ export default function SettingsPage({
         <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-500">
           <span>Objednávky LIMA</span>
           <span className="text-stone-300">·</span>
-          <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>
-          {process.env.NEXT_PUBLIC_COMMIT_SHA && (
-            <>
-              <span className="text-stone-300">·</span>
-              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)}</span>
-            </>
-          )}
+          <span>{getBuildInfo().displayString}</span>
+          <button
+            type="button"
+            className="ml-1 rounded-md px-2 py-1 text-[10.5px] font-semibold bg-black/5 hover:bg-black/10 text-stone-600"
+            onClick={() => {
+              try { navigator.clipboard.writeText(getBuildInfo().displayString); } catch {}
+            }}
+            title="Zkopírovat verzi"
+          >
+            Kopírovat
+          </button>
         </div>
 
             </div>{/* /space-y-4 */}
