@@ -102,6 +102,13 @@ export function linkProviderAccount(userId: number, provider: string, providerAc
     .run(userId, provider, providerAccountId);
 }
 
+export function getLinkedProviders(userId: number): string[] {
+  const rows = getDb()
+    .prepare("SELECT provider FROM accounts WHERE user_id = ?")
+    .all(userId) as { provider: string }[];
+  return rows.map((r) => r.provider);
+}
+
 export function getUserByProviderAccount(provider: string, providerAccountId: string): UserRow | null {
   const r = getDb()
     .prepare(

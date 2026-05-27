@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { getUserById } from "@/lib/users";
+import { getUserById, getLinkedProviders } from "@/lib/users";
 import { getDepartments } from "@/lib/departments";
 import { getSettings } from "@/lib/settings";
 import { getDb } from "@/lib/db";
@@ -54,6 +54,52 @@ export default async function ProfilRoute() {
     : [];
   const monthlySpending = monthlyRows.reduce((s, r) => s + (r.meal_count || 1) * defaultMealPrice, 0);
 
+  // Monthly history — 3 months
+  const m0 = personName
+    ? (db.prepare(
+        `SELECT r.meal_count FROM order_rows r
+         JOIN orders o ON o.id = r.order_id
+         WHERE r.person_name = ? AND r.main_item_id IS NOT NULL
+           AND o.date >= date('now','start of month')`
+      ).all(personName) as { meal_count: number }[])
+    : [];
+
+  const m1 = personName
+    ? (db.prepare(
+        `SELECT r.meal_count FROM order_rows r
+         JOIN orders o ON o.id = r.order_id
+         WHERE r.person_name = ? AND r.main_item_id IS NOT NULL
+           AND o.date >= date('now','start of month','-1 months')
+           AND o.date < date('now','start of month')`
+      ).all(personName) as { meal_count: number }[])
+    : [];
+
+  const m2 = personName
+    ? (db.prepare(
+        `SELECT r.meal_count FROM order_rows r
+         JOIN orders o ON o.id = r.order_id
+         WHERE r.person_name = ? AND r.main_item_id IS NOT NULL
+           AND o.date >= date('now','start of month','-2 months')
+           AND o.date < date('now','start of month','-1 months')`
+      ).all(personName) as { meal_count: number }[])
+    : [];
+
+  const now = new Date();
+  function mLabel(offset: number) {
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    return d.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
+  }
+
+  const monthlyHistory = [
+    { month: mLabel(2), spending: m2.reduce((s, r) => s + (r.meal_count || 1) * defaultMealPrice, 0) },
+    { month: mLabel(1), spending: m1.reduce((s, r) => s + (r.meal_count || 1) * defaultMealPrice, 0) },
+    { month: mLabel(0), spending: m0.reduce((s, r) => s + (r.meal_count || 1) * defaultMealPrice, 0) },
+  ];
+
+  const linkedProviders = getLinkedProviders(userId);
+  const telegramConfigured = settings.telegramEnabled === "true" && !!settings.telegramBotToken;
+  const telegramBotUrl = settings.telegramAppUrl || "";
+
   return (
     <ProfilePage
       firstName={user.firstName}
@@ -70,6 +116,10 @@ export default async function ProfilRoute() {
       favoriteDish={favoriteDish}
       monthlySpending={monthlySpending}
       showSettingsLink={user.role === "admin"}
+      linkedProviders={linkedProviders}
+      monthlyHistory={monthlyHistory}
+      telegramConfigured={telegramConfigured}
+      telegramBotUrl={telegramBotUrl}
     />
   );
 }

@@ -53,7 +53,7 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, verifyPassword, type UserRole } from "@/lib/users";
+import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, getLinkedProviders, verifyPassword, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
@@ -487,19 +487,24 @@ export async function actionSetAppUserRole(userId: number, role: UserRole): Prom
 }
 
 export async function actionUpdateProfile(updates: {
-  firstName: string;
-  lastName: string;
-  defaultDepartment: string | null;
+  firstName?: string;
+  lastName?: string;
+  defaultDepartment?: string | null;
   emailOrderConfirmation?: boolean;
 }): Promise<void> {
   const session = await requireAuth();
-  updateUserProfile(session.userId, {
-    firstName: updates.firstName.trim(),
-    lastName: updates.lastName.trim(),
-    defaultDepartment: updates.defaultDepartment || null,
-    emailOrderConfirmation: updates.emailOrderConfirmation,
-  });
+  const u: Parameters<typeof updateUserProfile>[1] = {};
+  if (updates.firstName !== undefined) u.firstName = updates.firstName.trim();
+  if (updates.lastName !== undefined) u.lastName = updates.lastName.trim();
+  if (updates.defaultDepartment !== undefined) u.defaultDepartment = updates.defaultDepartment || null;
+  if (updates.emailOrderConfirmation !== undefined) u.emailOrderConfirmation = updates.emailOrderConfirmation;
+  updateUserProfile(session.userId, u);
   revalidatePath("/profil");
+}
+
+export async function actionGetLinkedProviders(): Promise<string[]> {
+  const session = await requireAuth();
+  return getLinkedProviders(session.userId);
 }
 
 export async function actionChangeEmail(newEmail: string, password: string): Promise<void> {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signOut, signIn } from "next-auth/react";
 import MIcon from "./MIcon";
 import {
   actionUpdateProfile,
@@ -13,6 +13,7 @@ import {
 
 type Dept = { name: string; label: string };
 type OrderItem = { date: string; mainDish: string | null };
+type MonthEntry = { month: string; spending: number };
 
 function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
   const initials = (`${firstName.charAt(0)}${lastName.charAt(0)}`).toUpperCase() || "?";
@@ -136,18 +137,30 @@ function StatusMsg({ msg }: { msg: { ok: boolean; text: string } | null }) {
   );
 }
 
-function OrangeButton({ children, disabled, type = "submit" }: {
-  children: React.ReactNode; disabled?: boolean; type?: "submit" | "button";
+function OrangeButton({ children, disabled, type = "submit", onClick }: {
+  children: React.ReactNode; disabled?: boolean; type?: "submit" | "button"; onClick?: () => void;
 }) {
   return (
     <button
       type={type}
       disabled={disabled}
+      onClick={onClick}
       className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
       style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
     >
       {children}
     </button>
+  );
+}
+
+function GoogleIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+    </svg>
   );
 }
 
@@ -161,6 +174,7 @@ export default function ProfilePage({
   firstName, lastName, email, role, emailVerified, hasPassword,
   defaultDepartment, emailOrderConfirmation, departments,
   totalOrders, thisMonthOrders, favoriteDish, monthlySpending, showSettingsLink,
+  linkedProviders, monthlyHistory, telegramConfigured, telegramBotUrl,
 }: {
   firstName: string; lastName: string; email: string | null;
   role: string; emailVerified: boolean; hasPassword: boolean;
@@ -169,6 +183,10 @@ export default function ProfilePage({
   totalOrders: number; thisMonthOrders: number;
   favoriteDish: string | null; monthlySpending: number;
   showSettingsLink: boolean;
+  linkedProviders: string[];
+  monthlyHistory: MonthEntry[];
+  telegramConfigured: boolean;
+  telegramBotUrl: string;
 }) {
   const isAdmin = role === "admin";
   const [loggingOut, setLoggingOut] = useState(false);
@@ -177,7 +195,6 @@ export default function ProfilePage({
   const [editFirst, setEditFirst] = useState(firstName);
   const [editLast, setEditLast] = useState(lastName);
   const [editDept, setEditDept] = useState(defaultDepartment ?? "");
-  const [editEmailConf, setEditEmailConf] = useState(emailOrderConfirmation);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -202,13 +219,29 @@ export default function ProfilePage({
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
 
+  // Notifikace
+  const [emailConfLocal, setEmailConfLocal] = useState(emailOrderConfirmation);
+  const [notifMsg, setNotifMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pushGranted, setPushGranted] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+
+  // QR kód
+  const [showQr, setShowQr] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushSupported(true);
+      setPushGranted(Notification.permission === "granted");
+    }
+  }, []);
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setProfileSaving(true); setProfileMsg(null);
     try {
       await actionUpdateProfile({
         firstName: editFirst, lastName: editLast,
-        defaultDepartment: editDept || null, emailOrderConfirmation: editEmailConf,
+        defaultDepartment: editDept || null,
       });
       setProfileMsg({ ok: true, text: "Profil uložen." });
     } catch (err) {
@@ -257,7 +290,38 @@ export default function ProfilePage({
     setVerifyLoading(false);
   }
 
+  async function handleEmailConfToggle(v: boolean) {
+    setEmailConfLocal(v);
+    try {
+      await actionUpdateProfile({ emailOrderConfirmation: v });
+      setNotifMsg({ ok: true, text: "Uloženo." });
+      setTimeout(() => setNotifMsg(null), 2000);
+    } catch {
+      setEmailConfLocal(!v);
+      setNotifMsg({ ok: false, text: "Chyba při ukládání." });
+    }
+  }
+
+  async function handlePushToggle() {
+    if (pushGranted) {
+      setNotifMsg({ ok: false, text: "Push notifikace zakažte v nastavení prohlížeče." });
+      setTimeout(() => setNotifMsg(null), 3000);
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setPushGranted(permission === "granted");
+    setNotifMsg(
+      permission === "granted"
+        ? { ok: true, text: "Push notifikace povoleny." }
+        : { ok: false, text: "Push notifikace nebyly povoleny." }
+    );
+    setTimeout(() => setNotifMsg(null), 3000);
+  }
+
   const displayName = `${editFirst} ${editLast}`.trim() || firstName;
+  const hasGoogle = linkedProviders.includes("google");
+  const hasCredentials = linkedProviders.includes("credentials");
+  const maxSpending = Math.max(...monthlyHistory.map((m) => m.spending), 1);
 
   return (
     <div className="k-shell">
@@ -391,16 +455,51 @@ export default function ProfilePage({
                 </div>
               )}
 
-              <Toggle
-                checked={editEmailConf}
-                onChange={setEditEmailConf}
-                label="E-mail při odeslání objednávky"
-                description="Dostanete potvrzení e-mailem, co jste si objednali"
-              />
-
               <StatusMsg msg={profileMsg} />
               <OrangeButton disabled={profileSaving}>{profileSaving ? "Ukládám…" : "Uložit změny"}</OrangeButton>
             </form>
+          </SectionCard>
+
+          {/* ── Přihlašovací metody ── */}
+          <SectionCard title="Přihlašovací metody" icon="lock">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                {hasCredentials && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                    style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
+                  >
+                    <MIcon name="lock" size={13} style={{ color: "#78716c" }} />
+                    Email a heslo
+                  </div>
+                )}
+                {hasGoogle && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                    style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
+                  >
+                    <GoogleIcon size={14} />
+                    Google
+                  </div>
+                )}
+              </div>
+              {hasCredentials && !hasGoogle && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[11.5px] text-stone-500">Propojením s Google se budete moci přihlásit oběma způsoby.</p>
+                  <button
+                    type="button"
+                    onClick={() => signIn("google", { callbackUrl: "/profil" })}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition self-start"
+                  >
+                    <GoogleIcon size={15} />
+                    Propojit Google účet
+                  </button>
+                </div>
+              )}
+              {!hasCredentials && !hasGoogle && (
+                <p className="text-[12px] text-stone-400">Žádná přihlašovací metoda není propojena.</p>
+              )}
+            </div>
           </SectionCard>
 
           {/* ── Změna e-mailu (jen Credentials uživatelé) ── */}
@@ -446,6 +545,42 @@ export default function ProfilePage({
             </div>
           )}
 
+          {/* ── Notifikace ── */}
+          <SectionCard title="Notifikace" icon="notifications">
+            <div className="flex flex-col gap-3">
+              <Toggle
+                checked={emailConfLocal}
+                onChange={handleEmailConfToggle}
+                label="E-mail při odeslání objednávky"
+                description="Potvrzení e-mailem co jste si objednali"
+              />
+              {pushSupported && (
+                <Toggle
+                  checked={pushGranted}
+                  onChange={handlePushToggle}
+                  label="Push notifikace"
+                  description={pushGranted ? "Notifikace povoleny v tomto prohlížeči" : "Povolte pro připomenutí objednávky"}
+                />
+              )}
+              {telegramConfigured && (
+                <div className="flex items-start gap-2 pt-2 border-t border-white/40">
+                  <MIcon name="send" size={16} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
+                  <div>
+                    <div className="text-[13px] font-semibold text-stone-800">Telegram bot</div>
+                    <div className="text-[11.5px] text-stone-500 mt-0.5">
+                      {telegramBotUrl
+                        ? (
+                          <><a href={telegramBotUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline">Přidat bota</a> a odeslat /start</>
+                        )
+                        : "Bot je aktivní — zeptejte se správce na odkaz"}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <StatusMsg msg={notifMsg} />
+            </div>
+          </SectionCard>
+
           {/* ── Moje objednávky ── */}
           <SectionCard title="Moje objednávky" icon="history">
             {orders === null ? (
@@ -481,6 +616,60 @@ export default function ProfilePage({
                 ))}
               </div>
             )}
+          </SectionCard>
+
+          {/* ── Historie útrat ── */}
+          {monthlyHistory.some((m) => m.spending > 0) && (
+            <SectionCard title="Historie útrat" icon="payments">
+              <div className="flex flex-col gap-2.5">
+                {monthlyHistory.map((m) => (
+                  <div key={m.month} className="flex items-center gap-3">
+                    <div className="text-[11.5px] text-stone-500 w-24 shrink-0 text-right leading-tight">{m.month}</div>
+                    <div className="flex-1 h-5 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.05)" }}>
+                      <div
+                        className="h-full rounded-lg"
+                        style={{
+                          width: m.spending > 0 ? `${Math.max((m.spending / maxSpending) * 100, 4)}%` : "0%",
+                          background: "linear-gradient(90deg,#F59E0B,#EA580C)",
+                          transition: "width 0.4s ease",
+                        }}
+                      />
+                    </div>
+                    <div className="text-[12px] font-semibold text-stone-700 w-14 shrink-0 text-right">
+                      {m.spending > 0 ? `${m.spending} Kč` : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* ── QR kód profilu ── */}
+          <SectionCard title="QR kód profilu" icon="qr_code">
+            <div className="flex flex-col items-center gap-3 py-1">
+              <p className="text-[12px] text-stone-500 text-center">
+                Použijte QR kód pro rychlou identifikaci při výdeji jídla.
+              </p>
+              {!showQr ? (
+                <OrangeButton type="button" onClick={() => setShowQr(true)}>
+                  Zobrazit QR kód
+                </OrangeButton>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <img
+                    src="/api/profil/qr"
+                    alt="QR kód profilu"
+                    width={180}
+                    height={180}
+                    className="rounded-2xl"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                  <p className="text-[12px] text-stone-500 font-semibold">
+                    {`${firstName} ${lastName}`.trim()}
+                  </p>
+                </div>
+              )}
+            </div>
           </SectionCard>
 
         </div>

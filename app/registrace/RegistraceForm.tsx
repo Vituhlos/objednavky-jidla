@@ -13,18 +13,47 @@ export default function RegistraceForm({ departments }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passError, setPassError] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [defaultDepartment, setDefaultDepartment] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  function handleConfirmEmailBlur() {
+    if (confirmEmail && email && confirmEmail !== email) {
+      setEmailError("E-maily se neshodují.");
+    } else {
+      setEmailError(null);
+    }
+  }
+
+  function handleConfirmPasswordBlur() {
+    if (confirmPassword && password && confirmPassword !== password) {
+      setPassError("Hesla se neshodují.");
+    } else {
+      setPassError(null);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (email !== confirmEmail) {
+      setError("E-maily se neshodují.");
+      return;
+    }
     if (password.length < 6) {
       setError("Heslo musí mít alespoň 6 znaků.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Hesla se neshodují.");
       return;
     }
     setLoading(true);
@@ -114,11 +143,28 @@ export default function RegistraceForm({ departments }: Props) {
             autoComplete="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
             placeholder="jmeno@firma.cz"
             className="modal-input"
             disabled={loading}
           />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="reg-confirm-email" className="text-[12px] font-semibold text-stone-600">Ověření e-mailu</label>
+          <input
+            id="reg-confirm-email"
+            type="email"
+            autoComplete="off"
+            required
+            value={confirmEmail}
+            onChange={(e) => { setConfirmEmail(e.target.value); setEmailError(null); }}
+            onBlur={handleConfirmEmailBlur}
+            placeholder="Zadejte e-mail znovu"
+            className={`modal-input ${emailError ? "border-red-400/60" : ""}`}
+            disabled={loading}
+          />
+          {emailError && <p className="text-[11.5px] text-red-600">{emailError}</p>}
         </div>
 
         <div className="flex flex-col gap-1">
@@ -131,7 +177,7 @@ export default function RegistraceForm({ departments }: Props) {
               required
               minLength={6}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setPassError(null); }}
               placeholder="Alespoň 6 znaků"
               className="modal-input pr-9"
               disabled={loading}
@@ -146,6 +192,34 @@ export default function RegistraceForm({ departments }: Props) {
               <MIcon name={showPass ? "visibility_off" : "visibility"} size={18} />
             </button>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="reg-confirm-password" className="text-[12px] font-semibold text-stone-600">Ověření hesla</label>
+          <div className="relative">
+            <input
+              id="reg-confirm-password"
+              type={showConfirmPass ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); setPassError(null); }}
+              onBlur={handleConfirmPasswordBlur}
+              placeholder="Zadejte heslo znovu"
+              className={`modal-input pr-9 ${passError ? "border-red-400/60" : ""}`}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPass((v) => !v)}
+              aria-label={showConfirmPass ? "Skrýt heslo" : "Zobrazit heslo"}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
+              tabIndex={-1}
+            >
+              <MIcon name={showConfirmPass ? "visibility_off" : "visibility"} size={18} />
+            </button>
+          </div>
+          {passError && <p className="text-[11.5px] text-red-600">{passError}</p>}
         </div>
 
         {departments.length > 0 && (
