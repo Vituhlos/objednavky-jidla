@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { id, role } = registerCredentialsUser({ email, firstName, lastName, password, defaultDepartment });
-    logAudit({ action: "login_success", details: `register: ${email}` });
+    logAudit({ action: "user_register", details: email });
 
     // Odeslat ověřovací e-mail (best-effort — když SMTP není nastaveno, registrace se nepřeruší)
     try {
