@@ -1,5 +1,6 @@
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { authConfig } from "@/auth.config";
 
 const PUBLIC_PREFIXES = [
   "/api/auth",
@@ -13,6 +14,8 @@ const PUBLIC_PREFIXES = [
   "/manifest",
   "/sw.js",
 ];
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req;

@@ -41,6 +41,3 @@ export function getBuildInfo(): BuildInfo {
     displayString: parts.join(" · "),
   };
 }
-
-export type { BuildInfo };
-

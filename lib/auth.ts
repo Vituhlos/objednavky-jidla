@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import type { Session } from "next-auth";
 
 export type AppSession = {
   userId: number;
@@ -10,7 +11,7 @@ export type AppSession = {
   };
 };
 
-function toAppSession(session: Awaited<ReturnType<typeof auth>>): AppSession | null {
+function toAppSession(session: Session | null): AppSession | null {
   if (!session?.user) return null;
   const userId = (session as { userId?: number }).userId;
   if (typeof userId !== "number") return null;
