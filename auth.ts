@@ -1,39 +1,101 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { authConfig } from "@/auth.config";
-import AppOidcProvider from "@/lib/oidc-provider";
-import { upsertUserFromOidc } from "@/lib/users";
+import {
+  verifyUserPassword,
+  upsertUserFromOAuth,
+  getUserById,
+  linkProviderAccount,
+} from "@/lib/users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
-    AppOidcProvider({
-      issuer: process.env.OIDC_ISSUER,
-      clientId: process.env.OIDC_CLIENT_ID,
-      clientSecret: process.env.OIDC_CLIENT_SECRET,
+    Credentials({
+      credentials: {
+        email: { label: "E-mail", type: "email" },
+        password: { label: "Heslo", type: "password" },
+      },
+      async authorize(creds) {
+        const email = typeof creds?.email === "string" ? creds.email.trim().toLowerCase() : "";
+        const password = typeof creds?.password === "string" ? creds.password : "";
+        if (!email || !password) return null;
+        const result = verifyUserPassword(email, password);
+        if (!result) return null;
+        return {
+          id: String(result.id),
+          email: result.email,
+          name: `${result.firstName} ${result.lastName}`.trim() || result.email,
+        };
+      },
+    }),
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Auto-link: vyžadujeme verifikovaný email z Googlu
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile, trigger }) {
-      if (account?.provider && account.providerAccountId) {
-        const email = typeof profile?.email === "string" ? profile.email : null;
+    ...authConfig.callbacks,
+    async signIn({ user, account, profile }) {
+      // Credentials prošlo přes authorize — id je už interní user.id
+      if (account?.provider === "credentials") return true;
+
+      // Google login — auto-link by email pokud Google ověřil email
+      if (account?.provider === "google") {
+        const email = typeof profile?.email === "string" ? profile.email.toLowerCase() : null;
+        const emailVerified = (profile as { email_verified?: boolean })?.email_verified === true;
         const name = typeof profile?.name === "string" ? profile.name : null;
         const avatarUrl = typeof profile?.picture === "string" ? profile.picture : null;
+        const sub = account.providerAccountId;
+        if (!email || !sub) return false;
 
-        const user = upsertUserFromOidc({
-          provider: account.provider,
-          subject: account.providerAccountId,
+        const result = upsertUserFromOAuth({
+          provider: "google",
+          providerAccountId: sub,
           email,
+          emailVerified,
           name,
           avatarUrl,
         });
-
-        token.userId = user.id;
-        token.role = user.role;
-      } else if (trigger === "update" && typeof token.userId === "number") {
-        const { getUserById } = await import("@/lib/users");
-        const user = getUserById(token.userId);
-        if (user) token.role = user.role === "admin" ? "admin" : "user";
+        // Přiřadíme user.id pro JWT callback (přes user objekt v Auth.js v5)
+        (user as { id?: string }).id = String(result.id);
+        return true;
       }
+
+      return true;
+    },
+    async jwt({ token, user, account, trigger }) {
+      // Po prvním přihlášení — uložit userId + role do JWT
+      if (user?.id) {
+        const userId = Number(user.id);
+        if (Number.isFinite(userId)) {
+          const u = getUserById(userId);
+          if (u) {
+            token.userId = u.id;
+            token.role = u.role === "admin" ? "admin" : "user";
+            token.firstName = u.firstName;
+            token.lastName = u.lastName;
+          }
+        }
+      } else if (trigger === "update" && typeof token.userId === "number") {
+        const u = getUserById(token.userId);
+        if (u) {
+          token.role = u.role === "admin" ? "admin" : "user";
+          token.firstName = u.firstName;
+          token.lastName = u.lastName;
+        }
+      }
+
+      // Zaznamenat účet (link provider, ale jen poprvé)
+      if (account && typeof token.userId === "number") {
+        try {
+          linkProviderAccount(token.userId, account.provider, account.providerAccountId);
+        } catch {}
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -42,6 +104,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       out.user = {
         ...out.user,
         role: token.role === "admin" ? "admin" : "user",
+        firstName: (token.firstName as string | undefined) ?? "",
+        lastName: (token.lastName as string | undefined) ?? "",
       };
       return out;
     },

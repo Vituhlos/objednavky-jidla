@@ -170,12 +170,13 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
-  // Auth (SSO users)
+  // Auth users — centralizovaný profil; provider/subject je pro backward compat OIDC,
+  // ale Credentials i Google používají accounts tabulku níže pro multi-provider linking.
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      provider      TEXT    NOT NULL,
-      subject       TEXT    NOT NULL,
+      provider      TEXT    NOT NULL DEFAULT 'credentials',
+      subject       TEXT    NOT NULL DEFAULT '',
       email         TEXT,
       name          TEXT,
       avatar_url    TEXT,
@@ -185,6 +186,61 @@ function migrate(db: Database.Database): void {
       UNIQUE(provider, subject)
     );
   `);
+  // Sloupce pro Credentials provider + profilové údaje
+  try { db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN default_department TEXT"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1"); } catch {}
+
+  // Account linking — jeden user, vícero providerů (Credentials, Google, ...)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      user_id              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider             TEXT    NOT NULL,
+      provider_account_id  TEXT    NOT NULL,
+      created_at           TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (provider, provider_account_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+  `);
+
+  // Migrate existing users.provider/subject → accounts řádek
+  try {
+    db.exec(`
+      INSERT OR IGNORE INTO accounts (user_id, provider, provider_account_id)
+      SELECT id, provider, subject FROM users WHERE provider != '' AND subject != '';
+    `);
+  } catch {}
+
+  // Email verification tokens (link v emailu — platí 24h)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT    NOT NULL UNIQUE,
+      expires_at TEXT    NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Password reset tokens (link v emailu — platí 1h)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT    NOT NULL UNIQUE,
+      expires_at TEXT    NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Vlastnictví objednávkových řádků
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)"); } catch {}
+  try { db.exec("ALTER TABLE pizza_order_rows ADD COLUMN user_id INTEGER REFERENCES users(id)"); } catch {}
 
   db.prepare(`
     CREATE TABLE IF NOT EXISTS menu_day_closed (

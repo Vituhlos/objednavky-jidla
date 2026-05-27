@@ -31,6 +31,7 @@ interface Props {
   soups: import("@/lib/types").MenuItem[];
   meals: import("@/lib/types").MenuItem[];
   isSent: boolean;
+  isLoggedIn?: boolean;
   existingNames?: string[];
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
@@ -743,7 +744,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -764,6 +765,10 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
   useEffect(() => { currentDeptNameRef.current = data.name; }, [data.name]);
 
   const handleAddAndOpen = async () => {
+    if (!isLoggedIn) {
+      window.location.href = "/login";
+      return;
+    }
     if (isAdding) return;
     setIsAdding(true);
     setAddError(null);
@@ -814,8 +819,8 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
             >
               {isAdding
                 ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />
-                : <MIcon name="add" size={14} />}
-              {isAdding ? "Přidávám" : "Přidat"}
+                : <MIcon name={isLoggedIn ? "add" : "lock"} size={14} />}
+              {isAdding ? "Přidávám" : isLoggedIn ? "Přidat" : "Přihlásit se"}
             </button>
           )}
         </div>

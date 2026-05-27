@@ -8,6 +8,8 @@ export type AppSession = {
     email?: string | null;
     image?: string | null;
     role: "admin" | "user";
+    firstName: string;
+    lastName: string;
   };
 };
 
@@ -15,7 +17,8 @@ function toAppSession(session: Session | null): AppSession | null {
   if (!session?.user) return null;
   const userId = (session as { userId?: number }).userId;
   if (typeof userId !== "number") return null;
-  const role = (session.user as { role?: string }).role === "admin" ? "admin" : "user";
+  const u = session.user as { role?: string; firstName?: string; lastName?: string };
+  const role = u.role === "admin" ? "admin" : "user";
   return {
     userId,
     user: {
@@ -23,6 +26,8 @@ function toAppSession(session: Session | null): AppSession | null {
       email: session.user.email,
       image: session.user.image,
       role,
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
     },
   };
 }

@@ -38,14 +38,20 @@ const SidebarClock = memo(function SidebarClock() {
 export default function AppTopBar({
   pizzaEnabled = true,
   showSettings = false,
+  isLoggedIn = true,
 }: {
   pizzaEnabled?: boolean;
   showSettings?: boolean;
+  isLoggedIn?: boolean;
 }) {
   const pathname = usePathname();
-  const nav = (pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza")).filter(
-    (n) => !("adminOnly" in n && n.adminOnly) || showSettings,
-  );
+  const nav = (pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza"))
+    .filter((n) => !("adminOnly" in n && n.adminOnly) || showSettings)
+    .map((n) =>
+      n.href === "/profil" && !isLoggedIn
+        ? { ...n, label: "Přihlásit se", shortLabel: "Login", icon: "login" as const, href: "/login" }
+        : n
+    );
 
   return (
     <>

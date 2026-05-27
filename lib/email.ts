@@ -60,6 +60,52 @@ export async function sendEmail({
   await transporter.sendMail({ from, replyTo, to: to.join(", "), subject, html, text, attachments });
 }
 
+export async function sendVerifyEmail(to: string, verifyUrl: string, firstName: string): Promise<void> {
+  const subject = "Ověř svou e-mailovou adresu — Kantýna";
+  const text = `Ahoj ${firstName},\n\npro dokončení registrace klikni na odkaz:\n${verifyUrl}\n\nOdkaz platí 24 hodin.`;
+  const html = `
+    <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <div style="background: linear-gradient(135deg,#F59E0B,#EA580C); height: 4px; border-radius: 2px; margin-bottom: 24px;"></div>
+      <h1 style="font-size: 20px; color: #1a1208; margin-bottom: 16px;">Vítej v Kantýně!</h1>
+      <p style="font-size: 14px; color: #3d2c1a; line-height: 1.6;">Ahoj <strong>${escapeHtml(firstName)}</strong>,</p>
+      <p style="font-size: 14px; color: #3d2c1a; line-height: 1.6;">Pro dokončení registrace klikni na tlačítko níže:</p>
+      <p style="margin: 24px 0;">
+        <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg,#F59E0B,#EA580C); color: white; text-decoration: none; border-radius: 9999px; font-weight: 600; font-size: 14px;">
+          Ověřit e-mail
+        </a>
+      </p>
+      <p style="font-size: 12.5px; color: #7a6552; line-height: 1.6;">Odkaz platí 24 hodin. Pokud jsi se neregistroval, tento e-mail můžeš ignorovat.</p>
+      <p style="font-size: 11px; color: #9b8474; margin-top: 24px; word-break: break-all;">Nebo zkopíruj URL: ${verifyUrl}</p>
+    </div>
+  `;
+  await sendEmail({ to: [to], subject, html, text });
+}
+
+export async function sendPasswordResetEmail(to: string, resetUrl: string, firstName: string): Promise<void> {
+  const subject = "Obnovení hesla — Kantýna";
+  const text = `Ahoj ${firstName},\n\npro obnovení hesla klikni na odkaz:\n${resetUrl}\n\nOdkaz platí 1 hodinu.`;
+  const html = `
+    <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <div style="background: linear-gradient(135deg,#F59E0B,#EA580C); height: 4px; border-radius: 2px; margin-bottom: 24px;"></div>
+      <h1 style="font-size: 20px; color: #1a1208; margin-bottom: 16px;">Obnovení hesla</h1>
+      <p style="font-size: 14px; color: #3d2c1a; line-height: 1.6;">Ahoj <strong>${escapeHtml(firstName)}</strong>,</p>
+      <p style="font-size: 14px; color: #3d2c1a; line-height: 1.6;">Klikni na tlačítko níže pro nastavení nového hesla:</p>
+      <p style="margin: 24px 0;">
+        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg,#F59E0B,#EA580C); color: white; text-decoration: none; border-radius: 9999px; font-weight: 600; font-size: 14px;">
+          Nastavit nové heslo
+        </a>
+      </p>
+      <p style="font-size: 12.5px; color: #7a6552; line-height: 1.6;">Odkaz platí 1 hodinu. Pokud jsi o reset nepožádal, tento e-mail můžeš ignorovat.</p>
+      <p style="font-size: 11px; color: #9b8474; margin-top: 24px; word-break: break-all;">Nebo zkopíruj URL: ${resetUrl}</p>
+    </div>
+  `;
+  await sendEmail({ to: [to], subject, html, text });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export async function testSmtpConnection(): Promise<void> {
   const s = getSettings();
   if (!s.smtpHost) throw new Error("SMTP host není nastaven.");

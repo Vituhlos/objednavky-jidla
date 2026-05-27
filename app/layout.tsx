@@ -66,7 +66,7 @@ export default async function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar pizzaEnabled={pizzaEnabled} showSettings={showSettings} />
+        <AppTopBar pizzaEnabled={pizzaEnabled} showSettings={showSettings} isLoggedIn={!!session} />
         <main id="main-content">
           {children}
         </main>

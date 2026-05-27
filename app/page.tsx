@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/settings";
 import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
+import { auth } from "@/auth";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
+  const session = await auth();
+  const isLoggedIn = !!session;
 
   const suggestions: Record<string, DeptSuggestion[]> = Object.fromEntries(
     data.departments.map((d) => [d.name, getDeptSuggestions(d.name, 4)])
@@ -64,6 +67,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       suggestions={suggestions}
       prefillMain={prefillMain && Number.isFinite(prefillMain) ? prefillMain : null}
       prefillSoup={prefillSoup && Number.isFinite(prefillSoup) ? prefillSoup : null}
+      isLoggedIn={isLoggedIn}
     />
   );
 }
