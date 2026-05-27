@@ -1682,3 +1682,25 @@ body {
 
 /* Focus visible */
 [data-theme="dark"] :focus-visible { outline-color: rgba(245,158,11,0.8); }
+
+/* ── Tailwind text color overrides for dark mode ── */
+[data-theme="dark"] .text-stone-900 { color: #eae5df; }
+[data-theme="dark"] .text-stone-800 { color: #d6cfc5; }
+[data-theme="dark"] .text-stone-700 { color: #c8bfb5; }
+[data-theme="dark"] .text-stone-600 { color: #a8a09a; }
+[data-theme="dark"] .text-stone-500 { color: #918578; }
+[data-theme="dark"] .text-stone-400 { color: #78716c; }
+[data-theme="dark"] .text-red-600   { color: #f87171; }
+
+/* Tailwind bg overrides */
+[data-theme="dark"] .bg-white\/5, [data-theme="dark"] .bg-black\/5 { background: rgba(255,255,255,0.05); }
+
+/* Profile page: inline style overrides for border-b border-white/40 */
+[data-theme="dark"] .border-white\/40 { border-color: rgba(255,255,255,0.06); }
+[data-theme="dark"] .border-white\/30 { border-color: rgba(255,255,255,0.04); }
+
+/* SidebarClock dark text */
+[data-theme="dark"] .glass-soft .text-stone-900,
+[data-theme="dark"] .glass-soft .font-display { color: #eae5df; }
+[data-theme="dark"] .glass-soft .text-stone-600 { color: #a8a09a; }
+[data-theme="dark"] .glass-soft .text-stone-500 { color: #918578; }
