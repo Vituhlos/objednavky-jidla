@@ -1704,3 +1704,20 @@ body {
 [data-theme="dark"] .glass-soft .font-display { color: #eae5df; }
 [data-theme="dark"] .glass-soft .text-stone-600 { color: #a8a09a; }
 [data-theme="dark"] .glass-soft .text-stone-500 { color: #918578; }
+
+/* Topbar */
+[data-theme="dark"] .border-white\/50 { border-color: rgba(255,255,255,0.06); }
+
+/* Inline text-green-700 */
+[data-theme="dark"] .text-green-700 { color: #4ade80; }
+
+/* Inline text-red-500 */
+[data-theme="dark"] .text-red-500 { color: #f87171; }
+
+/* Inline bg-stone-300 */
+[data-theme="dark"] .bg-stone-300 { background: #57534e; }
+[data-theme="dark"] .bg-amber-500 { background: #d97706; }
+
+/* Select option override */
+[data-theme="dark"] .k-select option,
+[data-theme="dark"] .modal-select option { background: #1e1b18; color: var(--ink); }
