@@ -1,4 +1,4 @@
-type BuildInfo = {
+export type BuildInfo = {
   appVersion: string;
   commitSha: string;
   commitShort: string | null;
