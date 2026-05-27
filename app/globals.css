@@ -847,25 +847,12 @@ body {
 .menu-row:hover .quick-order { opacity: 1; }
 .menu-row:focus-within .quick-order { opacity: 1; }
 
-/* Touch-screen affordance: chevron na pravé straně místo viditelného pillu */
-.menu-row__chevron {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: none;
-  color: #d4c5b5;
-  pointer-events: none;
-}
-.menu-row--tappable {
-  cursor: pointer;
-  padding-right: 26px;
-}
+/* Tappable rows — desktop má hover pill, touch má tap flash bez ikony */
+.menu-row--tappable { cursor: pointer; }
 .menu-row--tappable:active { background: rgba(245,158,11,0.10); }
-@media (hover: none), (max-width: 1023px) {
-  /* Schovat hover pill, ukázat chevron */
+@media (hover: none) {
+  /* Touch: schovat hover pill, místo něj je celý řádek tap-target */
   .quick-order { display: none; }
-  .menu-row__chevron { display: inline-flex; }
 }
 
 /* Menu preview card body grid */

@@ -1074,32 +1074,97 @@ export default function OrderPage({
       <div className="flex-1 overflow-y-auto scroll-area p-4" ref={daySwipeRef as React.RefCallback<HTMLDivElement>}>
         <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 pb-nav lg:pb-6">
 
-          {showDayPicker && (
-            <div className="relative -mx-4 sm:mx-0">
-              <div className="overflow-x-auto no-scrollbar px-4 sm:px-0" style={{ scrollSnapType: "x mandatory" }}>
-                <div className="day-tabs" style={{ width: "max-content" }}>
-                  {availableDates!.map((date) => {
-                    const isActive = date === selectedDate;
-                    const { dow, num } = getDayTabParts(date, todayDate!);
-                    return (
-                      <button
-                        key={date}
-                        className={`day-tab${isActive ? " active" : ""}`}
-                        onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
-                        style={{ scrollSnapAlign: "start" }}
-                        type="button"
-                      >
-                        <span className="dow">{dow}</span>
-                        <span className="num">{num}</span>
-                      </button>
-                    );
-                  })}
+          {showDayPicker && (() => {
+            const currentIdx = availableDates!.indexOf(selectedDate ?? "");
+            const goToDayIdx = (delta: -1 | 1) => {
+              const next = Math.min(availableDates!.length - 1, Math.max(0, currentIdx + delta));
+              if (next === currentIdx) return;
+              setDaySwitchPending(true);
+              startTransition(() => { router.push(`/?date=${availableDates![next]}`); });
+            };
+            return (
+              <>
+                {/* Desktop / tablet: 2-line pill tabs */}
+                <div className="hidden sm:block">
+                  <div className="overflow-x-auto no-scrollbar" style={{ scrollSnapType: "x mandatory" }}>
+                    <div className="day-tabs" style={{ width: "max-content" }}>
+                      {availableDates!.map((date) => {
+                        const isActive = date === selectedDate;
+                        const { dow, num } = getDayTabParts(date, todayDate!);
+                        return (
+                          <button
+                            key={date}
+                            className={`day-tab${isActive ? " active" : ""}`}
+                            onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                            style={{ scrollSnapAlign: "start" }}
+                            type="button"
+                          >
+                            <span className="dow">{dow}</span>
+                            <span className="num">{num}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="sm:hidden absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
-                style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
-            </div>
-          )}
+                {/* Mobile: compact ←  day-label  → + dot indicators */}
+                <div className="sm:hidden flex items-center gap-3">
+                  <button
+                    aria-label="Předchozí den"
+                    className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+                    disabled={currentIdx <= 0}
+                    onClick={() => goToDayIdx(-1)}
+                    type="button"
+                  >
+                    <MIcon name="chevron_left" size={17} />
+                  </button>
+                  <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                    <span className="font-display font-bold text-[15px] text-stone-900 leading-none inline-flex items-center gap-1.5">
+                      {(() => {
+                        const { dow, num } = getDayTabParts(selectedDate ?? availableDates![0], todayDate!);
+                        return <><span>{dow} {num}</span></>;
+                      })()}
+                    </span>
+                    <div className="flex items-center gap-1.5" role="tablist" aria-label="Dostupné dny">
+                      {availableDates!.map((date) => {
+                        const isActive = date === selectedDate;
+                        const isToday = date === todayDate;
+                        return (
+                          <button
+                            key={date}
+                            aria-label={getDayTabParts(date, todayDate!).dow + " " + getDayTabParts(date, todayDate!).num}
+                            aria-selected={isActive}
+                            role="tab"
+                            onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                            type="button"
+                            className="transition-all duration-200 rounded-full"
+                            style={{
+                              width: isActive ? "20px" : "7px",
+                              height: "7px",
+                              background: isActive
+                                ? "linear-gradient(135deg,#F59E0B,#EA580C)"
+                                : isToday
+                                  ? "rgba(245,158,11,0.45)"
+                                  : "rgba(26,18,8,0.18)",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <button
+                    aria-label="Další den"
+                    className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+                    disabled={currentIdx >= availableDates!.length - 1}
+                    onClick={() => goToDayIdx(1)}
+                    type="button"
+                  >
+                    <MIcon name="chevron_right" size={17} />
+                  </button>
+                </div>
+              </>
+            );
+          })()}
 
           {noMenu ? (
             /* ── Closed / no-menu banner ── */

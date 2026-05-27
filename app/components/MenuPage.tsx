@@ -618,18 +618,10 @@ const WeekItem = memo(function WeekItem({
           <MIcon name="edit" size={13} />
         </button>
       ) : canQuickOrder ? (
-        <>
-          {/* Desktop: hover pill */}
-          <span className="quick-order" aria-hidden>
-            <MIcon name="add" size={10} /> Objednat
-          </span>
-          {/* Touch: subtle chevron indicator */}
-          <span className="menu-row__chevron" aria-hidden>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </span>
-        </>
+        /* Desktop hover pill — schovaný na touch zařízeních (vizuální klid) */
+        <span className="quick-order" aria-hidden>
+          <MIcon name="add" size={10} /> Objednat
+        </span>
       ) : null}
     </div>
   );
@@ -903,12 +895,19 @@ export default function MenuPage({
   const isReadOnly = false;
 
   const dayDates: Record<string, number> = {};
+  const dayMonths: Record<string, number> = {};
   const weekBase = new Date(activeWeekStart + "T00:00:00");
   DAY_ORDER.forEach((d, i) => {
     const dt = new Date(weekBase);
     dt.setDate(weekBase.getDate() + i);
     dayDates[d] = dt.getDate();
+    dayMonths[d] = dt.getMonth() + 1;
   });
+  const activeDayIdx = DAY_ORDER.indexOf(activeDay);
+  const goToDay = (delta: -1 | 1) => {
+    const next = Math.min(DAY_ORDER.length - 1, Math.max(0, activeDayIdx + delta));
+    if (next !== activeDayIdx) setActiveDay(DAY_ORDER[next]);
+  };
 
   return (
     <div className="k-shell">
@@ -1047,29 +1046,65 @@ export default function MenuPage({
         )}
       </div>
 
-      {/* Day tabs — mobile only */}
-      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
-        {DAY_ORDER.map((day) => {
-          const active = activeDay === day;
-          const isToday = day === visibleTodayCode;
-          const hasData = !!activeMenu[day];
-          return (
-            <button
-              key={day}
-              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
-              onClick={() => setActiveDay(day)}
-              style={active
-                ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
-                : { background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.7)" }
-              }
-              type="button"
-            >
-              <span className={`text-[9.5px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-500"}`}>{day}</span>
-              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-700"}`}>{dayDates[day]}</span>
-              {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
-            </button>
-          );
-        })}
+      {/* Compact day nav (V4 style) — mobile only */}
+      <div className="md:hidden flex items-center gap-3 px-4 py-2 shrink-0">
+        <button
+          aria-label="Předchozí den"
+          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          disabled={activeDayIdx === 0}
+          onClick={() => goToDay(-1)}
+          type="button"
+        >
+          <MIcon name="chevron_left" size={17} />
+        </button>
+        <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+          <span className="font-display font-bold text-[15px] text-stone-900 leading-none inline-flex items-center gap-1.5">
+            <span>{activeDay} {dayDates[activeDay]}.{dayMonths[activeDay]}.</span>
+            {visibleTodayCode === activeDay && (
+              <span
+                className="text-[9.5px] font-bold px-2 py-0.5 rounded-full text-white"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              >
+                Dnes
+              </span>
+            )}
+          </span>
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="Dny v týdnu">
+            {DAY_ORDER.map((d) => {
+              const isActive = activeDay === d;
+              const isToday = visibleTodayCode === d;
+              return (
+                <button
+                  key={d}
+                  aria-label={DAY_LABELS[d]}
+                  aria-selected={isActive}
+                  role="tab"
+                  onClick={() => setActiveDay(d)}
+                  type="button"
+                  className="transition-all duration-200 rounded-full"
+                  style={{
+                    width: isActive ? "20px" : "7px",
+                    height: "7px",
+                    background: isActive
+                      ? "linear-gradient(135deg,#F59E0B,#EA580C)"
+                      : isToday
+                        ? "rgba(245,158,11,0.45)"
+                        : "rgba(26,18,8,0.18)",
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <button
+          aria-label="Další den"
+          className="w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-600 shrink-0 disabled:opacity-30 active:scale-95 transition"
+          disabled={activeDayIdx === DAY_ORDER.length - 1}
+          onClick={() => goToDay(1)}
+          type="button"
+        >
+          <MIcon name="chevron_right" size={17} />
+        </button>
       </div>
 
       {/* Desktop + tablet: week grid (tablet scrolls horizontally with day picker) */}
