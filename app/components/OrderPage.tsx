@@ -239,7 +239,7 @@ function MenuPreviewCard({
         type="button"
         onClick={toggle}
         aria-expanded={open ?? false}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/30 transition hover:bg-white/40"
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition hover:bg-white/60 ${open ? "border-b border-white/30" : ""}`}
         style={{ background: "rgba(254,243,199,0.4)" }}
       >
         <div
@@ -252,7 +252,18 @@ function MenuPreviewCard({
           <div className="font-display font-bold text-[14px] text-stone-900 leading-none">Dnešní menu</div>
           <div className="text-[11.5px] text-stone-500 mt-0.5">{subtitle}</div>
         </div>
-        <MIcon name={open ? "expand_less" : "expand_more"} size={18} style={{ color: "#78716c" }} />
+        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-amber-700 shrink-0">
+          {open ? "Sbalit" : "Zobrazit"}
+          <span
+            className="inline-flex transition-transform"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0)" }}
+            aria-hidden
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </span>
       </button>
 
       {open && (

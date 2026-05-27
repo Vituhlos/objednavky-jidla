@@ -431,6 +431,10 @@ export default function SettingsPage({
   // Search
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
   useEffect(() => {
     if (!unlocked) return;
     const handler = (e: KeyboardEvent) => {

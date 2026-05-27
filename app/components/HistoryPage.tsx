@@ -374,7 +374,11 @@ export default function HistoryPage({
   const today = getPragueTodayISO();
   const todayWeekStart = getISOWeekStart(today);
 
-  // ⌘K shortcut
+  // ⌘K / Ctrl+K shortcut — detekce platformy pro správný label
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -486,7 +490,9 @@ export default function HistoryPage({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <span className="search-pill__kbd">⌘ K</span>
+            <span className="search-pill__kbd" aria-label={isMac ? "Command K" : "Ctrl K"}>
+              {isMac ? "⌘ K" : "Ctrl K"}
+            </span>
           </div>
         }
         searchBar={
