@@ -6,7 +6,6 @@ import type { BuildInfo } from "@/lib/build-info";
 import type { UserOrderStats } from "@/lib/orders";
 import MIcon from "./MIcon";
 import CopyBuildButton from "./CopyBuildButton";
-import ThemeToggle from "./ThemeToggle";
 
 function Avatar({ name, size = 64 }: { name: string; size?: number }) {
   const parts = name.trim().split(/\s+/);
@@ -185,20 +184,6 @@ export default function ProfilePage({
                 </Link>
               </div>
             )}
-          </div>
-
-          {/* Appearance */}
-          <div className="glass rounded-3xl overflow-hidden">
-            <SectionHeader icon="palette" title="Vzhled" />
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[12.5px] font-semibold text-stone-700">Tmavý režim</div>
-                  <div className="text-[10.5px] text-stone-400">Přizpůsobí barvy pro pohodlné čtení ve tmě</div>
-                </div>
-                <ThemeToggle />
-              </div>
-            </div>
           </div>
 
           {/* App info */}

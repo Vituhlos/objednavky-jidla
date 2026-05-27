@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
-import ThemeToggle from "./ThemeToggle";
 
 const NAV = [
   { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
@@ -99,11 +98,8 @@ export default function AppTopBar({
           })}
         </div>
 
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="mt-auto">
           <SidebarClock />
-          <div className="flex justify-center">
-            <ThemeToggle />
-          </div>
         </div>
       </aside>
 
