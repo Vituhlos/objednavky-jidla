@@ -574,10 +574,21 @@ const WeekItem = memo(function WeekItem({
     ? `Obsahuje alergen ${allergenNums.filter(n => filteredAllergens.has(n)).join(", ")}, který jsi vyfiltroval`
     : undefined;
 
+  const canQuickOrder = !editMode && isToday && !hasFilteredAllergen;
+  const handleRowClick = () => {
+    if (!canQuickOrder) return;
+    router.push(`/?${prefillParam}=${item.id}`);
+  };
+
   return (
     <div
-      className={`menu-row${filterActive && hasFilteredAllergen ? " menu-row--dimmed" : ""}`}
+      className={`menu-row${filterActive && hasFilteredAllergen ? " menu-row--dimmed" : ""}${canQuickOrder ? " menu-row--tappable" : ""}`}
       title={tooltipText}
+      role={canQuickOrder ? "button" : undefined}
+      tabIndex={canQuickOrder ? 0 : undefined}
+      onClick={canQuickOrder ? handleRowClick : undefined}
+      onKeyDown={canQuickOrder ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(); } } : undefined}
+      aria-label={canQuickOrder ? `Objednat ${item.name}` : undefined}
     >
       <span className="menu-row__idx">{item.code}</span>
       <div className="min-w-0">
@@ -601,20 +612,24 @@ const WeekItem = memo(function WeekItem({
           aria-label="Upravit"
           className="absolute right-1 top-1 w-7 h-7 rounded-lg inline-flex items-center justify-center text-stone-500 bg-stone-100/70 hover:text-amber-600 hover:bg-amber-50 transition"
           disabled={disabled}
-          onClick={() => onEdit(item)}
+          onClick={(e) => { e.stopPropagation(); onEdit(item); }}
           type="button"
         >
           <MIcon name="edit" size={13} />
         </button>
-      ) : isToday && !hasFilteredAllergen ? (
-        <button
-          type="button"
-          className="quick-order"
-          aria-label={`Objednat ${item.name}`}
-          onClick={(e) => { e.stopPropagation(); router.push(`/?${prefillParam}=${item.id}`); }}
-        >
-          <MIcon name="add" size={10} /> Objednat
-        </button>
+      ) : canQuickOrder ? (
+        <>
+          {/* Desktop: hover pill */}
+          <span className="quick-order" aria-hidden>
+            <MIcon name="add" size={10} /> Objednat
+          </span>
+          {/* Touch: subtle chevron indicator */}
+          <span className="menu-row__chevron" aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+        </>
       ) : null}
     </div>
   );
