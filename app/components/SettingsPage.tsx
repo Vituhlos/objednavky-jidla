@@ -1809,7 +1809,7 @@ export default function SettingsPage({
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     {appUsers.map((u) => {
-                      const label = u.name || u.email || `${u.provider}:${u.subject}`;
+                      const label = u.name || u.email || `#${u.id}`;
                       const isSelf = currentUserId === u.id;
                       return (
                         <div key={u.id} className="flex items-center gap-2 py-2 px-2 rounded-xl hover:bg-black/3 group">
