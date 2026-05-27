@@ -14,6 +14,7 @@ export interface UserRow {
   emailVerified: boolean;
   active: boolean;
   defaultDepartment: string | null;
+  emailOrderConfirmation: boolean;
   passwordHash: string | null;
   createdAt: string;
   lastLoginAt: string;
@@ -52,6 +53,7 @@ function mapRow(r: Record<string, unknown>): UserRow {
     emailVerified: (r.email_verified as number) === 1,
     active: (r.active as number) === 1,
     defaultDepartment: (r.default_department as string | null) ?? null,
+    emailOrderConfirmation: (r.email_order_confirmation as number) !== 0,
     passwordHash: (r.password_hash as string | null) ?? null,
     createdAt: (r.created_at as string) ?? "",
     lastLoginAt: (r.last_login_at as string) ?? "",
@@ -267,6 +269,7 @@ export function updateUserProfile(userId: number, updates: {
   firstName?: string;
   lastName?: string;
   defaultDepartment?: string | null;
+  emailOrderConfirmation?: boolean;
   email?: string;
 }): void {
   const sets: string[] = [];
@@ -274,6 +277,7 @@ export function updateUserProfile(userId: number, updates: {
   if (updates.firstName !== undefined) { sets.push("first_name = ?"); vals.push(updates.firstName.trim()); }
   if (updates.lastName !== undefined) { sets.push("last_name = ?"); vals.push(updates.lastName.trim()); }
   if (updates.defaultDepartment !== undefined) { sets.push("default_department = ?"); vals.push(updates.defaultDepartment); }
+  if (updates.emailOrderConfirmation !== undefined) { sets.push("email_order_confirmation = ?"); vals.push(updates.emailOrderConfirmation ? "1" : "0"); }
   if (updates.email !== undefined) {
     const newEmail = updates.email.trim().toLowerCase();
     const existing = getUserByEmail(newEmail);

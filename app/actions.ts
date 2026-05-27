@@ -53,7 +53,7 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, type UserRole } from "@/lib/users";
+import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, verifyPassword, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
@@ -490,14 +490,48 @@ export async function actionUpdateProfile(updates: {
   firstName: string;
   lastName: string;
   defaultDepartment: string | null;
+  emailOrderConfirmation?: boolean;
 }): Promise<void> {
   const session = await requireAuth();
   updateUserProfile(session.userId, {
     firstName: updates.firstName.trim(),
     lastName: updates.lastName.trim(),
     defaultDepartment: updates.defaultDepartment || null,
+    emailOrderConfirmation: updates.emailOrderConfirmation,
   });
   revalidatePath("/profil");
+}
+
+export async function actionChangeEmail(newEmail: string, password: string): Promise<void> {
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!EMAIL_RE.test(newEmail)) throw new Error("Neplatná e-mailová adresa.");
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  if (!user) throw new Error("Uživatel nenalezen.");
+  if (!user.passwordHash) throw new Error("Účet přes Google nemá heslo — e-mail nelze změnit takto.");
+  if (!verifyPassword(password, user.passwordHash)) throw new Error("Nesprávné heslo.");
+  updateUserProfile(session.userId, { email: newEmail.trim().toLowerCase() });
+  revalidatePath("/profil");
+}
+
+export async function actionGetMyOrders(): Promise<{ date: string; mainDish: string | null }[]> {
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  if (!user) return [];
+  const personName = `${user.firstName} ${user.lastName}`.trim();
+  if (!personName) return [];
+  const { getDb } = await import("@/lib/db");
+  const rows = getDb().prepare(`
+    SELECT DISTINCT o.date,
+      (SELECT mi.name FROM order_rows r2 LEFT JOIN menu_items mi ON mi.id = r2.main_item_id
+       WHERE r2.order_id = o.id AND r2.person_name = ? AND r2.main_item_id IS NOT NULL LIMIT 1) as main_dish
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE r.person_name = ?
+    ORDER BY o.date DESC
+    LIMIT 30
+  `).all(personName, personName) as { date: string; main_dish: string | null }[];
+  return rows.map((r) => ({ date: r.date, mainDish: r.main_dish }));
 }
 
 export async function actionChangePassword(oldPassword: string, newPassword: string): Promise<void> {

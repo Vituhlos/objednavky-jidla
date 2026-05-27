@@ -193,6 +193,7 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''"); } catch {}
   try { db.exec("ALTER TABLE users ADD COLUMN default_department TEXT"); } catch {}
   try { db.exec("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN email_order_confirmation INTEGER NOT NULL DEFAULT 1"); } catch {}
 
   // Account linking — jeden user, vícero providerů (Credentials, Google, ...)
   db.exec(`

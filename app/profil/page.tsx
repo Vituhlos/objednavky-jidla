@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getUserById } from "@/lib/users";
 import { getDepartments } from "@/lib/departments";
+import { getSettings } from "@/lib/settings";
 import { getDb } from "@/lib/db";
 import ProfilePage from "@/app/components/ProfilePage";
 import { redirect } from "next/navigation";
@@ -16,6 +17,8 @@ export default async function ProfilRoute() {
   if (!user) redirect("/login");
 
   const departments = getDepartments();
+  const settings = getSettings();
+  const defaultMealPrice = parseInt(settings.defaultMealPrice ?? "110") || 110;
 
   const db = getDb();
   const personName = `${user.firstName} ${user.lastName}`.trim();
@@ -32,6 +35,25 @@ export default async function ProfilRoute() {
       ).get(personName) as { c: number } | undefined)?.c ?? 0)
     : 0;
 
+  const favoriteDish = personName
+    ? ((db.prepare(
+        `SELECT mi.name FROM order_rows r
+         JOIN menu_items mi ON mi.id = r.main_item_id
+         WHERE r.person_name = ? AND r.main_item_id IS NOT NULL
+         GROUP BY r.main_item_id ORDER BY COUNT(*) DESC LIMIT 1`
+      ).get(personName) as { name: string } | undefined)?.name ?? null)
+    : null;
+
+  const monthlyRows = personName
+    ? (db.prepare(
+        `SELECT r.meal_count FROM order_rows r
+         JOIN orders o ON o.id = r.order_id
+         WHERE r.person_name = ? AND r.main_item_id IS NOT NULL
+           AND o.date >= date('now','start of month')`
+      ).all(personName) as { meal_count: number }[])
+    : [];
+  const monthlySpending = monthlyRows.reduce((s, r) => s + (r.meal_count || 1) * defaultMealPrice, 0);
+
   return (
     <ProfilePage
       firstName={user.firstName}
@@ -41,9 +63,12 @@ export default async function ProfilRoute() {
       emailVerified={user.emailVerified}
       hasPassword={!!user.passwordHash}
       defaultDepartment={user.defaultDepartment}
+      emailOrderConfirmation={user.emailOrderConfirmation}
       departments={departments.map((d) => ({ name: d.name, label: d.label }))}
       totalOrders={totalOrders}
       thisMonthOrders={thisMonthOrders}
+      favoriteDish={favoriteDish}
+      monthlySpending={monthlySpending}
       showSettingsLink={user.role === "admin"}
     />
   );
