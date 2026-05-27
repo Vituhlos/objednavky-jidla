@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
+import ThemeToggle from "./ThemeToggle";
 
 const NAV = [
   { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
@@ -98,8 +99,11 @@ export default function AppTopBar({
           })}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-2">
           <SidebarClock />
+          <div className="flex justify-center">
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
@@ -107,7 +111,7 @@ export default function AppTopBar({
       <div
         aria-hidden="true"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
-        style={{ height: 80, background: "linear-gradient(to top, var(--bg) 30%, rgba(248,244,239,0) 100%)" }}
+        style={{ height: 80, background: "linear-gradient(to top, var(--bg) 30%, transparent 100%)" }}
       />
 
       {/* ── Bottom nav pill (mobile + tablet, hidden on lg+) ── */}

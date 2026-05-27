@@ -5,6 +5,7 @@ import type { UserOrderStats } from "@/lib/orders";
 import PageHeader from "./PageHeader";
 import MIcon from "./MIcon";
 import CopyBuildButton from "./CopyBuildButton";
+import ThemeToggle from "./ThemeToggle";
 import { Section } from "./settings/_shared";
 
 function ProfileRow({
@@ -190,6 +191,13 @@ export default function ProfilePage({
               )}
             </Section>
           )}
+
+          <Section title="Vzhled" icon="palette">
+            <div className="flex items-center justify-between py-2">
+              <span className="text-[12px] font-semibold text-stone-600">Tmavý režim</span>
+              <ThemeToggle />
+            </div>
+          </Section>
 
           <Section title="Aplikace" icon="build">
             <ProfileRow label="Verze" value={build.displayString} mono />
