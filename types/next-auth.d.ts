@@ -2,6 +2,8 @@ import type { DefaultSession } from "next-auth";
 
 type AppSessionUser = DefaultSession["user"] & {
   role?: "admin" | "user";
+  firstName?: string;
+  lastName?: string;
 };
 
 declare module "next-auth" {
@@ -15,6 +17,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: number;
     role?: "admin" | "user";
+    firstName?: string;
+    lastName?: string;
   }
 }
 
@@ -29,5 +33,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     userId?: number;
     role?: "admin" | "user";
+    firstName?: string;
+    lastName?: string;
   }
 }
