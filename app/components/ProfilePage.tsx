@@ -297,7 +297,7 @@ export default function ProfilePage({
               {/* Stats 2×2 */}
               <div className="grid grid-cols-2 gap-2">
                 <StatTile icon="restaurant_menu" value={totalOrders} label="objednávek celkem" />
-                <StatTile icon="today" value={thisMonthOrders} label="tento měsíc" />
+                <StatTile icon="calendar_today" value={thisMonthOrders} label="tento měsíc" />
                 <StatTile icon="payments" value={monthlySpending > 0 ? `${monthlySpending} Kč` : "—"} label="výdaje / měsíc" />
                 <StatTile icon="star" value={favoriteDish ?? "—"} label="oblíbené" />
               </div>
@@ -331,7 +331,7 @@ export default function ProfilePage({
               className="flex items-start gap-3 px-4 py-3 rounded-2xl text-[12.5px] text-stone-700"
               style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}
             >
-              <MIcon name="mark_email_unread" size={18} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
+              <MIcon name="mail" size={18} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-stone-800 mb-0.5">E-mail není ověřen</p>
                 <p className="text-stone-500 text-[12px]">Ověřením si zajistíš možnost resetovat heslo.</p>
@@ -349,7 +349,7 @@ export default function ProfilePage({
           )}
 
           {/* ── Nastavení účtu ── */}
-          <SectionCard title="Nastavení účtu" icon="manage_accounts" accent>
+          <SectionCard title="Nastavení účtu" icon="edit" accent>
             <form onSubmit={handleSaveProfile} className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
@@ -405,7 +405,7 @@ export default function ProfilePage({
 
           {/* ── Změna e-mailu (jen Credentials uživatelé) ── */}
           {hasPassword && (
-            <SectionCard title="Změna e-mailu" icon="email">
+            <SectionCard title="Změna e-mailu" icon="mail">
               <form onSubmit={handleChangeEmail} className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
                   <FieldLabel>Nový e-mail</FieldLabel>
