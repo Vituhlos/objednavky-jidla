@@ -10,7 +10,8 @@ const NAV = [
   { href: "/jidelnicek", label: "Jídelníček LIMA",   shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
   { href: "/pizza",      label: "Pizza",              shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
   { href: "/historie",   label: "Historie",           shortLabel: "Historie",   icon: "history",         exact: false },
-  { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false },
+  { href: "/profil",     label: "Profil",             shortLabel: "Profil",     icon: "groups",          exact: false },
+  { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false, adminOnly: true },
 ];
 
 const SidebarClock = memo(function SidebarClock() {
@@ -34,9 +35,17 @@ const SidebarClock = memo(function SidebarClock() {
   );
 });
 
-export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
+export default function AppTopBar({
+  pizzaEnabled = true,
+  showSettings = false,
+}: {
+  pizzaEnabled?: boolean;
+  showSettings?: boolean;
+}) {
   const pathname = usePathname();
-  const nav = pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza");
+  const nav = (pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza")).filter(
+    (n) => !("adminOnly" in n && n.adminOnly) || showSettings,
+  );
 
   return (
     <>

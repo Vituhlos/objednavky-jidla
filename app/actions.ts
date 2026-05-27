@@ -51,12 +51,15 @@ import {
   reorderDepartments,
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
+import { requireAuth, requireAdmin } from "@/lib/auth";
+import { listUsers, setUserRole, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  await requireAuth();
   const row = addOrderRow(orderId, department, pushEndpoint);
   revalidatePath("/");
   broadcast();
@@ -82,12 +85,14 @@ export async function actionUpdateRow(
   }>,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  await requireAuth();
   const row = updateOrderRow(rowId, updates, pushEndpoint);
   broadcast();
   return row;
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
+  await requireAuth();
   deleteOrderRow(rowId);
   revalidatePath("/");
   broadcast();
@@ -103,6 +108,7 @@ export async function getDeptSuggestions(
 export async function actionDuplicateOrder(
   sourceOrderId: number,
 ): Promise<{ newOrderId: number; copiedRowCount: number }> {
+  await requireAuth();
   const { duplicateOrderRows } = await import("@/lib/orders");
   const result = duplicateOrderRows(sourceOrderId);
   revalidatePath("/");
@@ -177,6 +183,7 @@ export async function getSettingsHealth(): Promise<SettingsHealth> {
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
+  await requireAuth();
   await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
@@ -200,6 +207,7 @@ export async function actionConfirmMenuImport(
   items: ParsedMenuItem[],
   tmpPdfName?: string
 ): Promise<void> {
+  await requireAuth();
   setMenuForWeek(weekStart, weekLabel, items);
   if (tmpPdfName) {
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
@@ -214,6 +222,7 @@ export async function actionConfirmMenuImport(
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
+  await requireAuth();
   deleteMenuForWeek(weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
@@ -231,6 +240,7 @@ export async function actionAddMenuItem(item: {
   price: number;
   weekStart?: string;
 }): Promise<MenuItem> {
+  await requireAuth();
   return addMenuItem(item);
 }
 
@@ -238,16 +248,19 @@ export async function actionUpdateMenuItem(
   id: number,
   updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): Promise<MenuItem> {
+  await requireAuth();
   return updateMenuItem(id, updates);
 }
 
 export async function actionDeleteMenuItem(id: number): Promise<void> {
+  await requireAuth();
   deleteMenuItem(id);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
+  await requireAuth();
   const row = addPizzaRow(orderId);
   revalidatePath("/pizza");
   return row;
@@ -257,6 +270,7 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
+  await requireAuth();
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
   broadcast();
@@ -264,6 +278,7 @@ export async function actionUpdatePizzaRow(
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
+  await requireAuth();
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
 }
@@ -271,12 +286,14 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
 ): Promise<{ id: number; code: number; name: string; price: number }[]> {
+  await requireAuth();
   const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
   return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
+  await requireAuth();
   reopenOrder(orderId);
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
@@ -284,22 +301,26 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
+  await requireAuth();
   await resendOrderEmail(orderId);
 }
 
 export async function actionCloseDay(dayCode: string, weekStart: string): Promise<void> {
+  await requireAuth();
   closeDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionOpenDay(dayCode: string, weekStart: string): Promise<void> {
+  await requireAuth();
   openDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
+  await requireAuth();
   clearOrderRows(orderId);
   revalidatePath("/");
   broadcast();
@@ -312,6 +333,7 @@ export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
 export async function actionAddDepartment(data: {
   name: string; label: string; emailLabel: string; accent: string;
 }): Promise<DepartmentInfo> {
+  await requireAdmin();
   const dept = addDepartment(data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -322,6 +344,7 @@ export async function actionUpdateDepartment(
   id: number,
   data: Partial<{ label: string; emailLabel: string; accent: string }>
 ): Promise<DepartmentInfo> {
+  await requireAdmin();
   const dept = updateDepartment(id, data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -329,12 +352,14 @@ export async function actionUpdateDepartment(
 }
 
 export async function actionDeleteDepartment(id: number): Promise<void> {
+  await requireAdmin();
   deleteDepartment(id);
   revalidatePath("/");
   revalidatePath("/nastaveni");
 }
 
 export async function actionReorderDepartments(orderedIds: number[]): Promise<void> {
+  await requireAdmin();
   reorderDepartments(orderedIds);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -346,17 +371,19 @@ export async function actionCheckPin(pin: string): Promise<boolean> {
   return checkPin(pin);
 }
 
-export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
-  if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
+export async function actionSaveSettings(updates: Partial<AppSettings>, _pin?: string): Promise<void> {
+  await requireAdmin();
   saveSettings(updates);
   revalidatePath("/nastaveni");
 }
 
 export async function actionCheckImap(): Promise<ImapCheckResult> {
+  await requireAdmin();
   return checkImapForMenu();
 }
 
 export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
+  await requireAdmin();
   const subs = getAllSubscriptions();
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
@@ -369,6 +396,7 @@ export async function actionDismissAutoSendError(): Promise<void> {
 }
 
 export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
+  await requireAdmin();
   const hdrs = await headers();
   const host = hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
@@ -377,6 +405,7 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
 }
 
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
+  await requireAdmin();
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
   if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
@@ -389,15 +418,18 @@ export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: nu
 }
 
 export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
+  await requireAdmin();
   return getTelegramSubscriptions();
 }
 
 export async function actionRemoveTelegramSubscription(chatId: string): Promise<void> {
+  await requireAdmin();
   removeTelegramSubscription(chatId);
   revalidatePath("/nastaveni");
 }
 
 export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
+  await requireAdmin();
   setTelegramAdmin(chatId, isAdmin);
   revalidatePath("/nastaveni");
 }
@@ -408,6 +440,7 @@ export async function actionGetTelegramBotInfo(): Promise<{
   username?: string;
   error?: string;
 }> {
+  await requireAdmin();
   return getTelegramBotInfo();
 }
 
@@ -416,10 +449,24 @@ export async function actionGetTelegramWebhookStatus(): Promise<{
   hasWebhook: boolean;
   url?: string;
 }> {
+  await requireAdmin();
   return getTelegramWebhookStatus();
 }
 
 export async function actionSetTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
+  await requireAdmin();
   return setTelegramCommands();
+}
+
+export async function actionListAppUsers() {
+  await requireAdmin();
+  return listUsers();
+}
+
+export async function actionSetAppUserRole(userId: number, role: UserRole): Promise<void> {
+  await requireAdmin();
+  setUserRole(userId, role);
+  revalidatePath("/profil");
+  revalidatePath("/nastaveni");
 }
 

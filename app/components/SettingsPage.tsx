@@ -345,14 +345,15 @@ const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, adminUnlocked = false,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
+  adminUnlocked?: boolean;
 }) {
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(adminUnlocked);
   const [activeTab, setActiveTab] = useState<Tab>("objednavka");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -363,6 +364,7 @@ export default function SettingsPage({
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
   const resetSessionTimer = () => {
+    if (adminUnlocked) return;
     if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
     sessionTimerRef.current = setTimeout(() => {
       setUnlocked(false);

@@ -3,6 +3,8 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
+import SessionProvider from "./components/SessionProvider";
+import { auth } from "@/auth";
 import { getSettings } from "@/lib/settings";
 
 const inter = Inter({
@@ -39,17 +41,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const settings = getSettings();
   const pizzaEnabled = settings.pizzaEnabled !== "false";
+  const session = await auth();
+  const showSettings = session?.user?.role === "admin";
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
       <body className={inter.className}>
+        <SessionProvider>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-stone-900 focus:rounded-xl focus:shadow-lg focus:text-sm focus:font-semibold focus:outline-none"
@@ -61,11 +66,12 @@ export default function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar pizzaEnabled={pizzaEnabled} />
+        <AppTopBar pizzaEnabled={pizzaEnabled} showSettings={showSettings} />
         <main id="main-content">
           {children}
         </main>
         <SwRegister />
+        </SessionProvider>
       </body>
     </html>
   );

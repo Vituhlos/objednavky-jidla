@@ -170,6 +170,22 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
+  // Auth (SSO users)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider      TEXT    NOT NULL,
+      subject       TEXT    NOT NULL,
+      email         TEXT,
+      name          TEXT,
+      avatar_url    TEXT,
+      role          TEXT    NOT NULL DEFAULT 'user',
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      last_login_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(provider, subject)
+    );
+  `);
+
   db.prepare(`
     CREATE TABLE IF NOT EXISTS menu_day_closed (
       week_start TEXT NOT NULL,

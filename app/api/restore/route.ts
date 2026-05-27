@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getAppSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,11 @@ function remapId(oldId: number | null | undefined, map: Map<number, number>): nu
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const session = await getAppSession();
+  if (!session || session.user.role !== "admin") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const { backup, restoreSettings } = await req.json() as { backup: BackupFile; restoreSettings: boolean };
     const db = getDb();
