@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
+import { signOut } from "next-auth/react";
 import MIcon from "./MIcon";
 
-const NAV = [
+type UserInfo = { firstName: string; lastName: string; role: string } | null;
+
+const MAIN_NAV = [
   { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
   { href: "/jidelnicek", label: "Jídelníček LIMA",   shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
   { href: "/pizza",      label: "Pizza",              shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
   { href: "/historie",   label: "Historie",           shortLabel: "Historie",   icon: "history",         exact: false },
-  { href: "/profil",     label: "Profil",             shortLabel: "Profil",     icon: "person",          exact: false },
   { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false, adminOnly: true },
 ];
+
+const PROFIL_NAV = { href: "/profil", label: "Profil", shortLabel: "Profil", icon: "person", exact: false };
 
 const SidebarClock = memo(function SidebarClock() {
   const [now, setNow] = useState(() => new Date());
@@ -35,53 +39,119 @@ const SidebarClock = memo(function SidebarClock() {
   );
 });
 
+function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  return (
+    <div
+      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-display font-bold text-white text-[13px]"
+      style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 10px -4px rgba(245,158,11,0.45)" }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+function UserBadge({ user }: { user: UserInfo }) {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut({ callbackUrl: "/login" });
+  };
+
+  if (!user) {
+    return (
+      <div className="glass-soft rounded-2xl p-3">
+        <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Účet</div>
+        <div className="text-[12px] text-stone-500 leading-snug mb-2.5">Přihlaste se pro přidání objednávky.</div>
+        <div className="flex flex-col gap-1.5">
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white transition hover:opacity-[0.88]"
+            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}
+          >
+            <MIcon name="login" size={13} />
+            Přihlásit se
+          </Link>
+          <Link
+            href="/registrace"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-600 glass-btn transition hover:text-stone-800"
+          >
+            <MIcon name="person_add" size={13} />
+            Vytvořit účet
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-soft rounded-2xl p-3">
+      <Link href="/profil" className="flex items-center gap-2.5 mb-2 group">
+        <InitialsAvatar firstName={user.firstName} lastName={user.lastName} />
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-bold text-[13px] text-stone-900 leading-none group-hover:text-amber-700 transition truncate">
+            {user.firstName} {user.lastName}
+          </div>
+          {user.role === "admin"
+            ? <div className="text-[10px] text-amber-700 font-semibold mt-0.5">Admin</div>
+            : <div className="text-[10px] text-stone-400 mt-0.5">Profil</div>
+          }
+        </div>
+      </Link>
+      <button
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-stone-500 glass-btn transition hover:text-stone-700 disabled:opacity-50"
+      >
+        <MIcon name="logout" size={13} />
+        {loggingOut ? "Odhlašuji…" : "Odhlásit se"}
+      </button>
+    </div>
+  );
+}
+
 export default function AppTopBar({
+  initialUser = null,
   pizzaEnabled = true,
   showSettings = false,
   isLoggedIn = true,
 }: {
+  initialUser?: UserInfo;
   pizzaEnabled?: boolean;
   showSettings?: boolean;
   isLoggedIn?: boolean;
 }) {
   const pathname = usePathname();
-  const nav = (pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza"))
-    .filter((n) => !("adminOnly" in n && n.adminOnly) || showSettings)
-    .map((n) =>
-      n.href === "/profil" && !isLoggedIn
-        ? { ...n, label: "Přihlásit se", shortLabel: "Login", icon: "login" as const, href: "/login" }
-        : n
-    );
+
+  const desktopNav = (pizzaEnabled ? MAIN_NAV : MAIN_NAV.filter((n) => n.href !== "/pizza"))
+    .filter((n) => !("adminOnly" in n && n.adminOnly) || showSettings);
+
+  const mobileNav = [
+    ...desktopNav,
+    isLoggedIn ? PROFIL_NAV : { ...PROFIL_NAV, label: "Přihlásit se", shortLabel: "Login", icon: "login" as const, href: "/login" },
+  ];
 
   return (
     <>
-      {/* ── Desktop sidebar (fixed, lg+ only — tablet uses bottom pill) ── */}
+      {/* ── Desktop sidebar (fixed, lg+ only) ── */}
       <aside className="hidden lg:flex fixed top-0 left-0 w-[232px] h-screen flex-col gap-1 p-3 border-r border-white/60 desktop-sidebar z-50 overflow-y-auto">
         <div className="px-2 py-3">
           <span className="inline-flex items-center gap-2 font-display font-extrabold">
             <span
               className="inline-flex items-center justify-center rounded-xl"
-              style={{
-                width: 34, height: 34,
-                background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)",
-              }}
+              style={{ width: 34, height: 34, background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)" }}
             >
               <MIcon name="restaurant" size={20} fill className="text-white" />
             </span>
-            <span style={{
-              fontSize: 19,
-              background: "linear-gradient(135deg,#D97706,#EA580C)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}>
+            <span style={{ fontSize: 19, background: "linear-gradient(135deg,#D97706,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Kantýna
             </span>
           </span>
         </div>
 
         <div className="mt-2 flex flex-col gap-0.5">
-          {nav.map(({ href, label, icon, exact }) => {
+          {desktopNav.map(({ href, label, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -90,12 +160,7 @@ export default function AppTopBar({
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition ${isActive ? "sidebar-item-active" : "hover:bg-white/60"}`}
               >
-                <MIcon
-                  name={icon}
-                  size={19}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
+                <MIcon name={icon} size={19} fill={isActive} style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }} />
                 <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-600"}`}>
                   {label}
                 </span>
@@ -104,22 +169,23 @@ export default function AppTopBar({
           })}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-2">
+          <UserBadge user={initialUser} />
           <SidebarClock />
         </div>
       </aside>
 
-      {/* ── Bottom fade (masks background bleed under nav) ── */}
+      {/* ── Bottom fade ── */}
       <div
         aria-hidden="true"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
         style={{ height: 80, background: "linear-gradient(to top, var(--bg) 30%, rgba(248,244,239,0) 100%)" }}
       />
 
-      {/* ── Bottom nav pill (mobile + tablet, hidden on lg+) ── */}
+      {/* ── Bottom nav pill (mobile + tablet) ── */}
       <nav aria-label="Navigace" className="lg:hidden fixed left-2 right-2 z-40 max-w-md mx-auto" style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {nav.map(({ href, shortLabel, icon, exact }) => {
+          {mobileNav.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -129,18 +195,11 @@ export default function AppTopBar({
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >
-                <MIcon
-                  name={icon}
-                  size={20}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
+                <MIcon name={icon} size={20} fill={isActive} style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }} />
                 <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
                   {shortLabel}
                 </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
-                )}
+                {isActive && <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />}
               </Link>
             );
           })}

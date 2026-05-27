@@ -50,6 +50,13 @@ export default async function RootLayout({
   const pizzaEnabled = settings.pizzaEnabled !== "false";
   const session = await auth();
   const showSettings = session?.user?.role === "admin";
+  const initialUser = session?.user
+    ? {
+        firstName: session.user.firstName ?? session.user.name?.split(" ")[0] ?? "",
+        lastName: session.user.lastName ?? session.user.name?.split(" ").slice(1).join(" ") ?? "",
+        role: session.user.role ?? "user",
+      }
+    : null;
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head />
@@ -66,7 +73,7 @@ export default async function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar pizzaEnabled={pizzaEnabled} showSettings={showSettings} isLoggedIn={!!session} />
+        <AppTopBar pizzaEnabled={pizzaEnabled} showSettings={showSettings} isLoggedIn={!!session} initialUser={initialUser} />
         <main id="main-content">
           {children}
         </main>
