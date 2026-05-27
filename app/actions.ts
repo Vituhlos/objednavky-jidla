@@ -72,7 +72,7 @@ export async function actionAddRow(
 ): Promise<OrderRowEnriched> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Pro přidání objednávky se musíte přihlásit.");
-  const row = addOrderRow(orderId, department, user.id, `${user.firstName} ${user.lastName}`);
+  const row = addOrderRow(orderId, department, pushEndpoint, user.id, `${user.firstName} ${user.lastName}`);
   revalidatePath("/");
   broadcast();
   return row;

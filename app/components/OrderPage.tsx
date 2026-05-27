@@ -20,6 +20,7 @@ import {
   actionDeleteRow,
   actionSendOrder,
   actionDismissAutoSendError,
+  actionGetTodayUnorderedUsers,
 } from "@/app/actions";
 
 // ── Help modal ────────────────────────────────────────────
@@ -1294,7 +1295,7 @@ export default function OrderPage({
                   </div>
                   <div className="flex-1 min-w-0 leading-snug">
                     <div>
-                      <strong className="text-stone-900">Vybráno: {prefillItem.name}</strong>
+                      <strong className="text-stone-900">Vybráno: {prefillItem?.name}</strong>
                     </div>
                     <div className="text-stone-600">Klikni na <strong>+ Přidat</strong> u svého oddělení — jídlo se předvyplní.</div>
                   </div>
@@ -1383,50 +1384,12 @@ export default function OrderPage({
                   {!isSent && totalPrice > 0 && (
                     <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
                   )}
-                  {isAdmin && !isSent && (
-                    <button
-                      className="shrink-0 text-[11.5px] font-medium px-3 py-1.5 rounded-full glass-btn text-stone-500"
-                      disabled={isPending}
-                      onClick={() => setClearConfirm(true)}
-                      type="button"
-                    >
-                      Smazat
-                    </button>
-                  )}
                 </div>
               </div>
             </>
           )}
 
-          {/* ── Dev environment notice — always at bottom ── */}
-          {prodUrl && (
-            <div className="flex justify-center pt-2">
-              <div
-                className="glass rounded-2xl px-5 py-4 flex items-center gap-4"
-                style={{ background: "rgba(37,99,235,0.07)", borderColor: "rgba(37,99,235,0.22)", maxWidth: 500, width: "100%" }}
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(37,99,235,0.12)" }}
-                >
-                  <MIcon name="science" size={22} style={{ color: "#1d4ed8" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13.5px] font-bold text-blue-800 leading-snug">Vývojová verze</p>
-                  <p className="text-[12px] text-blue-600 leading-snug mt-0.5">Objednávky se neodesílají do restaurace — jde o testovací prostředí.</p>
-                </div>
-                <a
-                  href={prodUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 px-3.5 py-2 rounded-full text-[12px] font-semibold text-white no-underline whitespace-nowrap transition hover:opacity-[0.88] active:scale-[0.97]"
-                  style={{ background: "#1d4ed8", boxShadow: "0 2px 8px -2px rgba(29,78,216,0.45)" }}
-                >
-                  Produkce →
-                </a>
-              </div>
-            </div>
-          )}
+          {/* Dev environment notice — TODO: dodat NEXT_PUBLIC_PROD_URL setup */}
         </div>
       </div>
 
