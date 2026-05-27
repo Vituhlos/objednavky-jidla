@@ -18,6 +18,7 @@ export interface UserRow {
   passwordHash: string | null;
   createdAt: string;
   lastLoginAt: string;
+  sessionVersion: number;
 }
 
 // ── Password hashing (scrypt) ─────────────────────────────────────────────────
@@ -57,6 +58,7 @@ function mapRow(r: Record<string, unknown>): UserRow {
     passwordHash: (r.password_hash as string | null) ?? null,
     createdAt: (r.created_at as string) ?? "",
     lastLoginAt: (r.last_login_at as string) ?? "",
+    sessionVersion: (r.session_version as number) ?? 0,
   };
 }
 
@@ -356,5 +358,36 @@ export function validatePasswordResetToken(token: string): number | null {
 
 export function consumePasswordResetToken(token: string): void {
   getDb().prepare("UPDATE password_reset_tokens SET used = 1 WHERE token = ?").run(token);
+}
+
+// ── Session management ───────────────────────────────────────────────────────
+
+export function incrementSessionVersion(userId: number): void {
+  getDb().prepare("UPDATE users SET session_version = session_version + 1 WHERE id = ?").run(userId);
+}
+
+// ── Admin overrides ──────────────────────────────────────────────────────────
+
+export function adminForceVerifyEmail(userId: number): void {
+  getDb().prepare("UPDATE users SET email_verified = 1 WHERE id = ?").run(userId);
+}
+
+export function adminResetUserPassword(userId: number, newPassword: string): void {
+  if (newPassword.length < 6) throw new Error("Heslo musí mít alespoň 6 znaků.");
+  getDb()
+    .prepare("UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?")
+    .run(hashPassword(newPassword), userId);
+}
+
+// ── Account deletion (soft) ──────────────────────────────────────────────────
+
+export function deleteUserAccount(userId: number): void {
+  const db = getDb();
+  db.prepare(`UPDATE users SET
+    email = NULL, name = NULL, first_name = '', last_name = '',
+    password_hash = NULL, avatar_url = NULL, active = 0,
+    session_version = session_version + 1
+    WHERE id = ?`).run(userId);
+  db.prepare("DELETE FROM accounts WHERE user_id = ?").run(userId);
 }
 

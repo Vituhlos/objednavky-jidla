@@ -78,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.role = u.role === "admin" ? "admin" : "user";
             token.firstName = u.firstName;
             token.lastName = u.lastName;
+            token.sessionVersion = u.sessionVersion;
           }
         }
       } else if (trigger === "update" && typeof token.userId === "number") {
@@ -86,6 +87,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = u.role === "admin" ? "admin" : "user";
           token.firstName = u.firstName;
           token.lastName = u.lastName;
+          token.sessionVersion = u.sessionVersion;
         }
       }
 
@@ -101,6 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       const out = session as import("next-auth").Session;
       if (typeof token.userId === "number") out.userId = token.userId;
+      if (typeof token.sessionVersion === "number") out.sessionVersion = token.sessionVersion;
       out.user = {
         ...out.user,
         role: token.role === "admin" ? "admin" : "user",

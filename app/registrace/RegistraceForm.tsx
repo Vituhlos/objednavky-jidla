@@ -9,6 +9,19 @@ interface Props {
   departments: Pick<DepartmentInfo, "name" | "label">[];
 }
 
+function getPasswordStrength(pwd: string): { level: 0 | 1 | 2 | 3; label: string } {
+  if (pwd.length === 0) return { level: 0, label: "" };
+  if (pwd.length < 6) return { level: 0, label: "Příliš krátké" };
+  let score = 0;
+  if (pwd.length >= 10) score++;
+  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+  if (/\d/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  if (score <= 1) return { level: 1, label: "Slabé" };
+  if (score <= 2) return { level: 2, label: "Střední" };
+  return { level: 3, label: "Silné" };
+}
+
 export default function RegistraceForm({ departments }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -192,6 +205,25 @@ export default function RegistraceForm({ departments }: Props) {
               <MIcon name={showPass ? "visibility_off" : "visibility"} size={18} />
             </button>
           </div>
+          {password.length > 0 && (() => {
+            const { level, label } = getPasswordStrength(password);
+            const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e"] as const;
+            const color = colors[level];
+            return (
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex gap-0.5 flex-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-1 flex-1 rounded-full transition-colors"
+                      style={{ background: i <= level ? color : "rgba(0,0,0,0.08)" }}
+                    />
+                  ))}
+                </div>
+                {label && <span className="text-[11px] font-medium shrink-0" style={{ color }}>{label}</span>}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="flex flex-col gap-1">

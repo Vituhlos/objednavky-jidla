@@ -9,6 +9,8 @@ import {
   actionChangeEmail,
   actionResendVerifyEmail,
   actionGetMyOrders,
+  actionRevokeAllSessions,
+  actionDeleteAccount,
 } from "@/app/actions";
 
 type Dept = { name: string; label: string };
@@ -175,6 +177,7 @@ export default function ProfilePage({
   defaultDepartment, emailOrderConfirmation, departments,
   totalOrders, thisMonthOrders, favoriteDish, monthlySpending, showSettingsLink,
   linkedProviders, monthlyHistory, telegramConfigured, telegramBotUrl,
+  createdAt, lastLoginAt,
 }: {
   firstName: string; lastName: string; email: string | null;
   role: string; emailVerified: boolean; hasPassword: boolean;
@@ -187,6 +190,8 @@ export default function ProfilePage({
   monthlyHistory: MonthEntry[];
   telegramConfigured: boolean;
   telegramBotUrl: string;
+  createdAt: string;
+  lastLoginAt: string;
 }) {
   const isAdmin = role === "admin";
   const [loggingOut, setLoggingOut] = useState(false);
@@ -227,6 +232,16 @@ export default function ProfilePage({
 
   // QR kód
   const [showQr, setShowQr] = useState(false);
+
+  // Odhlásit ze všech zařízení
+  const [revokeLoading, setRevokeLoading] = useState(false);
+  const [revokeMsg, setRevokeMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Smazat účet
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePwd, setDeletePwd] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -318,6 +333,29 @@ export default function ProfilePage({
     setTimeout(() => setNotifMsg(null), 3000);
   }
 
+  async function handleRevokeAllSessions() {
+    setRevokeLoading(true); setRevokeMsg(null);
+    try {
+      await actionRevokeAllSessions();
+      setRevokeMsg({ ok: true, text: "Všechna ostatní zařízení byla odhlášena." });
+      setTimeout(() => setRevokeMsg(null), 4000);
+    } catch (err) {
+      setRevokeMsg({ ok: false, text: err instanceof Error ? err.message : "Chyba." });
+    } finally { setRevokeLoading(false); }
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setDeleteLoading(true); setDeleteMsg(null);
+    try {
+      await actionDeleteAccount(hasPassword ? deletePwd : undefined);
+      signOut({ callbackUrl: "/" });
+    } catch (err) {
+      setDeleteMsg({ ok: false, text: err instanceof Error ? err.message : "Chyba." });
+      setDeleteLoading(false);
+    }
+  }
+
   const displayName = `${editFirst} ${editLast}`.trim() || firstName;
   const hasGoogle = linkedProviders.includes("google");
   const hasCredentials = linkedProviders.includes("credentials");
@@ -354,6 +392,14 @@ export default function ProfilePage({
                         {departments.find((d) => d.name === editDept)?.label}
                       </span>
                     )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2">
+                    <span className="text-[11px] text-stone-400">
+                      Člen od <span className="text-stone-500 font-medium">{formatDate(createdAt)}</span>
+                    </span>
+                    <span className="text-[11px] text-stone-400">
+                      Naposledy <span className="text-stone-500 font-medium">{formatDate(lastLoginAt)}</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -499,6 +545,19 @@ export default function ProfilePage({
               {!hasCredentials && !hasGoogle && (
                 <p className="text-[12px] text-stone-400">Žádná přihlašovací metoda není propojena.</p>
               )}
+              <div className="pt-2 border-t border-white/40 flex flex-col gap-1.5">
+                <p className="text-[11.5px] text-stone-500">Odhlásí všechna ostatní zařízení a prohlížeče kde jste přihlášeni.</p>
+                <button
+                  type="button"
+                  onClick={handleRevokeAllSessions}
+                  disabled={revokeLoading}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition disabled:opacity-50 self-start"
+                >
+                  <MIcon name="logout" size={15} />
+                  {revokeLoading ? "Odhlašuji…" : "Odhlásit ze všech zařízení"}
+                </button>
+                <StatusMsg msg={revokeMsg} />
+              </div>
             </div>
           </SectionCard>
 
@@ -671,6 +730,46 @@ export default function ProfilePage({
               )}
             </div>
           </SectionCard>
+
+          {/* ── Smazat účet ── */}
+          <div className="glass-card rounded-3xl overflow-hidden">
+            <div
+              className="flex items-center gap-2 px-5 py-3.5 border-b border-white/40 cursor-pointer select-none"
+              style={{ background: deleteOpen ? "rgba(239,68,68,0.04)" : undefined }}
+              onClick={() => { setDeleteOpen((v) => !v); setDeleteMsg(null); setDeletePwd(""); }}
+            >
+              <MIcon name="delete_forever" size={16} style={{ color: "#ef4444" }} />
+              <span className="font-display font-bold text-[13.5px] text-red-600 flex-1">Smazat účet</span>
+              <MIcon name={deleteOpen ? "expand_less" : "expand_more"} size={16} style={{ color: "#ef4444" }} />
+            </div>
+            {deleteOpen && (
+              <div className="p-4 md:p-5 flex flex-col gap-3">
+                <p className="text-[12.5px] text-stone-600 leading-relaxed">
+                  Tato akce je <strong>nevratná</strong>. Váš účet bude deaktivován a osobní údaje smazány. Objednávky v historii zůstanou anonymizované.
+                </p>
+                <form onSubmit={handleDeleteAccount} className="flex flex-col gap-3">
+                  {hasPassword && (
+                    <PasswordInput
+                      id="deletePwd"
+                      label="Potvrdit heslem"
+                      value={deletePwd}
+                      onChange={setDeletePwd}
+                      placeholder="Vaše současné heslo"
+                    />
+                  )}
+                  <StatusMsg msg={deleteMsg} />
+                  <button
+                    type="submit"
+                    disabled={deleteLoading || (hasPassword && !deletePwd)}
+                    className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
+                  >
+                    {deleteLoading ? "Mažu účet…" : "Trvale smazat účet"}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
 
         </div>
       </div>

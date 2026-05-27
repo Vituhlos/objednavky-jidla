@@ -27,6 +27,8 @@ import {
   actionGetTelegramWebhookStatus,
   actionSetTelegramCommands,
   actionSetAppUserRole,
+  actionAdminForceVerifyEmail,
+  actionAdminResetPassword,
   getSettingsHealth,
   type SettingsHealth,
   type HealthStatus,
@@ -418,6 +420,9 @@ export default function SettingsPage({
   const router = useRouter();
   const [appUsers, setAppUsers] = useState<UserRow[]>(initialAppUsers);
   const [appUserError, setAppUserError] = useState<string | null>(null);
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
   const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean; url?: string } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1811,45 +1816,114 @@ export default function SettingsPage({
                     {appUsers.map((u) => {
                       const label = u.name || u.email || `#${u.id}`;
                       const isSelf = currentUserId === u.id;
+                      const isResetting = resetUserId === u.id;
                       return (
-                        <div key={u.id} className="flex items-center gap-2 py-2 px-2 rounded-xl hover:bg-black/3 group">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
-                            style={{
-                              background: u.role === "admin"
-                                ? "linear-gradient(135deg,#F59E0B,#EA580C)"
-                                : "#a8a29e",
-                            }}
-                          >
-                            {label[0]?.toUpperCase() ?? "?"}
+                        <div key={u.id} className="flex flex-col rounded-xl hover:bg-black/3 group">
+                          <div className="flex items-center gap-2 py-2 px-2">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
+                              style={{
+                                background: u.role === "admin"
+                                  ? "linear-gradient(135deg,#F59E0B,#EA580C)"
+                                  : "#a8a29e",
+                              }}
+                            >
+                              {label[0]?.toUpperCase() ?? "?"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[13px] font-semibold text-stone-800 truncate block">{label}</span>
+                              <span className="text-[11px] text-stone-400 truncate block">
+                                {u.email ?? "bez e-mailu"} · {u.role === "admin" ? "Admin" : "Uživatel"}
+                                {isSelf ? " · ty" : ""}
+                                {u.emailVerified ? "" : " · ⚠ e-mail neověřen"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              {!u.emailVerified && !isSelf && (
+                                <button
+                                  type="button"
+                                  title="Ověřit e-mail"
+                                  onClick={async () => {
+                                    setAppUserError(null);
+                                    try {
+                                      await actionAdminForceVerifyEmail(u.id);
+                                      setAppUsers((prev) => prev.map((row) => row.id === u.id ? { ...row, emailVerified: true } : row));
+                                    } catch (err) {
+                                      setAppUserError(err instanceof Error ? err.message : "Chyba.");
+                                    }
+                                  }}
+                                  className="text-[11px] px-2 py-1 rounded-lg glass-btn text-green-700 font-medium"
+                                >
+                                  Ověřit e-mail
+                                </button>
+                              )}
+                              {u.passwordHash && !isSelf && (
+                                <button
+                                  type="button"
+                                  title="Reset hesla"
+                                  onClick={() => { setResetUserId(isResetting ? null : u.id); setResetPwd(""); setAppUserError(null); }}
+                                  className="text-[11px] px-2 py-1 rounded-lg glass-btn text-amber-700 font-medium"
+                                >
+                                  Reset hesla
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={isSelf}
+                                title={isSelf ? "Nemůžeš si odebrat admin roli sám sobě" : undefined}
+                                onClick={async () => {
+                                  setAppUserError(null);
+                                  const nextRole: UserRole = u.role === "admin" ? "user" : "admin";
+                                  try {
+                                    await actionSetAppUserRole(u.id, nextRole);
+                                    setAppUsers((prev) =>
+                                      prev.map((row) => (row.id === u.id ? { ...row, role: nextRole } : row)),
+                                    );
+                                  } catch (err) {
+                                    setAppUserError(err instanceof Error ? err.message : "Změna role selhala.");
+                                  }
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium disabled:opacity-40"
+                              >
+                                {u.role === "admin" ? "→ User" : "→ Admin"}
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[13px] font-semibold text-stone-800 truncate block">{label}</span>
-                            <span className="text-[11px] text-stone-400 truncate block">
-                              {u.email ?? "bez e-mailu"} · {u.role === "admin" ? "Admin" : "Uživatel"}
-                              {isSelf ? " · ty" : ""}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={isSelf}
-                            title={isSelf ? "Nemůžeš si odebrat admin roli sám sobě" : undefined}
-                            onClick={async () => {
-                              setAppUserError(null);
-                              const nextRole: UserRole = u.role === "admin" ? "user" : "admin";
-                              try {
-                                await actionSetAppUserRole(u.id, nextRole);
-                                setAppUsers((prev) =>
-                                  prev.map((row) => (row.id === u.id ? { ...row, role: nextRole } : row)),
-                                );
-                              } catch (err) {
-                                setAppUserError(err instanceof Error ? err.message : "Změna role selhala.");
-                              }
-                            }}
-                            className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-40"
-                          >
-                            {u.role === "admin" ? "→ User" : "→ Admin"}
-                          </button>
+                          {isResetting && (
+                            <div className="px-3 pb-3 flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={resetPwd}
+                                onChange={(e) => setResetPwd(e.target.value)}
+                                placeholder="Nové heslo (min. 6 znaků)"
+                                className="flex-1 rounded-lg px-3 py-1.5 text-[12px] bg-white/60 border border-white/70 text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                              />
+                              <button
+                                type="button"
+                                disabled={resetLoading || resetPwd.length < 6}
+                                onClick={async () => {
+                                  setResetLoading(true); setAppUserError(null);
+                                  try {
+                                    await actionAdminResetPassword(u.id, resetPwd);
+                                    setResetUserId(null); setResetPwd("");
+                                  } catch (err) {
+                                    setAppUserError(err instanceof Error ? err.message : "Chyba.");
+                                  } finally { setResetLoading(false); }
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white disabled:opacity-50 shrink-0"
+                                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                              >
+                                {resetLoading ? "…" : "Nastavit"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setResetUserId(null); setResetPwd(""); }}
+                                className="text-[12px] text-stone-400 hover:text-stone-600 px-1"
+                              >
+                                Zrušit
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

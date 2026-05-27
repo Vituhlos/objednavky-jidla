@@ -120,6 +120,8 @@ export default async function ProfilRoute() {
       monthlyHistory={monthlyHistory}
       telegramConfigured={telegramConfigured}
       telegramBotUrl={telegramBotUrl}
+      createdAt={user.createdAt}
+      lastLoginAt={user.lastLoginAt}
     />
   );
 }

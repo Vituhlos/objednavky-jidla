@@ -261,4 +261,6 @@ function migrate(db: Database.Database): void {
 
   // Add department column to pizza_order_rows (idempotent)
   try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
+  // Session version for JWT invalidation (revoke all sessions)
+  try { db.exec("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0"); } catch {}
 }

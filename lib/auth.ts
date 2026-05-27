@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import type { Session } from "next-auth";
+import { getUserById } from "@/lib/users";
 
 export type AppSession = {
   userId: number;
@@ -37,8 +38,18 @@ export async function getAppSession(): Promise<AppSession | null> {
 }
 
 export async function requireAuth(): Promise<AppSession> {
-  const session = await getAppSession();
+  const rawSession = await auth();
+  const session = toAppSession(rawSession);
   if (!session) throw new Error("Nejste přihlášeni.");
+
+  const user = getUserById(session.userId);
+  if (!user || !user.active) throw new Error("Účet byl deaktivován.");
+
+  const tokenVersion = (rawSession as { sessionVersion?: number } | null)?.sessionVersion;
+  if (typeof tokenVersion === "number" && user.sessionVersion !== tokenVersion) {
+    throw new Error("Relace vypršela. Přihlaste se znovu.");
+  }
+
   return session;
 }
 

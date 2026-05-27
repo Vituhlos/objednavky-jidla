@@ -53,7 +53,7 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, getLinkedProviders, verifyPassword, type UserRole } from "@/lib/users";
+import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, getLinkedProviders, verifyPassword, incrementSessionVersion, adminForceVerifyEmail, adminResetUserPassword, deleteUserAccount, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
@@ -542,6 +542,32 @@ export async function actionGetMyOrders(): Promise<{ date: string; mainDish: str
 export async function actionChangePassword(oldPassword: string, newPassword: string): Promise<void> {
   const session = await requireAuth();
   changeUserPassword(session.userId, oldPassword, newPassword);
+}
+
+export async function actionRevokeAllSessions(): Promise<void> {
+  const session = await requireAuth();
+  incrementSessionVersion(session.userId);
+}
+
+export async function actionDeleteAccount(password?: string): Promise<void> {
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  if (!user) throw new Error("Uživatel nenalezen.");
+  if (user.passwordHash) {
+    if (!password) throw new Error("Pro smazání účtu zadejte heslo.");
+    if (!verifyPassword(password, user.passwordHash)) throw new Error("Nesprávné heslo.");
+  }
+  deleteUserAccount(session.userId);
+}
+
+export async function actionAdminForceVerifyEmail(userId: number): Promise<void> {
+  await requireAdmin();
+  adminForceVerifyEmail(userId);
+}
+
+export async function actionAdminResetPassword(userId: number, newPassword: string): Promise<void> {
+  await requireAdmin();
+  adminResetUserPassword(userId, newPassword);
 }
 
 export async function actionResendVerifyEmail(): Promise<{ ok: boolean; error?: string }> {
