@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
 import type { BuildInfo } from "@/lib/build-info";
+import type { UserOrderStats } from "@/lib/orders";
 import PageHeader from "./PageHeader";
 import MIcon from "./MIcon";
 import CopyBuildButton from "./CopyBuildButton";
@@ -34,6 +35,7 @@ export default function ProfilePage({
   build,
   showDeniedAdmin,
   showSettingsLink,
+  stats,
 }: {
   email: string | null | undefined;
   name: string | null | undefined;
@@ -41,6 +43,7 @@ export default function ProfilePage({
   build: BuildInfo;
   showDeniedAdmin: boolean;
   showSettingsLink: boolean;
+  stats?: UserOrderStats;
 }) {
   const displayName = name || email || "Uživatel";
   const initial = displayName[0]?.toUpperCase() ?? "?";
@@ -148,6 +151,45 @@ export default function ProfilePage({
             <ProfileRow label="Jméno" value={name ?? "—"} />
             <ProfileRow label="Role" value={isAdmin ? "Administrátor" : "Uživatel"} />
           </Section>
+
+          {stats && (stats.totalOrders > 0 || stats.monthlyOrders > 0) && (
+            <Section title="Moje objednávky" icon="restaurant">
+              <div className="grid grid-cols-2 gap-3 py-2">
+                <div className="glass-card rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.05)" }}>
+                  <p className="text-[22px] font-display font-bold text-stone-900">{stats.monthlyOrders}</p>
+                  <p className="text-[11px] text-stone-500 font-medium">tento měsíc</p>
+                </div>
+                <div className="glass-card rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.05)" }}>
+                  <p className="text-[22px] font-display font-bold text-stone-900">{stats.monthlySpent} Kč</p>
+                  <p className="text-[11px] text-stone-500 font-medium">útrata tento měsíc</p>
+                </div>
+                <div className="glass-card rounded-2xl p-3 text-center" style={{ background: "rgba(79,111,82,0.05)" }}>
+                  <p className="text-[22px] font-display font-bold text-stone-900">{stats.totalOrders}</p>
+                  <p className="text-[11px] text-stone-500 font-medium">celkem objednávek</p>
+                </div>
+                <div className="glass-card rounded-2xl p-3 text-center" style={{ background: "rgba(79,111,82,0.05)" }}>
+                  <p className="text-[22px] font-display font-bold text-stone-900">{stats.allTimeSpent} Kč</p>
+                  <p className="text-[11px] text-stone-500 font-medium">celkem útrata</p>
+                </div>
+              </div>
+              {stats.favoriteMeals.length > 0 && (
+                <div className="pt-1 pb-1">
+                  <p className="text-[11.5px] font-semibold text-stone-500 mb-2">Nejčastější jídla</p>
+                  <div className="flex flex-col gap-1.5">
+                    {stats.favoriteMeals.map((meal, i) => (
+                      <div key={meal.name} className="flex items-center gap-2.5">
+                        <span className="text-[13px] w-5 text-center" aria-hidden>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                        </span>
+                        <span className="text-[12.5px] text-stone-700 font-medium flex-1 truncate">{meal.name}</span>
+                        <span className="text-[11px] text-stone-400 font-medium shrink-0">{meal.count}×</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Section>
+          )}
 
           <Section title="Aplikace" icon="build">
             <ProfileRow label="Verze" value={build.displayString} mono />

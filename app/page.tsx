@@ -3,6 +3,8 @@ import { getSettings } from "@/lib/settings";
 import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
+import { auth } from "@/auth";
+import { getUserById } from "@/lib/users";
 import OrderPage from "@/app/components/OrderPage";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const prefillMain = params.prefill_main ? Number(params.prefill_main) : null;
   const prefillSoup = params.prefill_soup ? Number(params.prefill_soup) : null;
+
+  const session = await auth();
+  const dbUser = session?.userId ? getUserById(session.userId) : null;
+  const sessionUserName = session?.user?.name ?? dbUser?.name ?? null;
 
   const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
@@ -64,6 +70,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       suggestions={suggestions}
       prefillMain={prefillMain && Number.isFinite(prefillMain) ? prefillMain : null}
       prefillSoup={prefillSoup && Number.isFinite(prefillSoup) ? prefillSoup : null}
+      sessionUserName={sessionUserName}
     />
   );
 }

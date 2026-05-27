@@ -704,6 +704,72 @@ export function duplicateOrderRows(sourceOrderId: number): { newOrderId: number;
   return { newOrderId: todayOrder.id, copiedRowCount: copied };
 }
 
+export interface UserOrderStats {
+  totalOrders: number;
+  monthlyOrders: number;
+  monthlySpent: number;
+  allTimeSpent: number;
+  favoriteMeals: { name: string; count: number }[];
+}
+
+export function getUserOrderStats(personName: string): UserOrderStats {
+  if (!personName.trim()) {
+    return { totalOrders: 0, monthlyOrders: 0, monthlySpent: 0, allTimeSpent: 0, favoriteMeals: [] };
+  }
+  const db = getDb();
+  const today = getPragueISODate();
+  const [yStr, mStr] = today.split("-");
+  const ym = `${yStr}-${mStr}`;
+  const nameLower = personName.trim().toLowerCase();
+
+  const settings = getSettings();
+  const priceFormula = `
+    CASE WHEN r.soup_item_id IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id), 0) ELSE 0 END +
+    CASE WHEN r.soup_item_id_2 IS NOT NULL THEN COALESCE((SELECT price FROM menu_items WHERE id = r.soup_item_id_2), 0) ELSE 0 END +
+    CASE WHEN r.main_item_id IS NOT NULL THEN (r.meal_count * COALESCE((SELECT price FROM menu_items WHERE id = r.main_item_id), 0)) ELSE 0 END +
+    r.roll_count * ${parseInt(settings.priceRoll) || 5} +
+    r.bread_dumpling_count * ${parseInt(settings.priceBreadDumpling) || 40} +
+    r.potato_dumpling_count * ${parseInt(settings.pricePotatoDumpling) || 45} +
+    r.ketchup_count * ${parseInt(settings.priceKetchup) || 20} +
+    r.tatarka_count * ${parseInt(settings.priceTatarka) || 20} +
+    r.bbq_count * ${parseInt(settings.priceBbq) || 20}
+  `;
+
+  const allTime = db.prepare(`
+    SELECT COUNT(*) AS cnt, SUM(${priceFormula}) AS total
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE lower(trim(r.person_name)) = ? AND o.status = 'sent'
+  `).get(nameLower) as { cnt: number; total: number };
+
+  const monthly = db.prepare(`
+    SELECT COUNT(*) AS cnt, SUM(${priceFormula}) AS total
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    WHERE lower(trim(r.person_name)) = ? AND o.status = 'sent'
+      AND strftime('%Y-%m', o.date) = ?
+  `).get(nameLower, ym) as { cnt: number; total: number };
+
+  const favMeals = db.prepare(`
+    SELECT m.name, COUNT(*) AS cnt
+    FROM order_rows r
+    JOIN orders o ON o.id = r.order_id
+    JOIN menu_items m ON m.id = r.main_item_id
+    WHERE lower(trim(r.person_name)) = ? AND o.status = 'sent'
+    GROUP BY m.name
+    ORDER BY cnt DESC
+    LIMIT 3
+  `).all(nameLower) as { name: string; cnt: number }[];
+
+  return {
+    totalOrders: allTime.cnt || 0,
+    monthlyOrders: monthly.cnt || 0,
+    monthlySpent: Math.round(monthly.total || 0),
+    allTimeSpent: Math.round(allTime.total || 0),
+    favoriteMeals: favMeals.map((r) => ({ name: r.name, count: r.cnt })),
+  };
+}
+
 export interface DeptSuggestion {
   personName: string;
   lastOrderedAt: string;

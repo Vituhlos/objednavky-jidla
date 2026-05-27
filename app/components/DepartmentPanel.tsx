@@ -40,6 +40,7 @@ interface Props {
   onAddRowWithName?: (department: Department, personName: string) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
   onDeleteRow: (rowId: number) => void;
+  sessionUserName?: string | null;
 }
 
 // ── Department colors (matches template) ─────────────────
@@ -690,14 +691,15 @@ function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
 
 // ── Empty state with suggestions ──────────────────────────
 
-function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion }: {
+function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion, sessionUserName }: {
   suggestions: { personName: string; lastOrderedAt: string }[];
   accent: string;
   isSent: boolean;
   onPickSuggestion: (personName: string) => void;
+  sessionUserName?: string | null;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
-  if (isSent || suggestions.length === 0) {
+  if (isSent || (suggestions.length === 0 && !sessionUserName)) {
     return (
       <div className="px-4 py-4">
         <div className="text-[11.5px] text-stone-500 leading-relaxed">
@@ -708,27 +710,49 @@ function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion }: {
   }
   return (
     <div className="px-3.5 py-3 flex flex-col gap-2.5">
-      <div className="text-[11.5px] text-stone-500 leading-snug">
-        Klikni na někoho, kdo tu obvykle objednává — rovnou vyplním jméno a otevřu výběr jídla.
-      </div>
-      <div>
-        <div className="section-eyebrow mb-1.5">Také minule</div>
-        <div className="flex flex-wrap gap-1.5">
-          {suggestions.map((s) => (
-            <button
-              key={s.personName}
-              type="button"
-              className="suggest-chip"
-              onClick={() => onPickSuggestion(s.personName)}
-            >
-              <span className="suggest-chip__avatar" style={{ background: dc.grad }} aria-hidden>
-                {getInitials(s.personName)}
-              </span>
-              <span>{s.personName}</span>
-            </button>
-          ))}
+      {sessionUserName && !isSent && (
+        <button
+          type="button"
+          className="suggest-chip"
+          style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}
+          onClick={() => onPickSuggestion(sessionUserName)}
+        >
+          <span className="suggest-chip__avatar" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }} aria-hidden>
+            {getInitials(sessionUserName)}
+          </span>
+          <span className="font-semibold">Objednat za sebe</span>
+        </button>
+      )}
+      {suggestions.length > 0 && (
+        <>
+          <div className="text-[11.5px] text-stone-500 leading-snug">
+            Klikni na někoho, kdo tu obvykle objednává — rovnou vyplním jméno a otevřu výběr jídla.
+          </div>
+          <div>
+            <div className="section-eyebrow mb-1.5">Také minule</div>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestions.map((s) => (
+                <button
+                  key={s.personName}
+                  type="button"
+                  className="suggest-chip"
+                  onClick={() => onPickSuggestion(s.personName)}
+                >
+                  <span className="suggest-chip__avatar" style={{ background: dc.grad }} aria-hidden>
+                    {getInitials(s.personName)}
+                  </span>
+                  <span>{s.personName}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {suggestions.length === 0 && (
+        <div className="text-[11.5px] text-stone-500 leading-snug">
+          Nebo klikni na <strong>+ Přidat</strong> nahoře pro ruční zadání.
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -743,7 +767,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow, sessionUserName }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -834,6 +858,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
               suggestions={suggestions}
               accent={data.accent}
               isSent={isSent}
+              sessionUserName={sessionUserName}
               onPickSuggestion={async (name) => {
                 if (!onAddRowWithName) return;
                 try {

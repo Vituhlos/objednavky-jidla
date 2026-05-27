@@ -325,6 +325,7 @@ export default function OrderPage({
   suggestions = {},
   prefillMain = null,
   prefillSoup = null,
+  sessionUserName = null,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -343,6 +344,7 @@ export default function OrderPage({
   suggestions?: Record<string, DeptSuggestion[]>;
   prefillMain?: number | null;
   prefillSoup?: number | null;
+  sessionUserName?: string | null;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -1278,6 +1280,7 @@ export default function OrderPage({
                     onUpdateRow={handleUpdateRow}
                     soups={allSoups}
                     suggestions={suggestions[dept.name] ?? []}
+                    sessionUserName={sessionUserName}
                   />
                 ))}
               </div>

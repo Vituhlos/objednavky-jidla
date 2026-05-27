@@ -15,6 +15,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: number;
     role?: "admin" | "user";
+    roleCheckedAt?: number;
   }
 }
 
@@ -29,5 +30,6 @@ declare module "@auth/core/jwt" {
   interface JWT {
     userId?: number;
     role?: "admin" | "user";
+    roleCheckedAt?: number;
   }
 }

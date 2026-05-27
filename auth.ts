@@ -29,10 +29,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         token.userId = user.id;
         token.role = user.role;
+        token.roleCheckedAt = Date.now();
       } else if (trigger === "update" && typeof token.userId === "number") {
         const { getUserById } = await import("@/lib/users");
         const user = getUserById(token.userId);
         if (user) token.role = user.role === "admin" ? "admin" : "user";
+        token.roleCheckedAt = Date.now();
+      } else if (typeof token.userId === "number") {
+        const ROLE_REFRESH_MS = 60_000;
+        const checkedAt = typeof token.roleCheckedAt === "number" ? token.roleCheckedAt : 0;
+        if (Date.now() - checkedAt > ROLE_REFRESH_MS) {
+          const { getUserById } = await import("@/lib/users");
+          const user = getUserById(token.userId);
+          if (user) token.role = user.role === "admin" ? "admin" : "user";
+          token.roleCheckedAt = Date.now();
+        }
       }
       return token;
     },
