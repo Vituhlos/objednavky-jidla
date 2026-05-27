@@ -1797,15 +1797,15 @@ export default function SettingsPage({
 
             {/* ── Telegram tab — non-form sections ── */}
             {activeTab === "uzivatele" && (
-              <Section icon="groups" title={`Uživatelé aplikace (SSO)${appUsers.length > 0 ? ` (${appUsers.length})` : ""}`}>
+              <Section icon="groups" title={`Uživatelé aplikace${appUsers.length > 0 ? ` (${appUsers.length})` : ""}`}>
                 <p className="text-[12.5px] text-stone-500 leading-relaxed">
-                  Účty z přihlášení přes OIDC. Role <b>admin</b> má přístup do Nastavení; ostatní mohou objednávat.
+                  Účty přihlašující se přes Credentials nebo Google. Role <b>admin</b> má přístup do Nastavení; ostatní mohou objednávat.
                 </p>
                 {appUserError && (
                   <p className="text-[12px] text-red-600">{appUserError}</p>
                 )}
                 {appUsers.length === 0 ? (
-                  <p className="text-[12.5px] text-stone-400">Zatím se nikdo nepřihlásil přes SSO.</p>
+                  <p className="text-[12.5px] text-stone-400">Zatím žádní uživatelé.</p>
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     {appUsers.map((u) => {

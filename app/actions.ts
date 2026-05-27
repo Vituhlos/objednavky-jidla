@@ -53,7 +53,7 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { listUsers, setUserRole, type UserRole } from "@/lib/users";
+import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
@@ -484,5 +484,42 @@ export async function actionSetAppUserRole(userId: number, role: UserRole): Prom
   setUserRole(userId, role);
   revalidatePath("/profil");
   revalidatePath("/nastaveni");
+}
+
+export async function actionUpdateProfile(updates: {
+  firstName: string;
+  lastName: string;
+  defaultDepartment: string | null;
+}): Promise<void> {
+  const session = await requireAuth();
+  updateUserProfile(session.userId, {
+    firstName: updates.firstName.trim(),
+    lastName: updates.lastName.trim(),
+    defaultDepartment: updates.defaultDepartment || null,
+  });
+  revalidatePath("/profil");
+}
+
+export async function actionChangePassword(oldPassword: string, newPassword: string): Promise<void> {
+  const session = await requireAuth();
+  changeUserPassword(session.userId, oldPassword, newPassword);
+}
+
+export async function actionResendVerifyEmail(): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  if (!user) return { ok: false, error: "Uživatel nenalezen." };
+  if (user.emailVerified) return { ok: false, error: "E-mail je již ověřen." };
+  if (!user.email) return { ok: false, error: "Účet nemá e-mailovou adresu." };
+  try {
+    const { sendVerifyEmail } = await import("@/lib/email");
+    const token = createEmailVerificationToken(session.userId);
+    const baseUrl = (process.env.AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    const verifyUrl = `${baseUrl}/api/auth/verify-email?token=${token}`;
+    await sendVerifyEmail(user.email, verifyUrl, user.firstName || "");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 

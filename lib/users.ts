@@ -347,21 +347,3 @@ export function consumePasswordResetToken(token: string): void {
   getDb().prepare("UPDATE password_reset_tokens SET used = 1 WHERE token = ?").run(token);
 }
 
-// ── Legacy OIDC support (zachováno pro stávající code) ───────────────────────
-
-export function upsertUserFromOidc(input: {
-  provider: string;
-  subject: string;
-  email: string | null;
-  name: string | null;
-  avatarUrl: string | null;
-}): Pick<UserRow, "id" | "role"> {
-  return upsertUserFromOAuth({
-    provider: input.provider,
-    providerAccountId: input.subject,
-    email: input.email ?? "",
-    emailVerified: true, // OIDC issuer je důvěryhodný
-    name: input.name,
-    avatarUrl: input.avatarUrl,
-  });
-}

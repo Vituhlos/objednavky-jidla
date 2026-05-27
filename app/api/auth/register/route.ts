@@ -41,9 +41,13 @@ export async function POST(req: NextRequest) {
     try {
       const token = createEmailVerificationToken(id);
       const h = await headers();
-      const host = h.get("host") ?? "localhost:3000";
-      const proto = h.get("x-forwarded-proto") ?? "http";
-      const verifyUrl = `${proto}://${host}/api/auth/verify-email?token=${token}`;
+      const authUrl = process.env.AUTH_URL?.replace(/\/$/, "");
+      const baseUrl = authUrl || (() => {
+        const host = h.get("host") ?? "localhost:3000";
+        const proto = h.get("x-forwarded-proto") ?? "http";
+        return `${proto}://${host}`;
+      })();
+      const verifyUrl = `${baseUrl}/api/auth/verify-email?token=${token}`;
       await sendVerifyEmail(email, verifyUrl, firstName);
     } catch (err) {
       console.error("[auth/register] sendVerifyEmail failed:", err);

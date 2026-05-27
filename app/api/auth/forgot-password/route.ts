@@ -24,9 +24,13 @@ export async function POST(req: NextRequest) {
     try {
       const token = createPasswordResetToken(user.id);
       const h = await headers();
-      const host = h.get("host") ?? "localhost:3000";
-      const proto = h.get("x-forwarded-proto") ?? "http";
-      const resetUrl = `${proto}://${host}/reset-hesla?token=${token}`;
+      const authUrl = process.env.AUTH_URL?.replace(/\/$/, "");
+      const baseUrl = authUrl || (() => {
+        const host = h.get("host") ?? "localhost:3000";
+        const proto = h.get("x-forwarded-proto") ?? "http";
+        return `${proto}://${host}`;
+      })();
+      const resetUrl = `${baseUrl}/reset-hesla?token=${token}`;
       await sendPasswordResetEmail(email, resetUrl, user.firstName || "");
     } catch (err) {
       console.error("[auth/forgot] sendPasswordResetEmail failed:", err);
