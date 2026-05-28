@@ -10,6 +10,33 @@ const RESISTANCE_THRESHOLD_PX = 200;
 const RESISTANCE_FACTOR = 0.3;
 const BASE_ALPHA = 0.38;
 
+function armPostDismissClickShield() {
+  // iOS Safari/PWA sometimes dispatches a synthetic click after touch-driven dismiss
+  // (often after the overlay unmounts), causing an unintended click on underlying UI.
+  // We temporarily swallow the next click in the capture phase.
+  const win = window as unknown as { __kantyna_swipe_block_until?: number };
+  const until = Date.now() + 700;
+  win.__kantyna_swipe_block_until = until;
+
+  const handler = (e: MouseEvent) => {
+    if (Date.now() > until) {
+      document.removeEventListener("click", handler, true);
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    // stopImmediatePropagation isn't on Event type in TS DOM lib for all event kinds
+    // but exists on Event instances in browsers.
+    // stopImmediatePropagation isn't in all TS DOM typings for MouseEvent, but exists in browsers.
+    // We avoid importing types/linters here; best-effort only.
+    (e as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+    document.removeEventListener("click", handler, true);
+  };
+
+  document.addEventListener("click", handler, { capture: true });
+  setTimeout(() => document.removeEventListener("click", handler, true), 900);
+}
+
 export function useModalSwipe(onDismiss: () => void) {
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
@@ -17,7 +44,7 @@ export function useModalSwipe(onDismiss: () => void) {
   const cleanupRef = useRef<(() => void) | null>(null);
   const elRef = useRef<HTMLDivElement | null>(null);
 
-  const sheetRef: RefCallback<HTMLDivElement> = useCallback((el) => {
+  const sheetRef: RefCallback<HTMLDivElement> = useCallback((el: HTMLDivElement | null) => {
     elRef.current = el;
     if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
     if (!el) return;
@@ -169,7 +196,10 @@ export function useModalSwipe(onDismiss: () => void) {
       const farEnough = dy > dynamicDismissPx;
       const flickedDown = dy > FLICK_MIN_DISTANCE_PX && velocity > DISMISS_VELOCITY_PXMS;
 
-      if (farEnough || flickedDown) dismiss();
+      if (farEnough || flickedDown) {
+        armPostDismissClickShield();
+        dismiss();
+      }
       else reset();
 
       isDragging = false;
