@@ -2416,27 +2416,27 @@ export default function SettingsPage({
                     title: "Otevři Google Cloud Console",
                     body: (
                       <div className="space-y-1.5">
-                        <p>Jdi na <span className="font-mono text-[11px] bg-black/5 px-1.5 py-0.5 rounded">console.cloud.google.com</span> a přihlas se firemním Google účtem.</p>
-                        <p>Vytvoř nový projekt (nebo vyber existující) — název může být cokoliv, např. <em>Obědy LIMA</em>.</p>
+                        <p>Jdi na <span className="font-mono text-[11px] bg-black/5 px-1.5 py-0.5 rounded">console.cloud.google.com</span> a přihlas se libovolným Google účtem (firemní ani není potřeba).</p>
+                        <p>Vytvoř nový projekt — název může být cokoliv, např. <em>Obědy LIMA</em>.</p>
                       </div>
                     ),
                   },
                   {
                     num: "2",
-                    title: "Nastavení OAuth consent screen",
+                    title: "OAuth consent screen",
                     body: (
                       <div className="space-y-1.5">
-                        <p>V levém menu: <strong>APIs & Services → OAuth consent screen</strong>.</p>
+                        <p><strong>APIs & Services → OAuth consent screen</strong>.</p>
                         <div className="space-y-1 text-[12px]">
                           {[
-                            ["User Type:", "External (nebo Internal pokud máš Google Workspace)"],
-                            ["App name:", "Obědy LIMA (nebo název tvé appky)"],
-                            ["User support email:", "tvůj firemní e-mail"],
-                            ["Scopes:", "nechte výchozí — stačí email, profile, openid"],
-                            ["Test users:", "přidej svůj e-mail pro testování"],
+                            ["User Type:", "External — aby se mohli přihlásit libovolným Google účtem"],
+                            ["App name:", "Obědy LIMA (nebo jak chceš)"],
+                            ["User support email:", "tvůj e-mail"],
+                            ["Scopes:", "nechej výchozí — stačí email, profile, openid"],
+                            ["Test users:", "přeskoč — nepřidávej nikoho"],
                           ].map(([k, v]) => (
                             <div key={k} className="flex gap-2">
-                              <span className="shrink-0 text-stone-400 w-32">{k}</span>
+                              <span className="shrink-0 text-stone-400 w-28">{k}</span>
                               <span className="text-stone-700">{v}</span>
                             </div>
                           ))}
@@ -2446,6 +2446,16 @@ export default function SettingsPage({
                   },
                   {
                     num: "3",
+                    title: "Publikuj aplikaci",
+                    body: (
+                      <div className="space-y-1.5">
+                        <p>Na stránce OAuth consent screen klikni <strong>Publish App</strong> → potvrď. Tím odstraníš omezení „pouze test users".</p>
+                        <p className="text-[11.5px] text-stone-500">Google review není potřeba — email+profile jsou nesenzitivní scopes. Publikování je okamžité.</p>
+                      </div>
+                    ),
+                  },
+                  {
+                    num: "4",
                     title: "Vytvořit OAuth klienta",
                     body: (
                       <div className="space-y-1.5">
@@ -2453,31 +2463,27 @@ export default function SettingsPage({
                         <div className="space-y-1 text-[12px]">
                           {[
                             ["Application type:", "Web application"],
-                            ["Name:", "libovolný název, např. Obědy LIMA"],
+                            ["Name:", "libovolný název"],
                           ].map(([k, v]) => (
                             <div key={k} className="flex gap-2">
-                              <span className="shrink-0 text-stone-400 w-32">{k}</span>
+                              <span className="shrink-0 text-stone-400 w-28">{k}</span>
                               <span className="text-stone-700">{v}</span>
                             </div>
                           ))}
                         </div>
-                        <p>Do pole <strong>Authorized redirect URIs</strong> vlož Callback URL z nastavení (pole Callback URL výše). Klikni <strong>Create</strong>.</p>
+                        <p>Do <strong>Authorized redirect URIs</strong> vlož Callback URL z pole výše. Klikni <strong>Create</strong>.</p>
                       </div>
                     ),
                   },
                   {
-                    num: "4",
-                    title: "Zkopíruj Client ID a Client Secret",
-                    body: <>Google Console zobrazí dialog s <strong>Client ID</strong> a <strong>Client Secret</strong>. Zkopíruj obě hodnoty a vlož je do polí v Nastavení → Přihlášení.</>,
-                  },
-                  {
                     num: "5",
-                    title: "Uložit a restartovat kontejner",
+                    title: "Zkopíruj Client ID a Secret, ulož a restartuj",
                     body: (
                       <div className="space-y-1.5">
-                        <p>Klikni <strong>Uložit nastavení</strong>. Poté restartuj Docker kontejner — Auth.js načte nové credentials při startu procesu.</p>
+                        <p>Google Console zobrazí <strong>Client ID</strong> a <strong>Client Secret</strong> — zkopíruj obě hodnoty do polí výše a klikni <strong>Uložit nastavení</strong>.</p>
+                        <p>Poté restartuj kontejner:</p>
                         <div className="font-mono text-[11px] bg-black/5 px-3 py-2 rounded-lg text-stone-700">docker compose restart</div>
-                        <p>Po restartu se na přihlašovací stránce objeví tlačítko <em>Přihlásit se přes Google</em>.</p>
+                        <p>Na přihlašovací stránce se pak objeví tlačítko <em>Přihlásit se přes Google</em>.</p>
                       </div>
                     ),
                   },
@@ -2494,8 +2500,8 @@ export default function SettingsPage({
                 ))}
 
                 <div className="glass-soft rounded-2xl p-3.5 text-[12px] text-stone-500 space-y-1">
-                  <p className="font-semibold text-stone-700">Přihlašování pro nové zaměstnance:</p>
-                  <p>Po restartu jde každý přihlásit přes Google — pokud mají firemní e-mail (nebo jsou v Test users), vše funguje bez schvalování. Uveřejnění OAuth aplikace (pro všechny Google účty) není potřeba, pokud používáš pouze firemní domény.</p>
+                  <p className="font-semibold text-stone-700">Po restartu:</p>
+                  <p>Kdokoliv s libovolným Google účtem se může přihlásit — Google domény nijak neomezujeme. Pokud existující účet má stejný e-mail, automaticky se propojí.</p>
                 </div>
               </div>
             </div>
