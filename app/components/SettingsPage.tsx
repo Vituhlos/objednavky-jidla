@@ -419,8 +419,8 @@ export default function SettingsPage({
   const [webhookMsg, setWebhookMsg] = useState("");
   const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
-  const { sheetRef: telegramHelpSheetRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
-  useFocusTrap(telegramHelpSheetRef, showTelegramHelp);
+  const { sheetRef: telegramHelpSheetRef, sheetElRef: telegramHelpElRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
+  useFocusTrap(telegramHelpElRef, showTelegramHelp);
   useEffect(() => {
     if (!showTelegramHelp) return;
     const trigger = document.activeElement as HTMLElement | null;
@@ -441,8 +441,8 @@ export default function SettingsPage({
   const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [showGoogleHelp, setShowGoogleHelp] = useState(false);
-  const { sheetRef: googleHelpSheetRef } = useModalSwipe(useCallback(() => setShowGoogleHelp(false), []));
-  useFocusTrap(googleHelpSheetRef, showGoogleHelp);
+  const { sheetRef: googleHelpSheetRef, sheetElRef: googleHelpElRef } = useModalSwipe(useCallback(() => setShowGoogleHelp(false), []));
+  useFocusTrap(googleHelpElRef, showGoogleHelp);
   useEffect(() => {
     if (!showGoogleHelp) return;
     const trigger = document.activeElement as HTMLElement | null;

@@ -460,8 +460,8 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
     });
   };
 
-  const { sheetRef } = useModalSwipe(onClose);
-  useFocusTrap(sheetRef, true);
+  const { sheetRef, sheetElRef } = useModalSwipe(onClose);
+  useFocusTrap(sheetElRef, true);
 
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
@@ -861,7 +861,7 @@ export default function MenuPage({
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { sheetRef: importSheetRef } = useModalSwipe(useCallback(() => setImportState({ phase: "idle" }), []));
+  const { sheetRef: importSheetRef, sheetElRef: importElRef } = useModalSwipe(useCallback(() => setImportState({ phase: "idle" }), []));
 
   // Tráček rychlého objednávání
   const [tray, setTray] = useState<{ soup: MenuItem | null; main: MenuItem | null }>({ soup: null, main: null });
@@ -1049,7 +1049,7 @@ export default function MenuPage({
 
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
 
-  useFocusTrap(importSheetRef, isImportOpen);
+  useFocusTrap(importElRef, isImportOpen);
   // Focus restore when import modal opens/closes
   useEffect(() => {
     if (!isImportOpen) return;

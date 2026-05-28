@@ -274,8 +274,8 @@ function OrderEditModal({
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
   const handleCancelRef = useRef(handleCancel);
   handleCancelRef.current = handleCancel;
-  const { sheetRef } = useModalSwipe(handleCancel);
-  useFocusTrap(sheetRef, true);
+  const { sheetRef, sheetElRef } = useModalSwipe(handleCancel);
+  useFocusTrap(sheetElRef, true);
 
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;

@@ -58,8 +58,8 @@ export default function PizzaPage({
   const scrapeStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showPizzaHelp, setShowPizzaHelp] = useState(false);
-  const { sheetRef: pizzaHelpSheetRef } = useModalSwipe(useCallback(() => setShowPizzaHelp(false), []));
-  useFocusTrap(pizzaHelpSheetRef, showPizzaHelp);
+  const { sheetRef: pizzaHelpSheetRef, sheetElRef: pizzaHelpElRef } = useModalSwipe(useCallback(() => setShowPizzaHelp(false), []));
+  useFocusTrap(pizzaHelpElRef, showPizzaHelp);
   useEffect(() => {
     if (!showPizzaHelp) return;
     const trigger = document.activeElement as HTMLElement | null;

@@ -15,8 +15,10 @@ export function useModalSwipe(onDismiss: () => void) {
   onDismissRef.current = onDismiss;
 
   const cleanupRef = useRef<(() => void) | null>(null);
+  const elRef = useRef<HTMLDivElement | null>(null);
 
   const sheetRef: RefCallback<HTMLDivElement> = useCallback((el) => {
+    elRef.current = el;
     if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
     if (!el) return;
 
@@ -149,5 +151,5 @@ export function useModalSwipe(onDismiss: () => void) {
     };
   }, []);
 
-  return { sheetRef };
+  return { sheetRef, sheetElRef: elRef };
 }

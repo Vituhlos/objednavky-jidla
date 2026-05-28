@@ -41,8 +41,8 @@ const HELP_ADVANCED = [
 
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
-  const { sheetRef } = useModalSwipe(onClose);
-  useFocusTrap(sheetRef, true);
+  const { sheetRef, sheetElRef } = useModalSwipe(onClose);
+  useFocusTrap(sheetElRef, true);
 
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
