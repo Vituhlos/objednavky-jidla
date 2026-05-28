@@ -14,6 +14,18 @@ git checkout feature/mobile-native
 
 PRs target `v2-auth-sso-versioning`, not `main`.
 
+## CI Docker image (GHCR)
+
+On push to `feature/mobile-native`, [`.github/workflows/docker-mobile-native-ghcr.yml`](../../.github/workflows/docker-mobile-native-ghcr.yml) builds the same production image as the web app (includes `/api/mobile/v1`) and pushes to GitHub Container Registry. This is separate from the `main` / `v2` / `v2-auth-sso-versioning` workflows.
+
+```bash
+docker pull ghcr.io/vituhlos/objednavky-jidla:mobile-native
+# pin to a specific commit (short SHA tag):
+docker pull ghcr.io/vituhlos/objednavky-jidla:mobile-native-<short-sha>
+```
+
+Package visibility follows the repo; authenticate with a PAT or `gh auth token` if the image is private.
+
 ## Phase 0 deliverables (this branch)
 
 | File | Description |
