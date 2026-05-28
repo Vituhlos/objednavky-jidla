@@ -326,6 +326,8 @@ export default function OrderPage({
   prefillMain = null,
   prefillSoup = null,
   isLoggedIn = true,
+  currentUserId = null,
+  isAdmin = false,
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -345,6 +347,8 @@ export default function OrderPage({
   prefillMain?: number | null;
   prefillSoup?: number | null;
   isLoggedIn?: boolean;
+  currentUserId?: number | null;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -1272,6 +1276,8 @@ export default function OrderPage({
                     existingNames={existingNames}
                     extrasPrices={extrasPrices}
                     isLoggedIn={isLoggedIn}
+                    currentUserId={currentUserId}
+                    isAdmin={isAdmin}
                     isSent={isSent}
                     key={dept.name}
                     meals={allMeals}

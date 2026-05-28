@@ -32,6 +32,8 @@ interface Props {
   meals: import("@/lib/types").MenuItem[];
   isSent: boolean;
   isLoggedIn?: boolean;
+  currentUserId?: number | null;
+  isAdmin?: boolean;
   existingNames?: string[];
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
@@ -587,18 +589,19 @@ function getExtraChips(row: OrderRowEnriched): ExtraChip[] {
   return out;
 }
 
-function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; isCurrentUser: boolean; onEdit: () => void; onDelete: () => void;
+function OrderRow({ row, accent, isSent, isCurrentUser, canEdit, onEdit, onDelete }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean; isCurrentUser: boolean; canEdit: boolean; onEdit: () => void; onDelete: () => void;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
   const extras = getExtraChips(row);
   const hasFood = !!row.mainItem || !!row.soupItem || !!row.soupItem2 || row.extraMealItems.length > 0 || extras.length > 0;
+  const clickable = !isSent && canEdit;
 
   return (
     <div
-      className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${clickable ? "hover:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
       style={isCurrentUser ? { background: "rgba(254,243,199,0.4)", borderColor: "rgba(245,158,11,0.35)" } : undefined}
-      onClick={!isSent ? onEdit : undefined}
+      onClick={clickable ? onEdit : undefined}
     >
       {/* Avatar */}
       <span
@@ -664,7 +667,7 @@ function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
       </div>
 
       {/* Keyboard-accessible edit button (sr-only, becomes visible on focus) */}
-      {!isSent && (
+      {clickable && (
         <button
           type="button"
           onClick={onEdit}
@@ -675,7 +678,7 @@ function OrderRow({ row, accent, isSent, isCurrentUser, onEdit, onDelete }: {
       )}
 
       {/* Delete button — always visible on mobile, hover-only on desktop */}
-      {!isSent && (
+      {clickable && (
         <button
           type="button"
           aria-label="Smazat"
@@ -744,7 +747,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, currentUserId = null, isAdmin = false, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -850,17 +853,22 @@ function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, e
               }}
             />
           ) : (
-            activeRows.map((row) => (
-              <OrderRow
-                key={row.id}
-                row={row}
-                accent={data.accent}
-                isSent={isSent}
-                isCurrentUser={!!myName && normalizeName(row.personName) === normalizeName(myName)}
-                onEdit={() => setModalState({ rowId: row.id, isNew: false })}
-                onDelete={() => setDeleteConfirmRowId(row.id)}
-              />
-            ))
+            activeRows.map((row) => {
+              const isCurrentUser = isLoggedIn && currentUserId !== null && row.userId === currentUserId;
+              const canEdit = !isSent && (isAdmin || isCurrentUser);
+              return (
+                <OrderRow
+                  key={row.id}
+                  row={row}
+                  accent={data.accent}
+                  isSent={isSent}
+                  isCurrentUser={isCurrentUser}
+                  canEdit={canEdit}
+                  onEdit={() => setModalState({ rowId: row.id, isNew: false })}
+                  onDelete={() => setDeleteConfirmRowId(row.id)}
+                />
+              );
+            })
           )}
         </div>
 

@@ -28,6 +28,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const s = getSettings();
   const session = await auth();
   const isLoggedIn = !!session;
+  const currentUserId = session?.userId ?? null;
+  const isAdmin = session?.user?.role === "admin";
 
   const suggestions: Record<string, DeptSuggestion[]> = Object.fromEntries(
     data.departments.map((d) => [d.name, getDeptSuggestions(d.name, 4)])
@@ -68,6 +70,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       prefillMain={prefillMain && Number.isFinite(prefillMain) ? prefillMain : null}
       prefillSoup={prefillSoup && Number.isFinite(prefillSoup) ? prefillSoup : null}
       isLoggedIn={isLoggedIn}
+      currentUserId={currentUserId}
+      isAdmin={isAdmin}
     />
   );
 }

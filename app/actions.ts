@@ -60,11 +60,21 @@ export async function actionAddRow(
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  await requireAuth();
-  const row = addOrderRow(orderId, department, pushEndpoint);
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  const personName = user ? `${user.firstName} ${user.lastName}`.trim() : "";
+  const row = addOrderRow(orderId, department, session.userId, personName, pushEndpoint);
   revalidatePath("/");
   broadcast();
   return row;
+}
+
+async function assertRowOwnership(rowId: number, session: Awaited<ReturnType<typeof requireAuth>>) {
+  if (session.user.role === "admin") return;
+  const { getDb } = await import("@/lib/db");
+  const r = getDb().prepare("SELECT user_id FROM order_rows WHERE id = ?").get(rowId) as { user_id: number | null } | undefined;
+  if (!r) throw new Error("Řádek nenalezen.");
+  if (r.user_id !== session.userId) throw new Error("Nemáte oprávnění upravovat cizí řádek.");
 }
 
 export async function actionUpdateRow(
@@ -86,14 +96,16 @@ export async function actionUpdateRow(
   }>,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  await requireAuth();
+  const session = await requireAuth();
+  await assertRowOwnership(rowId, session);
   const row = updateOrderRow(rowId, updates, pushEndpoint);
   broadcast();
   return row;
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
-  await requireAuth();
+  const session = await requireAuth();
+  await assertRowOwnership(rowId, session);
   deleteOrderRow(rowId);
   revalidatePath("/");
   broadcast();

@@ -82,6 +82,7 @@ function mapOrderRow(row: Record<string, unknown>): OrderRow {
     tatarkaCount: (row.tatarka_count as number) ?? 0,
     bbqCount: (row.bbq_count as number) ?? 0,
     note: (row.note as string) ?? "",
+    userId: (row.user_id as number | null) ?? null,
   };
 }
 
@@ -280,6 +281,8 @@ export function getOrderData(orderId: number): OrderData {
 export function addOrderRow(
   orderId: number,
   department: Department,
+  userId: number | null,
+  personName: string,
   pushEndpoint?: string,
 ): OrderRowEnriched {
   const db = getDb();
@@ -291,16 +294,16 @@ export function addOrderRow(
 
   const result = db
     .prepare(
-      "INSERT INTO order_rows (order_id, department, sort_order, push_endpoint) VALUES (?, ?, ?, ?)"
+      "INSERT INTO order_rows (order_id, department, sort_order, person_name, user_id, push_endpoint) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(orderId, department, m + 1, pushEndpoint ?? null);
+    .run(orderId, department, m + 1, personName, userId ?? null, pushEndpoint ?? null);
 
   const row = db
     .prepare("SELECT * FROM order_rows WHERE id = ?")
     .get(result.lastInsertRowid) as Record<string, unknown>;
   const { soupPrice, mealPrice, ep } = readDefaultPrices();
   const enriched = enrichSingleRow(mapOrderRow(row), soupPrice, mealPrice, ep);
-  logAudit({ action: "row_add", orderId, department });
+  logAudit({ action: "row_add", orderId, department, personName });
   return enriched;
 }
 
