@@ -23,5 +23,13 @@ export const authConfig = {
       if (!isProtected) return true;
       return !!auth?.user;
     },
+    // Middleware potřebuje role v session — bez toho je session.user.role undefined
+    async session({ session, token }) {
+      if (typeof token.userId === "number") {
+        (session as { userId?: number }).userId = token.userId;
+      }
+      (session.user as { role?: string }).role = token.role === "admin" ? "admin" : "user";
+      return session;
+    },
   },
 } satisfies NextAuthConfig;
