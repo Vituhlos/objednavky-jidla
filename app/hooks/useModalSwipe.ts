@@ -83,6 +83,11 @@ export function useModalSwipe(onDismiss: () => void) {
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      // CSS animations (sheetUp/scaleIn) animate `transform` and will override inline
+      // transforms while active. Disable animation for the drag gesture.
+      el.style.animation = "none";
+      el.style.willChange = "transform";
+
       body = el.querySelector(".modal-sheet__body") as HTMLElement | null;
       scrollLocked = !!(body && body.scrollTop > 0);
       startY = e.touches[0].clientY;
