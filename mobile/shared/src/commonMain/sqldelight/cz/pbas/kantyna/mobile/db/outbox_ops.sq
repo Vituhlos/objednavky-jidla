@@ -1,5 +1,6 @@
 CREATE TABLE outbox_ops (
     id TEXT NOT NULL PRIMARY KEY,
+    op_type TEXT NOT NULL,
     method TEXT NOT NULL,
     path TEXT NOT NULL,
     body_json TEXT,
@@ -11,9 +12,12 @@ CREATE TABLE outbox_ops (
 selectAllPending:
 SELECT * FROM outbox_ops ORDER BY created_at ASC;
 
+countPending:
+SELECT COUNT(*) FROM outbox_ops;
+
 insertOp:
-INSERT INTO outbox_ops(id, method, path, body_json, idempotency_key, created_at, retry_count)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO outbox_ops(id, op_type, method, path, body_json, idempotency_key, created_at, retry_count)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteById:
 DELETE FROM outbox_ops WHERE id = ?;

@@ -84,7 +84,7 @@ fun MainTabsScreen(
 
     val menuViewModel = viewModel { MenuViewModel(services.menuRepository) }
     val historyViewModel = viewModel { HistoryViewModel(services.historyRepository) }
-    val obedViewModel = viewModel { ObedViewModel(services.orderRepository) }
+    val obedViewModel = viewModel { ObedViewModel(services.orderRepository, user) }
     val profileViewModel = viewModel {
         ProfileViewModel(
             initialUser = user,
