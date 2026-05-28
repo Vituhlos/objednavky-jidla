@@ -6,11 +6,15 @@ compose-multiplatform = "1.7.1"
 ktor = "3.0.3"
 coroutines = "1.9.0"
 serialization = "1.7.3"
+datetime = "0.6.1"
 sqldelight = "2.0.2"
 navigation = "2.8.5"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
 core-ktx = "1.15.0"
+security-crypto = "1.1.0-alpha06"
+camerax = "1.4.1"
+mlkit-barcode = "17.3.0"
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
@@ -21,10 +25,18 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
+camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkit-barcode" }
 
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }

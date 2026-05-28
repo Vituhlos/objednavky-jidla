@@ -1,6 +1,5 @@
 package cz.pbas.kantyna.mobile.dto
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -23,12 +22,22 @@ data class RefreshTokenRequest(
 )
 
 @Serializable
+data class LogoutRequest(
+    val refreshToken: String? = null,
+)
+
+@Serializable
 data class DevicePairRequest(
     val token: String,
 )
 
 @Serializable
-data class ErrorBody(
-    val error: String? = null,
-    val message: String? = null,
+data class ApiErrorResponse(
+    val error: ApiErrorDetail,
+)
+
+@Serializable
+data class ApiErrorDetail(
+    val code: String,
+    val message: String,
 )

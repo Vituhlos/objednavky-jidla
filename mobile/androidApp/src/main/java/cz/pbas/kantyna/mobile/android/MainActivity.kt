@@ -10,10 +10,11 @@ import cz.pbas.kantyna.mobile.android.ui.theme.KantynaTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val services = (application as KantynaApplication).services
         enableEdgeToEdge()
         setContent {
             KantynaTheme {
-                KantynaApp()
+                KantynaApp(services = services)
             }
         }
     }
