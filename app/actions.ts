@@ -587,6 +587,12 @@ export async function actionAdminResetPassword(userId: number, newPassword: stri
   adminResetUserPassword(userId, newPassword);
 }
 
+export async function actionAdminDeleteUser(userId: number): Promise<void> {
+  const session = await requireAdmin();
+  if (session.userId === userId) throw new Error("Nemůžeš smazat vlastní účet.");
+  deleteUserAccount(userId);
+}
+
 export async function actionResendVerifyEmail(): Promise<{ ok: boolean; error?: string }> {
   const session = await requireAuth();
   const user = getUserById(session.userId);

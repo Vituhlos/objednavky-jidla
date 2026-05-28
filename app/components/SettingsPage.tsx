@@ -29,6 +29,7 @@ import {
   actionSetAppUserRole,
   actionAdminForceVerifyEmail,
   actionAdminResetPassword,
+  actionAdminDeleteUser,
   getSettingsHealth,
   type SettingsHealth,
   type HealthStatus,
@@ -430,6 +431,12 @@ export default function SettingsPage({
   const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean; url?: string } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
+  const [showGoogleHelp, setShowGoogleHelp] = useState(false);
+  const { sheetRef: googleHelpSheetRef } = useModalSwipe(useCallback(() => setShowGoogleHelp(false), []));
+  const [draggingDeptId, setDraggingDeptId] = useState<number | null>(null);
+  const dragIdRef = useRef<number | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
   const [auditFilter, setAuditFilter] = useState<string>("all");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -1190,16 +1197,41 @@ export default function SettingsPage({
                 )}
                 <div className="flex flex-col gap-2">
                   {departments.map((dept, idx) => (
-                    <DeptRow
-                      dept={dept}
-                      isFirst={idx === 0}
-                      isLast={idx === departments.length - 1}
+                    <div
                       key={dept.id}
-                      onDelete={handleDeptDelete}
-                      onMoveDown={(id) => handleDeptMove(id, "down")}
-                      onMoveUp={(id) => handleDeptMove(id, "up")}
-                      onSave={handleDeptSave}
-                    />
+                      draggable
+                      style={{ opacity: draggingDeptId === dept.id ? 0.35 : 1, transition: "opacity 0.15s" }}
+                      onDragStart={(e) => {
+                        dragIdRef.current = dept.id;
+                        setDraggingDeptId(dept.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const fromId = dragIdRef.current;
+                        if (fromId === null || fromId === dept.id) return;
+                        const fromIdx = departments.findIndex((d) => d.id === fromId);
+                        const next = [...departments];
+                        const [item] = next.splice(fromIdx, 1);
+                        next.splice(idx, 0, item);
+                        setDepartments(next);
+                        dragIdRef.current = null;
+                        setDraggingDeptId(null);
+                        startTransition(async () => { await actionReorderDepartments(next.map((d) => d.id)); });
+                      }}
+                      onDragEnd={() => { setDraggingDeptId(null); dragIdRef.current = null; }}
+                    >
+                      <DeptRow
+                        dept={dept}
+                        isFirst={idx === 0}
+                        isLast={idx === departments.length - 1}
+                        onDelete={handleDeptDelete}
+                        onMoveDown={(id) => handleDeptMove(id, "down")}
+                        onMoveUp={(id) => handleDeptMove(id, "up")}
+                        onSave={handleDeptSave}
+                      />
+                    </div>
                   ))}
                 </div>
                 {showAddDept ? (
@@ -1546,7 +1578,11 @@ export default function SettingsPage({
               {/* Přihlášení tab */}
               <div className="flex flex-col gap-4" style={{ display: activeTab === "prihlaseni" ? "flex" : "none" }}>
 
-                <Section icon="login" title="Google OAuth">
+                <Section icon="login" title="Google OAuth" action={
+                  <button type="button" onClick={() => setShowGoogleHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                    <MIcon name="help_outline" size={13} /> Jak nastavit?
+                  </button>
+                }>
                   <div
                     className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl text-[12px]"
                     style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)" }}
@@ -1967,8 +2003,50 @@ export default function SettingsPage({
                               >
                                 {u.role === "admin" ? "→ User" : "→ Admin"}
                               </button>
+                              {!isSelf && (
+                                <button
+                                  type="button"
+                                  title="Smazat účet"
+                                  onClick={() => { setDeleteUserId(deleteUserId === u.id ? null : u.id); setAppUserError(null); }}
+                                  className="text-[11px] px-2 py-1 rounded-lg glass-btn text-red-500 font-medium"
+                                >
+                                  <MIcon name="delete" size={13} />
+                                </button>
+                              )}
                             </div>
                           </div>
+                          {deleteUserId === u.id && (
+                            <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
+                              <span className="text-[12px] text-stone-600 flex-1">
+                                Opravdu smazat účet <strong>{label}</strong>? Akce je nevratná.
+                              </span>
+                              <button
+                                type="button"
+                                disabled={deleteUserLoading}
+                                onClick={async () => {
+                                  setDeleteUserLoading(true); setAppUserError(null);
+                                  try {
+                                    await actionAdminDeleteUser(u.id);
+                                    setAppUsers((prev) => prev.filter((row) => row.id !== u.id));
+                                    setDeleteUserId(null);
+                                  } catch (err) {
+                                    setAppUserError(err instanceof Error ? err.message : "Chyba.");
+                                  } finally { setDeleteUserLoading(false); }
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white disabled:opacity-50 shrink-0"
+                                style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
+                              >
+                                {deleteUserLoading ? "…" : "Smazat"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteUserId(null)}
+                                className="text-[12px] text-stone-400 hover:text-stone-600 px-1"
+                              >
+                                Zrušit
+                              </button>
+                            </div>
+                          )}
                           {isResetting && (
                             <div className="px-3 pb-3 flex items-center gap-2">
                               <input
@@ -2316,6 +2394,113 @@ export default function SettingsPage({
                 )}
               </>
             )}
+
+        {/* Google help modal */}
+        {showGoogleHelp && (
+          <div className="modal-overlay" onClick={() => setShowGoogleHelp(false)}>
+            <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()} ref={googleHelpSheetRef}>
+              <div className="modal-sheet__drag-handle" aria-hidden />
+              <div className="modal-sheet__header">
+                <h3 className="modal-sheet__title">Jak nastavit Google přihlášení</h3>
+                <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowGoogleHelp(false)} type="button">×</button>
+              </div>
+              <div className="modal-sheet__body space-y-4">
+
+                <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                  <strong>Co to dá:</strong> Uživatelé se budou moci přihlásit jedním kliknutím přes Google účet — bez vytváření hesla. Pokud mají stejný e-mail jako existující účet, automaticky se propojí.
+                </div>
+
+                {[
+                  {
+                    num: "1",
+                    title: "Otevři Google Cloud Console",
+                    body: (
+                      <div className="space-y-1.5">
+                        <p>Jdi na <span className="font-mono text-[11px] bg-black/5 px-1.5 py-0.5 rounded">console.cloud.google.com</span> a přihlas se firemním Google účtem.</p>
+                        <p>Vytvoř nový projekt (nebo vyber existující) — název může být cokoliv, např. <em>Obědy LIMA</em>.</p>
+                      </div>
+                    ),
+                  },
+                  {
+                    num: "2",
+                    title: "Nastavení OAuth consent screen",
+                    body: (
+                      <div className="space-y-1.5">
+                        <p>V levém menu: <strong>APIs & Services → OAuth consent screen</strong>.</p>
+                        <div className="space-y-1 text-[12px]">
+                          {[
+                            ["User Type:", "External (nebo Internal pokud máš Google Workspace)"],
+                            ["App name:", "Obědy LIMA (nebo název tvé appky)"],
+                            ["User support email:", "tvůj firemní e-mail"],
+                            ["Scopes:", "nechte výchozí — stačí email, profile, openid"],
+                            ["Test users:", "přidej svůj e-mail pro testování"],
+                          ].map(([k, v]) => (
+                            <div key={k} className="flex gap-2">
+                              <span className="shrink-0 text-stone-400 w-32">{k}</span>
+                              <span className="text-stone-700">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    num: "3",
+                    title: "Vytvořit OAuth klienta",
+                    body: (
+                      <div className="space-y-1.5">
+                        <p><strong>APIs & Services → Credentials → Create Credentials → OAuth client ID</strong>.</p>
+                        <div className="space-y-1 text-[12px]">
+                          {[
+                            ["Application type:", "Web application"],
+                            ["Name:", "libovolný název, např. Obědy LIMA"],
+                          ].map(([k, v]) => (
+                            <div key={k} className="flex gap-2">
+                              <span className="shrink-0 text-stone-400 w-32">{k}</span>
+                              <span className="text-stone-700">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <p>Do pole <strong>Authorized redirect URIs</strong> vlož Callback URL z nastavení (pole Callback URL výše). Klikni <strong>Create</strong>.</p>
+                      </div>
+                    ),
+                  },
+                  {
+                    num: "4",
+                    title: "Zkopíruj Client ID a Client Secret",
+                    body: <>Google Console zobrazí dialog s <strong>Client ID</strong> a <strong>Client Secret</strong>. Zkopíruj obě hodnoty a vlož je do polí v Nastavení → Přihlášení.</>,
+                  },
+                  {
+                    num: "5",
+                    title: "Uložit a restartovat kontejner",
+                    body: (
+                      <div className="space-y-1.5">
+                        <p>Klikni <strong>Uložit nastavení</strong>. Poté restartuj Docker kontejner — Auth.js načte nové credentials při startu procesu.</p>
+                        <div className="font-mono text-[11px] bg-black/5 px-3 py-2 rounded-lg text-stone-700">docker compose restart</div>
+                        <p>Po restartu se na přihlašovací stránce objeví tlačítko <em>Přihlásit se přes Google</em>.</p>
+                      </div>
+                    ),
+                  },
+                ].map((step) => (
+                  <div key={step.num} className="flex gap-3">
+                    <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                      {step.num}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
+                      <div className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="glass-soft rounded-2xl p-3.5 text-[12px] text-stone-500 space-y-1">
+                  <p className="font-semibold text-stone-700">Přihlašování pro nové zaměstnance:</p>
+                  <p>Po restartu jde každý přihlásit přes Google — pokud mají firemní e-mail (nebo jsou v Test users), vše funguje bez schvalování. Uveřejnění OAuth aplikace (pro všechny Google účty) není potřeba, pokud používáš pouze firemní domény.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Version info */}
         <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-500">
