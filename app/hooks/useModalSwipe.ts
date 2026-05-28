@@ -3,7 +3,7 @@
 import { useRef, useCallback } from "react";
 import type { RefCallback } from "react";
 
-const DISMISS_DISTANCE_PX = 100;
+const DISMISS_DISTANCE_PX = 100; // fallback if we can't measure
 const DISMISS_VELOCITY_PXMS = 0.5;
 const FLICK_MIN_DISTANCE_PX = 30;
 const RESISTANCE_THRESHOLD_PX = 200;
@@ -32,6 +32,16 @@ export function useModalSwipe(onDismiss: () => void) {
     let scrollLocked = false;
     let body: HTMLElement | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let dynamicDismissPx = DISMISS_DISTANCE_PX;
+
+    // Try to scale dismiss distance to the actual sheet height.
+    // Keeps "feel" consistent between small and large sheets.
+    try {
+      const h = el.getBoundingClientRect().height;
+      if (Number.isFinite(h) && h > 0) {
+        dynamicDismissPx = Math.max(100, Math.min(160, Math.round(h * 0.22)));
+      }
+    } catch {}
 
     const dismiss = () => {
       let called = false;
@@ -55,8 +65,10 @@ export function useModalSwipe(onDismiss: () => void) {
     };
 
     const reset = () => {
-      el.style.transition = "transform 300ms cubic-bezier(0.32,0.72,0,1)";
-      el.style.transform = "";
+      // Slight spring/bounce feel: overshoot a tiny bit then settle.
+      // Keep it subtle so it doesn't feel "janky" on low-end devices.
+      el.style.transition = "transform 260ms cubic-bezier(0.32,0.72,0,1)";
+      el.style.transform = "translateY(0)";
 
       if (overlay) {
         overlay.style.transition = `background 300ms ease`;
@@ -82,7 +94,21 @@ export function useModalSwipe(onDismiss: () => void) {
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (scrollLocked) return;
+      // If scroll was locked but the body scroll reaches top mid-gesture,
+      // allow handoff into sheet drag (more iOS-like).
+      if (scrollLocked) {
+        const y = e.touches[0].clientY;
+        const dy = y - startY;
+        if (dy > 0 && body && body.scrollTop <= 0) {
+          scrollLocked = false;
+          // reset baseline so the handoff doesn't "jump"
+          startY = y;
+          lastY = y;
+          lastT = Date.now();
+        } else {
+          return;
+        }
+      }
 
       const y = e.touches[0].clientY;
       const dy = y - startY;
@@ -128,7 +154,7 @@ export function useModalSwipe(onDismiss: () => void) {
       const dt = Date.now() - lastT;
       const velocity = dt > 0 ? (endY - lastY) / dt : 0;
 
-      const farEnough = dy > DISMISS_DISTANCE_PX;
+      const farEnough = dy > dynamicDismissPx;
       const flickedDown = dy > FLICK_MIN_DISTANCE_PX && velocity > DISMISS_VELOCITY_PXMS;
 
       if (farEnough || flickedDown) dismiss();

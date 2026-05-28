@@ -837,6 +837,7 @@ export default function MenuPage({
   hasPdfNext,
   userDefaultDepartment = null,
 }: Props) {
+  const importTitleId = useId();
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
   const [nextMenu, setNextMenu] = useState(initialNextMenu);
   // Sync state when server pushes new props (after router.refresh() following an import)
@@ -1467,13 +1468,13 @@ export default function MenuPage({
             className={`modal-sheet${importState.phase === "preview" ? " !w-full sm:!w-[760px]" : ""}`}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="import-modal-title"
+            aria-labelledby={importTitleId}
             onClick={(e) => e.stopPropagation()}
             ref={importSheetRef}
           >
             <div className="modal-sheet__drag-handle" aria-hidden />
             <div className="modal-sheet__header">
-              <h3 className="modal-sheet__title" id="import-modal-title">
+              <h3 className="modal-sheet__title" id={importTitleId}>
                 {importState.phase === "preview" ? "Náhled importu" : "Importovat PDF jídelníčku"}
               </h3>
               <button
