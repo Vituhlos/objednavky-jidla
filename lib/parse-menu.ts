@@ -129,17 +129,21 @@ function shouldSkip(line: string): boolean {
 
 // Extract allergen numbers from end of line, e.g. "(1a/b,3,7)" → "1,3,7"
 // Also handles broken PDFs where opening "(" is missing: "1a/b,3,7)"
+function normalizeName(s: string): string {
+  return s.trim().replace(/\s{2,}/g, " ");
+}
+
 function extractAllergens(text: string): { name: string; allergens: string } {
   const m = text.match(/\s*\(([\d,/a-z]+)\)\s*$/i)
            ?? text.match(/\s+([\d][,/\da-z]*)\)\s*$/i);
-  if (!m) return { name: text.trim(), allergens: "" };
+  if (!m) return { name: normalizeName(text), allergens: "" };
   const raw = m[1].split(",").map((s) => {
     const num = parseInt(s.trim(), 10);
     return !isNaN(num) && num >= 1 && num <= 14 ? num : null;
   }).filter((n): n is number => n !== null);
   const unique = [...new Set(raw)].sort((a, b) => a - b);
   return {
-    name: text.slice(0, text.length - m[0].length).trim(),
+    name: normalizeName(text.slice(0, text.length - m[0].length)),
     allergens: unique.join(","),
   };
 }
