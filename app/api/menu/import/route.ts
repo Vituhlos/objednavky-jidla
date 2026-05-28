@@ -1,42 +1,10 @@
-import { getDocumentProxy } from "unpdf";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseMenuText } from "@/lib/parse-menu";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getAppSession } from "@/lib/auth";
+import { extractStructuredText } from "@/lib/pdf-extract";
 import path from "path";
 import fs from "fs";
-
-// pdfjs-dist (via unpdf) gives text items without newlines — reconstruct line
-// breaks from Y-position changes and visual gaps between items, matching the
-// output format that pdf-parse used to produce.
-async function extractStructuredText(buf: Uint8Array): Promise<string> {
-  const pdf = await getDocumentProxy(buf);
-  const lines: string[] = [];
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const byY = new Map<number, { x: number; w: number; str: string }[]>();
-    for (const item of content.items) {
-      if (!("str" in item) || !item.str.trim()) continue;
-      const y = Math.round((item as { transform: number[] }).transform[5] * 2) / 2;
-      const x = (item as { transform: number[] }).transform[4];
-      const w = (item as { width?: number }).width ?? 0;
-      if (!byY.has(y)) byY.set(y, []);
-      byY.get(y)!.push({ x, w, str: item.str });
-    }
-    for (const y of [...byY.keys()].sort((a, b) => b - a)) {
-      const items = byY.get(y)!.sort((a, b) => a.x - b.x);
-      let line = items[0].str;
-      for (let i = 1; i < items.length; i++) {
-        const prev = items[i - 1];
-        const curr = items[i];
-        line += (curr.x - (prev.x + prev.w) > 1 ? " " : "") + curr.str;
-      }
-      lines.push(line);
-    }
-  }
-  return lines.join("\n");
-}
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 

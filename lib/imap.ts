@@ -1,5 +1,4 @@
 import { ImapFlow } from "imapflow";
-import pdfParse from "pdf-parse";
 import path from "path";
 import fs from "fs";
 import { resolve4 } from "dns/promises";
@@ -7,6 +6,7 @@ import { getSettings } from "./settings";
 import { parseMenuText } from "./parse-menu";
 import { setMenuForWeek } from "./menu";
 import { logAudit } from "./audit";
+import { extractStructuredText } from "./pdf-extract";
 
 export interface ImapCheckResult {
   found: boolean;
@@ -118,9 +118,9 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
         const pdfBuffer = Buffer.concat(chunks);
         console.log(`[imap] PDF staženo (${pdfBuffer.length} B), parsuju...`);
 
-        const rawResult = await pdfParse(pdfBuffer);
-        const parsed = parseMenuText(rawResult.text);
-        console.log(`[imap] PDF text preview: ${rawResult.text.slice(0, 300).replace(/\n/g, " | ")}`);
+        const rawText = await extractStructuredText(new Uint8Array(pdfBuffer));
+        const parsed = parseMenuText(rawText);
+        console.log(`[imap] PDF text preview: ${rawText.slice(0, 300).replace(/\n/g, " | ")}`);
 
         if (parsed.items.length === 0 || !parsed.weekStart || !parsed.weekLabel) {
           console.log(`[imap] PDF z mailu UID ${uid} není jídelníček (items: ${parsed.items.length}, weekStart: ${parsed.weekStart}), přeskakuji.`);
