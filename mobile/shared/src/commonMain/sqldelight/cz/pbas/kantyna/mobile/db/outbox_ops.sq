@@ -1,0 +1,22 @@
+CREATE TABLE outbox_ops (
+    id TEXT NOT NULL PRIMARY KEY,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    body_json TEXT,
+    idempotency_key TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0
+);
+
+selectAllPending:
+SELECT * FROM outbox_ops ORDER BY created_at ASC;
+
+insertOp:
+INSERT INTO outbox_ops(id, method, path, body_json, idempotency_key, created_at, retry_count)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM outbox_ops WHERE id = ?;
+
+incrementRetry:
+UPDATE outbox_ops SET retry_count = retry_count + 1 WHERE id = ?;

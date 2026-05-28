@@ -1,0 +1,15 @@
+CREATE TABLE cached_menu (
+    week_start TEXT NOT NULL PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+);
+
+selectByWeek:
+SELECT * FROM cached_menu WHERE week_start = ?;
+
+upsert:
+INSERT OR REPLACE INTO cached_menu(week_start, payload_json, fetched_at)
+VALUES (?, ?, ?);
+
+deleteOlderThan:
+DELETE FROM cached_menu WHERE fetched_at < ?;

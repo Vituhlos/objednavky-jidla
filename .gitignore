@@ -35,3 +35,12 @@ NEXT_STEPS.md
 SMTP_SETUP.md
 config.tsbuildinfo
 tsconfig.tsbuildinfo
+
+# KMP / Android mobile build artifacts (mobile/ source is tracked)
+mobile/**/build/
+mobile/.gradle/
+mobile/local.properties
+mobile/iosApp/DerivedData/
+mobile/.idea/
+mobile/*.iml
+mobile/captures/
