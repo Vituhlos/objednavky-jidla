@@ -43,6 +43,7 @@ interface Props {
   onAddRowWithName?: (department: Department, personName: string) => Promise<number>;
   onUpdateRow: (rowId: number, updates: RowUpdates) => void;
   onDeleteRow: (rowId: number) => void;
+  onRowOpen?: (rowId: number) => void;
 }
 
 // ── Department colors (matches template) ─────────────────
@@ -747,7 +748,7 @@ function pluralOrders(n: number): string {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, currentUserId = null, isAdmin = false, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, currentUserId = null, isAdmin = false, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, suggestions = [], onAddRow, onAddRowWithName, onUpdateRow, onDeleteRow, onRowOpen }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -864,7 +865,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, c
                   isSent={isSent}
                   isCurrentUser={isCurrentUser}
                   canEdit={canEdit}
-                  onEdit={() => setModalState({ rowId: row.id, isNew: false })}
+                  onEdit={() => { setModalState({ rowId: row.id, isNew: false }); onRowOpen?.(row.id); }}
                   onDelete={() => setDeleteConfirmRowId(row.id)}
                 />
               );

@@ -769,6 +769,15 @@ export default function OrderPage({
     [defaultMealPrice, defaultSoupPrice, extrasPrices, getPushEndpoint, initialData.todayMenu, doRefresh]
   );
 
+  const handleRowOpen = useCallback((rowId: number) => {
+    if (!prefill.mainItemId && !prefill.soupItemId) return;
+    const { mainItemId, soupItemId } = consumePrefill();
+    const updates: Record<string, number | null> = {};
+    if (soupItemId) updates.soupItemId = soupItemId;
+    if (mainItemId) updates.mainItemId = mainItemId;
+    handleUpdateRow(rowId, updates);
+  }, [prefill, consumePrefill, handleUpdateRow]);
+
   const commitDelete = useCallback((rowId: number) => {
     actionDeleteRow(rowId).catch(() => {});
     setPendingDelete(null);
@@ -1285,6 +1294,7 @@ export default function OrderPage({
                     onAddRowWithName={handleAddRowWithName}
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
+                    onRowOpen={handleRowOpen}
                     soups={allSoups}
                     suggestions={suggestions[dept.name] ?? []}
                   />
