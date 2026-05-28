@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import cz.pbas.kantyna.mobile.KantynaServices
+import cz.pbas.kantyna.mobile.android.KantynaApplication
 import cz.pbas.kantyna.mobile.android.di.LocalKantynaServices
 import cz.pbas.kantyna.mobile.android.ui.login.LoginScreen
 import cz.pbas.kantyna.mobile.android.ui.login.LoginViewModel
@@ -76,6 +79,10 @@ fun KantynaApp(
                 }
             }
             is RootUiState.Main -> {
+                val app = LocalContext.current.applicationContext as KantynaApplication
+                LaunchedEffect(state.user.id) {
+                    app.pushRegistrationManager.registerIfAuthenticated()
+                }
                 MainTabsScreen(
                     user = state.user,
                     onLoggedOut = rootViewModel::onLoggedOut,

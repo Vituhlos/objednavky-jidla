@@ -65,6 +65,34 @@ Set on the Next.js host (not in the KMP app):
 
 See [../docs/mobile/README.md](../docs/mobile/README.md#push-notifications-fcm) for API routes and scheduler behaviour.
 
+## Push (Android / FCM)
+
+The Android app registers FCM device tokens with `POST /api/mobile/v1/push/register` after login and on cold start when a session exists. Logout sends `DELETE /api/mobile/v1/push/register` with the stored token.
+
+### Firebase setup
+
+1. Open [Firebase Console](https://console.firebase.google.com/) → **Add project** (or use an existing one).
+2. **Add app** → Android → package name **`cz.pbas.kantyna.mobile`** (must match `applicationId` in `androidApp/build.gradle.kts`).
+3. Download **`google-services.json`** and replace the placeholder at:
+
+   ```
+   mobile/androidApp/google-services.json
+   ```
+
+   The committed placeholder only satisfies the Gradle `google-services` plugin for local builds; **FCM token registration requires the real file** from your Firebase project.
+
+4. In Firebase → **Project settings → Cloud Messaging**, copy the **Server key** (legacy) into the Next.js host as `FCM_SERVER_KEY` (see table above).
+
+5. Sync Gradle and run **androidApp** on a device or emulator with Google Play services. After login, confirm the token row appears in `mobile_device_tokens` (or use admin `POST /api/mobile/v1/push/test`).
+
+### Notification channel
+
+Android 8+ uses channel **„Připomínky objednávky“** (`order_reminders`). Tapping a notification with `data.url` opens the **Oběd** tab.
+
+### Permissions
+
+Android 13+ prompts for `POST_NOTIFICATIONS` when the main tabs screen loads. Token registration still runs without the permission; notifications are shown only after grant.
+
 ## Documentation
 
 | Doc | Path |

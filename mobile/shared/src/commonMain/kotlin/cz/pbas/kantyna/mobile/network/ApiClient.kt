@@ -6,6 +6,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
@@ -27,6 +28,13 @@ suspend inline fun HttpClient.apiPostUnit(
     crossinline block: HttpRequestBuilder.() -> Unit = {},
 ) {
     apiCallUnit { post(path, block) }
+}
+
+suspend inline fun HttpClient.apiDeleteUnit(
+    path: String,
+    crossinline block: HttpRequestBuilder.() -> Unit = {},
+) {
+    apiCallUnit { delete(path, block) }
 }
 
 suspend inline fun <reified T> apiCall(

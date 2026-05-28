@@ -1,5 +1,9 @@
 package cz.pbas.kantyna.mobile.android.ui
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -12,17 +16,25 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import cz.pbas.kantyna.mobile.android.KantynaApplication
 import cz.pbas.kantyna.mobile.android.R
 import cz.pbas.kantyna.mobile.android.di.LocalKantynaServices
+import cz.pbas.kantyna.mobile.android.push.PushDeepLinkHolder
 import cz.pbas.kantyna.mobile.android.ui.history.HistoryScreen
 import cz.pbas.kantyna.mobile.android.ui.history.HistoryViewModel
 import cz.pbas.kantyna.mobile.android.ui.menu.MenuScreen
@@ -57,6 +69,8 @@ fun MainTabsScreen(
     modifier: Modifier = Modifier,
 ) {
     val services = LocalKantynaServices.current
+    val context = LocalContext.current
+    val app = context.applicationContext as KantynaApplication
     val navController = rememberNavController()
     val tabs = listOf(
         TabItem(TabRoute.Obed, R.string.tab_obed) { Icon(Icons.Default.Restaurant, contentDescription = null) },
@@ -75,8 +89,45 @@ fun MainTabsScreen(
         ProfileViewModel(
             initialUser = user,
             authRepository = services.authRepository,
+            onBeforeLogout = { app.pushRegistrationManager.unregisterOnLogout() },
             onLoggedOut = onLoggedOut,
         )
+    }
+
+    val scope = rememberCoroutineScope()
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            scope.launch {
+                app.pushRegistrationManager.registerIfAuthenticated()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    val pendingObedNavigation by PushDeepLinkHolder.pendingObedNavigation.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingObedNavigation) {
+        if (pendingObedNavigation && PushDeepLinkHolder.consumeObedTabRequest()) {
+            navController.navigate(TabRoute.Obed.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
     Scaffold(

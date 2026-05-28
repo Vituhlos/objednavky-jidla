@@ -12,6 +12,8 @@ import cz.pbas.kantyna.mobile.menu.MenuRepository
 import cz.pbas.kantyna.mobile.menu.MenuRepositoryImpl
 import cz.pbas.kantyna.mobile.orders.OrderRepository
 import cz.pbas.kantyna.mobile.orders.OrderRepositoryImpl
+import cz.pbas.kantyna.mobile.push.PushRepository
+import cz.pbas.kantyna.mobile.push.PushRepositoryImpl
 import cz.pbas.kantyna.mobile.network.createHttpClient
 import cz.pbas.kantyna.mobile.network.createPlatformHttpClient
 import io.ktor.client.HttpClient
@@ -24,6 +26,7 @@ class KantynaServices(
     val menuRepository: MenuRepository,
     val historyRepository: HistoryRepository,
     val orderRepository: OrderRepository,
+    val pushRepository: PushRepository,
 ) {
     fun close() {
         httpClient.close()
@@ -43,7 +46,8 @@ class KantynaServices(
                 authRepository = AuthRepositoryImpl(httpClient, tokenProvider),
                 menuRepository = MenuRepositoryImpl(httpClient, database),
                 historyRepository = HistoryRepositoryImpl(httpClient),
-                orderRepository = OrderRepositoryImpl(httpClient),
+                orderRepository = OrderRepositoryImpl(httpClient, database),
+                pushRepository = PushRepositoryImpl(httpClient),
             )
         }
     }

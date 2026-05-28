@@ -21,6 +21,7 @@ data class ProfileUiState(
 class ProfileViewModel(
     initialUser: UserProfile,
     private val authRepository: AuthRepository,
+    private val onBeforeLogout: suspend () -> Unit = {},
     private val onLoggedOut: () -> Unit,
 ) : ViewModel() {
 
@@ -52,6 +53,7 @@ class ProfileViewModel(
     fun logout() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoggingOut = true, errorMessage = null) }
+            onBeforeLogout()
             authRepository.logout()
             _uiState.update { it.copy(isLoggingOut = false) }
             onLoggedOut()
