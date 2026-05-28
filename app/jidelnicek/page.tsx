@@ -2,6 +2,8 @@ import { getFullMenu, getMenuWeekLabel, getTodayDayCode, getMondayISO, getNextMo
 import { getHolidayName } from "@/lib/holidays";
 import MenuPage from "@/app/components/MenuPage";
 import { getSettings } from "@/lib/settings";
+import { getAppSession } from "@/lib/auth";
+import { getUserById } from "@/lib/users";
 import path from "path";
 import fs from "fs";
 
@@ -23,6 +25,10 @@ function buildHolidayMap(weekStart: string): Record<string, string | null> {
 }
 
 export default async function JidelnicekPage() {
+  const session = await getAppSession();
+  const user = session ? getUserById(session.userId) : null;
+  const userDefaultDepartment = user?.defaultDepartment ?? null;
+
   const currentWeekStart = getMondayISO();
   const nextWeekStart = getNextMondayISO();
 
@@ -57,6 +63,7 @@ export default async function JidelnicekPage() {
       nextWeekLabel={nextWeekLabel}
       nextWeekStart={nextWeekStart}
       todayCode={todayCode}
+      userDefaultDepartment={userDefaultDepartment}
     />
   );
 }

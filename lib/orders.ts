@@ -712,6 +712,41 @@ export interface DeptSuggestion {
   lastOrderedAt: string;
 }
 
+export function quickOrderForUser(
+  userId: number,
+  department: Department,
+  personName: string,
+  soupItemId: number | null,
+  mainItemId: number | null,
+): OrderRowEnriched {
+  const order = getOrCreateTodayOrder();
+  if (order.status === "sent") throw new Error("Dnešní objednávka je již odeslána.");
+
+  const db = getDb();
+  const existing = db
+    .prepare("SELECT * FROM order_rows WHERE order_id = ? AND user_id = ? LIMIT 1")
+    .get(order.id, userId) as Record<string, unknown> | undefined;
+
+  let rowId: number;
+  if (existing) {
+    rowId = existing.id as number;
+  } else {
+    const { m } = db
+      .prepare("SELECT COALESCE(MAX(sort_order), -1) as m FROM order_rows WHERE order_id = ? AND department = ?")
+      .get(order.id, department) as { m: number };
+    const res = db
+      .prepare("INSERT INTO order_rows (order_id, department, sort_order, person_name, user_id) VALUES (?, ?, ?, ?, ?)")
+      .run(order.id, department, m + 1, personName, userId);
+    rowId = res.lastInsertRowid as number;
+    logAudit({ action: "row_add", orderId: order.id, department, personName });
+  }
+
+  const updates: Partial<{ soupItemId: number | null; mainItemId: number | null }> = {};
+  if (soupItemId !== null) updates.soupItemId = soupItemId;
+  if (mainItemId !== null) updates.mainItemId = mainItemId;
+  return updateOrderRow(rowId, updates);
+}
+
 export function getDeptSuggestions(department: Department, limit = 4): DeptSuggestion[] {
   const db = getDb();
   const today = getPragueISODate();

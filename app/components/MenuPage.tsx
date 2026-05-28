@@ -12,6 +12,7 @@ import {
   actionDeleteMenuItem,
   actionCloseDay,
   actionOpenDay,
+  actionQuickOrder,
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
@@ -86,6 +87,7 @@ interface Props {
   todayCode: string | null;
   hasPdfCurrent: boolean;
   hasPdfNext: boolean;
+  userDefaultDepartment?: string | null;
 }
 
 type ImportDiagnostics = {
@@ -149,7 +151,7 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, defaultSoupPrice, defaultMealPrice, filteredAllergens, onAdd, onEdit, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, editMode, disabled, defaultSoupPrice, defaultMealPrice, filteredAllergens, onAdd, onEdit, onCloseDay, onOpenDay, traySoupId, trayMainId, onTrayToggle,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
@@ -164,6 +166,9 @@ const WeekGrid = memo(function WeekGrid({
   onEdit: (item: MenuItem) => void;
   onCloseDay: (day: string) => void;
   onOpenDay: (day: string) => void;
+  traySoupId?: number | null;
+  trayMainId?: number | null;
+  onTrayToggle?: (item: MenuItem) => void;
 }) {
   const todayIdx = todayCode ? DAY_ORDER.indexOf(todayCode) : -1;
   return (
@@ -270,6 +275,8 @@ const WeekGrid = memo(function WeekGrid({
                         key={item.id}
                         isToday={isToday}
                         onEdit={onEdit}
+                        isSelectedInTray={traySoupId === item.id}
+                        onTrayToggle={onTrayToggle}
                       />
                     ))}
                     {displaySoups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
@@ -303,6 +310,8 @@ const WeekGrid = memo(function WeekGrid({
                         key={item.id}
                         isToday={isToday}
                         onEdit={onEdit}
+                        isSelectedInTray={trayMainId === item.id}
+                        onTrayToggle={onTrayToggle}
                       />
                     ))}
                     {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
@@ -552,8 +561,116 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
   );
 }
 
+// ── Floating order tray ───────────────────────────────────────────────────────
+
+type TrayStatus = "idle" | "ordering" | "success" | "error";
+
+function FloatingOrderTray({
+  selectedSoup,
+  selectedMain,
+  defaultSoupPrice,
+  defaultMealPrice,
+  hasDefaultDept,
+  onRemoveSoup,
+  onRemoveMain,
+  onOrder,
+  status,
+  errorMsg,
+}: {
+  selectedSoup: MenuItem | null;
+  selectedMain: MenuItem | null;
+  defaultSoupPrice: number;
+  defaultMealPrice: number;
+  hasDefaultDept: boolean;
+  onRemoveSoup: () => void;
+  onRemoveMain: () => void;
+  onOrder: () => void;
+  status: TrayStatus;
+  errorMsg: string | null;
+}) {
+  const total = (selectedSoup ? (selectedSoup.price || defaultSoupPrice) : 0) +
+    (selectedMain ? (selectedMain.price || defaultMealPrice) : 0);
+  const isOrdering = status === "ordering";
+  const isSuccess = status === "success";
+
+  return (
+    <div
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+56px)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-32px)] max-w-lg"
+      style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.18))" }}
+    >
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", border: "1px solid rgba(245,158,11,0.25)" }}
+      >
+        {/* Items row */}
+        <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-wrap">
+          {selectedSoup ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white"
+              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+            >
+              <span className="truncate max-w-[140px]">{selectedSoup.name}</span>
+              <button type="button" onClick={onRemoveSoup} aria-label="Odebrat polévku" className="opacity-70 hover:opacity-100 transition">
+                <MIcon name="close" size={11} />
+              </button>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-stone-400 border border-dashed border-stone-300">
+              <MIcon name="soup_kitchen" size={13} /> Polévka
+            </span>
+          )}
+          {selectedMain ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white"
+              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+            >
+              <span className="truncate max-w-[140px]">{selectedMain.name}</span>
+              <button type="button" onClick={onRemoveMain} aria-label="Odebrat jídlo" className="opacity-70 hover:opacity-100 transition">
+                <MIcon name="close" size={11} />
+              </button>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-stone-400 border border-dashed border-stone-300">
+              <MIcon name="restaurant" size={13} /> Hlavní jídlo
+            </span>
+          )}
+          <span className="ml-auto text-[13px] font-bold text-stone-700 tabular-nums shrink-0">{total} Kč</span>
+        </div>
+
+        {/* Error */}
+        {status === "error" && errorMsg && (
+          <div className="mx-3 mb-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-[11.5px] text-red-700">{errorMsg}</div>
+        )}
+
+        {/* Footer */}
+        <div className="px-3 pb-3">
+          {!hasDefaultDept ? (
+            <div className="text-[11.5px] text-stone-500 text-center py-1">
+              Nastav si výchozí oddělení v <a href="/profil" className="underline font-semibold text-stone-700">profilu</a> pro rychlé objednávání.
+            </div>
+          ) : isSuccess ? (
+            <div className="flex items-center justify-center gap-2 py-2 text-[13px] font-semibold text-green-700">
+              <MIcon name="check_circle" size={16} fill style={{ color: "#16a34a" }} /> Objednáno!
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onOrder}
+              disabled={isOrdering || (!selectedSoup && !selectedMain)}
+              className="w-full py-2.5 rounded-xl text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.45)" }}
+            >
+              {isOrdering ? "Objednávám…" : "Objednat"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const WeekItem = memo(function WeekItem({
-  item, editMode, disabled, defaultPrice, filteredAllergens, isToday, onEdit,
+  item, editMode, disabled, defaultPrice, filteredAllergens, isToday, onEdit, isSelectedInTray, onTrayToggle,
 }: {
   item: MenuItem;
   editMode: boolean;
@@ -562,14 +679,13 @@ const WeekItem = memo(function WeekItem({
   filteredAllergens: Set<number>;
   isToday: boolean;
   onEdit: (item: MenuItem) => void;
+  isSelectedInTray?: boolean;
+  onTrayToggle?: (item: MenuItem) => void;
 }) {
-  const router = useRouter();
   const allergenNums = parseAllergens(item.allergens);
   const hasFilteredAllergen = allergenNums.some((n) => filteredAllergens.has(n));
   const filterActive = filteredAllergens.size > 0;
   const priceDiffers = item.price > 0 && item.price !== defaultPrice;
-  const isSoup = item.type === "Polévka";
-  const prefillParam = isSoup ? "prefill_soup" : "prefill_main";
   const tooltipText = filterActive && hasFilteredAllergen
     ? `Obsahuje alergen ${allergenNums.filter(n => filteredAllergens.has(n)).join(", ")}, který jsi vyfiltroval`
     : undefined;
@@ -577,18 +693,19 @@ const WeekItem = memo(function WeekItem({
   const canQuickOrder = !editMode && isToday && !hasFilteredAllergen;
   const handleRowClick = () => {
     if (!canQuickOrder) return;
-    router.push(`/?${prefillParam}=${item.id}`);
+    if (onTrayToggle) { onTrayToggle(item); return; }
   };
 
   return (
     <div
-      className={`menu-row${filterActive && hasFilteredAllergen ? " menu-row--dimmed" : ""}${canQuickOrder ? " menu-row--tappable" : ""}`}
+      className={`menu-row${filterActive && hasFilteredAllergen ? " menu-row--dimmed" : ""}${canQuickOrder ? " menu-row--tappable" : ""}${isSelectedInTray ? " menu-row--selected" : ""}`}
       title={tooltipText}
       role={canQuickOrder ? "button" : undefined}
       tabIndex={canQuickOrder ? 0 : undefined}
       onClick={canQuickOrder ? handleRowClick : undefined}
       onKeyDown={canQuickOrder ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(); } } : undefined}
-      aria-label={canQuickOrder ? `Objednat ${item.name}` : undefined}
+      aria-label={canQuickOrder ? (isSelectedInTray ? `Odebrat ${item.name} z výběru` : `Přidat ${item.name} do výběru`) : undefined}
+      aria-pressed={canQuickOrder ? isSelectedInTray : undefined}
     >
       <span className="menu-row__idx">{item.code}</span>
       <div className="min-w-0">
@@ -618,9 +735,10 @@ const WeekItem = memo(function WeekItem({
           <MIcon name="edit" size={13} />
         </button>
       ) : canQuickOrder ? (
-        /* Desktop hover pill — schovaný na touch zařízeních (vizuální klid) */
-        <span className="quick-order" aria-hidden>
-          <MIcon name="add" size={10} /> Objednat
+        <span className={`quick-order${isSelectedInTray ? " quick-order--selected" : ""}`} aria-hidden>
+          {isSelectedInTray
+            ? <><MIcon name="check" size={10} /> Vybráno</>
+            : <><MIcon name="add" size={10} /> Vybrat</>}
         </span>
       ) : null}
     </div>
@@ -640,6 +758,8 @@ const MenuSection = memo(function MenuSection({
   isToday,
   onAdd,
   onEdit,
+  traySelectedId,
+  onTrayToggle,
 }: {
   title: string;
   defaultPrice: number;
@@ -651,6 +771,8 @@ const MenuSection = memo(function MenuSection({
   isToday: boolean;
   onAdd?: () => void;
   onEdit?: (item: MenuItem) => void;
+  traySelectedId?: number | null;
+  onTrayToggle?: (item: MenuItem) => void;
 }) {
   return (
     <div>
@@ -684,6 +806,8 @@ const MenuSection = memo(function MenuSection({
             filteredAllergens={filteredAllergens}
             isToday={isToday}
             onEdit={(it) => onEdit?.(it)}
+            isSelectedInTray={traySelectedId === item.id}
+            onTrayToggle={onTrayToggle}
           />
         ))
       )}
@@ -707,6 +831,7 @@ export default function MenuPage({
   currentHolidayNames,
   hasPdfCurrent,
   hasPdfNext,
+  userDefaultDepartment = null,
 }: Props) {
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
   const [nextMenu, setNextMenu] = useState(initialNextMenu);
@@ -735,6 +860,38 @@ export default function MenuPage({
   const router = useRouter();
   const { sheetRef: importSheetRef } = useModalSwipe(useCallback(() => setImportState({ phase: "idle" }), []));
 
+  // Tráček rychlého objednávání
+  const [tray, setTray] = useState<{ soup: MenuItem | null; main: MenuItem | null }>({ soup: null, main: null });
+  const [trayStatus, setTrayStatus] = useState<TrayStatus>("idle");
+  const [trayError, setTrayError] = useState<string | null>(null);
+
+  const handleTrayToggle = useCallback((item: MenuItem) => {
+    setTray((prev) => {
+      if (item.type === "Polévka") {
+        return { ...prev, soup: prev.soup?.id === item.id ? null : item };
+      } else {
+        return { ...prev, main: prev.main?.id === item.id ? null : item };
+      }
+    });
+    setTrayStatus("idle");
+    setTrayError(null);
+  }, []);
+
+  const handleTrayOrder = useCallback(async () => {
+    if (!tray.soup && !tray.main) return;
+    setTrayStatus("ordering");
+    setTrayError(null);
+    try {
+      await actionQuickOrder(tray.soup?.id ?? null, tray.main?.id ?? null);
+      setTrayStatus("success");
+      setTray({ soup: null, main: null });
+      setTimeout(() => setTrayStatus("idle"), 2000);
+    } catch (e) {
+      setTrayStatus("error");
+      setTrayError(e instanceof Error ? e.message : "Nepodařilo se objednat.");
+    }
+  }, [tray]);
+
   const hasNextWeek = Object.keys(initialNextMenu).length > 0;
   const activeWeekStart = activeWeek === "current" ? currentWeekStart : nextWeekStart;
   const activeWeekLabel = activeWeek === "current" ? currentWeekLabel : nextWeekLabel;
@@ -747,6 +904,8 @@ export default function MenuPage({
   useEffect(() => {
     setActiveDay((prev) => resolveActiveDay(activeMenu, visibleTodayCode, prev));
   }, [activeMenu, visibleTodayCode]);
+
+  const showTray = activeWeek === "current" && activeDay === todayCode && (tray.soup !== null || tray.main !== null || trayStatus !== "idle");
 
   const handleWeekSwitch = (week: "current" | "next") => {
     setActiveWeek(week);
@@ -1149,6 +1308,9 @@ export default function MenuPage({
                 startTransition(async () => { await actionOpenDay(day, activeWeekStart); router.refresh(); });
               }}
               todayCode={visibleTodayCode}
+              traySoupId={tray.soup?.id ?? null}
+              trayMainId={tray.main?.id ?? null}
+              onTrayToggle={handleTrayToggle}
             />
           </div>
         </div>
@@ -1222,6 +1384,8 @@ export default function MenuPage({
                   onAdd={() => handleAdd(activeDay, "Polévka")}
                   onEdit={(item) => setEditingItem(item)}
                   title="Polévky"
+                  traySelectedId={tray.soup?.id ?? null}
+                  onTrayToggle={handleTrayToggle}
                 />
                 <MenuSection
                   defaultPrice={defaultMealPrice}
@@ -1234,6 +1398,8 @@ export default function MenuPage({
                   onAdd={() => handleAdd(activeDay, "Jídlo")}
                   onEdit={(item) => setEditingItem(item)}
                   title="Hlavní jídla"
+                  traySelectedId={tray.main?.id ?? null}
+                  onTrayToggle={handleTrayToggle}
                 />
               </div>
               {!isReadOnly && editMode && (
@@ -1398,6 +1564,22 @@ export default function MenuPage({
             )}
           </div>
         </div>
+      )}
+
+      {/* Plovoucí tráček rychlého objednávání */}
+      {showTray && (
+        <FloatingOrderTray
+          selectedSoup={tray.soup}
+          selectedMain={tray.main}
+          defaultSoupPrice={defaultSoupPrice}
+          defaultMealPrice={defaultMealPrice}
+          hasDefaultDept={!!userDefaultDepartment}
+          onRemoveSoup={() => handleTrayToggle(tray.soup!)}
+          onRemoveMain={() => handleTrayToggle(tray.main!)}
+          onOrder={handleTrayOrder}
+          status={trayStatus}
+          errorMsg={trayError}
+        />
       )}
     </div>
   );

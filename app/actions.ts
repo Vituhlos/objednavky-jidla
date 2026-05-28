@@ -17,6 +17,7 @@ import {
   clearOrderRows,
   resendOrderEmail,
   getDeptSuggestions as getDeptSuggestionsDb,
+  quickOrderForUser,
   type DeptSuggestion,
 } from "@/lib/orders";
 import type { Department, OrderRowEnriched, MealEntry } from "@/lib/types";
@@ -64,6 +65,20 @@ export async function actionAddRow(
   const user = getUserById(session.userId);
   const personName = user ? `${user.firstName} ${user.lastName}`.trim() : "";
   const row = addOrderRow(orderId, department, session.userId, personName, pushEndpoint);
+  revalidatePath("/");
+  broadcast();
+  return row;
+}
+
+export async function actionQuickOrder(
+  soupItemId: number | null,
+  mainItemId: number | null,
+): Promise<OrderRowEnriched> {
+  const session = await requireAuth();
+  const user = getUserById(session.userId);
+  if (!user?.defaultDepartment) throw new Error("Nemáš nastavené výchozí oddělení. Nastav ho v profilu.");
+  const personName = `${user.firstName} ${user.lastName}`.trim();
+  const row = quickOrderForUser(session.userId, user.defaultDepartment, personName, soupItemId, mainItemId);
   revalidatePath("/");
   broadcast();
   return row;

@@ -850,9 +850,25 @@ body {
 /* Tappable rows — desktop má hover pill, touch má tap flash bez ikony */
 .menu-row--tappable { cursor: pointer; }
 .menu-row--tappable:active { background: rgba(245,158,11,0.10); }
+
+/* Selected-in-tray row */
+.menu-row--selected {
+  background: rgba(245,158,11,0.10);
+  border-radius: 8px;
+}
+.menu-row--selected + .menu-row--selected { border-top-color: transparent; }
+.quick-order--selected {
+  background: linear-gradient(135deg,#16a34a,#15803d);
+  opacity: 1;
+  box-shadow: 0 4px 10px -3px rgba(22,163,74,0.40);
+}
+.menu-row--selected .quick-order { opacity: 1; }
+
 @media (hover: none) {
   /* Touch: schovat hover pill, místo něj je celý řádek tap-target */
   .quick-order { display: none; }
+  /* Ale selected stav vždy zobraz */
+  .quick-order--selected { display: inline-flex; }
 }
 
 /* Menu preview card body grid */
