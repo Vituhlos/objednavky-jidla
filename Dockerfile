@@ -1,6 +1,6 @@
 FROM node:24-bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu gosu && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -27,6 +27,8 @@ VOLUME ["/app/data"]
 
 EXPOSE 3000
 
-USER node
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]
