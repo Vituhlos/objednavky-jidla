@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, useEffect, useMemo, useRef } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
@@ -164,6 +164,7 @@ function EmailPreviewModal({ orderId, onClose }: { orderId: number; onClose: () 
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, true);
+  const titleId = useId();
 
   useEffect(() => {
     setMounted(true);
@@ -192,12 +193,12 @@ function EmailPreviewModal({ orderId, onClose }: { orderId: number; onClose: () 
         className="modal-sheet"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="email-preview-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         style={{ width: "min(720px, 96vw)", maxHeight: "90vh" }}
       >
         <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="email-preview-title">Náhled odeslaného e-mailu</h3>
+          <h3 className="modal-sheet__title" id={titleId}>Náhled odeslaného e-mailu</h3>
           <button
             aria-label="Zavřít"
             className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500"

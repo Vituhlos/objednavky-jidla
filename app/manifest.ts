@@ -12,7 +12,14 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "any",
     icons: [
       { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
       { src: "/apple-icon", sizes: "180x180", type: "image/png", purpose: "any" },
+    ],
+    shortcuts: [
+      { name: "Dnešní objednávka", short_name: "Oběd", url: "/" },
+      { name: "Jídelníček", short_name: "Menu", url: "/jidelnicek" },
+      { name: "Historie", short_name: "Historie", url: "/historie" },
+      { name: "Profil", short_name: "Profil", url: "/profil" },
     ],
   };
 }

@@ -1,6 +1,8 @@
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", () => {
-  caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+  // Push-only SW: do not aggressively clear caches.
+  // If you later add a fetch handler + caching strategy, introduce versioned cache names here.
+  self.clients.claim();
 });
 
 self.addEventListener("push", (event) => {
