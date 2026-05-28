@@ -55,6 +55,16 @@ cd mobile
 
 See [iosApp/README.md](iosApp/README.md) for framework export and Xcode wiring. Xcode is required on macOS.
 
+## Push (server)
+
+Set on the Next.js host (not in the KMP app):
+
+| Env | Purpose |
+|-----|---------|
+| `FCM_SERVER_KEY` | Firebase server key for native push delivery |
+
+See [../docs/mobile/README.md](../docs/mobile/README.md#push-notifications-fcm) for API routes and scheduler behaviour.
+
 ## Documentation
 
 | Doc | Path |

@@ -11,6 +11,7 @@ import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
+import { getAllMobileTokens, sendMobilePushToAll } from "./mobile-push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, sendTelegramOrderSent, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
 import { flattenSubmittedRows } from "./order-utils";
 import webpush from "web-push";
@@ -199,7 +200,8 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   if (currentTime !== reminderTime) return;
 
   const allSubs = getAllSubscriptions();
-  if (allSubs.length === 0) return;
+  const mobileTokens = getAllMobileTokens();
+  if (allSubs.length === 0 && mobileTokens.length === 0) return;
 
   const data = getTodayOrderData();
   if (data.order.status === "sent") return;
@@ -214,31 +216,58 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
       .filter(Boolean) as string[]
   );
 
-  // Pošli jen těm, kdo ještě neobjednali
+  const orderedUserIds = new Set(
+    data.departments
+      .flatMap((d) => d.rows)
+      .filter((r) => r.mainItem || r.soupItem || r.extraMealItems.length > 0)
+      .map((r) => r.userId)
+      .filter((id): id is number => id != null),
+  );
+
+  const title = "Nezapomeň objednat! 🍽️";
+  const body = `Uzávěrka je v ${s.cutoffTime} — zbývá ${minutes} minut.`;
+  const url = "/";
+
+  // Pošli jen těm prohlížečům, kdo ještě neobjednali
   const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));
-  if (pending.length === 0) {
-    console.log("[scheduler] Push přeskočen — všichni už objednali.");
+  if (pending.length === 0 && allSubs.length > 0) {
+    console.log("[scheduler] Web push přeskočen — všichni už objednali.");
+  } else if (pending.length > 0) {
+    console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům...`);
+    const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
+    if (!publicKey || !privateKey) {
+      console.warn("[scheduler] VAPID klíče nejsou nastaveny, web push přeskočen.");
+    } else {
+      webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
+      const payload = JSON.stringify({ title, body, url });
+
+      await Promise.allSettled(
+        pending.map(async (row) => {
+          try {
+            await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
+          } catch (err: unknown) {
+            const status = (err as { statusCode?: number }).statusCode;
+            if (status === 404 || status === 410) deleteSubscription(row.endpoint);
+            else console.warn("[push] Chyba:", (err as Error).message);
+          }
+        })
+      );
+    }
+  }
+
+  const pendingMobile = mobileTokens.filter((t) => !orderedUserIds.has(t.user_id));
+  if (pendingMobile.length === 0) {
+    if (mobileTokens.length > 0) {
+      console.log("[scheduler] Mobile push přeskočen — všichni už objednali.");
+    }
     return;
   }
 
-  console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům...`);
-  const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
-  if (!publicKey || !privateKey) { console.warn("[scheduler] VAPID klíče nejsou nastaveny, push přeskočen."); return; }
-
-  webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
-  const payload = JSON.stringify({ title: "Nezapomeň objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime} — zbývá ${minutes} minut.`, url: "/" });
-
-  await Promise.allSettled(
-    pending.map(async (row) => {
-      try {
-        await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
-      } catch (err: unknown) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) deleteSubscription(row.endpoint);
-        else console.warn("[push] Chyba:", (err as Error).message);
-      }
-    })
-  );
+  console.log(`[scheduler] Odesílám mobile push ${pendingMobile.length} zařízením...`);
+  const mobileResult = await sendMobilePushToAll({ title, body, url }, { excludeUserIds: orderedUserIds });
+  if (mobileResult.sent > 0) {
+    console.log(`[mobile-push] Odesláno ${mobileResult.sent} notifikací (${mobileResult.dead} mrtvých tokenů odstraněno).`);
+  }
 }
 
 async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {

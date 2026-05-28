@@ -39,6 +39,7 @@ export interface AppSettings {
   imapCheckDays: string;
   vapidPublicKey: string;
   vapidPrivateKey: string;
+  fcmServerKey: string;
   pushReminderMinutes: string;
   reminderEmailTo: string;
   autoSendFailureEmail: string;
@@ -93,6 +94,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   imapCheckDays: "imap_check_days",
   vapidPublicKey: "vapid_public_key",
   vapidPrivateKey: "vapid_private_key",
+  fcmServerKey: "fcm_server_key",
   pushReminderMinutes: "push_reminder_minutes",
   reminderEmailTo: "reminder_email_to",
   autoSendFailureEmail: "auto_send_failure_email",
@@ -149,6 +151,7 @@ function envDefaults(): AppSettings {
     imapCheckDays: "Po,Út,St,Čt,Pá",
     vapidPublicKey: "",
     vapidPrivateKey: "",
+    fcmServerKey: process.env.FCM_SERVER_KEY ?? "",
     pushReminderMinutes: "20",
     reminderEmailTo: "",
     autoSendFailureEmail: "",

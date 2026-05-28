@@ -34,9 +34,9 @@ Handlers live under `app/api/mobile/v1/`:
 | Menu | `menu/weeks`, `menu`, `menu/day` |
 | Orders | `orders`, `orders/[orderId]`, `orders/[orderId]/rows`, `orders/rows/[rowId]`, `orders/[orderId]/send` |
 | History | `history/orders`, `history/stats` |
-| Push | `push/register` (FCM/APNs token storage) |
+| Push | `push/register` (FCM/APNs token storage), `push/test` (admin FCM test) |
 
-Supporting libs: `lib/mobile-jwt.ts`, `lib/mobile-auth.ts`, `lib/mobile-pairing.ts`, `lib/mobile-api.ts`, `lib/mobile-user.ts`.
+Supporting libs: `lib/mobile-jwt.ts`, `lib/mobile-auth.ts`, `lib/mobile-pairing.ts`, `lib/mobile-api.ts`, `lib/mobile-user.ts`, `lib/mobile-push.ts`.
 
 OAuth mobile routes (`auth/oauth/*`) and delta sync (`sync/since`) are spec-only for now.
 
@@ -47,7 +47,7 @@ OAuth mobile routes (`auth/oauth/*`) and delta sync (`sync/since`) are spec-only
 3. **KMP scaffold** — `mobile/shared`, `mobile/androidApp`, `mobile/iosApp`
 4. **Read-only v0** — login, QR pair, menu cache, history
 5. **Draft ordering** — outbox + sync in app
-6. **Push delivery** — server-side FCM/APNs send (tokens stored; delivery TBD)
+6. ~~**Push delivery**~~ — server-side FCM send via `lib/mobile-push.ts` (legacy HTTP API; iOS APNs direct TBD)
 7. **OAuth mobile** — `auth/oauth/start`, `auth/oauth/callback`
 
 ## QR pairing (v1)
@@ -57,6 +57,19 @@ OAuth mobile routes (`auth/oauth/*`) and delta sync (`sync/since`) are spec-only
 - Token: one-time, TTL 120s
 
 Existing [`app/api/profil/qr/route.ts`](../../app/api/profil/qr/route.ts) encodes user **name** only — not used for mobile pairing.
+
+## Push notifications (FCM)
+
+Native apps register device tokens via `POST /api/mobile/v1/push/register`. The server sends reminders through Firebase Cloud Messaging (legacy HTTP API).
+
+| Variable / setting | Description |
+|--------------------|-------------|
+| `FCM_SERVER_KEY` | Firebase **Server key** (Project settings → Cloud Messaging). Env var or `fcm_server_key` in app settings DB. |
+| Web push (separate) | VAPID keys in settings — used only for browser push via `lib/push.ts`. |
+
+Scheduler integration: `checkPushReminder` in `lib/scheduler.ts` sends the same cutoff reminder to web subscriptions and mobile tokens (users who have not ordered yet).
+
+Admin test (mobile JWT, admin role): `POST /api/mobile/v1/push/test` — sends a test notification to the caller's registered devices.
 
 ## Domain reference
 
