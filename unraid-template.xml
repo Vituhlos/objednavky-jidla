@@ -6,13 +6,13 @@
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Overview>Interní objednávkový systém pro správu objednávek obědů (LIMA) a pizzy. Bez přihlášení, sdílený objednávkový list po odděleních, odeslání e-mailem s PDF přílohou.</Overview>
+  <Overview>Interní objednávkový systém pro správu objednávek obědů (LIMA) a pizzy. Uživatelské účty, sdílený objednávkový list po odděleních, odeslání e-mailem s PDF přílohou.</Overview>
   <Category>Productivity: Tools:</Category>
   <Icon>https://raw.githubusercontent.com/Vituhlos/objednavky-jidla/main/app/icon.svg</Icon>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/vituhlos/objednavky-jidla/main/unraid-template.xml</TemplateURL>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
-  <Description>Interní objednávkový systém. Správa objednávek obědů (LIMA) a pizzy, import jídelníčku z PDF, odesílání e-mailem s PDF přílohou. Běží jako jeden kontejner bez externích závislostí.</Description>
+  <Description>Interní objednávkový systém. Správa objednávek obědů (LIMA) a pizzy, uživatelské účty (Credentials + Google OAuth), import jídelníčku z PDF, odesílání e-mailem s PDF přílohou. Běží jako jeden kontejner bez externích závislostí. Vyžaduje AUTH_SECRET, AUTH_URL a AUTH_TRUST_HOST.</Description>
   <Project>https://github.com/vituhlos/objednavky-jidla</Project>
 
   <Config
@@ -36,6 +36,39 @@
     Display="always"
     Required="true"
     Mask="false">/mnt/user/appdata/objednavky-jidla</Config>
+
+  <Config
+    Name="AUTH_SECRET"
+    Target="AUTH_SECRET"
+    Default=""
+    Mode=""
+    Description="Tajný klíč pro šifrování session cookies a JWT tokenů. Vygeneruj přes: openssl rand -base64 32. Musí zůstat stabilní napříč restarty — při změně se odhlásí všichni přihlášení uživatelé. Povinné pro Auth.js (přihlašování)."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="true"></Config>
+
+  <Config
+    Name="AUTH_URL"
+    Target="AUTH_URL"
+    Default=""
+    Mode=""
+    Description="Veřejná URL aplikace včetně protokolu, např. https://kantyna.firma.local nebo http://192.168.1.100:3000. Používá Auth.js pro sestavení callback URL při OAuth přihlašování. Povinné pro správné fungování přihlašování."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="false"></Config>
+
+  <Config
+    Name="AUTH_TRUST_HOST"
+    Target="AUTH_TRUST_HOST"
+    Default="true"
+    Mode=""
+    Description="Nastavte na true pokud aplikace běží za reverzní proxy (nginx, Traefik, Unraid proxy). Bez tohoto nastavení Auth.js odmítne přihlašovací požadavky přicházející přes proxy."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="false">true</Config>
 
   <Config
     Name="SMTP Host"
