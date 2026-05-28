@@ -148,6 +148,7 @@ export type SettingsHealth = {
   pin: { status: HealthStatus; sub: string };
   departments: { status: HealthStatus; sub: string };
   prices: { status: HealthStatus; sub: string };
+  google: { status: HealthStatus; sub: string };
 };
 
 export async function getSettingsHealth(): Promise<SettingsHealth> {
@@ -157,6 +158,7 @@ export async function getSettingsHealth(): Promise<SettingsHealth> {
   const depts = gd();
 
   const smtpConfigured = !!(settings.smtpHost && settings.smtpUser && settings.smtpFrom);
+  const googleConfigured = !!(settings.googleClientId && settings.googleClientSecret);
   const autoSendEnabled = settings.autoSendEnabled === "true";
   const autoSendDays = settings.autoSendDays.split(",").map((s) => s.trim()).filter(Boolean);
   const imapEnabled = settings.imapEnabled === "true";
@@ -192,6 +194,9 @@ export async function getSettingsHealth(): Promise<SettingsHealth> {
     prices: defaultsOk
       ? { status: "ok", sub: `Polévka ${settings.defaultSoupPrice}, hlavní ${settings.defaultMealPrice}` }
       : { status: "warning", sub: "Některé ceny chybí" },
+    google: googleConfigured
+      ? { status: "ok", sub: "Google OAuth aktivní" }
+      : { status: "warning", sub: "Nepřipojeno" },
   };
 }
 

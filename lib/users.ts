@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
+import { getSetting } from "@/lib/settings";
 
 export type UserRole = "admin" | "user";
 
@@ -64,17 +65,14 @@ function mapRow(r: Record<string, unknown>): UserRow {
 
 // ── Admin helpers ────────────────────────────────────────────────────────────
 
-function adminEmailsFromEnv(): Set<string> {
-  return new Set(
-    (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean),
-  );
+function adminEmails(): Set<string> {
+  const dbValue = getSetting("admin_emails");
+  const raw = dbValue !== null ? dbValue : (process.env.ADMIN_EMAILS ?? "");
+  return new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
 }
 
 function shouldBeAdmin(email: string | null, existingActiveCount: number): boolean {
-  if (email && adminEmailsFromEnv().has(email.toLowerCase())) return true;
+  if (email && adminEmails().has(email.toLowerCase())) return true;
   return existingActiveCount === 0; // první registrovaný = admin
 }
 

@@ -54,6 +54,9 @@ export interface AppSettings {
   pizzaCutoffTime: string;
   pizzaCutoffDays: string;
   pizzaEnabled: string;
+  googleClientId: string;
+  googleClientSecret: string;
+  adminEmails: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -105,6 +108,9 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   pizzaCutoffTime: "pizza_cutoff_time",
   pizzaCutoffDays: "pizza_cutoff_days",
   pizzaEnabled: "pizza_enabled",
+  googleClientId: "google_client_id",
+  googleClientSecret: "google_client_secret",
+  adminEmails: "admin_emails",
 };
 
 function envDefaults(): AppSettings {
@@ -158,6 +164,9 @@ function envDefaults(): AppSettings {
     pizzaCutoffTime: "10:00",
     pizzaCutoffDays: "Pá",
     pizzaEnabled: "true",
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    adminEmails: process.env.ADMIN_EMAILS ?? "",
   };
 }
 

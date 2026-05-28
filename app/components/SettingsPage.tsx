@@ -307,17 +307,18 @@ const DeptRow = memo(function DeptRow({
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "uzivatele" | "telegram" | "system";
+type Tab = "objednavka" | "notifikace" | "ceny" | "email" | "oddeleni" | "uzivatele" | "telegram" | "prihlaseni" | "system";
 
 const TABS: { id: Tab; label: string; icon: string; healthKey?: keyof SettingsHealth }[] = [
-  { id: "objednavka",  label: "Provoz",    icon: "schedule",       healthKey: "autoSend" },
-  { id: "notifikace",  label: "Notifikace", icon: "notifications", healthKey: "push" },
-  { id: "ceny",        label: "Ceník",      icon: "payments",      healthKey: "prices" },
-  { id: "email",       label: "E-mail",     icon: "mail",          healthKey: "smtp" },
-  { id: "oddeleni",    label: "Oddělení",   icon: "groups",        healthKey: "departments" },
-  { id: "uzivatele",   label: "Uživatelé",  icon: "groups" },
-  { id: "telegram",    label: "Telegram",   icon: "send" },
-  { id: "system",      label: "Systém",     icon: "build",         healthKey: "pin" },
+  { id: "objednavka",  label: "Provoz",      icon: "schedule",       healthKey: "autoSend" },
+  { id: "notifikace",  label: "Notifikace",  icon: "notifications",  healthKey: "push" },
+  { id: "ceny",        label: "Ceník",       icon: "payments",       healthKey: "prices" },
+  { id: "email",       label: "E-mail",      icon: "mail",           healthKey: "smtp" },
+  { id: "oddeleni",    label: "Oddělení",    icon: "groups",         healthKey: "departments" },
+  { id: "uzivatele",   label: "Uživatelé",   icon: "person" },
+  { id: "telegram",    label: "Telegram",    icon: "send" },
+  { id: "prihlaseni",  label: "Přihlášení",  icon: "login",          healthKey: "google" },
+  { id: "system",      label: "Systém",      icon: "build",          healthKey: "pin" },
 ];
 
 // Index for ⌘K search
@@ -342,10 +343,12 @@ const SETTINGS_INDEX: Array<{ tab: Tab; field: string; label: string; keywords: 
   { tab: "oddeleni",   field: "field-departments",     label: "Oddělení",               keywords: "oddělení department konstrukce dílna kanceláře" },
   { tab: "telegram",   field: "field-telegramBotToken", label: "Telegram bot token",    keywords: "telegram bot token botfather" },
   { tab: "telegram",   field: "field-telegramAppUrl",   label: "URL aplikace",          keywords: "telegram url aplikace webhook" },
-  { tab: "system",     field: "field-settingsPin",      label: "PIN",                    keywords: "pin heslo přístup zámek security" },
-  { tab: "system",     field: "field-backup",           label: "Záloha",                 keywords: "backup záloha export json" },
-  { tab: "system",     field: "field-restore",          label: "Obnova",                 keywords: "restore obnova import" },
-  { tab: "system",     field: "field-auditLog",         label: "Audit log",              keywords: "audit log historie změny" },
+  { tab: "system",      field: "field-settingsPin",       label: "PIN",                    keywords: "pin heslo přístup zámek security" },
+  { tab: "system",      field: "field-backup",            label: "Záloha",                 keywords: "backup záloha export json" },
+  { tab: "system",      field: "field-restore",           label: "Obnova",                 keywords: "restore obnova import" },
+  { tab: "system",      field: "field-auditLog",          label: "Audit log",              keywords: "audit log historie změny" },
+  { tab: "prihlaseni",  field: "field-googleClientId",    label: "Google Client ID",       keywords: "google oauth sso přihlášení client id" },
+  { tab: "prihlaseni",  field: "field-adminEmails",       label: "Admin e-maily",          keywords: "admin email správce role oprávnění" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -632,6 +635,10 @@ export default function SettingsPage({
     if (newPin) updates.settingsPin = newPin;
     const webhookSecret = (fd.get("telegramWebhookSecret") as string).trim();
     if (webhookSecret) updates.telegramWebhookSecret = webhookSecret;
+    updates.googleClientId = (fd.get("googleClientId") as string ?? "").trim();
+    const googleSecret = (fd.get("googleClientSecret") as string).trim();
+    if (googleSecret) updates.googleClientSecret = googleSecret;
+    updates.adminEmails = (fd.get("adminEmails") as string ?? "").trim();
 
     setSaveStatus("idle");
     startTransition(async () => {
@@ -1532,6 +1539,79 @@ export default function SettingsPage({
                       <input className="modal-input w-24" defaultValue={settings.priceBbq} min="0" name="priceBbq" type="number" />
                     </Field>
                   </div>
+                </Section>
+
+              </div>
+
+              {/* Přihlášení tab */}
+              <div className="flex flex-col gap-4" style={{ display: activeTab === "prihlaseni" ? "flex" : "none" }}>
+
+                <Section icon="login" title="Google OAuth">
+                  <div
+                    className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl text-[12px]"
+                    style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)" }}
+                  >
+                    <MIcon name="info" size={15} style={{ color: "#D97706", flexShrink: 0, marginTop: 1 }} />
+                    <div className="text-stone-600 leading-relaxed">
+                      <strong className="text-stone-800">Změny Google credentials</strong> se projeví až po restartu kontejneru — Auth.js inicializuje OAuth providery při startu procesu. Admin e-maily se projeví okamžitě.
+                    </div>
+                  </div>
+                  <Field label="Google Client ID" hint="z Google Cloud Console → APIs & Services → Credentials">
+                    <input
+                      className="modal-input font-mono text-[12px]"
+                      defaultValue={settings.googleClientId}
+                      name="googleClientId"
+                      placeholder="123456789-abc...apps.googleusercontent.com"
+                      type="text"
+                      autoComplete="off"
+                    />
+                  </Field>
+                  <Field label="Google Client Secret" hint="prázdné pole = beze změny">
+                    <input
+                      className="modal-input font-mono text-[12px]"
+                      name="googleClientSecret"
+                      placeholder={settings.googleClientSecret ? "••••••••••••" : "GOCSPX-..."}
+                      type="password"
+                      autoComplete="new-password"
+                    />
+                    {settings.googleClientSecret && (
+                      <p className="text-[11px] text-emerald-700 mt-1.5">Secret je uložen. Prázdné pole při uložení = beze změny.</p>
+                    )}
+                  </Field>
+                  <Field label="Callback URL (zkopíruj do Google Console)" hint="Authorized redirect URIs">
+                    <div className="flex items-center gap-2">
+                      <input
+                        className="modal-input font-mono text-[12px] flex-1"
+                        value={typeof window !== "undefined" ? `${window.location.origin}/api/auth/callback/google` : "/api/auth/callback/google"}
+                        readOnly
+                      />
+                      <button
+                        type="button"
+                        className="modal-btn modal-btn--secondary shrink-0"
+                        onClick={() => {
+                          const url = `${window.location.origin}/api/auth/callback/google`;
+                          navigator.clipboard.writeText(url);
+                        }}
+                      >
+                        <MIcon name="content_copy" size={14} />
+                      </button>
+                    </div>
+                  </Field>
+                </Section>
+
+                <Section icon="admin_panel_settings" title="Admin e-maily">
+                  <Field label="Admin e-maily" hint="čárkou oddělené e-maily — uživatelé s těmito adresami se při přihlášení stávají adminy">
+                    <textarea
+                      className="modal-input font-mono text-[12px] resize-none"
+                      defaultValue={settings.adminEmails}
+                      name="adminEmails"
+                      placeholder="admin@firma.cz, boss@firma.cz"
+                      rows={3}
+                    />
+                  </Field>
+                  <p className="text-[11.5px] text-stone-500">
+                    Platí okamžitě při dalším přihlášení. Role existujících uživatelů lze měnit ručně v záložce Uživatelé.
+                  </p>
                 </Section>
 
               </div>

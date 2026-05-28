@@ -2,12 +2,16 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { authConfig } from "@/auth.config";
+import { getSettings } from "@/lib/settings";
 import {
   verifyUserPassword,
   upsertUserFromOAuth,
   getUserById,
   linkProviderAccount,
 } from "@/lib/users";
+
+// Google credentials are read at startup — changes take effect after container restart
+const { googleClientId, googleClientSecret } = getSettings();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -30,12 +34,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Auto-link: vyžadujeme verifikovaný email z Googlu
-      allowDangerousEmailAccountLinking: true,
-    }),
+    ...(googleClientId && googleClientSecret
+      ? [Google({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+          allowDangerousEmailAccountLinking: true,
+        })]
+      : []),
   ],
   callbacks: {
     ...authConfig.callbacks,
