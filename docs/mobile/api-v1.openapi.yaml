@@ -1,0 +1,1181 @@
+openapi: 3.1.0
+info:
+  title: Kantýna Mobile API
+  version: 1.0.0
+  description: |
+    Versioned REST API for the native iOS/Android companion app.
+    Base path: `/api/mobile/v1`
+
+    Auth: Bearer access token (JWT). Refresh via `/auth/refresh`.
+    Mutations support `Idempotency-Key` header for offline replay.
+
+    Domain types mirror `lib/types.ts`, `lib/users.ts`, `lib/departments.ts`.
+servers:
+  - url: https://kantyna2.pbas.cz/api/mobile/v1
+    description: Production
+  - url: http://localhost:3000/api/mobile/v1
+    description: Local dev
+
+tags:
+  - name: auth
+  - name: pairing
+  - name: config
+  - name: menu
+  - name: orders
+  - name: history
+  - name: profile
+  - name: push
+  - name: sync
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login with email and password
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      operationId: authRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke refresh token
+      operationId: authLogout
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/device-pair:
+    post:
+      tags: [auth, pairing]
+      summary: Exchange QR pairing payload for tokens
+      description: |
+        Mobile app scans QR from web profile. Token is one-time, TTL ~120s.
+        QR payload format: `kantyna://pair?v=1&token={opaque}`
+      operationId: authDevicePair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: Opaque token from QR deep link
+      responses:
+        "200":
+          description: Paired and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "410":
+          description: Token expired or already used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /auth/oauth/start:
+    get:
+      tags: [auth]
+      summary: OAuth authorization URL (Google)
+      operationId: authOAuthStart
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [google]
+        - name: redirectUri
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+            example: kantyna://oauth/callback
+      responses:
+        "200":
+          description: URL to open in system browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorizationUrl]
+                properties:
+                  authorizationUrl:
+                    type: string
+                    format: uri
+
+  /auth/oauth/callback:
+    post:
+      tags: [auth]
+      summary: Complete OAuth flow (exchange code for tokens)
+      operationId: authOAuthCallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, code, redirectUri]
+              properties:
+                provider:
+                  type: string
+                  enum: [google]
+                code:
+                  type: string
+                redirectUri:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+
+  /pairing/qr:
+    post:
+      tags: [pairing]
+      summary: Generate one-time QR pairing token (web, session auth)
+      description: Called from web `/profil` while user is logged in via cookie session.
+      operationId: pairingQrCreate
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingQrResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /pairing/qr/{pairingId}/status:
+    get:
+      tags: [pairing]
+      summary: Poll pairing status (web optional)
+      operationId: pairingQrStatus
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PairingId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, consumed, expired]
+
+  /config:
+    get:
+      tags: [config]
+      summary: App bootstrap config (public)
+      operationId: getConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+
+  /departments:
+    get:
+      tags: [config]
+      summary: Active departments
+      operationId: listDepartments
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentInfo"
+
+  /me:
+    get:
+      tags: [profile]
+      summary: Current user profile
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [profile]
+      summary: Update profile preferences
+      operationId: patchMe
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfilePatch"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /menu/weeks:
+    get:
+      tags: [menu]
+      summary: Available menu weeks
+      operationId: listMenuWeeks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuWeek"
+
+  /menu:
+    get:
+      tags: [menu]
+      summary: Full week menu
+      operationId: getMenuWeek
+      parameters:
+        - name: weekStart
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            description: Monday ISO date YYYY-MM-DD
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeekMenu"
+
+  /menu/day:
+    get:
+      tags: [menu]
+      summary: Menu for a calendar date
+      operationId: getMenuDay
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayMenu"
+
+  /orders:
+    get:
+      tags: [orders]
+      summary: Order for date (full OrderData)
+      operationId: getOrderByDate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderData"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders/{orderId}:
+    get:
+      tags: [orders]
+      summary: Order by id
+      operationId: getOrderById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderData"
+
+  /orders/{orderId}/rows:
+    post:
+      tags: [orders]
+      summary: Add order row
+      operationId: createOrderRow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderRowCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRowEnriched"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /orders/rows/{rowId}:
+    patch:
+      tags: [orders]
+      summary: Update order row
+      operationId: patchOrderRow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RowId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderRowPatch"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRowEnriched"
+        "403":
+          description: Not owner or order already sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      tags: [orders]
+      summary: Delete order row
+      operationId: deleteOrderRow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RowId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Deleted
+
+  /orders/{orderId}/send:
+    post:
+      tags: [orders]
+      summary: Send order (admin only)
+      operationId: sendOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Order already sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /history/orders:
+    get:
+      tags: [history]
+      summary: Order history list
+      operationId: listHistoryOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryOrdersPage"
+
+  /history/stats:
+    get:
+      tags: [history]
+      summary: Monthly history stats
+      operationId: getHistoryStats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryStats"
+
+  /push/register:
+    post:
+      tags: [push]
+      summary: Register FCM/APNs device token
+      operationId: registerPush
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushRegisterRequest"
+      responses:
+        "204":
+          description: Registered
+    delete:
+      tags: [push]
+      summary: Unregister device token
+      operationId: unregisterPush
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "204":
+          description: Unregistered
+
+  /sync/since:
+    get:
+      tags: [sync]
+      summary: Delta sync cursor (optional v1)
+      operationId: syncSince
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncDelta"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: authjs.session-token
+      description: NextAuth session cookie (web pairing endpoint only)
+
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: integer
+    RowId:
+      name: rowId
+      in: path
+      required: true
+      schema:
+        type: integer
+    PairingId:
+      name: pairingId
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Client-generated key for offline outbox replay
+
+  responses:
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples: [UNAUTHORIZED, ORDER_SENT, PAIRING_EXPIRED]
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access token TTL in seconds
+        user:
+          $ref: "#/components/schemas/UserProfile"
+
+    PairingQrResponse:
+      type: object
+      required: [pairingId, token, expiresAt, qrPayload, deepLink]
+      properties:
+        pairingId:
+          type: string
+        token:
+          type: string
+          description: Opaque one-time token
+        expiresAt:
+          type: string
+          format: date-time
+        qrPayload:
+          type: string
+          description: Raw string encoded in QR image
+          example: kantyna://pair?v=1&token=abc123
+        deepLink:
+          type: string
+          format: uri
+
+    UserProfile:
+      type: object
+      required: [id, firstName, lastName, role, emailVerified, active]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+          nullable: true
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          enum: [admin, user]
+        emailVerified:
+          type: boolean
+        active:
+          type: boolean
+        defaultDepartment:
+          type: string
+          nullable: true
+        emailOrderConfirmation:
+          type: boolean
+
+    UserProfilePatch:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        defaultDepartment:
+          type: string
+          nullable: true
+        emailOrderConfirmation:
+          type: boolean
+
+    DepartmentInfo:
+      type: object
+      required: [id, name, label, emailLabel, accent, sortOrder, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        label:
+          type: string
+        emailLabel:
+          type: string
+        accent:
+          type: string
+          enum: [blue, rust, green, amber, navy, orange, red]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+
+    AppConfig:
+      type: object
+      required: [cutoffTime, defaultSoupPrice, defaultMealPrice, extrasPrices, pushReminderMinutes]
+      properties:
+        cutoffTime:
+          type: string
+          example: "08:00"
+        autoSendEnabled:
+          type: boolean
+        autoSendTime:
+          type: string
+        autoSendDays:
+          type: string
+          description: Comma-separated DayCode values
+          example: "Po,Út,St,Čt,Pá"
+        defaultSoupPrice:
+          type: integer
+        defaultMealPrice:
+          type: integer
+        extrasPrices:
+          $ref: "#/components/schemas/ExtrasPrices"
+        pushReminderMinutes:
+          type: integer
+        pizzaEnabled:
+          type: boolean
+
+    ExtrasPrices:
+      type: object
+      properties:
+        roll:
+          type: integer
+        breadDumpling:
+          type: integer
+        potatoDumpling:
+          type: integer
+        ketchup:
+          type: integer
+        tatarka:
+          type: integer
+        bbq:
+          type: integer
+
+    DayCode:
+      type: string
+      enum: [Po, Út, St, Čt, Pá]
+
+    MenuItemType:
+      type: string
+      enum: [Polévka, Jídlo]
+
+    MenuItem:
+      type: object
+      required: [id, day, type, code, name, price, allergens]
+      properties:
+        id:
+          type: integer
+        weekLabel:
+          type: string
+          nullable: true
+        day:
+          type: string
+        type:
+          $ref: "#/components/schemas/MenuItemType"
+        code:
+          type: string
+        name:
+          type: string
+        price:
+          type: integer
+        allergens:
+          type: string
+
+    MenuWeek:
+      type: object
+      required: [weekStart, weekLabel]
+      properties:
+        weekStart:
+          type: string
+          format: date
+        weekLabel:
+          type: string
+          nullable: true
+
+    WeekMenu:
+      type: object
+      required: [weekStart, days]
+      properties:
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DayMenuItems"
+          description: Keys are DayCode values
+
+    DayMenuItems:
+      type: object
+      required: [soups, meals]
+      properties:
+        soups:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+
+    DayMenu:
+      type: object
+      required: [date, dayCode, weekStart, soups, meals]
+      properties:
+        date:
+          type: string
+          format: date
+        dayCode:
+          $ref: "#/components/schemas/DayCode"
+          nullable: true
+        weekStart:
+          type: string
+          format: date
+        soups:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+        closed:
+          type: boolean
+
+    MealEntry:
+      type: object
+      required: [itemId, count]
+      properties:
+        itemId:
+          type: integer
+        count:
+          type: integer
+          minimum: 1
+
+    Order:
+      type: object
+      required: [id, date, status]
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [draft, sent]
+        extraEmail:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrderRow:
+      type: object
+      required: [id, orderId, department, sortOrder, personName, mealCount]
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        department:
+          type: string
+        sortOrder:
+          type: integer
+        personName:
+          type: string
+        userId:
+          type: integer
+          nullable: true
+        soupItemId:
+          type: integer
+          nullable: true
+        soupItemId2:
+          type: integer
+          nullable: true
+        mainItemId:
+          type: integer
+          nullable: true
+        mealCount:
+          type: integer
+        extraMeals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MealEntry"
+        rollCount:
+          type: integer
+        breadDumplingCount:
+          type: integer
+        potatoDumplingCount:
+          type: integer
+        ketchupCount:
+          type: integer
+        tatarkaCount:
+          type: integer
+        bbqCount:
+          type: integer
+        note:
+          type: string
+
+    OrderRowEnriched:
+      allOf:
+        - $ref: "#/components/schemas/OrderRow"
+        - type: object
+          properties:
+            soupItem:
+              $ref: "#/components/schemas/MenuItem"
+              nullable: true
+            soupItem2:
+              $ref: "#/components/schemas/MenuItem"
+              nullable: true
+            mainItem:
+              $ref: "#/components/schemas/MenuItem"
+              nullable: true
+            extraMealItems:
+              type: array
+              items:
+                type: object
+                required: [item, count]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/MenuItem"
+                  count:
+                    type: integer
+            rowPrice:
+              type: integer
+
+    DepartmentData:
+      type: object
+      required: [name, label, emailLabel, accent, rows, subtotal]
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        emailLabel:
+          type: string
+        accent:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRowEnriched"
+        subtotal:
+          type: integer
+
+    OrderData:
+      type: object
+      required: [order, departments, todayMenu, totalPrice, dayCode]
+      properties:
+        order:
+          $ref: "#/components/schemas/Order"
+        departments:
+          type: array
+          items:
+            $ref: "#/components/schemas/DepartmentData"
+        todayMenu:
+          $ref: "#/components/schemas/DayMenuItems"
+        totalPrice:
+          type: integer
+        dayCode:
+          $ref: "#/components/schemas/DayCode"
+          nullable: true
+
+    OrderRowCreate:
+      type: object
+      required: [department]
+      properties:
+        department:
+          type: string
+        personName:
+          type: string
+        soupItemId:
+          type: integer
+          nullable: true
+        soupItemId2:
+          type: integer
+          nullable: true
+        mainItemId:
+          type: integer
+          nullable: true
+        mealCount:
+          type: integer
+          default: 1
+        extraMeals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MealEntry"
+        rollCount:
+          type: integer
+        breadDumplingCount:
+          type: integer
+        potatoDumplingCount:
+          type: integer
+        ketchupCount:
+          type: integer
+        tatarkaCount:
+          type: integer
+        bbqCount:
+          type: integer
+        note:
+          type: string
+
+    OrderRowPatch:
+      type: object
+      properties:
+        personName:
+          type: string
+        soupItemId:
+          type: integer
+          nullable: true
+        soupItemId2:
+          type: integer
+          nullable: true
+        mainItemId:
+          type: integer
+          nullable: true
+        mealCount:
+          type: integer
+        extraMeals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MealEntry"
+        rollCount:
+          type: integer
+        breadDumplingCount:
+          type: integer
+        potatoDumplingCount:
+          type: integer
+        ketchupCount:
+          type: integer
+        tatarkaCount:
+          type: integer
+        bbqCount:
+          type: integer
+        note:
+          type: string
+
+    OrderSummaryWithDepts:
+      type: object
+      required: [id, date, status, rowCount, depts, peopleCount, totalPrice]
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [draft, sent]
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        extraEmail:
+          type: string
+          nullable: true
+        rowCount:
+          type: integer
+        depts:
+          type: array
+          items:
+            type: string
+        peopleCount:
+          type: integer
+        totalPrice:
+          type: integer
+
+    HistoryOrdersPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderSummaryWithDepts"
+        nextCursor:
+          type: string
+          nullable: true
+
+    HistoryStats:
+      type: object
+      required: [monthlyOrderCount, monthlyPeopleCount, monthlySum]
+      properties:
+        monthlyOrderCount:
+          type: integer
+        monthlyOrderCountPrev:
+          type: integer
+        monthlyPeopleCount:
+          type: integer
+        monthlySum:
+          type: integer
+        monthlyAvgPeoplePerDay:
+          type: number
+
+    PushRegisterRequest:
+      type: object
+      required: [platform, token]
+      properties:
+        platform:
+          type: string
+          enum: [ios, android]
+        token:
+          type: string
+          description: APNs or FCM device token
+        appVersion:
+          type: string
+
+    SyncDelta:
+      type: object
+      properties:
+        cursor:
+          type: string
+        order:
+          $ref: "#/components/schemas/OrderData"
+        updatedAt:
+          type: string
+          format: date-time

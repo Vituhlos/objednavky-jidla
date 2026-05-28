@@ -8,6 +8,7 @@ const PROTECTED_PATHS = ["/nastaveni", "/profil", "/api/profil"];
 // Cesty, kam middleware vůbec nezasahuje (statické assety, auth API)
 const BYPASS_PREFIXES = [
   "/api/auth",
+  "/api/mobile",
   "/api/telegram",
   "/api/ping",
   "/api/version",

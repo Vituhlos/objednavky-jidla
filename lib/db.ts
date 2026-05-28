@@ -263,4 +263,44 @@ function migrate(db: Database.Database): void {
   try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
   // Session version for JWT invalidation (revoke all sessions)
   try { db.exec("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0"); } catch {}
+
+  // Mobile app: refresh tokens, QR pairing, native push, idempotency
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mobile_refresh_tokens (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash  TEXT    NOT NULL UNIQUE,
+      expires_at  TEXT    NOT NULL,
+      revoked     INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_mobile_refresh_user ON mobile_refresh_tokens(user_id);
+
+    CREATE TABLE IF NOT EXISTS mobile_pairing_tokens (
+      id          TEXT    PRIMARY KEY,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token       TEXT    NOT NULL UNIQUE,
+      status      TEXT    NOT NULL DEFAULT 'pending',
+      expires_at  TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_mobile_pairing_token ON mobile_pairing_tokens(token);
+
+    CREATE TABLE IF NOT EXISTS mobile_device_tokens (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      platform    TEXT    NOT NULL,
+      token       TEXT    NOT NULL,
+      app_version TEXT,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, token)
+    );
+
+    CREATE TABLE IF NOT EXISTS mobile_idempotency (
+      key           TEXT PRIMARY KEY,
+      response_body TEXT    NOT NULL,
+      status_code   INTEGER NOT NULL,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 }

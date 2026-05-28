@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { signOut, signIn } from "next-auth/react";
 import Link from "next/link";
 import MIcon from "./MIcon";
+import MobilePairingQr from "./MobilePairingQr";
 import {
   actionUpdateProfile,
   actionChangePassword,
@@ -576,6 +577,12 @@ export default function ProfilePage({
                     <StatusMsg msg={profileMsg} />
                     <OrangeButton disabled={profileSaving}>{profileSaving ? "Ukládám…" : "Uložit změny"}</OrangeButton>
                   </form>
+                </Section>
+              )}
+
+              {activeTab === "profil" && (
+                <Section title="Přihlášení do mobilní aplikace" icon="qr_code">
+                  <MobilePairingQr />
                 </Section>
               )}
 
