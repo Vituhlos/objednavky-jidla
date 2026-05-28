@@ -39,6 +39,7 @@ import type { SafeUserRow, UserRole } from "@/lib/users";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 import { formatTs, getNextAutoSend, Section, Field, EmailListInput, Toggle } from "./settings/_shared";
 import { getBuildInfo } from "@/lib/build-info";
 
@@ -419,6 +420,14 @@ export default function SettingsPage({
   const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
   const { sheetRef: telegramHelpSheetRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
+  useFocusTrap(telegramHelpSheetRef, showTelegramHelp);
+  useEffect(() => {
+    if (!showTelegramHelp) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setShowTelegramHelp(false); };
+    document.addEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
+  }, [showTelegramHelp]);
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const router = useRouter();
@@ -433,6 +442,14 @@ export default function SettingsPage({
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [showGoogleHelp, setShowGoogleHelp] = useState(false);
   const { sheetRef: googleHelpSheetRef } = useModalSwipe(useCallback(() => setShowGoogleHelp(false), []));
+  useFocusTrap(googleHelpSheetRef, showGoogleHelp);
+  useEffect(() => {
+    if (!showGoogleHelp) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setShowGoogleHelp(false); };
+    document.addEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
+  }, [showGoogleHelp]);
   const [draggingDeptId, setDraggingDeptId] = useState<number | null>(null);
   const dragIdRef = useRef<number | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
@@ -844,7 +861,7 @@ export default function SettingsPage({
                     role="option"
                     aria-selected="false"
                     onClick={() => jumpToField(r.tab, r.field)}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] hover:bg-amber-50/60 border-b border-white/30 last:border-0"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] hover:bg-amber-50/60 border-b border-white/30 last:border-0"
                   >
                     <MIcon name={TABS.find((t) => t.id === r.tab)?.icon ?? "settings"} size={13} style={{ color: "#D97706", flexShrink: 0 }} />
                     <div className="flex-1 min-w-0">
@@ -882,7 +899,7 @@ export default function SettingsPage({
               key={`${r.tab}-${r.field}`}
               type="button"
               onClick={() => jumpToField(r.tab, r.field)}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[12.5px] bg-white/40"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[13px] bg-white/40"
             >
               <MIcon name={TABS.find((t) => t.id === r.tab)?.icon ?? "settings"} size={13} style={{ color: "#D97706" }} />
               <div className="flex-1 min-w-0">
@@ -906,7 +923,7 @@ export default function SettingsPage({
               </div>
               <div className="text-center">
                 <p className="font-display font-bold text-[17px] text-stone-900">Přístup chráněn PINem</p>
-                <p className="text-[12.5px] text-stone-500 mt-1">Zadejte PIN pro zobrazení nastavení</p>
+                <p className="text-[13px] text-stone-500 mt-1">Zadejte PIN pro zobrazení nastavení</p>
               </div>
               <form className="w-full flex flex-col gap-3" onSubmit={handlePinSubmit}>
                 <input
@@ -973,7 +990,7 @@ export default function SettingsPage({
                     <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">
                       Stav konfigurace · <span className="font-normal text-stone-600">{headline}</span>
                     </span>
-                    <span className="text-[11.5px] font-semibold text-stone-500">{okCount}/{items.length} OK</span>
+                    <span className="text-xs font-semibold text-stone-500">{okCount}/{items.length} OK</span>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 p-3">
                     {items.map((it) => {
@@ -1041,7 +1058,7 @@ export default function SettingsPage({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[13px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                         activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                       }`}
                       style={activeTab === tab.id ? {
@@ -1071,7 +1088,7 @@ export default function SettingsPage({
               <Section icon="lock_open" title="Dnešní objednávka">
                 {todayOrder.status === "sent" && !reopenDone ? (
                   <div className="flex flex-col gap-3">
-                    <p className="text-[12.5px] text-stone-500">Objednávka je odeslána.</p>
+                    <p className="text-[13px] text-stone-500">Objednávka je odeslána.</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <button
                         className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
@@ -1116,13 +1133,13 @@ export default function SettingsPage({
                     )}
                   </div>
                 ) : reopenDone ? (
-                  <p className="text-[12.5px] text-green-700 inline-flex items-center gap-1.5">
+                  <p className="text-[13px] text-green-700 inline-flex items-center gap-1.5">
                     <MIcon name="check_circle" size={14} fill /> Objednávka byla znovu otevřena.
                   </p>
                 ) : null}
                 {todayOrder.status === "draft" && !clearDone && (
                   <div className="flex flex-col gap-2 pt-1 border-t border-white/40">
-                    <p className="text-[12.5px] text-stone-500">Objednávka je otevřená.</p>
+                    <p className="text-[13px] text-stone-500">Objednávka je otevřená.</p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
@@ -1163,7 +1180,7 @@ export default function SettingsPage({
                   </div>
                 )}
                 {clearDone && (
-                  <p className="text-[12.5px] text-stone-500 inline-flex items-center gap-1.5">
+                  <p className="text-[13px] text-stone-500 inline-flex items-center gap-1.5">
                     <MIcon name="check_circle" size={14} fill style={{ color: "#94a3b8" }} /> Objednávka byla smazána.
                   </p>
                 )}
@@ -1189,7 +1206,7 @@ export default function SettingsPage({
             {/* ── Oddělení tab ── */}
             {activeTab === "oddeleni" && (
               <Section icon="groups" title="Oddělení">
-                <p className="text-[12.5px] text-stone-500">
+                <p className="text-[13px] text-stone-500">
                   Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
                 </p>
                 {deptError && (
@@ -1288,7 +1305,7 @@ export default function SettingsPage({
                 </Section>
 
                 <Section icon="schedule" title="Automatické odeslání">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
                   </p>
                   <Toggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
@@ -1318,7 +1335,7 @@ export default function SettingsPage({
                 </Section>
 
                 <Section icon="local_pizza" title="Pizza modul">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Pizza modul přidává do appky stránku Pizza, sekci v Historii a vlastní příkazy v Telegram botovi. Při vypnutí je vše skryto a scraper běží naprázdno (objednávky v DB zůstávají).
                   </p>
                   <Toggle defaultChecked={settings.pizzaEnabled !== "false"} label="Zapnout pizza modul" name="pizzaEnabled" />
@@ -1326,7 +1343,7 @@ export default function SettingsPage({
 
                 {settings.pizzaEnabled !== "false" && (
                 <Section icon="local_pizza" title="Pizza – uzávěrka">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     V nastavenou dobu se objednávka pizzy automaticky uzavře — nikdo již nebude moci přidávat ani měnit objednávky.
                   </p>
                   <Toggle defaultChecked={settings.pizzaCutoffEnabled === "true"} label="Zapnout automatickou uzávěrku pizzy" name="pizzaCutoffEnabled" />
@@ -1360,7 +1377,7 @@ export default function SettingsPage({
 
                 <Section icon="menu_book" title="Automatický import jídelníčku" helpContent={
                   <div className="space-y-2.5 text-[12px] text-stone-600 pb-2">
-                    <p className="font-semibold text-stone-800 text-[12.5px]">Jak nastavit automatický import z Gmailu</p>
+                    <p className="font-semibold text-stone-800 text-[13px]">Jak nastavit automatický import z Gmailu</p>
                     <div className="space-y-1.5">
                       <p><span className="font-semibold text-stone-700">1. Zapni IMAP v Gmailu</span><br />Gmail → Nastavení (ozubené kolo) → Zobrazit všechna nastavení → záložka <em>Přesměrování a POP/IMAP</em> → sekce IMAP → vyber <strong>Zapnout IMAP</strong> → Uložit.</p>
                       <p><span className="font-semibold text-stone-700">2. Vytvoř App Password</span><br />Gmail normální heslo nefunguje — potřebuješ speciální. Jdi na <strong>myaccount.google.com/apppasswords</strong>, přihlas se, vytvoř nové heslo (název např. „Kantyna"). Google vygeneruje 16 znaků — zkopíruj je <strong>bez mezer</strong> a vlož sem jako heslo.</p>
@@ -1369,7 +1386,7 @@ export default function SettingsPage({
                     </div>
                   </div>
                 }>
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Appka se každé ráno připojí k e-mailové schránce a automaticky importuje jídelníček z PDF přílohy od LIMY.
                   </p>
                   <Toggle defaultChecked={settings.imapEnabled === "true"} label="Zapnout automatický import" name="imapEnabled" />
@@ -1418,7 +1435,7 @@ export default function SettingsPage({
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <button
-                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      className="glass-btn px-4 py-2 rounded-xl text-[13px] font-semibold text-stone-700 inline-flex items-center gap-2"
                       disabled={isPending}
                       onClick={handleImapCheck}
                       type="button"
@@ -1440,7 +1457,7 @@ export default function SettingsPage({
               {/* Notifikace tab — Push + odkazy na ostatní notifikační kanály */}
               <div className="flex flex-col gap-4" style={{ display: activeTab === "notifikace" ? "flex" : "none" }}>
                 <Section icon="notifications" title="Push notifikace">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Upozornění do prohlížeče před uzávěrkou. Každý si je povolí sám tlačítkem 🔔 na hlavní stránce.
                   </p>
                   <Field hint="kolik minut před uzávěrkou přijde upozornění" label="Upozornit před uzávěrkou (min)">
@@ -1448,7 +1465,7 @@ export default function SettingsPage({
                   </Field>
                   <div className="flex items-center gap-3 flex-wrap">
                     <button
-                      className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+                      className="glass-btn px-4 py-2 rounded-xl text-[13px] font-semibold text-stone-700 inline-flex items-center gap-2"
                       disabled={isPending}
                       onClick={handleTestPush}
                       type="button"
@@ -1464,7 +1481,7 @@ export default function SettingsPage({
                     )}
                   </div>
                 </Section>
-                <div className="glass-card rounded-3xl p-4 text-[12.5px] text-stone-600 space-y-2">
+                <div className="glass-card rounded-3xl p-4 text-[13px] text-stone-600 space-y-2">
                   <p>📨 <strong>E-mail příjemci alertů</strong> (auto-send selhal, chybí jídelníček) → nastav v <em>Provoz</em> tabu u příslušných sekcí.</p>
                   <p>📱 <strong>Telegram notifikace</strong> → kompletní nastavení v <em>Telegram</em> tabu.</p>
                 </div>
@@ -1534,7 +1551,7 @@ export default function SettingsPage({
               <div className="flex flex-col gap-4" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
 
                 <Section icon="restaurant" title="Ceník jídel">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Výchozí ceny používané při importu jídelního lístku z webu. Existující položky v menu se nemění.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1548,7 +1565,7 @@ export default function SettingsPage({
                 </Section>
 
                 <Section icon="shopping_basket" title="Přílohy a doplňky">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Ceny příloh zobrazované v modalu a používané pro výpočet ceny řádku.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1579,7 +1596,7 @@ export default function SettingsPage({
               <div className="flex flex-col gap-4" style={{ display: activeTab === "prihlaseni" ? "flex" : "none" }}>
 
                 <Section icon="login" title="Google OAuth" action={
-                  <button type="button" onClick={() => setShowGoogleHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                  <button type="button" onClick={() => setShowGoogleHelp(true)} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
                     <MIcon name="help_outline" size={13} /> Jak nastavit?
                   </button>
                 }>
@@ -1645,7 +1662,7 @@ export default function SettingsPage({
                       rows={3}
                     />
                   </Field>
-                  <p className="text-[11.5px] text-stone-500">
+                  <p className="text-xs text-stone-500">
                     Platí okamžitě při dalším přihlášení. Role existujících uživatelů lze měnit ručně v záložce Uživatelé.
                   </p>
                 </Section>
@@ -1681,7 +1698,7 @@ export default function SettingsPage({
                         </span>
                       );
                     })()}
-                    <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+                    <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
                       <MIcon name="help_outline" size={13} /> Jak nastavit?
                     </button>
                   </div>
@@ -1742,7 +1759,7 @@ export default function SettingsPage({
                   {botInfo?.ok && botInfo.username && (
                     <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl" style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)" }}>
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] shrink-0" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] shrink-0 brand-grad">
                           <MIcon name="smart_toy" size={16} />
                         </div>
                         <div className="min-w-0">
@@ -1757,7 +1774,7 @@ export default function SettingsPage({
                           setLinkCopied(true);
                           setTimeout(() => setLinkCopied(false), 2000);
                         }}
-                        className="shrink-0 inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500 whitespace-nowrap"
+                        className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500 whitespace-nowrap"
                         title={`https://t.me/${botInfo.username}`}
                       >
                         <MIcon name={linkCopied ? "check" : "link"} size={13} />
@@ -1774,7 +1791,7 @@ export default function SettingsPage({
             {activeTab === "system" && (
               <>
                 <Section icon="build" title="Záloha a obnova dat">
-              <p className="text-[12.5px] text-stone-500">
+              <p className="text-[13px] text-stone-500">
                 Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
               </p>
               <a
@@ -1807,7 +1824,7 @@ export default function SettingsPage({
                     <MIcon name="upload_file" size={14} /> Vybrat soubor zálohy
                   </label>
                   {restoreFileName && (
-                    <span className="text-[11.5px] text-stone-500 truncate max-w-[200px]">{restoreFileName}</span>
+                    <span className="text-xs text-stone-500 truncate max-w-[200px]">{restoreFileName}</span>
                   )}
                 </div>
 
@@ -1863,7 +1880,7 @@ export default function SettingsPage({
                 <Section icon="history" title="Historie změn" action={
                   initialAuditLog.length > 0 ? (
                     <select
-                      className="text-[11.5px] px-2 py-1 rounded-lg glass-btn text-stone-600 font-medium bg-transparent cursor-pointer"
+                      className="text-xs px-2 py-1 rounded-lg glass-btn text-stone-600 font-medium bg-transparent cursor-pointer"
                       value={auditFilter}
                       onChange={(e) => setAuditFilter(e.target.value)}
                     >
@@ -1884,7 +1901,7 @@ export default function SettingsPage({
                   ) : (() => {
                     const filtered = auditFilter === "all" ? initialAuditLog : initialAuditLog.filter((e) => e.action === auditFilter);
                     return filtered.length === 0 ? (
-                      <p className="text-[12.5px] text-stone-400 py-2">Žádné záznamy tohoto typu.</p>
+                      <p className="text-[13px] text-stone-400 py-2">Žádné záznamy tohoto typu.</p>
                     ) : (
                       <div className="overflow-x-auto -mx-4 -mb-4">
                         <table className="w-full text-[12px]">
@@ -1919,14 +1936,14 @@ export default function SettingsPage({
             {/* ── Telegram tab — non-form sections ── */}
             {activeTab === "uzivatele" && (
               <Section icon="groups" title={`Uživatelé aplikace${appUsers.length > 0 ? ` (${appUsers.length})` : ""}`}>
-                <p className="text-[12.5px] text-stone-500 leading-relaxed">
+                <p className="text-[13px] text-stone-500 leading-relaxed">
                   Účty přihlašující se přes Credentials nebo Google. Role <b>admin</b> má přístup do Nastavení; ostatní mohou objednávat.
                 </p>
                 {appUserError && (
                   <p className="text-[12px] text-red-600">{appUserError}</p>
                 )}
                 {appUsers.length === 0 ? (
-                  <p className="text-[12.5px] text-stone-400">Zatím žádní uživatelé.</p>
+                  <p className="text-[13px] text-stone-400">Zatím žádní uživatelé.</p>
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     {appUsers.map((u) => {
@@ -2068,8 +2085,7 @@ export default function SettingsPage({
                                     setAppUserError(err instanceof Error ? err.message : "Chyba.");
                                   } finally { setResetLoading(false); }
                                 }}
-                                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white disabled:opacity-50 shrink-0"
-                                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white disabled:opacity-50 shrink-0 brand-grad"
                               >
                                 {resetLoading ? "…" : "Nastavit"}
                               </button>
@@ -2097,9 +2113,9 @@ export default function SettingsPage({
                   {/* Subscriber list */}
                   <Section icon="group" title={`Registrovaní uživatelé (Telegram)${telegramSubs.length > 0 ? ` (${telegramSubs.length})` : ""}`}>
                     {!telegramSubsLoaded ? (
-                      <p className="text-[12.5px] text-stone-400">Načítám…</p>
+                      <p className="text-[13px] text-stone-400">Načítám…</p>
                     ) : telegramSubs.length === 0 ? (
-                      <div className="text-[12.5px] text-stone-400 leading-relaxed">
+                      <div className="text-[13px] text-stone-400 leading-relaxed">
                         Zatím nikdo. Každý si otevře chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>.
                       </div>
                     ) : (
@@ -2155,7 +2171,7 @@ export default function SettingsPage({
                   </Section>
 
                   <Section icon="notifications" title="Co bot hlásí">
-                    <div className="space-y-2 text-[12.5px]">
+                    <div className="space-y-2 text-[13px]">
                       <div className="flex items-start gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a", marginTop: 2 }} /><span className="text-stone-600"><b>Objednávka odeslána</b> — upozornění adminu (auto-send i ruční)</span></div>
                       <div className="flex items-start gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626", marginTop: 2 }} /><span className="text-stone-600"><b>Selhání auto-send</b> — upozornění adminům</span></div>
                       <div className="flex items-start gap-2"><MIcon name="wb_sunny" size={14} fill style={{ color: "#D97706", marginTop: 2 }} /><span className="text-stone-600"><b>Ranní jídelníček</b> — uživatelé se zapnutým 🌅</span></div>
@@ -2196,7 +2212,7 @@ export default function SettingsPage({
                 </div>
 
                 <Section icon="integration_instructions" title="Nastavení webhooku">
-                  <p className="text-[12.5px] text-stone-500">
+                  <p className="text-[13px] text-stone-500">
                     Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Po změně tokenu nebo secretu ulož nastavení a znovu klikni „Nastavit webhook“.
                   </p>
                   {!settings.telegramWebhookSecret && (
@@ -2272,7 +2288,7 @@ export default function SettingsPage({
                     )}
                   </div>
                   {webhookInfo?.url && (
-                    <div className="flex items-center gap-2 mt-1 text-[11.5px] text-stone-400">
+                    <div className="flex items-center gap-2 mt-1 text-xs text-stone-400">
                       <MIcon name="link" size={13} />
                       <span className="font-mono truncate">{webhookInfo.url}</span>
                     </div>
@@ -2291,7 +2307,7 @@ export default function SettingsPage({
                       <div className="modal-sheet__body space-y-4">
 
                         {/* Intro */}
-                        <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                        <div className="px-3 py-2.5 rounded-2xl text-[13px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
                           <strong>Jak to funguje:</strong> Každý kolega si otevře soukromý chat s botem a pošle <code className="bg-black/5 px-1 rounded">/start</code>. Automaticky se zaregistruje a bude dostávat notifikace do svého soukromého chatu. Nikdo nevidí zprávy ostatních.
                         </div>
 
@@ -2348,19 +2364,19 @@ export default function SettingsPage({
                           },
                         ].map((step) => (
                           <div key={step.num} className="flex gap-3">
-                            <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                            <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5 brand-grad">
                               {step.num}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
-                              <div className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
+                              <div className="text-[13px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
                             </div>
                           </div>
                         ))}
 
                         {/* Commands reference */}
                         <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
-                          <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (piš botovi přímo v soukromém chatu)</p>
+                          <p className="font-display font-bold text-[13px] text-stone-800">Příkazy (piš botovi přímo v soukromém chatu)</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
                             {[
                               ["/stav", "přehled dnešní objednávky"],
@@ -2387,7 +2403,7 @@ export default function SettingsPage({
                           </div>
                         </div>
 
-                        <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
+                        <p className="text-xs text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
                       </div>
                     </div>
                   </div>
@@ -2406,7 +2422,7 @@ export default function SettingsPage({
               </div>
               <div className="modal-sheet__body space-y-4">
 
-                <div className="px-3 py-2.5 rounded-2xl text-[12.5px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                <div className="px-3 py-2.5 rounded-2xl text-[13px] text-stone-600 leading-relaxed" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
                   <strong>Co to dá:</strong> Uživatelé se budou moci přihlásit jedním kliknutím přes Google účet — bez vytváření hesla. Pokud mají stejný e-mail jako existující účet, automaticky se propojí.
                 </div>
 
@@ -2450,7 +2466,7 @@ export default function SettingsPage({
                     body: (
                       <div className="space-y-1.5">
                         <p>Na stránce OAuth consent screen klikni <strong>Publish App</strong> → potvrď. Tím odstraníš omezení „pouze test users".</p>
-                        <p className="text-[11.5px] text-stone-500">Google review není potřeba — email+profile jsou nesenzitivní scopes. Publikování je okamžité.</p>
+                        <p className="text-xs text-stone-500">Google review není potřeba — email+profile jsou nesenzitivní scopes. Publikování je okamžité.</p>
                       </div>
                     ),
                   },
@@ -2489,12 +2505,12 @@ export default function SettingsPage({
                   },
                 ].map((step) => (
                   <div key={step.num} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}>
+                    <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[12px] font-display font-bold mt-0.5 brand-grad">
                       {step.num}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-display font-bold text-[13px] text-stone-900">{step.title}</p>
-                      <div className="text-[12.5px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
+                      <div className="text-[13px] text-stone-600 leading-relaxed mt-0.5">{step.body}</div>
                     </div>
                   </div>
                 ))}

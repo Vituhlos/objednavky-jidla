@@ -9,6 +9,8 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import { DeptIcon } from "./dept-icon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
+import { DEPT_COLORS, DC_DEFAULT } from "./dept-colors";
 
 type RowUpdates = Partial<{
   personName: string;
@@ -45,19 +47,6 @@ interface Props {
   onDeleteRow: (rowId: number) => void;
   onRowOpen?: (rowId: number) => void;
 }
-
-// ── Department colors (matches template) ─────────────────
-
-const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
-  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
-  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
-  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
-  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#F59E0B", grad: "linear-gradient(135deg,#fcd34d,#F59E0B)" },
-  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
-  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
-  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
-};
-const DC_DEFAULT = DEPT_COLORS.blue;
 
 // DeptIcon moved to ./dept-icon for reuse across pages
 
@@ -214,13 +203,8 @@ function MenuSelect({
       {open && createPortal(
         <div
           ref={listRef} role="listbox"
-          style={{
-            position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
-            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
-            border: "1px solid rgba(255,255,255,0.68)", borderRadius: 16,
-            boxShadow: "0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08)",
-            overflow: "hidden",
-          }}
+          className="k-dropdown-portal"
+          style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
         >
           <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
             <button data-idx="0" type="button" role="option" aria-selected={value === null}
@@ -291,11 +275,16 @@ function OrderEditModal({
   const handleCancelRef = useRef(handleCancel);
   handleCancelRef.current = handleCancel;
   const { sheetRef } = useModalSwipe(handleCancel);
+  useFocusTrap(sheetRef, true);
 
   useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelRef.current(); };
     document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
+    return () => {
+      document.removeEventListener("keydown", h);
+      trigger?.focus();
+    };
   }, []);
 
   // body má overflow:hidden globálně — žádný scroll lock nutný
@@ -395,7 +384,7 @@ function OrderEditModal({
                   value={firstName}
                 />
                 {/\d/.test(firstName) && (
-                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo ze jména.</p>
+                  <p className="mt-1 text-xs text-red-600 font-medium">Odstraň číslo ze jména.</p>
                 )}
               </div>
               <div style={{ flex: 1 }}>
@@ -410,7 +399,7 @@ function OrderEditModal({
                   value={lastName}
                 />
                 {/\d/.test(lastName) && (
-                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo z příjmení.</p>
+                  <p className="mt-1 text-xs text-red-600 font-medium">Odstraň číslo z příjmení.</p>
                 )}
               </div>
             </div>
@@ -658,7 +647,7 @@ function OrderRow({ row, accent, isSent, isCurrentUser, canEdit, onEdit, onDelet
             ))}
           </div>
         ) : (
-          <div className="text-[11.5px] text-stone-400 mt-1">Vyber jídlo…</div>
+          <div className="text-xs text-stone-400 mt-1">Vyber jídlo…</div>
         )}
       </div>
 
@@ -705,7 +694,7 @@ function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion }: {
   if (isSent || suggestions.length === 0) {
     return (
       <div className="px-4 py-4">
-        <div className="text-[11.5px] text-stone-500 leading-relaxed">
+        <div className="text-xs text-stone-500 leading-relaxed">
           Klikni na <strong>+ Přidat</strong> nahoře — zadáš jméno a vybereš jídlo.
         </div>
       </div>
@@ -713,7 +702,7 @@ function DeptEmptyState({ suggestions, accent, isSent, onPickSuggestion }: {
   }
   return (
     <div className="px-3.5 py-3 flex flex-col gap-2.5">
-      <div className="text-[11.5px] text-stone-500 leading-snug">
+      <div className="text-xs text-stone-500 leading-snug">
         Klikni na někoho, kdo tu obvykle objednává — rovnou vyplním jméno a otevřu výběr jídla.
       </div>
       <div>
@@ -802,7 +791,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, c
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{data.label}</div>
-            <div className="text-[11.5px] text-stone-500 mt-0.5">
+            <div className="text-xs text-stone-500 mt-0.5">
               {activeRows.length > 0 ? (
                 <>
                   {activeRows.length} {pluralOrders(activeRows.length)}
@@ -818,8 +807,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, isLoggedIn = true, c
               type="button"
               disabled={isAdding}
               onClick={handleAddAndOpen}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition brand-grad brand-shadow--sm"
             >
               {isAdding
                 ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />

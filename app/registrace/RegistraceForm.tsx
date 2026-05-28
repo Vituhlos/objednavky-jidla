@@ -177,7 +177,7 @@ export default function RegistraceForm({ departments }: Props) {
             className={`modal-input ${emailError ? "border-red-400/60" : ""}`}
             disabled={loading}
           />
-          {emailError && <p className="text-[11.5px] text-red-600">{emailError}</p>}
+          {emailError && <p className="text-xs text-red-600">{emailError}</p>}
         </div>
 
         <div className="flex flex-col gap-1">
@@ -200,7 +200,6 @@ export default function RegistraceForm({ departments }: Props) {
               onClick={() => setShowPass((v) => !v)}
               aria-label={showPass ? "Skrýt heslo" : "Zobrazit heslo"}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-              tabIndex={-1}
             >
               <MIcon name={showPass ? "visibility_off" : "visibility"} size={18} />
             </button>
@@ -246,12 +245,11 @@ export default function RegistraceForm({ departments }: Props) {
               onClick={() => setShowConfirmPass((v) => !v)}
               aria-label={showConfirmPass ? "Skrýt heslo" : "Zobrazit heslo"}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-              tabIndex={-1}
             >
               <MIcon name={showConfirmPass ? "visibility_off" : "visibility"} size={18} />
             </button>
           </div>
-          {passError && <p className="text-[11.5px] text-red-600">{passError}</p>}
+          {passError && <p className="text-xs text-red-600">{passError}</p>}
         </div>
 
         {departments.length > 0 && (

@@ -8,6 +8,7 @@ import { computePizzaTotals, PIZZA_BOX_FEE } from "@/lib/pizza-utils";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 import type { PizzaTotals } from "@/lib/pizza-utils";
 import {
   actionAddPizzaRow,
@@ -58,6 +59,14 @@ export default function PizzaPage({
 
   const [showPizzaHelp, setShowPizzaHelp] = useState(false);
   const { sheetRef: pizzaHelpSheetRef } = useModalSwipe(useCallback(() => setShowPizzaHelp(false), []));
+  useFocusTrap(pizzaHelpSheetRef, showPizzaHelp);
+  useEffect(() => {
+    if (!showPizzaHelp) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setShowPizzaHelp(false); };
+    document.addEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
+  }, [showPizzaHelp]);
   const [pendingDelete, setPendingDelete] = useState<PizzaPendingDelete | null>(null);
   const pendingDeleteRef = useRef<PizzaPendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -210,19 +219,19 @@ export default function PizzaPage({
       />
 
       {isClosed && (
-        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-orange-200/80 text-[12.5px] text-orange-800 flex items-center gap-2.5" style={{ background: "rgba(234,88,12,0.07)" }}>
+        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-orange-200/80 text-[13px] text-orange-800 flex items-center gap-2.5" style={{ background: "rgba(234,88,12,0.07)" }}>
           <MIcon name="lock" size={15} fill style={{ color: "#EA580C", flexShrink: 0 }} />
           <span><strong>Objednávka je uzavřena.</strong> Uzávěrka proběhla automaticky — objednávky již nelze měnit.</span>
         </div>
       )}
       {showCutoffBanner && (
-        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-amber-200/80 text-[12.5px] text-amber-800 flex items-center gap-2.5" style={{ background: "rgba(245,158,11,0.07)" }}>
+        <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-amber-200/80 text-[13px] text-amber-800 flex items-center gap-2.5" style={{ background: "rgba(245,158,11,0.07)" }}>
           <MIcon name="schedule" size={15} fill style={{ color: "#D97706", flexShrink: 0 }} />
           <span>Uzávěrka objednávek pizzy je dnes v <strong>{pizzaCutoffTime}</strong>.</span>
         </div>
       )}
       {!isClosed && pizzaItems.length === 0 && (
-        <div className="mx-4 mt-4 p-3.5 glass-card rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
+        <div className="mx-4 mt-4 p-3.5 glass-card rounded-2xl border border-slate-200/60 text-[13px] text-stone-700">
           <strong>Ceník není načten.</strong>{" "}
           Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
         </div>
@@ -243,8 +252,7 @@ export default function PizzaPage({
             )}
             {!isClosed && (
               <button
-                className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition brand-grad"
                 disabled={isAddingRow || isPending}
                 onClick={handleAddRow}
                 type="button"
@@ -311,7 +319,7 @@ export default function PizzaPage({
               >?</button>
             </div>
             <div className="px-4 pt-3 pb-0">
-              <p className="text-[11.5px] text-stone-500 leading-relaxed">
+              <p className="text-xs text-stone-500 leading-relaxed">
                 Za každé 2 pizzy dostanete 1 <strong className="text-stone-600">nejlevnější zdarma</strong> (včetně krabice). Sleva se počítá automaticky.
               </p>
             </div>
@@ -320,7 +328,7 @@ export default function PizzaPage({
                 <div>
                   <p className="font-display text-[11px] uppercase tracking-wide text-stone-500 font-semibold mb-2">Pizzy</p>
                   {[...pizzaCounts.entries()].map(([k, v]) => (
-                    <p key={k} className="text-[12.5px] text-stone-700 py-0.5">
+                    <p key={k} className="text-[13px] text-stone-700 py-0.5">
                       <strong className="text-stone-900">{v}×</strong> {k}
                     </p>
                   ))}
@@ -513,13 +521,8 @@ const PizzaSelect = memo(function PizzaSelect({
       {open && createPortal(
         <div
           ref={listRef} role="listbox"
-          style={{
-            position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
-            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
-            border: "1px solid rgba(255,255,255,0.68)", borderRadius: 16,
-            boxShadow: "0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08)",
-            overflow: "hidden",
-          }}
+          className="k-dropdown-portal"
+          style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
         >
           <div style={{ maxHeight: 264, overflowY: "auto", padding: "4px 0" }}>
             <button data-idx="0" type="button" role="option" aria-selected={value === null}
@@ -669,8 +672,8 @@ const PizzaRow = memo(function PizzaRow({
           <span className="stepper-count">{row.count}</span>
           <button aria-label="Zvýšit počet" className="stepper-btn" disabled={disabled || row.count >= 10} onClick={() => onUpdate(row.id, { count: row.count + 1 })} type="button">+</button>
         </div>
-        <span className="text-[12.5px] text-stone-500 text-right">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
-        <span className="text-[12.5px] font-semibold text-stone-800 text-right">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : "–"}</span>
+        <span className="text-[13px] text-stone-500 text-right">{row.rowPrice > 0 ? `${row.rowPrice} Kč` : "–"}</span>
+        <span className="text-[13px] font-semibold text-stone-800 text-right">{adjustedPrice > 0 ? `${adjustedPrice} Kč` : "–"}</span>
         {!isClosed && (
           <button
             aria-label="Smazat řádek"

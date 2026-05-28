@@ -19,6 +19,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 import { useDaySwipe } from "@/app/hooks/useDaySwipe";
 
 function formatWeekRange(weekStart: string): string {
@@ -244,7 +245,7 @@ const WeekGrid = memo(function WeekGrid({
                 )}
               </div>
             ) : !hasItems && !editMode ? (
-              <div className="py-4 text-[11.5px] text-stone-400 text-center">Jídla ještě nebyla zadána</div>
+              <div className="py-4 text-xs text-stone-400 text-center">Jídla ještě nebyla zadána</div>
             ) : (
               <div>
                 {/* Soups */}
@@ -257,10 +258,9 @@ const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat polévku"
-                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition"
+                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition brand-grad"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
                         ><MIcon name="add" size={11} /></button>
                       )}
@@ -292,10 +292,9 @@ const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat jídlo"
-                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition"
+                          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-white hover:opacity-80 transition brand-grad"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
                         ><MIcon name="add" size={11} /></button>
                       )}
@@ -410,7 +409,7 @@ function AllergenFilterDropdown({ filtered, onToggle, onClear, onClose }: {
               onClick={() => onToggle(n)}
               aria-pressed={active}
             >
-              <input type="checkbox" checked={active} readOnly tabIndex={-1} />
+              <span className="allergen-check" aria-hidden="true">{active ? "✓" : ""}</span>
               <span className="num">{n}</span>
               <span className="truncate">{ALLERGEN_NAMES[n]}</span>
             </button>
@@ -462,6 +461,14 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
   };
 
   const { sheetRef } = useModalSwipe(onClose);
+  useFocusTrap(sheetRef, true);
+
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
+  }, [onClose]);
 
   const handleSave = () => {
     const allergenStr = [...activeAllergens].sort((a, b) => a - b).join(",");
@@ -606,8 +613,7 @@ function FloatingOrderTray({
         <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-wrap">
           {selectedSoup ? (
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white brand-grad"
             >
               <span className="truncate max-w-[140px]">{selectedSoup.name}</span>
               <button type="button" onClick={onRemoveSoup} aria-label="Odebrat polévku" className="opacity-70 hover:opacity-100 transition">
@@ -621,8 +627,7 @@ function FloatingOrderTray({
           )}
           {selectedMain ? (
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12px] font-semibold text-white brand-grad"
             >
               <span className="truncate max-w-[140px]">{selectedMain.name}</span>
               <button type="button" onClick={onRemoveMain} aria-label="Odebrat jídlo" className="opacity-70 hover:opacity-100 transition">
@@ -639,13 +644,13 @@ function FloatingOrderTray({
 
         {/* Error */}
         {status === "error" && errorMsg && (
-          <div className="mx-3 mb-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-[11.5px] text-red-700">{errorMsg}</div>
+          <div className="mx-3 mb-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">{errorMsg}</div>
         )}
 
         {/* Footer */}
         <div className="px-3 pb-3">
           {!hasDefaultDept ? (
-            <div className="text-[11.5px] text-stone-500 text-center py-1">
+            <div className="text-xs text-stone-500 text-center py-1">
               Nastav si výchozí oddělení v <a href="/profil" className="underline font-semibold text-stone-700">profilu</a> pro rychlé objednávání.
             </div>
           ) : isSuccess ? (
@@ -657,8 +662,7 @@ function FloatingOrderTray({
               type="button"
               onClick={onOrder}
               disabled={isOrdering || (!selectedSoup && !selectedMain)}
-              className="w-full py-2.5 rounded-xl text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.45)" }}
+              className="w-full py-2.5 rounded-xl text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50 brand-grad brand-shadow--sm"
             >
               {isOrdering ? "Objednávám…" : "Objednat"}
             </button>
@@ -783,10 +787,9 @@ const MenuSection = memo(function MenuSection({
         {editMode && onAdd && (
           <button
             aria-label="Přidat"
-            className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full text-white hover:opacity-80 transition"
+            className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full text-white hover:opacity-80 transition brand-grad"
             disabled={disabled}
             onClick={onAdd}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
             type="button"
           >
             <MIcon name="add" size={12} />
@@ -1045,6 +1048,17 @@ export default function MenuPage({
   };
 
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
+
+  useFocusTrap(importSheetRef, isImportOpen);
+  // Focus restore when import modal opens/closes
+  useEffect(() => {
+    if (!isImportOpen) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setImportState({ phase: "idle" }); };
+    document.addEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
+  }, [isImportOpen]);
+
   const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
   const activeHolidayName = activeHolidayNames[activeDay];
   const activeHolidayEmoji = getHolidayEmoji(activeHolidayName);
@@ -1074,10 +1088,7 @@ export default function MenuPage({
       <PageHeader
         title="Jídelníček LIMA"
         leading={
-          <div
-            className="w-8 h-8 rounded-xl inline-flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.4)" }}
-          >
+          <div className="w-8 h-8 rounded-xl inline-flex items-center justify-center brand-grad brand-shadow--sm">
             <MIcon name="menu_book" size={16} fill className="text-white" />
           </div>
         }
@@ -1220,10 +1231,7 @@ export default function MenuPage({
           <span className="font-display font-bold text-[15px] text-stone-900 leading-none inline-flex items-center gap-1.5">
             <span>{activeDay} {dayDates[activeDay]}.{dayMonths[activeDay]}.</span>
             {visibleTodayCode === activeDay && (
-              <span
-                className="text-[9.5px] font-bold px-2 py-0.5 rounded-full text-white"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-              >
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white brand-grad">
                 Dnes
               </span>
             )}
@@ -1345,7 +1353,7 @@ export default function MenuPage({
                   <div className="font-display font-bold text-[13.5px] text-stone-900 leading-none">
                     {activeHolidayName ?? "Zavřeno"}
                   </div>
-                  <div className="text-[11.5px] text-stone-500 mt-0.5">
+                  <div className="text-xs text-stone-500 mt-0.5">
                     {activeHolidayName ? "Svátek / zavřeno" : "V tento den není jídelníček k dispozici."}
                   </div>
                 </div>
@@ -1523,7 +1531,7 @@ export default function MenuPage({
               {importState.phase === "preview" && (
                 <>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[12.5px] text-stone-600">
+                    <span className="text-[13px] text-stone-600">
                       Rozpoznáno <strong>{importState.result.items.length}</strong> položek
                       {importState.result.weekLabel && <>, týden <strong>{importState.result.weekLabel}</strong></>}
                     </span>

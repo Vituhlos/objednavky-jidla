@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
@@ -11,16 +11,8 @@ import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { DeptIcon } from "./dept-icon";
 
-const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
-  blue:   { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.22)",  icon: "#3B82F6", grad: "linear-gradient(135deg,#60a5fa,#3b82f6)" },
-  rust:   { bg: "rgba(194,101,77,0.1)",  border: "rgba(194,101,77,0.22)",  icon: "#C2654D", grad: "linear-gradient(135deg,#fb923c,#C2654D)" },
-  green:  { bg: "rgba(79,138,83,0.1)",   border: "rgba(79,138,83,0.22)",   icon: "#4F8A53", grad: "linear-gradient(135deg,#86efac,#4F8A53)" },
-  amber:  { bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.22)",  icon: "#D97706", grad: "linear-gradient(135deg,#fbbf24,#D97706)" },
-  navy:   { bg: "rgba(30,64,175,0.1)",   border: "rgba(30,64,175,0.22)",   icon: "#1e40af", grad: "linear-gradient(135deg,#60a5fa,#1e40af)" },
-  orange: { bg: "rgba(234,88,12,0.1)",   border: "rgba(234,88,12,0.22)",   icon: "#EA580C", grad: "linear-gradient(135deg,#fb923c,#EA580C)" },
-  red:    { bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.22)",   icon: "#dc2626", grad: "linear-gradient(135deg,#f87171,#dc2626)" },
-};
-const DC_DEFAULT = DEPT_COLORS.blue;
+import { DEPT_COLORS, DC_DEFAULT } from "./dept-colors";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 
 const DAYS_CS = ["neděle", "pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota"];
 const MONTHS_CS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
@@ -151,7 +143,7 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
             ))}
           </div>
         ) : (
-          <div className="text-[11.5px] text-stone-400 mt-1">—</div>
+          <div className="text-xs text-stone-400 mt-1">—</div>
         )}
         {row.note && (
           <div className="mt-1.5 text-[11px] text-stone-500 flex items-center gap-1">
@@ -170,6 +162,8 @@ function EmailPreviewModal({ orderId, onClose }: { orderId: number; onClose: () 
   const [mounted, setMounted] = useState(false);
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     setMounted(true);
@@ -183,9 +177,10 @@ function EmailPreviewModal({ orderId, onClose }: { orderId: number; onClose: () 
   }, [orderId]);
 
   useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
+    return () => { document.removeEventListener("keydown", h); trigger?.focus(); };
   }, [onClose]);
 
   if (!mounted) return null;
@@ -193,6 +188,7 @@ function EmailPreviewModal({ orderId, onClose }: { orderId: number; onClose: () 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="modal-sheet"
         role="dialog"
         aria-modal="true"
@@ -309,7 +305,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
           <span className="breadcrumb">
             <Link
               href="/historie"
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full glass-btn text-stone-600 text-[11.5px] font-semibold"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full glass-btn text-stone-600 text-xs font-semibold"
             >
               <MIcon name="arrow_back" size={11} />
               Historie
@@ -341,8 +337,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
               type="button"
               onClick={() => setShowDuplicateConfirm(true)}
               disabled={pending}
-              className="inline-flex items-center gap-1.5 font-semibold rounded-full text-white text-[12px] px-3.5 py-1.5 disabled:opacity-50 active:scale-[0.97] transition"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+              className="inline-flex items-center gap-1.5 font-semibold rounded-full text-white text-[12px] px-3.5 py-1.5 disabled:opacity-50 active:scale-[0.97] transition brand-grad brand-shadow--sm"
             >
               <MIcon name="add" size={13} /> Duplikovat
             </button>
@@ -381,8 +376,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
               type="button"
               onClick={() => setShowDuplicateConfirm(true)}
               disabled={pending}
-              className="inline-flex items-center gap-1 font-semibold rounded-full text-white text-[11px] px-2.5 py-1.5"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+              className="inline-flex items-center gap-1 font-semibold rounded-full text-white text-[11px] px-2.5 py-1.5 brand-grad"
             >
               <MIcon name="add" size={12} /> Duplikovat
             </button>
@@ -463,7 +457,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-display font-bold text-[14px] text-stone-900 leading-none">{dept.label}</div>
-                      <div className="text-[11.5px] text-stone-500 mt-0.5">
+                      <div className="text-xs text-stone-500 mt-0.5">
                         {activeRows.length} {pluralOrders(activeRows.length)}
                         {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
                       </div>
@@ -478,7 +472,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
           </div>
 
           {duplicateError && (
-            <div className="glass-card rounded-2xl px-4 py-3 text-[12.5px] text-red-700 flex items-center gap-2"
+            <div className="glass-card rounded-2xl px-4 py-3 text-[13px] text-red-700 flex items-center gap-2"
                  style={{ borderColor: "rgba(220,38,38,0.25)", background: "rgba(220,38,38,0.05)" }}>
               <MIcon name="warning" size={14} style={{ color: "#dc2626", flexShrink: 0 }} />
               {duplicateError}

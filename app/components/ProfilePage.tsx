@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signOut, signIn } from "next-auth/react";
+import Link from "next/link";
 import MIcon from "./MIcon";
 import {
   actionUpdateProfile,
@@ -30,12 +31,8 @@ function InitialsAvatar({ firstName, lastName, size = 56 }: { firstName: string;
   const initials = (`${firstName.charAt(0)}${lastName.charAt(0)}`).toUpperCase() || "?";
   return (
     <div
-      className="rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-white"
-      style={{
-        width: size, height: size, fontSize: size * 0.37,
-        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-        boxShadow: "0 6px 20px -6px rgba(245,158,11,0.5)",
-      }}
+      className="rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-white brand-badge"
+      style={{ width: size, height: size, fontSize: size * 0.37 }}
     >
       {initials}
     </div>
@@ -53,7 +50,7 @@ function StatTile({ icon, value, label }: { icon: string; value: string | number
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-[11.5px] font-semibold text-stone-600">{children}</label>;
+  return <label className="text-xs font-semibold text-stone-600">{children}</label>;
 }
 
 function TextInput({ id, value, onChange, placeholder, disabled, type = "text" }: {
@@ -108,7 +105,7 @@ function Toggle({ checked, onChange, label, description }: {
     <div className="flex items-center justify-between gap-3">
       <div>
         <div className="text-[13px] font-semibold text-stone-800">{label}</div>
-        {description && <div className="text-[11.5px] text-stone-500 mt-0.5">{description}</div>}
+        {description && <div className="text-xs text-stone-500 mt-0.5">{description}</div>}
       </div>
       <button
         type="button"
@@ -151,8 +148,7 @@ function OrangeButton({ children, disabled, type = "submit", onClick }: {
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
-      style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+      className="self-start px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition disabled:opacity-50 brand-grad"
     >
       {children}
     </button>
@@ -373,13 +369,13 @@ export default function ProfilePage({
         <span className="font-display font-bold text-[15px] text-stone-900">Profil</span>
         <div className="ml-auto flex items-center gap-2">
           {showSettingsLink && (
-            <a
+            <Link
               href="/nastaveni"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-500 glass-btn hover:text-stone-700 transition"
             >
               <MIcon name="settings" size={14} />
               Nastavení
-            </a>
+            </Link>
           )}
           <button
             onClick={() => { setLoggingOut(true); signOut({ callbackUrl: "/login" }); }}
@@ -397,14 +393,14 @@ export default function ProfilePage({
         <span className="font-display font-bold text-[14px] text-stone-900">Profil</span>
         <div className="ml-auto flex items-center gap-1.5">
           {showSettingsLink && (
-            <a href="/nastaveni" className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 transition">
+            <Link href="/nastaveni" className="icon-btn rounded-lg">
               <MIcon name="settings" size={16} />
-            </a>
+            </Link>
           )}
           <button
             onClick={() => { setLoggingOut(true); signOut({ callbackUrl: "/login" }); }}
             disabled={loggingOut}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 transition disabled:opacity-50"
+            className="icon-btn rounded-lg disabled:opacity-50"
           >
             <MIcon name="logout" size={16} />
           </button>
@@ -420,7 +416,7 @@ export default function ProfilePage({
               <InitialsAvatar firstName={editFirst || firstName} lastName={editLast || lastName} size={60} />
               <div className="flex-1 min-w-0">
                 <p className="font-display font-bold text-[19px] text-stone-900 leading-tight truncate">{displayName}</p>
-                {email && <p className="text-[12.5px] text-stone-500 mt-0.5 truncate">{email}</p>}
+                {email && <p className="text-[13px] text-stone-500 mt-0.5 truncate">{email}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span
                     className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
@@ -465,20 +461,19 @@ export default function ProfilePage({
           {/* ── Banner: neověřený e-mail ── */}
           {!emailVerified && email && (
             <div
-              className="flex items-start gap-3 px-4 py-3 rounded-2xl text-[12.5px] text-stone-700 mb-4"
+              className="flex items-start gap-3 px-4 py-3 rounded-2xl text-[13px] text-stone-700 mb-4"
               style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}
             >
               <MIcon name="mail" size={18} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-stone-800 mb-0.5">E-mail není ověřen</p>
                 <p className="text-stone-500 text-[12px]">Ověřením si zajistíš možnost resetovat heslo.</p>
-                {verifyMsg && <p className="mt-1 text-[11.5px] text-amber-700 font-medium">{verifyMsg}</p>}
+                {verifyMsg && <p className="mt-1 text-xs text-amber-700 font-medium">{verifyMsg}</p>}
               </div>
               <button
                 onClick={handleResendVerify}
                 disabled={verifyLoading}
-                className="shrink-0 px-3 py-1.5 rounded-xl text-[11.5px] font-semibold text-white transition disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition disabled:opacity-50 brand-grad"
               >
                 {verifyLoading ? "…" : "Odeslat znovu"}
               </button>
@@ -519,7 +514,7 @@ export default function ProfilePage({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[13px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                       activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                     }`}
                     style={activeTab === tab.id ? {
@@ -591,7 +586,7 @@ export default function ProfilePage({
                     <div className="flex flex-wrap gap-2">
                       {hasCredentials && (
                         <div
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[13px] font-semibold text-stone-700"
                           style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
                         >
                           <MIcon name="lock" size={13} style={{ color: "#78716c" }} />
@@ -600,7 +595,7 @@ export default function ProfilePage({
                       )}
                       {hasGoogle && (
                         <div
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[13px] font-semibold text-stone-700"
                           style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
                         >
                           <GoogleIcon size={14} />
@@ -613,11 +608,11 @@ export default function ProfilePage({
                     </div>
                     {hasCredentials && !hasGoogle && (
                       <div className="flex flex-col gap-1.5 pt-2 border-t border-white/40">
-                        <p className="text-[11.5px] text-stone-500">Propojením s Google se budete moci přihlásit oběma způsoby.</p>
+                        <p className="text-xs text-stone-500">Propojením s Google se budete moci přihlásit oběma způsoby.</p>
                         <button
                           type="button"
                           onClick={() => signIn("google", { callbackUrl: "/profil" })}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition self-start"
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition self-start"
                         >
                           <GoogleIcon size={15} />
                           Propojit Google účet
@@ -671,7 +666,7 @@ export default function ProfilePage({
                       type="button"
                       onClick={handleRevokeAllSessions}
                       disabled={revokeLoading}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition disabled:opacity-50 self-start"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition disabled:opacity-50 self-start"
                     >
                       <MIcon name="logout" size={15} />
                       {revokeLoading ? "Odhlašuji…" : "Odhlásit ze všech zařízení"}
@@ -703,7 +698,7 @@ export default function ProfilePage({
                       <MIcon name="send" size={16} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
                       <div>
                         <div className="text-[13px] font-semibold text-stone-800">Telegram bot</div>
-                        <div className="text-[11.5px] text-stone-500 mt-0.5">
+                        <div className="text-xs text-stone-500 mt-0.5">
                           {telegramBotUrl
                             ? (<><a href={telegramBotUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline">Přidat bota</a> a odeslat /start</>)
                             : "Bot je aktivní — zeptejte se správce na odkaz"}
@@ -722,7 +717,7 @@ export default function ProfilePage({
                     {orders === null ? (
                       <div className="flex flex-col items-center gap-3 py-4">
                         <MIcon name="restaurant_menu" size={32} style={{ color: "#d6d3d1" }} />
-                        <p className="text-[12.5px] text-stone-400 text-center">
+                        <p className="text-[13px] text-stone-400 text-center">
                           {totalOrders > 0
                             ? `Celkem ${totalOrders} objednávek. Kliknutím načtěte historii.`
                             : "Zatím žádné objednávky."}
@@ -732,7 +727,7 @@ export default function ProfilePage({
                             type="button"
                             onClick={handleLoadOrders}
                             disabled={ordersLoading}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold text-stone-600 glass-btn disabled:opacity-50"
                           >
                             <MIcon name="history" size={15} />
                             {ordersLoading ? "Načítám…" : "Načíst historii"}
@@ -740,13 +735,13 @@ export default function ProfilePage({
                         )}
                       </div>
                     ) : orders.length === 0 ? (
-                      <p className="text-[12.5px] text-stone-400 text-center py-3">Žádné objednávky nenalezeny.</p>
+                      <p className="text-[13px] text-stone-400 text-center py-3">Žádné objednávky nenalezeny.</p>
                     ) : (
                       <div className="flex flex-col gap-1">
-                        <p className="text-[11.5px] text-stone-400 mb-1">{orders.length} posledních objednávek</p>
+                        <p className="text-xs text-stone-400 mb-1">{orders.length} posledních objednávek</p>
                         {orders.map((o) => (
                           <div key={o.date} className="flex items-center justify-between gap-3 py-2 border-b border-white/40 last:border-0">
-                            <span className="text-[12.5px] font-semibold text-stone-700">{formatDate(o.date)}</span>
+                            <span className="text-[13px] font-semibold text-stone-700">{formatDate(o.date)}</span>
                             <span className="text-[12px] text-stone-500 truncate max-w-[55%] text-right">{o.mainDish ?? "—"}</span>
                           </div>
                         ))}
@@ -759,7 +754,7 @@ export default function ProfilePage({
                       <div className="flex flex-col gap-2.5">
                         {monthlyHistory.map((m) => (
                           <div key={m.month} className="flex items-center gap-3">
-                            <div className="text-[11.5px] text-stone-500 w-24 shrink-0 text-right leading-tight">{m.month}</div>
+                            <div className="text-xs text-stone-500 w-24 shrink-0 text-right leading-tight">{m.month}</div>
                             <div className="flex-1 h-5 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.05)" }}>
                               <div
                                 className="h-full rounded-lg"
@@ -814,20 +809,20 @@ export default function ProfilePage({
                   <Section title="Informace o účtu" icon="info">
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between items-center py-2 border-b border-white/40">
-                        <span className="text-[12.5px] text-stone-500">Člen od</span>
-                        <span className="text-[12.5px] font-semibold text-stone-800">{formatDate(createdAt)}</span>
+                        <span className="text-[13px] text-stone-500">Člen od</span>
+                        <span className="text-[13px] font-semibold text-stone-800">{formatDate(createdAt)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/40">
-                        <span className="text-[12.5px] text-stone-500">Naposledy přihlášen</span>
-                        <span className="text-[12.5px] font-semibold text-stone-800">{formatDate(lastLoginAt)}</span>
+                        <span className="text-[13px] text-stone-500">Naposledy přihlášen</span>
+                        <span className="text-[13px] font-semibold text-stone-800">{formatDate(lastLoginAt)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/40">
-                        <span className="text-[12.5px] text-stone-500">Role</span>
-                        <span className="text-[12.5px] font-semibold text-stone-800">{isAdmin ? "Administrátor" : "Uživatel"}</span>
+                        <span className="text-[13px] text-stone-500">Role</span>
+                        <span className="text-[13px] font-semibold text-stone-800">{isAdmin ? "Administrátor" : "Uživatel"}</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
-                        <span className="text-[12.5px] text-stone-500">Celkem objednávek</span>
-                        <span className="text-[12.5px] font-semibold text-stone-800">{totalOrders}</span>
+                        <span className="text-[13px] text-stone-500">Celkem objednávek</span>
+                        <span className="text-[13px] font-semibold text-stone-800">{totalOrders}</span>
                       </div>
                     </div>
                   </Section>
@@ -844,7 +839,7 @@ export default function ProfilePage({
                     </div>
                     {deleteOpen && (
                       <div className="p-4 md:p-5 flex flex-col gap-3">
-                        <p className="text-[12.5px] text-stone-600 leading-relaxed">
+                        <p className="text-[13px] text-stone-600 leading-relaxed">
                           Tato akce je <strong>nevratná</strong>. Váš účet bude deaktivován a osobní údaje smazány. Objednávky v historii zůstanou anonymizované.
                         </p>
                         <form onSubmit={handleDeleteAccount} className="flex flex-col gap-3">
@@ -861,7 +856,7 @@ export default function ProfilePage({
                           <button
                             type="submit"
                             disabled={deleteLoading || (hasPassword && !deletePwd)}
-                            className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
+                            className="self-start px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition disabled:opacity-50"
                             style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
                           >
                             {deleteLoading ? "Mažu účet…" : "Trvale smazat účet"}

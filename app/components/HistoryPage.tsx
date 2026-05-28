@@ -155,8 +155,8 @@ function SwipeableHistoryRow({
       <div
         data-swipe-reveal
         aria-hidden
-        className="absolute right-0 top-0 bottom-0 flex items-center justify-center"
-        style={{ width: REVEAL_W, background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+        className="absolute right-0 top-0 bottom-0 flex items-center justify-center brand-grad"
+        style={{ width: REVEAL_W }}
       >
         <button
           type="button"
@@ -179,7 +179,7 @@ function SwipeableHistoryRow({
         <DeptBadges depts={depts} deptInfo={deptInfo} />
         <div className="flex-1" />
         <div className="text-right shrink-0">
-          <div className="text-[12.5px] font-semibold text-stone-900">{peopleCount} {pluralPeople(peopleCount)}</div>
+          <div className="text-[13px] font-semibold text-stone-900">{peopleCount} {pluralPeople(peopleCount)}</div>
           {totalPrice > 0 && <div className="text-[11px] text-stone-500">{totalPrice} Kč</div>}
         </div>
         {status === "sent" ? (
@@ -297,7 +297,7 @@ function CalendarHeatmap({ initial, initialYear, initialMonth, onSelectDate }: {
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1.5">
         {["Po","Út","St","Čt","Pá","So","Ne"].map((d) => (
-          <div key={d} className="text-[9.5px] font-bold uppercase text-stone-400 text-center" style={{ letterSpacing: "0.05em" }}>{d}</div>
+          <div key={d} className="text-[10px] font-bold uppercase text-stone-500 text-center" style={{ letterSpacing: "0.05em" }}>{d}</div>
         ))}
       </div>
       <div className="heatmap-grid">
@@ -572,7 +572,7 @@ export default function HistoryPage({
                 <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
                 <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
               </div>
-              <span className="text-[11.5px] text-stone-600">Skrýt prázdné koncepty</span>
+              <span className="text-xs text-stone-600">Skrýt prázdné koncepty</span>
             </label>
           </div>
 
@@ -648,7 +648,7 @@ export default function HistoryPage({
                               tabIndex={0}
                               className={`history-row${isActive ? " history-row--active" : ""}`}
                               onClick={() => router.push(`/historie/${o.id}`)}
-                              onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${o.id}`)}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/historie/${o.id}`); } }}
                             >
                               <div>
                                 <div className="text-[10px] uppercase font-bold text-stone-500 leading-none">{dow}</div>
@@ -694,7 +694,7 @@ export default function HistoryPage({
                   </div>
                   {selectedDayData.peopleCount > 0 ? (
                     <>
-                      <div className="text-[12.5px] text-stone-700 mt-2">
+                      <div className="text-[13px] text-stone-700 mt-2">
                         <strong>{selectedDayData.peopleCount}</strong> {pluralPeople(selectedDayData.peopleCount)} ·{" "}
                         <strong>{selectedDayData.totalPrice.toLocaleString("cs-CZ")} Kč</strong>
                       </div>
@@ -703,15 +703,14 @@ export default function HistoryPage({
                         <button
                           type="button"
                           onClick={() => router.push(`/historie/${selectedDayData.id}`)}
-                          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 font-semibold rounded-full text-white text-[12px] py-2"
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+                          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 font-semibold rounded-full text-white text-[12px] py-2 brand-grad brand-shadow--sm"
                         >
                           Otevřít detail <MIcon name="arrow_forward" size={13} />
                         </button>
                       )}
                     </>
                   ) : (
-                    <div className="text-[12px] text-stone-400 mt-2">Bez objednávek</div>
+                    <div className="text-[12px] text-stone-500 mt-2">Bez objednávek</div>
                   )}
                 </div>
               )}
@@ -727,7 +726,7 @@ export default function HistoryPage({
                 <span className="text-[11px] text-stone-500">{pizzaOrders.length} záznamů · {pizzaSentCount} odesláno</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-[12.5px]">
+                <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
                       <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
@@ -743,6 +742,7 @@ export default function HistoryPage({
                         key={o.id}
                         className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${o.status !== "sent" ? "opacity-60" : ""}`}
                         onClick={() => router.push(`/historie/pizza/${o.id}`)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/historie/pizza/${o.id}`); } }}
                         role="link"
                         tabIndex={0}
                       >
@@ -754,7 +754,7 @@ export default function HistoryPage({
                         </td>
                         <td className="px-3 py-3 text-stone-500">{formatSentAt(o.sentAt)}</td>
                         <td className="px-3 py-3 text-stone-500">{o.rowCount}</td>
-                        <td className="px-3 py-3 text-stone-400">
+                        <td className="px-3 py-3 text-stone-500">
                           <MIcon name="chevron_right" size={16} />
                         </td>
                       </tr>

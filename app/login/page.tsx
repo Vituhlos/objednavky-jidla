@@ -53,16 +53,10 @@ function LoginInner() {
 
           {/* Branding */}
           <div className="flex flex-col items-center gap-2 mb-1">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)" }}
-            >
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center brand-badge">
               <MIcon name="restaurant" size={28} fill className="text-white" />
             </div>
-            <span
-              className="font-display font-extrabold text-[21px]"
-              style={{ background: "linear-gradient(135deg,#D97706,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
-            >
+            <span className="font-display font-extrabold text-[21px] brand-grad--text">
               Kantýna
             </span>
           </div>
@@ -70,7 +64,7 @@ function LoginInner() {
           {/* Toast z URL params */}
           {toast && (
             <div
-              className="px-3 py-2.5 rounded-2xl text-[12.5px] leading-relaxed"
+              className="px-3 py-2.5 rounded-2xl text-[13px] leading-relaxed"
               style={
                 toast.ok
                   ? { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#15803d" }
@@ -104,7 +98,7 @@ function LoginInner() {
                   <label htmlFor="login-password" className="text-[12px] font-semibold text-stone-600">Heslo</label>
                   <Link
                     href="/zapomenute-heslo"
-                    className="text-[11.5px] text-amber-700 hover:underline font-medium"
+                    className="text-xs text-amber-700 hover:underline font-medium"
                   >
                     Zapomenuté heslo?
                   </Link>
@@ -126,7 +120,6 @@ function LoginInner() {
                     onClick={() => setShowPass((v) => !v)}
                     aria-label={showPass ? "Skrýt heslo" : "Zobrazit heslo"}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-                    tabIndex={-1}
                   >
                     <MIcon name={showPass ? "visibility_off" : "visibility"} size={18} />
                   </button>
@@ -148,7 +141,7 @@ function LoginInner() {
 
             <div className="px-6 flex items-center gap-3 -mt-1 mb-1">
               <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
-              <span className="text-[11px] text-stone-400 font-medium shrink-0">nebo</span>
+              <span className="text-[11px] text-stone-500 font-medium shrink-0">nebo</span>
               <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
             </div>
 
@@ -170,7 +163,7 @@ function LoginInner() {
             </div>
           </div>
 
-          <p className="text-center text-[12.5px] text-stone-500">
+          <p className="text-center text-[13px] text-stone-500">
             Ještě nemáš účet?{" "}
             <Link href="/registrace" className="text-amber-700 font-semibold hover:underline">
               Zaregistruj se

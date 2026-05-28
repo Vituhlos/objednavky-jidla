@@ -95,7 +95,6 @@ function ResetHeslaInner() {
               onClick={() => setShowPass((v) => !v)}
               aria-label={showPass ? "Skrýt heslo" : "Zobrazit heslo"}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-              tabIndex={-1}
             >
               <MIcon name={showPass ? "visibility_off" : "visibility"} size={18} />
             </button>
@@ -153,12 +152,12 @@ export default function ResetHeslaPage() {
           <div className="max-w-sm w-full flex flex-col gap-4 py-4">
             <div className="flex flex-col items-center gap-1 mb-1">
               <p className="font-display font-bold text-[18px] text-stone-900">Nové heslo</p>
-              <p className="text-[12.5px] text-stone-500">Zvol si nové přihlašovací heslo</p>
+              <p className="text-[13px] text-stone-500">Zvol si nové přihlašovací heslo</p>
             </div>
 
             <ResetHeslaInner />
 
-            <p className="text-center text-[12.5px] text-stone-500">
+            <p className="text-center text-[13px] text-stone-500">
               <Link href="/login" className="text-amber-700 font-semibold hover:underline">
                 Zpět na přihlášení
               </Link>

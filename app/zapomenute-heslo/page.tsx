@@ -67,7 +67,7 @@ export default function ZapomenuteHesloPage() {
             <>
               <div className="flex flex-col items-center gap-1 mb-1">
                 <p className="font-display font-bold text-[18px] text-stone-900">Zapomenuté heslo</p>
-                <p className="text-[12.5px] text-stone-500 text-center">Pošleme ti odkaz pro reset hesla</p>
+                <p className="text-[13px] text-stone-500 text-center">Pošleme ti odkaz pro reset hesla</p>
               </div>
 
               <div className="glass-card rounded-3xl overflow-hidden">
@@ -101,7 +101,7 @@ export default function ZapomenuteHesloPage() {
                 </form>
               </div>
 
-              <p className="text-center text-[12.5px] text-stone-500">
+              <p className="text-center text-[13px] text-stone-500">
                 <Link href="/login" className="text-amber-700 font-semibold hover:underline">
                   Zpět na přihlášení
                 </Link>

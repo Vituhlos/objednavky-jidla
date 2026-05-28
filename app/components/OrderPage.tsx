@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry, MenuItem } from "@/lib/types";
 import type { DeptSuggestion } from "@/lib/orders";
@@ -12,6 +13,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import PageHeader from "./PageHeader";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 import { useDaySwipe } from "@/app/hooks/useDaySwipe";
 import {
   actionAddRow,
@@ -40,8 +42,10 @@ const HELP_ADVANCED = [
 function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
   const { sheetRef } = useModalSwipe(onClose);
+  useFocusTrap(sheetRef, true);
 
   useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
     // iOS Safari: overflow:hidden on body doesn't prevent scroll — use position:fixed instead
@@ -55,6 +59,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       document.body.style.top = "";
       document.body.style.width = "";
       window.scrollTo(0, scrollY);
+      trigger?.focus();
     };
   }, [onClose]);
 
@@ -82,21 +87,18 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <div className="modal-sheet__body space-y-3">
           {HELP_STEPS.map((s) => (
             <div key={s.num} className="flex gap-3 p-3 rounded-2xl" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <div
-                className="w-9 h-9 rounded-xl shrink-0 inline-flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-              >
+              <div className="w-9 h-9 rounded-xl shrink-0 inline-flex items-center justify-center brand-grad">
                 <MIcon name={s.icon} size={18} fill className="text-white" />
               </div>
               <div className="min-w-0">
                 <p className="font-display font-bold text-[13px] text-stone-900 leading-snug">{s.title}</p>
-                <p className="text-[12.5px] text-stone-600 leading-snug mt-0.5">{s.body}</p>
+                <p className="text-[13px] text-stone-600 leading-snug mt-0.5">{s.body}</p>
               </div>
             </div>
           ))}
 
           <button
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl glass-btn text-stone-600 text-[12.5px] font-semibold"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl glass-btn text-stone-600 text-[13px] font-semibold"
             onClick={() => setAdvanced((v) => !v)}
             type="button"
           >
@@ -110,7 +112,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                 <div key={item.title} className="flex gap-3 px-3 py-2.5 rounded-2xl glass-soft">
                   <MIcon name={item.icon} size={18} fill style={{ color: "#94a3b8", flexShrink: 0, marginTop: 1 }} />
                   <div className="min-w-0">
-                    <p className="font-semibold text-[12.5px] text-stone-800 leading-snug">{item.title}</p>
+                    <p className="font-semibold text-[13px] text-stone-800 leading-snug">{item.title}</p>
                     <p className="text-[12px] text-stone-500 leading-snug mt-0.5">{item.body}</p>
                   </div>
                 </div>
@@ -243,16 +245,15 @@ function MenuPreviewCard({
         style={{ background: "rgba(254,243,199,0.4)" }}
       >
         <div
-          className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
-          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(234,88,12,0.4)" }}
+          className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0 brand-grad brand-shadow--sm"
         >
           <MIcon name="menu_book" size={16} fill className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-display font-bold text-[14px] text-stone-900 leading-none">Dnešní menu</div>
-          <div className="text-[11.5px] text-stone-500 mt-0.5">{subtitle}</div>
+          <div className="text-xs text-stone-500 mt-0.5">{subtitle}</div>
         </div>
-        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-amber-700 shrink-0">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 shrink-0">
           {open ? "Sbalit" : "Zobrazit"}
           <span
             className="inline-flex transition-transform"
@@ -274,7 +275,7 @@ function MenuPreviewCard({
               {soups.length === 0 ? (
                 <div className="text-[12px] text-stone-400">—</div>
               ) : soups.map((s) => (
-                <div key={s.id} className="flex items-baseline gap-2 text-[12.5px] text-stone-700 leading-snug">
+                <div key={s.id} className="flex items-baseline gap-2 text-[13px] text-stone-700 leading-snug">
                   {s.code && <span className="code-chip shrink-0">{s.code}</span>}
                   <span className="min-w-0 break-words">{s.name}</span>
                 </div>
@@ -284,9 +285,9 @@ function MenuPreviewCard({
           <div>
             <div className="flex items-baseline justify-between mb-2 gap-2">
               <span className="section-eyebrow">Hlavní jídla · {defaultMealPrice} Kč</span>
-              <a href="/jidelnicek" className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 whitespace-nowrap">
+              <Link href="/jidelnicek" className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 whitespace-nowrap">
                 Celý jídelníček →
-              </a>
+              </Link>
             </div>
             <div className="menu-preview__meals">
               {meals.length === 0 ? (
@@ -927,13 +928,13 @@ export default function OrderPage({
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b" style={{ background: "rgba(220,38,38,0.08)", borderColor: "rgba(220,38,38,0.18)" }}>
           <MIcon name="error" size={16} fill style={{ color: "#dc2626", flexShrink: 0 }} />
           <div className="flex-1 min-w-0">
-            <span className="text-[12.5px] font-semibold text-red-700">Auto-send selhal</span>
+            <span className="text-[13px] font-semibold text-red-700">Auto-send selhal</span>
             {autoSendErrorTs && (
-              <span className="text-[11.5px] text-red-500 ml-2">
+              <span className="text-xs text-red-500 ml-2">
                 {new Date(autoSendErrorTs).toLocaleString("cs-CZ", { timeZone: "Europe/Prague", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
-            <p className="text-[11.5px] text-red-600 mt-0.5 truncate">{autoSendError}</p>
+            <p className="text-xs text-red-600 mt-0.5 truncate">{autoSendError}</p>
           </div>
           <button
             type="button"
@@ -972,7 +973,7 @@ export default function OrderPage({
         <div
           aria-live="polite"
           role="status"
-          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-[12.5px] font-semibold"
+          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-semibold"
           style={countdownMins <= 10 ? {
             background: "rgba(220,38,38,0.09)",
             borderBottom: "1px solid rgba(220,38,38,0.18)",
@@ -1031,7 +1032,7 @@ export default function OrderPage({
               </span>
             ) : null}
             {activeOrderCount > 0 && (
-              <span className="text-stone-600 text-[11.5px]">
+              <span className="text-stone-600 text-xs">
                 <span className="hidden md:inline">{activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč</span>
                 <span className="md:hidden">{activeOrderCount} · {totalPrice} Kč</span>
               </span>
@@ -1053,10 +1054,9 @@ export default function OrderPage({
             )}
             {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
               <button
-                className="shrink-0 rounded-full font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition text-[12.5px] px-3.5 md:px-4 py-2 md:py-2.5"
+                className="shrink-0 modal-btn modal-btn--primary modal-btn--pill text-[13px] px-3.5 md:px-4 py-2 md:py-2.5"
                 disabled={isPending}
                 onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
                 type="button"
               >
                 {isPending ? "Odesílám…" : "Odeslat"}
@@ -1212,7 +1212,7 @@ export default function OrderPage({
                   </p>
                 )}
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500 mt-1"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-stone-500 mt-1"
                   style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
                 >
                   <MIcon name="info" size={13} style={{ color: "#D97706" }} />
@@ -1223,13 +1223,13 @@ export default function OrderPage({
           ) : (
             <>
               {menuEmpty && !isSent && (
-                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
+                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[13px]"
                   style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)" }}>
                   <MIcon name="warning" size={16} style={{ color: "#D97706" }} />
                   <span className="text-stone-700">
                     <strong>Jídelníček není naplněný.</strong>{" "}
                     Přejděte do{" "}
-                    <a href="/jidelnicek" className="underline text-stone-700 hover:text-stone-900">Jídelníčku</a>
+                    <Link href="/jidelnicek" className="underline text-stone-700 hover:text-stone-900">Jídelníčku</Link>
                     {" "}a importujte PDF nebo přidejte položky ručně.
                   </span>
                 </div>
@@ -1238,13 +1238,12 @@ export default function OrderPage({
               {/* Prefill banner (sekce 6.6) */}
               {prefillItem && (
                 <div
-                  className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[12.5px]"
+                  className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 text-[13px]"
                   style={{ borderColor: "rgba(245,158,11,0.35)", background: "rgba(254,243,199,0.5)" }}
                   role="status"
                 >
                   <div
-                    className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
-                    style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                    className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0 brand-grad"
                   >
                     <MIcon name="add_shopping_cart" size={15} fill className="text-white" />
                   </div>
@@ -1312,7 +1311,7 @@ export default function OrderPage({
                 >
                   <MIcon name={isSent ? "check_circle" : "schedule"} size={18} fill style={{ color: isSent ? "#16a34a" : "#D97706" }} />
                 </div>
-                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug min-w-0">
+                <div className="flex-1 text-[13px] text-stone-700 leading-snug min-w-0">
                   {isSent ? (
                     <>
                       <strong className="text-green-700">Objednávka odeslána</strong>
@@ -1338,7 +1337,7 @@ export default function OrderPage({
                 </div>
                 {!isSent && totalPrice > 0 && (
                   <div className="shrink-0 flex flex-col items-end leading-none">
-                    <span className="text-[11.5px] text-stone-500">Celkem</span>
+                    <span className="text-xs text-stone-500">Celkem</span>
                     <span className="font-display font-extrabold text-[18px] text-stone-900 leading-none mt-0.5">
                       {totalPrice}
                       <span className="text-[12px] font-semibold text-stone-500 ml-1">Kč</span>

@@ -46,7 +46,7 @@ function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
         <span className="font-display font-bold text-stone-900">{totals.finalTotal} Kč</span>
       </div>
       {totals.pricePerPizza > 0 && (
-        <div className="flex items-center justify-between px-3 py-1.5 text-[11.5px]">
+        <div className="flex items-center justify-between px-3 py-1.5 text-xs">
           <span className="text-stone-500">Cena za kus</span>
           <span className="font-semibold text-stone-600">{totals.pricePerPizza} Kč/ks</span>
         </div>
@@ -164,7 +164,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
                       </div>
                     </div>
                     {/* Desktop */}
-                    <div className="hidden md:grid items-center gap-3 px-4 py-2.5 text-[12.5px]" style={{ gridTemplateColumns: "28px 1fr 2fr 60px 80px 80px" }}>
+                    <div className="hidden md:grid items-center gap-3 px-4 py-2.5 text-[13px]" style={{ gridTemplateColumns: "28px 1fr 2fr 60px 80px 80px" }}>
                       <span className="font-mono text-[11px] text-stone-400">{idx + 1}</span>
                       <span className="font-medium text-stone-800">{row.personName || "–"}</span>
                       <span className="text-stone-600">{row.pizzaItem ? `${row.pizzaItem.code}. ${row.pizzaItem.name}` : "–"}</span>
@@ -191,7 +191,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
                 <div>
                   <p className="font-display text-[11px] uppercase tracking-wide text-stone-500 font-semibold mb-2">Pizzy</p>
                   {[...pizzaCounts.entries()].map(([k, v]) => (
-                    <p key={k} className="text-[12.5px] text-stone-700 py-0.5">
+                    <p key={k} className="text-[13px] text-stone-700 py-0.5">
                       <strong className="text-stone-900">{v}×</strong> {k}
                     </p>
                   ))}

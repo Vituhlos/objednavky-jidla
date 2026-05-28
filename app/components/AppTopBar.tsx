@@ -34,7 +34,7 @@ const SidebarClock = memo(function SidebarClock() {
     <div className="glass-soft rounded-2xl p-3">
       <div className="text-[11px] uppercase tracking-wider text-stone-600 font-semibold mb-0.5">Dnes</div>
       <div className="font-display font-bold text-[15px] text-stone-900">{timeStr}</div>
-      <div className="text-[11.5px] text-stone-500 leading-snug">{dateStr}</div>
+      <div className="text-xs text-stone-500 leading-snug">{dateStr}</div>
     </div>
   );
 });
@@ -43,8 +43,7 @@ function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: 
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   return (
     <div
-      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-display font-bold text-white text-[13px]"
-      style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 10px -4px rgba(245,158,11,0.45)" }}
+      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-display font-bold text-white text-[13px] brand-badge"
     >
       {initials}
     </div>
@@ -67,8 +66,7 @@ function UserBadge({ user }: { user: UserInfo }) {
         <div className="flex flex-col gap-1.5">
           <Link
             href="/login"
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white transition hover:opacity-[0.88]"
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 3px 10px -3px rgba(245,158,11,0.4)" }}
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white transition hover:opacity-[0.88] brand-grad brand-shadow--sm"
           >
             <MIcon name="login" size={13} />
             Přihlásit se
@@ -95,7 +93,7 @@ function UserBadge({ user }: { user: UserInfo }) {
           </div>
           {user.role === "admin"
             ? <div className="text-[10px] text-amber-700 font-semibold mt-0.5">Admin</div>
-            : <div className="text-[10px] text-stone-400 mt-0.5">Profil</div>
+            : <div className="text-[10px] text-stone-500 mt-0.5">Profil</div>
           }
         </div>
       </Link>
@@ -139,12 +137,12 @@ export default function AppTopBar({
         <div className="px-2 py-3">
           <span className="inline-flex items-center gap-2 font-display font-extrabold">
             <span
-              className="inline-flex items-center justify-center rounded-xl"
-              style={{ width: 34, height: 34, background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 16px -6px rgba(245,158,11,0.5)" }}
+              className="inline-flex items-center justify-center rounded-xl brand-badge"
+              style={{ width: 34, height: 34 }}
             >
               <MIcon name="restaurant" size={20} fill className="text-white" />
             </span>
-            <span style={{ fontSize: 19, background: "linear-gradient(135deg,#D97706,#EA580C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <span className="brand-grad--text" style={{ fontSize: 19 }}>
               Kantýna
             </span>
           </span>
@@ -196,7 +194,7 @@ export default function AppTopBar({
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >
                 <MIcon name={icon} size={20} fill={isActive} style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }} />
-                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
+                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-500"}`}>
                   {shortLabel}
                 </span>
                 {isActive && <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />}
