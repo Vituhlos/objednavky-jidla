@@ -94,6 +94,12 @@ export function listUsers(): UserRow[] {
   return (getDb().prepare("SELECT * FROM users ORDER BY created_at").all() as Record<string, unknown>[]).map(mapRow);
 }
 
+export type SafeUserRow = Omit<UserRow, "passwordHash"> & { hasPassword: boolean };
+
+export function listUsersSafe(): SafeUserRow[] {
+  return listUsers().map(({ passwordHash, ...rest }) => ({ ...rest, hasPassword: passwordHash !== null }));
+}
+
 // ── Provider accounts (linking) ──────────────────────────────────────────────
 
 export function linkProviderAccount(userId: number, provider: string, providerAccountId: string): void {

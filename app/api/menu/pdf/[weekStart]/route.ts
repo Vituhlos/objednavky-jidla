@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
+import { getAppSession } from "@/lib/auth";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ weekStart: string }> }
 ) {
+  const session = await getAppSession();
+  if (!session) return NextResponse.json({ error: "Přihlášení vyžadováno" }, { status: 401 });
   const { weekStart } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
     return NextResponse.json({ error: "Invalid weekStart" }, { status: 400 });

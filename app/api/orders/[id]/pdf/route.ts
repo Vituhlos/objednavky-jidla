@@ -2,13 +2,16 @@ import fs from "fs";
 import { type NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { getOrderPdfPath } from "@/lib/orders";
+import { getAppSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export function GET(
+export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAppSession();
+  if (!session) return new Response("Přihlášení vyžadováno", { status: 401 });
   return params.then(({ id }) => {
     const orderId = parseInt(id, 10);
     if (isNaN(orderId)) return new Response("Bad request", { status: 400 });

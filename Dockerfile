@@ -27,4 +27,6 @@ VOLUME ["/app/data"]
 
 EXPOSE 3000
 
+USER node
+
 CMD ["npm", "run", "start"]

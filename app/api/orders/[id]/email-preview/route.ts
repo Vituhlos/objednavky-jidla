@@ -1,5 +1,6 @@
 import { getOrderData } from "@/lib/orders";
 import { buildOrderEmail } from "@/lib/order-email";
+import { getAppSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAppSession();
+  if (!session) return new Response("Přihlášení vyžadováno", { status: 401 });
   const { id } = await params;
   const orderId = parseInt(id, 10);
   if (isNaN(orderId)) return new Response("Bad request", { status: 400 });

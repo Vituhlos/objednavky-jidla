@@ -53,7 +53,7 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { listUsers, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, getLinkedProviders, verifyPassword, incrementSessionVersion, adminForceVerifyEmail, adminResetUserPassword, deleteUserAccount, type UserRole } from "@/lib/users";
+import { listUsersSafe, setUserRole, updateUserProfile, changeUserPassword, createEmailVerificationToken, getUserById, getLinkedProviders, verifyPassword, incrementSessionVersion, adminForceVerifyEmail, adminResetUserPassword, deleteUserAccount, type UserRole } from "@/lib/users";
 
 export async function actionAddRow(
   orderId: number,
@@ -201,7 +201,7 @@ export async function getSettingsHealth(): Promise<SettingsHealth> {
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
@@ -225,7 +225,7 @@ export async function actionConfirmMenuImport(
   items: ParsedMenuItem[],
   tmpPdfName?: string
 ): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   setMenuForWeek(weekStart, weekLabel, items);
   if (tmpPdfName) {
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
@@ -240,7 +240,7 @@ export async function actionConfirmMenuImport(
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   deleteMenuForWeek(weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
@@ -258,7 +258,7 @@ export async function actionAddMenuItem(item: {
   price: number;
   weekStart?: string;
 }): Promise<MenuItem> {
-  await requireAuth();
+  await requireAdmin();
   return addMenuItem(item);
 }
 
@@ -266,20 +266,28 @@ export async function actionUpdateMenuItem(
   id: number,
   updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): Promise<MenuItem> {
-  await requireAuth();
+  await requireAdmin();
   return updateMenuItem(id, updates);
 }
 
 export async function actionDeleteMenuItem(id: number): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   deleteMenuItem(id);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
+async function assertPizzaRowOwnership(rowId: number, session: Awaited<ReturnType<typeof requireAuth>>) {
+  if (session.user.role === "admin") return;
+  const { getDb } = await import("@/lib/db");
+  const r = getDb().prepare("SELECT user_id FROM pizza_order_rows WHERE id = ?").get(rowId) as { user_id: number | null } | undefined;
+  if (!r) throw new Error("Řádek nenalezen.");
+  if (r.user_id !== session.userId) throw new Error("Nemáte oprávnění upravovat cizí řádek.");
+}
+
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
-  await requireAuth();
-  const row = addPizzaRow(orderId);
+  const session = await requireAuth();
+  const row = addPizzaRow(orderId, session.userId);
   revalidatePath("/pizza");
   return row;
 }
@@ -288,7 +296,8 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
-  await requireAuth();
+  const session = await requireAuth();
+  await assertPizzaRowOwnership(rowId, session);
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
   broadcast();
@@ -296,7 +305,8 @@ export async function actionUpdatePizzaRow(
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
-  await requireAuth();
+  const session = await requireAuth();
+  await assertPizzaRowOwnership(rowId, session);
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
 }
@@ -304,14 +314,14 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
 ): Promise<{ id: number; code: number; name: string; price: number }[]> {
-  await requireAuth();
+  await requireAdmin();
   const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
   return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   reopenOrder(orderId);
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
@@ -319,26 +329,26 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   await resendOrderEmail(orderId);
 }
 
 export async function actionCloseDay(dayCode: string, weekStart: string): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   closeDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionOpenDay(dayCode: string, weekStart: string): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   openDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   clearOrderRows(orderId);
   revalidatePath("/");
   broadcast();
@@ -493,7 +503,7 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 
 export async function actionListAppUsers() {
   await requireAdmin();
-  return listUsers();
+  return listUsersSafe();
 }
 
 export async function actionSetAppUserRole(userId: number, role: UserRole): Promise<void> {
@@ -595,6 +605,10 @@ export async function actionAdminDeleteUser(userId: number): Promise<void> {
 
 export async function actionResendVerifyEmail(): Promise<{ ok: boolean; error?: string }> {
   const session = await requireAuth();
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`resend-verify:${session.userId}:${ip}`, 3, 10 * 60 * 1000)) {
+    return { ok: false, error: "Příliš mnoho požadavků. Zkuste to za 10 minut." };
+  }
   const user = getUserById(session.userId);
   if (!user) return { ok: false, error: "Uživatel nenalezen." };
   if (user.emailVerified) return { ok: false, error: "E-mail je již ověřen." };

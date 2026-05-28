@@ -6,7 +6,7 @@ import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SENSITIVE_KEYS = new Set(["smtpPass", "imapPass", "settingsPin", "vapidPrivateKey"]);
+const SENSITIVE_KEYS = new Set(["smtpPass", "imapPass", "settingsPin", "vapidPrivateKey", "telegramBotToken", "telegramWebhookSecret"]);
 
 export async function GET(req: NextRequest) {
   const session = await getAppSession();

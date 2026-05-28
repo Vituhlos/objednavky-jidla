@@ -35,7 +35,7 @@ import {
   type HealthStatus,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
-import type { UserRow, UserRole } from "@/lib/users";
+import type { SafeUserRow, UserRole } from "@/lib/users";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 import { useModalSwipe } from "@/app/hooks/useModalSwipe";
@@ -368,7 +368,7 @@ export default function SettingsPage({
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
   adminUnlocked?: boolean;
-  appUsers?: UserRow[];
+  appUsers?: SafeUserRow[];
   currentUserId?: number;
 }) {
   const [unlocked, setUnlocked] = useState(adminUnlocked);
@@ -422,7 +422,7 @@ export default function SettingsPage({
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const router = useRouter();
-  const [appUsers, setAppUsers] = useState<UserRow[]>(initialAppUsers);
+  const [appUsers, setAppUsers] = useState<SafeUserRow[]>(initialAppUsers);
   const [appUserError, setAppUserError] = useState<string | null>(null);
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [resetPwd, setResetPwd] = useState("");
@@ -1973,7 +1973,7 @@ export default function SettingsPage({
                                   Ověřit e-mail
                                 </button>
                               )}
-                              {u.passwordHash && !isSelf && (
+                              {u.hasPassword && !isSelf && (
                                 <button
                                   type="button"
                                   title="Reset hesla"

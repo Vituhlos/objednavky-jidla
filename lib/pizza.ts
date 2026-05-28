@@ -134,7 +134,7 @@ export function getTodayPizzaOrderData(): PizzaOrderData {
   };
 }
 
-export function addPizzaRow(orderId: number): PizzaOrderRow {
+export function addPizzaRow(orderId: number, userId?: number): PizzaOrderRow {
   const db = getDb();
   const { m } = db
     .prepare(
@@ -143,9 +143,9 @@ export function addPizzaRow(orderId: number): PizzaOrderRow {
     .get(orderId) as { m: number };
   const result = db
     .prepare(
-      "INSERT INTO pizza_order_rows (order_id, sort_order) VALUES (?, ?)"
+      "INSERT INTO pizza_order_rows (order_id, sort_order, user_id) VALUES (?, ?, ?)"
     )
-    .run(orderId, m + 1);
+    .run(orderId, m + 1, userId ?? null);
   const row = db
     .prepare("SELECT * FROM pizza_order_rows WHERE id = ?")
     .get(result.lastInsertRowid) as Record<string, unknown>;
