@@ -548,21 +548,17 @@ export async function actionChangeEmail(newEmail: string, password: string): Pro
 
 export async function actionGetMyOrders(): Promise<{ date: string; mainDish: string | null }[]> {
   const session = await requireAuth();
-  const user = getUserById(session.userId);
-  if (!user) return [];
-  const personName = `${user.firstName} ${user.lastName}`.trim();
-  if (!personName) return [];
   const { getDb } = await import("@/lib/db");
   const rows = getDb().prepare(`
     SELECT DISTINCT o.date,
       (SELECT mi.name FROM order_rows r2 LEFT JOIN menu_items mi ON mi.id = r2.main_item_id
-       WHERE r2.order_id = o.id AND r2.person_name = ? AND r2.main_item_id IS NOT NULL LIMIT 1) as main_dish
+       WHERE r2.order_id = o.id AND r2.user_id = ? AND r2.main_item_id IS NOT NULL LIMIT 1) as main_dish
     FROM order_rows r
     JOIN orders o ON o.id = r.order_id
-    WHERE r.person_name = ?
+    WHERE r.user_id = ?
     ORDER BY o.date DESC
     LIMIT 30
-  `).all(personName, personName) as { date: string; main_dish: string | null }[];
+  `).all(session.userId, session.userId) as { date: string; main_dish: string | null }[];
   return rows.map((r) => ({ date: r.date, mainDish: r.main_dish }));
 }
 

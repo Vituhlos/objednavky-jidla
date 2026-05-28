@@ -195,13 +195,18 @@ export function getSettings(): AppSettings {
   return result;
 }
 
+const SHA256_HEX = /^[a-f0-9]{64}$/;
+
 export function saveSettings(updates: Partial<AppSettings>): void {
   const db = getDb();
   db.transaction(() => {
     for (const [field, value] of Object.entries(updates) as [keyof AppSettings, string][]) {
       const dbKey = KEY_MAP[field];
       if (!dbKey || value === null || value === undefined) continue;
-      const stored = field === "settingsPin" ? hashPin(value) : value;
+      // PIN: hash unless it's already a 64-char hex hash (e.g. coming from restore)
+      const stored = field === "settingsPin"
+        ? (SHA256_HEX.test(value) ? value : hashPin(value))
+        : value;
       setSetting(dbKey, stored);
     }
   })();

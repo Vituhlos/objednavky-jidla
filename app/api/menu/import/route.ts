@@ -1,4 +1,4 @@
-import pdfParse from "pdf-parse";
+import { extractText } from "unpdf";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseMenuText } from "@/lib/parse-menu";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
   let rawText = "";
   try {
-    const result = await pdfParse(buffer);
-    rawText = result.text;
+    const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
+    rawText = text as string;
   } catch (e) {
     return NextResponse.json(
       {

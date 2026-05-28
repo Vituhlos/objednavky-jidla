@@ -329,23 +329,28 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+// Tokens are stored as sha256(raw_token) — raw token travels in URL, never stored
+function sha256Token(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 export function createEmailVerificationToken(userId: number): string {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  // Invalidovat předchozí
   getDb().prepare("UPDATE email_verification_tokens SET used = 1 WHERE user_id = ? AND used = 0").run(userId);
   getDb()
     .prepare("INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES (?, ?, ?)")
-    .run(userId, token, expiresAt);
+    .run(userId, sha256Token(token), expiresAt);
   return token;
 }
 
 export function consumeEmailVerificationToken(token: string): number | null {
+  const hash = sha256Token(token);
   const row = getDb()
     .prepare("SELECT user_id FROM email_verification_tokens WHERE token = ? AND expires_at > datetime('now') AND used = 0")
-    .get(token) as { user_id: number } | undefined;
+    .get(hash) as { user_id: number } | undefined;
   if (!row) return null;
-  getDb().prepare("UPDATE email_verification_tokens SET used = 1 WHERE token = ?").run(token);
+  getDb().prepare("UPDATE email_verification_tokens SET used = 1 WHERE token = ?").run(hash);
   getDb().prepare("UPDATE users SET email_verified = 1 WHERE id = ?").run(row.user_id);
   return row.user_id;
 }
@@ -356,19 +361,20 @@ export function createPasswordResetToken(userId: number): string {
   getDb().prepare("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0").run(userId);
   getDb()
     .prepare("INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)")
-    .run(userId, token, expiresAt);
+    .run(userId, sha256Token(token), expiresAt);
   return token;
 }
 
 export function validatePasswordResetToken(token: string): number | null {
+  const hash = sha256Token(token);
   const row = getDb()
     .prepare("SELECT user_id FROM password_reset_tokens WHERE token = ? AND expires_at > datetime('now') AND used = 0")
-    .get(token) as { user_id: number } | undefined;
+    .get(hash) as { user_id: number } | undefined;
   return row?.user_id ?? null;
 }
 
 export function consumePasswordResetToken(token: string): void {
-  getDb().prepare("UPDATE password_reset_tokens SET used = 1 WHERE token = ?").run(token);
+  getDb().prepare("UPDATE password_reset_tokens SET used = 1 WHERE token = ?").run(sha256Token(token));
 }
 
 // ── Session management ───────────────────────────────────────────────────────
