@@ -221,7 +221,14 @@ export function upsertUserFromOAuth(input: OAuthInput): { id: number; role: User
   if (input.emailVerified && email) {
     const byEmail = getUserByEmail(email);
     if (byEmail && byEmail.active) {
-      // Přilinkovat tento provider k existujícímu účtu
+      // Ochrana proti pre-registration útoku: pokud existující účet nebyl email-ověřen
+      // ale má heslo, Google právě dokázal skutečné vlastnictví e-mailu → invalidovat
+      // stará credentials (útočník si mohl předregistrovat cizí adresu).
+      if (!byEmail.emailVerified && byEmail.passwordHash) {
+        db.prepare(
+          "UPDATE users SET password_hash = NULL, session_version = session_version + 1 WHERE id = ?"
+        ).run(byEmail.id);
+      }
       linkProviderAccount(byEmail.id, input.provider, input.providerAccountId);
       db.prepare("UPDATE users SET last_login_at = datetime('now'), email_verified = 1, avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
         .run(input.avatarUrl, byEmail.id);

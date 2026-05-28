@@ -8,7 +8,8 @@ import MIcon from "@/app/components/MIcon";
 
 function LoginInner() {
   const params = useSearchParams();
-  const from = params.get("from") || "/";
+  const rawFrom = params.get("from") || "/";
+  const from = /^\/(?!\/)/.test(rawFrom) ? rawFrom : "/";
   const verify = params.get("verify");
   const reset = params.get("reset");
   const urlError = params.get("error");

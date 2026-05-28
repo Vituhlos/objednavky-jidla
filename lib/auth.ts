@@ -55,6 +55,7 @@ export async function requireAuth(): Promise<AppSession> {
 
 export async function requireAdmin(): Promise<AppSession> {
   const session = await requireAuth();
-  if (session.user.role !== "admin") throw new Error("Nemáte oprávnění administrátora.");
+  const user = getUserById(session.userId);
+  if (!user || user.role !== "admin") throw new Error("Nemáte oprávnění administrátora.");
   return session;
 }
