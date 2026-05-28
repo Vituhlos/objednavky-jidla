@@ -3,13 +3,12 @@
 import { useRef, useCallback } from "react";
 import type { RefCallback } from "react";
 
-// Dismiss thresholds — modal closes either by distance OR by flick velocity.
 const DISMISS_DISTANCE_PX = 100;
 const DISMISS_VELOCITY_PXMS = 0.5;
 const FLICK_MIN_DISTANCE_PX = 30;
-// Beyond this drag distance, apply rubber-band resistance so it feels bounded.
 const RESISTANCE_THRESHOLD_PX = 200;
 const RESISTANCE_FACTOR = 0.3;
+const BASE_ALPHA = 0.38;
 
 export function useModalSwipe(onDismiss: () => void) {
   const onDismissRef = useRef(onDismiss);
@@ -21,6 +20,9 @@ export function useModalSwipe(onDismiss: () => void) {
     if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
     if (!el) return;
 
+    // Find the overlay parent once on mount so we can fade it separately.
+    const overlay = el.closest(".modal-overlay") as HTMLElement | null;
+
     let startY = 0;
     let lastY = 0;
     let lastT = 0;
@@ -30,19 +32,37 @@ export function useModalSwipe(onDismiss: () => void) {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const dismiss = () => {
-      el.style.transition = "transform 0.2s ease-in, opacity 0.2s ease-in";
+      let called = false;
+      const callDismiss = () => {
+        if (called) return;
+        called = true;
+        if (timer) { clearTimeout(timer); timer = null; }
+        onDismissRef.current();
+      };
+
+      el.style.transition = "transform 220ms cubic-bezier(0.32,0.72,0,1)";
       el.style.transform = "translateY(110%)";
-      el.style.opacity = "0";
-      timer = setTimeout(() => onDismissRef.current(), 200);
+
+      if (overlay) {
+        overlay.style.transition = "background 220ms ease";
+        overlay.style.background = "rgba(26,18,8,0)";
+      }
+
+      el.addEventListener("transitionend", callDismiss, { once: true });
+      timer = setTimeout(callDismiss, 300);
     };
 
     const reset = () => {
-      el.style.transition = "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease-out";
+      el.style.transition = "transform 300ms cubic-bezier(0.32,0.72,0,1)";
       el.style.transform = "";
-      el.style.opacity = "";
+
+      if (overlay) {
+        overlay.style.transition = `background 300ms ease`;
+        overlay.style.background = `rgba(26,18,8,${BASE_ALPHA})`;
+      }
     };
 
-    // Rubber-band beyond threshold: 1px input → 0.3px output.
+    // Rubber-band: 1px input → 0.3px output beyond the threshold.
     const computeOffset = (dy: number) => {
       if (dy < RESISTANCE_THRESHOLD_PX) return dy;
       return RESISTANCE_THRESHOLD_PX + (dy - RESISTANCE_THRESHOLD_PX) * RESISTANCE_FACTOR;
@@ -50,13 +70,13 @@ export function useModalSwipe(onDismiss: () => void) {
 
     const onTouchStart = (e: TouchEvent) => {
       body = el.querySelector(".modal-sheet__body") as HTMLElement | null;
-      // If body is already scrolled, this gesture belongs to the body, not the sheet.
       scrollLocked = !!(body && body.scrollTop > 0);
       startY = e.touches[0].clientY;
       lastY = startY;
       lastT = Date.now();
       isDragging = false;
       el.style.transition = "none";
+      if (overlay) overlay.style.transition = "none";
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -65,23 +85,21 @@ export function useModalSwipe(onDismiss: () => void) {
       const y = e.touches[0].clientY;
       const dy = y - startY;
 
-      // Only react to downward drags. Reversing upward cancels any in-progress drag.
       if (dy <= 0) {
         if (isDragging) {
           isDragging = false;
           el.style.transform = "";
-          el.style.opacity = "";
+          if (overlay) overlay.style.background = `rgba(26,18,8,${BASE_ALPHA})`;
         }
         return;
       }
 
-      // If body becomes scrolled mid-gesture, hand the gesture off to body scroll.
       if (body && body.scrollTop > 0) {
         scrollLocked = true;
         if (isDragging) {
           isDragging = false;
           el.style.transform = "";
-          el.style.opacity = "";
+          if (overlay) overlay.style.background = `rgba(26,18,8,${BASE_ALPHA})`;
         }
         return;
       }
@@ -92,10 +110,13 @@ export function useModalSwipe(onDismiss: () => void) {
       lastT = Date.now();
 
       const offset = computeOffset(dy);
+      // Sheet stays fully opaque — only translateY follows the finger.
       el.style.transform = `translateY(${offset}px)`;
-      // Fade up to 30% as drag progresses; capped so modal stays partly visible.
-      const fade = Math.min(offset / 300, 1);
-      el.style.opacity = String(1 - fade * 0.3);
+
+      // Overlay background fades proportionally (sheet visible → fully transparent).
+      const progress = Math.min(offset / 320, 1);
+      const alpha = BASE_ALPHA * (1 - progress);
+      if (overlay) overlay.style.background = `rgba(26,18,8,${alpha.toFixed(3)})`;
     };
 
     const onTouchEnd = (e: TouchEvent) => {
@@ -103,7 +124,6 @@ export function useModalSwipe(onDismiss: () => void) {
       const endY = e.changedTouches[0].clientY;
       const dy = endY - startY;
       const dt = Date.now() - lastT;
-      // Instant velocity at release in px/ms (positive = downward).
       const velocity = dt > 0 ? (endY - lastY) / dt : 0;
 
       const farEnough = dy > DISMISS_DISTANCE_PX;

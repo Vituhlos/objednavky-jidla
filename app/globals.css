@@ -435,6 +435,7 @@ body {
   color: white;
 }
 .modal-btn--primary:not(:disabled):hover { opacity: 0.88; }
+.modal-btn--pill { border-radius: 9999px; }
 .modal-btn:disabled { background: rgba(0,0,0,0.08); box-shadow: none; color: rgba(0,0,0,0.3); cursor: not-allowed; }
 .modal-btn--danger {
   background: rgba(220,38,38,0.08);
@@ -492,6 +493,18 @@ body {
   background-position: right 10px center;
   padding-right: 34px;
 }
+/* ── Custom dropdown portal container (D5) — shared by all floating listboxes ── */
+.k-dropdown-portal {
+  position: fixed; z-index: 9999;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.68);
+  border-radius: 16px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.85) inset, 0 12px 40px -6px rgba(26,18,8,0.16), 0 2px 8px -2px rgba(26,18,8,0.08);
+  overflow: hidden;
+}
+
 /* ── Custom dropdown items ── */
 .dropdown-item {
   display: flex; align-items: baseline; gap: 0.5rem;
@@ -932,7 +945,12 @@ body {
   min-width: 16px;
 }
 .allergen-filter-menu__item.active .num { color: #c2410c; }
-.allergen-filter-menu__item input { accent-color: #EA580C; }
+.allergen-check {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #EA580C;
+  flex-shrink: 0;
+}
 
 /* ── Redesign v2 (handoff Historie / Nastavení / Detail) ── */
 
@@ -1436,3 +1454,38 @@ body {
 .row-menu-dropdown button:hover { background: rgba(26,18,8,0.04); }
 .row-menu-danger { color: #dc2626 !important; }
 .row-menu-danger:hover { background: #fef2f2 !important; }
+
+/* ── Brand gradient utilities (D1) ── */
+.brand-grad { background: linear-gradient(135deg,#F59E0B,#EA580C); }
+.brand-grad--text {
+  background: linear-gradient(135deg,#D97706,#EA580C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.brand-shadow { box-shadow: 0 6px 16px -6px rgba(245,158,11,0.5); }
+.brand-shadow--sm { box-shadow: 0 4px 12px -4px rgba(245,158,11,0.4); }
+/* Combo: gradient background + shadow — for logo badges, icon roundels */
+.brand-badge {
+  background: linear-gradient(135deg,#F59E0B,#EA580C);
+  box-shadow: 0 6px 16px -6px rgba(245,158,11,0.5);
+}
+
+/* ── Icon button — standardized tap target + focus ring (D2) ── */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px;
+  border-radius: 9999px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink-3);
+  transition: color .15s, background .15s;
+}
+.icon-btn:hover { color: var(--ink-2); background: rgba(26,18,8,0.06); }
+.icon-btn:focus-visible { outline: 2px solid rgba(245,158,11,0.7); outline-offset: 2px; }
+
+/* ── Typography utilities — 6-step scale (D4) ── */
+.t-meta  { font-size: 11px; }
+.t-label { font-size: 12px; }
+.t-body  { font-size: 13px; }
+.t-sub   { font-size: 12px; color: var(--ink-3); }
+.t-title { font-family: var(--font-jakarta); font-weight: 700; font-size: 15px; }
