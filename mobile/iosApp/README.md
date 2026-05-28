@@ -1,66 +1,164 @@
 # Kantýna iOS app (SwiftUI)
 
-The Kotlin Multiplatform **shared** module exports a static framework named `Shared` for iOS. This folder contains a minimal SwiftUI shell with four bottom tabs matching the wireframes.
+Minimal SwiftUI shell for the Kotlin Multiplatform **shared** module. Matches the Android app structure: auth gate → four bottom tabs (**Oběd**, **Jídelníček**, **Historie**, **Profil**) with Czech labels and brand accent `#EA580C`.
 
-> **Windows note:** Xcode cannot run on Windows. Generate the framework on macOS (or CI) and open `KantynaIOS.xcodeproj` in Xcode 15+.
+> **Windows note:** Xcode cannot run on Windows. Build the Kotlin framework on macOS (or CI), then open `KantynaIOS.xcodeproj` in Xcode 15+.
+
+## Project layout
+
+```
+iosApp/
+├── KantynaIOS.xcodeproj/
+└── KantynaIOS/
+    ├── KantynaIOSApp.swift   # @main entry point
+    ├── KantynaApp.swift      # Auth gate + tab root (mirrors Android KantynaApp)
+    ├── AuthSession.swift     # UserDefaults token stub until Shared AuthRepository
+    ├── Color+Brand.swift     # #EA580C brand accent
+    ├── LoginView.swift       # Login placeholder (email/password + QR stub)
+    └── MainTabView.swift     # TabView with four wireframe tabs
+```
 
 ## Prerequisites
 
-- macOS with Xcode 15+
-- JDK 17+ (for Gradle framework build)
-- CocoaPods not required (SPM / direct framework embed)
+| Tool | Version |
+|------|---------|
+| macOS | Ventura+ |
+| Xcode | 15+ |
+| JDK | 17+ (Gradle framework build) |
+| CocoaPods | Not required |
 
-## 1. Build the Kotlin framework
+## 1. Build the Kotlin `Shared` framework
 
-From the `mobile/` directory:
+All commands run from the `mobile/` directory.
+
+### Release (recommended for Xcode embed)
 
 ```bash
-# Device (physical iPhone)
+# Physical device (iPhone / iPad)
 ./gradlew :shared:linkReleaseFrameworkIosArm64
 
-# Simulator (Apple Silicon Mac)
+# Simulator — Apple Silicon Mac
+./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64
+
+# Simulator — Intel Mac (legacy)
+./gradlew :shared:linkReleaseFrameworkIosX64
+```
+
+### Debug (faster iteration)
+
+```bash
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+./gradlew :shared:linkDebugFrameworkIosArm64
+```
+
+### Framework output paths
+
+| Target | Release path |
+|--------|----------------|
+| Device | `shared/build/bin/iosArm64/releaseFramework/Shared.framework` |
+| Simulator (Apple Silicon) | `shared/build/bin/iosSimulatorArm64/releaseFramework/Shared.framework` |
+| Simulator (Intel) | `shared/build/bin/iosX64/releaseFramework/Shared.framework` |
+
+The framework is **static** (`isStatic = true` in `shared/build.gradle.kts`).
+
+### Windows / CI-only workflow
+
+From Windows you can still compile the framework if a macOS runner or remote Mac is available:
+
+```bash
+cd mobile
 ./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64
 ```
 
-Framework output (example, Simulator):
+Copy the resulting `Shared.framework` to the Mac that runs Xcode, or consume it from CI artifacts.
 
-```
-shared/build/bin/iosSimulatorArm64/releaseFramework/Shared.framework
-```
-
-## 2. Wire framework into Xcode
+## 2. Embed framework in Xcode
 
 1. Open `iosApp/KantynaIOS.xcodeproj` in Xcode.
 2. Select the **KantynaIOS** target → **General** → **Frameworks, Libraries, and Embedded Content**.
-3. Click **+** → **Add Other…** → **Add Files…** and select `Shared.framework` from the Gradle output path above.
-4. Set embed to **Embed & Sign** (or **Do Not Embed** if linking statically per your build settings).
-5. Add a **Run Script** build phase (before Compile Sources) if you want automatic rebuilds:
+3. Click **+** → **Add Other…** → **Add Files…** and pick `Shared.framework` from the Gradle output path above.
+4. For a **static** framework, set embed to **Do Not Embed** (link only). For dynamic builds, use **Embed & Sign**.
+5. Confirm **Build Settings → Framework Search Paths** includes the directory containing `Shared.framework` (Xcode usually adds this when you embed).
+
+### Optional: auto-rebuild Shared before compile
+
+Add a **Run Script** build phase on the **KantynaIOS** target, **before** **Compile Sources**:
 
 ```bash
 cd "$SRCROOT/.."
-./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64
+if [ "$PLATFORM_NAME" = "iphonesimulator" ]; then
+  ./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64
+else
+  ./gradlew :shared:linkReleaseFrameworkIosArm64
+fi
 ```
 
-Adjust the Gradle task for device vs simulator builds.
+Adjust `linkDebugFramework*` vs `linkReleaseFramework*` to match your workflow.
 
-## 3. Import shared APIs in Swift
+## 3. Import Shared APIs in Swift (future)
+
+Once the framework is linked, replace `AuthSession` stubs with KMP types:
 
 ```swift
 import Shared
 
-// Example: read production API base URL
+// API base URL
 let baseUrl = ApiConfig.shared.PRODUCTION_BASE_URL
+
+// Auth — wire RootViewModel equivalent
+// let authRepository = AuthRepository(...)
 ```
 
-Auth and DTO types are exposed from the `cz.pbas.kantyna.mobile` package.
+Exposed packages mirror Android: `cz.pbas.kantyna.mobile.auth`, `.dto`, `.menu`, `.history`, etc.
+
+### Suggested integration order
+
+1. Link `Shared.framework` and verify `import Shared` compiles.
+2. Replace `AuthSession.loginStub()` with `AuthRepository.login(email:password:)`.
+3. Swap tab placeholders for SwiftUI views calling `MenuRepository`, `HistoryRepository`.
+4. Add Keychain storage for tokens (replace `UserDefaults` stub).
 
 ## 4. Run the app
 
-Select an iOS Simulator or device, then **Product → Run**. The scaffold shows a `TabView` with **Oběd**, **Jídelníček**, **Historie**, and **Profil** placeholders.
+1. Select an iOS Simulator or connected device.
+2. **Product → Run** (⌘R).
+
+Expected flow:
+
+- **Logged out:** `LoginView` with Kantýna title, email/password fields, stub login button.
+- **Logged in:** `MainTabView` with four tabs; **Profil** includes a stub logout action.
+
+Auth is gated by a `UserDefaults` token (`kantyna.authToken`) until Shared auth is wired.
+
+## 5. Branding
+
+Accent color `#EA580C` is defined in `Color+Brand.swift` as `Color.brandAccent` and applied via `.tint()` on the root and tab bar.
 
 ## Deep links (future)
 
-Pairing QR format: `kantyna://pair?v=1&token={opaque}` — register URL schemes in `Info.plist` when implementing device pairing.
+Pairing QR format: `kantyna://pair?v=1&token={opaque}`
+
+Register URL schemes in `Info.plist` when implementing device pairing:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>kantyna</string>
+        </array>
+    </dict>
+</array>
+```
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `import Shared` fails | Rebuild framework for the correct slice (simulator vs device). |
+| Undefined symbols at link | Ensure framework matches architecture; clean build folder. |
+| Gradle task not found | Run from `mobile/`; use `./gradlew tasks --group=build` to list iOS tasks. |
 
 ## Related docs
 

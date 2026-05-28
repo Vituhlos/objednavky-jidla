@@ -4,7 +4,7 @@ import SwiftUI
 struct KantynaIOSApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            KantynaApp()
         }
     }
 }
