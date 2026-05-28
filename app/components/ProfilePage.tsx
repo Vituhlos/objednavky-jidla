@@ -13,16 +13,29 @@ import {
   actionDeleteAccount,
 } from "@/app/actions";
 
+type Tab = "profil" | "zabezpeceni" | "notifikace" | "aktivita" | "ucet";
 type Dept = { name: string; label: string };
 type OrderItem = { date: string; mainDish: string | null };
 type MonthEntry = { month: string; spending: number };
 
-function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "profil",      label: "Profil",       icon: "person" },
+  { id: "zabezpeceni", label: "Zabezpečení",  icon: "lock" },
+  { id: "notifikace",  label: "Notifikace",   icon: "notifications" },
+  { id: "aktivita",    label: "Aktivita",     icon: "history" },
+  { id: "ucet",        label: "Účet",         icon: "manage_accounts" },
+];
+
+function InitialsAvatar({ firstName, lastName, size = 56 }: { firstName: string; lastName: string; size?: number }) {
   const initials = (`${firstName.charAt(0)}${lastName.charAt(0)}`).toUpperCase() || "?";
   return (
     <div
-      className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-white text-[26px]"
-      style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 6px 20px -6px rgba(245,158,11,0.5)" }}
+      className="rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-white"
+      style={{
+        width: size, height: size, fontSize: size * 0.37,
+        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+        boxShadow: "0 6px 20px -6px rgba(245,158,11,0.5)",
+      }}
     >
       {initials}
     </div>
@@ -32,9 +45,9 @@ function InitialsAvatar({ firstName, lastName }: { firstName: string; lastName: 
 function StatTile({ icon, value, label }: { icon: string; value: string | number; label: string }) {
   return (
     <div className="glass-soft rounded-2xl p-3 flex-1 flex flex-col gap-1">
-      <MIcon name={icon} size={17} style={{ color: "#D97706" }} />
-      <div className="font-display font-bold text-[20px] text-stone-900 leading-none">{value}</div>
-      <div className="text-[11px] text-stone-500 leading-tight">{label}</div>
+      <MIcon name={icon} size={15} style={{ color: "#D97706" }} />
+      <div className="font-display font-bold text-[18px] text-stone-900 leading-none">{value}</div>
+      <div className="text-[10.5px] text-stone-500 leading-tight">{label}</div>
     </div>
   );
 }
@@ -105,23 +118,16 @@ function Toggle({ checked, onChange, label, description }: {
         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? "" : "bg-stone-300"}`}
         style={checked ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
       >
-        <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : "translate-x-0.5"}`}
-        />
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : "translate-x-0.5"}`} />
       </button>
     </div>
   );
 }
 
-function SectionCard({ title, icon, children, accent }: {
-  title: string; icon: string; children: React.ReactNode; accent?: boolean;
-}) {
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
     <div className="glass-card rounded-3xl overflow-hidden">
-      <div
-        className="flex items-center gap-2 px-5 py-3.5 border-b border-white/40"
-        style={accent ? { background: "rgba(245,158,11,0.05)" } : {}}
-      >
+      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/40" style={{ background: "rgba(245,158,11,0.04)" }}>
         <MIcon name={icon} size={16} style={{ color: "#D97706" }} />
         <span className="font-display font-bold text-[13.5px] text-stone-800">{title}</span>
       </div>
@@ -133,9 +139,7 @@ function SectionCard({ title, icon, children, accent }: {
 function StatusMsg({ msg }: { msg: { ok: boolean; text: string } | null }) {
   if (!msg) return null;
   return (
-    <p className={`text-[12px] font-semibold ${msg.ok ? "text-green-700" : "text-red-600"}`}>
-      {msg.text}
-    </p>
+    <p className={`text-[12px] font-semibold ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>
   );
 }
 
@@ -195,6 +199,7 @@ export default function ProfilePage({
 }) {
   const isAdmin = role === "admin";
   const [loggingOut, setLoggingOut] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("profil");
 
   // Profil form
   const [editFirst, setEditFirst] = useState(firstName);
@@ -254,10 +259,7 @@ export default function ProfilePage({
     e.preventDefault();
     setProfileSaving(true); setProfileMsg(null);
     try {
-      await actionUpdateProfile({
-        firstName: editFirst, lastName: editLast,
-        defaultDepartment: editDept || null,
-      });
+      await actionUpdateProfile({ firstName: editFirst, lastName: editLast, defaultDepartment: editDept || null });
       setProfileMsg({ ok: true, text: "Profil uložen." });
     } catch (err) {
       setProfileMsg({ ok: false, text: err instanceof Error ? err.message : "Chyba." });
@@ -360,85 +362,110 @@ export default function ProfilePage({
   const hasGoogle = linkedProviders.includes("google");
   const hasCredentials = linkedProviders.includes("credentials");
   const maxSpending = Math.max(...monthlyHistory.map((m) => m.spending), 1);
+  const deptLabel = departments.find((d) => d.name === editDept)?.label;
 
   return (
     <div className="k-shell">
-      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-        <div className="max-w-2xl mx-auto w-full flex flex-col gap-4">
 
-          {/* ── Hero karta ── */}
-          <div className="glass-card rounded-3xl overflow-hidden">
-            <div className="p-5 md:p-6" style={{ background: "rgba(245,158,11,0.04)" }}>
-              <div className="flex items-start gap-4 mb-4">
-                <InitialsAvatar firstName={editFirst || firstName} lastName={editLast || lastName} />
-                <div className="flex-1 min-w-0 pt-1">
-                  <p className="font-display font-bold text-[19px] text-stone-900 leading-tight truncate">{displayName}</p>
-                  {email && <p className="text-[12.5px] text-stone-500 mt-0.5 truncate">{email}</p>}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+      {/* Desktop topbar */}
+      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
+        <MIcon name="person" size={16} fill style={{ color: "#D97706" }} />
+        <span className="font-display font-bold text-[15px] text-stone-900">Profil</span>
+        <div className="ml-auto flex items-center gap-2">
+          {showSettingsLink && (
+            <a
+              href="/nastaveni"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-500 glass-btn hover:text-stone-700 transition"
+            >
+              <MIcon name="settings" size={14} />
+              Nastavení
+            </a>
+          )}
+          <button
+            onClick={() => { setLoggingOut(true); signOut({ callbackUrl: "/login" }); }}
+            disabled={loggingOut}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-stone-500 glass-btn hover:text-stone-700 transition disabled:opacity-50"
+          >
+            <MIcon name="logout" size={14} />
+            {loggingOut ? "Odhlašuji…" : "Odhlásit"}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile topbar */}
+      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2">
+        <span className="font-display font-bold text-[14px] text-stone-900">Profil</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          {showSettingsLink && (
+            <a href="/nastaveni" className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 transition">
+              <MIcon name="settings" size={16} />
+            </a>
+          )}
+          <button
+            onClick={() => { setLoggingOut(true); signOut({ callbackUrl: "/login" }); }}
+            disabled={loggingOut}
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 transition disabled:opacity-50"
+          >
+            <MIcon name="logout" size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav lg:pb-24">
+        <div className="max-w-6xl mx-auto w-full">
+
+          {/* ── User banner (vždy viditelný) ── */}
+          <div className="glass-card rounded-3xl overflow-hidden mb-4">
+            <div className="p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <InitialsAvatar firstName={editFirst || firstName} lastName={editLast || lastName} size={60} />
+              <div className="flex-1 min-w-0">
+                <p className="font-display font-bold text-[19px] text-stone-900 leading-tight truncate">{displayName}</p>
+                {email && <p className="text-[12.5px] text-stone-500 mt-0.5 truncate">{email}</p>}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                    style={isAdmin
+                      ? { background: "rgba(245,158,11,0.12)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }
+                      : { background: "rgba(0,0,0,0.05)", color: "#78716c", border: "1px solid rgba(0,0,0,0.08)" }
+                    }
+                  >
+                    {isAdmin ? "Admin" : "Uživatel"}
+                  </span>
+                  {deptLabel && (
                     <span
                       className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                      style={isAdmin
-                        ? { background: "rgba(245,158,11,0.12)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }
-                        : { background: "rgba(0,0,0,0.05)", color: "#78716c", border: "1px solid rgba(0,0,0,0.08)" }
-                      }
+                      style={{ background: "rgba(245,158,11,0.08)", color: "#92400e", border: "1px solid rgba(245,158,11,0.15)" }}
                     >
-                      {isAdmin ? "Admin" : "Uživatel"}
+                      {deptLabel}
                     </span>
-                    {editDept && departments.find((d) => d.name === editDept) && (
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                        style={{ background: "rgba(245,158,11,0.08)", color: "#92400e", border: "1px solid rgba(245,158,11,0.15)" }}
-                      >
-                        {departments.find((d) => d.name === editDept)?.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2">
-                    <span className="text-[11px] text-stone-400">
-                      Člen od <span className="text-stone-500 font-medium">{formatDate(createdAt)}</span>
-                    </span>
-                    <span className="text-[11px] text-stone-400">
-                      Naposledy <span className="text-stone-500 font-medium">{formatDate(lastLoginAt)}</span>
-                    </span>
-                  </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                  <span className="text-[11px] text-stone-400">
+                    Člen od <span className="text-stone-500 font-medium">{formatDate(createdAt)}</span>
+                  </span>
+                  <span className="text-[11px] text-stone-400">
+                    Naposledy <span className="text-stone-500 font-medium">{formatDate(lastLoginAt)}</span>
+                  </span>
                 </div>
               </div>
-
-              {/* Stats 2×2 */}
-              <div className="grid grid-cols-2 gap-2">
-                <StatTile icon="restaurant_menu" value={totalOrders} label="objednávek celkem" />
-                <StatTile icon="calendar_today" value={thisMonthOrders} label="tento měsíc" />
-                <StatTile icon="payments" value={monthlySpending > 0 ? `${monthlySpending} Kč` : "—"} label="výdaje / měsíc" />
-                <StatTile icon="star" value={favoriteDish ?? "—"} label="oblíbené" />
+              <div className="flex sm:flex-col gap-2 w-full sm:w-auto sm:min-w-[140px]">
+                <div className="flex gap-2 flex-1">
+                  <StatTile icon="restaurant_menu" value={totalOrders} label="celkem" />
+                  <StatTile icon="calendar_today" value={thisMonthOrders} label="tento měsíc" />
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <StatTile icon="payments" value={monthlySpending > 0 ? `${monthlySpending} Kč` : "—"} label="/ měsíc" />
+                  <StatTile icon="star" value={favoriteDish ?? "—"} label="oblíbené" />
+                </div>
               </div>
-            </div>
-
-            {/* Akce */}
-            <div className="px-4 pb-4 flex flex-col gap-1.5 border-t border-white/40 pt-3">
-              {showSettingsLink && (
-                <a
-                  href="/nastaveni"
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition"
-                >
-                  <MIcon name="settings" size={15} />
-                  Nastavení aplikace
-                </a>
-              )}
-              <button
-                onClick={() => { setLoggingOut(true); signOut({ callbackUrl: "/login" }); }}
-                disabled={loggingOut}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-500 glass-btn hover:text-stone-700 transition disabled:opacity-50"
-              >
-                <MIcon name="logout" size={15} />
-                {loggingOut ? "Odhlašuji…" : "Odhlásit se"}
-              </button>
             </div>
           </div>
 
           {/* ── Banner: neověřený e-mail ── */}
           {!emailVerified && email && (
             <div
-              className="flex items-start gap-3 px-4 py-3 rounded-2xl text-[12.5px] text-stone-700"
+              className="flex items-start gap-3 px-4 py-3 rounded-2xl text-[12.5px] text-stone-700 mb-4"
               style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}
             >
               <MIcon name="mail" size={18} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
@@ -458,317 +485,395 @@ export default function ProfilePage({
             </div>
           )}
 
-          {/* ── Nastavení účtu ── */}
-          <SectionCard title="Nastavení účtu" icon="edit" accent>
-            <form onSubmit={handleSaveProfile} className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <FieldLabel>Jméno</FieldLabel>
-                  <TextInput value={editFirst} onChange={setEditFirst} />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <FieldLabel>Příjmení</FieldLabel>
-                  <TextInput value={editLast} onChange={setEditLast} />
-                </div>
-              </div>
+          {/* ── Tabs + content grid ── */}
+          <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-5">
 
-              <div className="flex flex-col gap-1">
-                <FieldLabel>E-mail</FieldLabel>
-                <div className="relative">
-                  <TextInput value={email ?? ""} disabled />
-                  {hasPassword && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stone-400">
-                      změnit níže
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {departments.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  <FieldLabel>Výchozí oddělení</FieldLabel>
-                  <p className="text-[11px] text-stone-400 -mt-0.5">Vaše oddělení bude označeno hvězdičkou v objednávce</p>
-                  <select
-                    value={editDept}
-                    onChange={(e) => setEditDept(e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 text-[13px] bg-white/60 border border-white/70 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
-                  >
-                    <option value="">— žádné —</option>
-                    {departments.map((d) => (
-                      <option key={d.name} value={d.name}>{d.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <StatusMsg msg={profileMsg} />
-              <OrangeButton disabled={profileSaving}>{profileSaving ? "Ukládám…" : "Uložit změny"}</OrangeButton>
-            </form>
-          </SectionCard>
-
-          {/* ── Přihlašovací metody ── */}
-          <SectionCard title="Přihlašovací metody" icon="lock">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap gap-2">
-                {hasCredentials && (
-                  <div
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
-                    style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
-                  >
-                    <MIcon name="lock" size={13} style={{ color: "#78716c" }} />
-                    Email a heslo
-                  </div>
-                )}
-                {hasGoogle && (
-                  <div
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
-                    style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
-                  >
-                    <GoogleIcon size={14} />
-                    Google
-                  </div>
-                )}
-              </div>
-              {hasCredentials && !hasGoogle && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-[11.5px] text-stone-500">Propojením s Google se budete moci přihlásit oběma způsoby.</p>
-                  <button
-                    type="button"
-                    onClick={() => signIn("google", { callbackUrl: "/profil" })}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition self-start"
-                  >
-                    <GoogleIcon size={15} />
-                    Propojit Google účet
-                  </button>
-                </div>
-              )}
-              {!hasCredentials && !hasGoogle && (
-                <p className="text-[12px] text-stone-400">Žádná přihlašovací metoda není propojena.</p>
-              )}
-              <div className="pt-2 border-t border-white/40 flex flex-col gap-1.5">
-                <p className="text-[11.5px] text-stone-500">Odhlásí všechna ostatní zařízení a prohlížeče kde jste přihlášeni.</p>
+            {/* Sidebar (desktop) */}
+            <nav className="hidden lg:flex flex-col gap-1 sticky top-0 self-start">
+              {TABS.map((tab) => (
                 <button
+                  key={tab.id}
                   type="button"
-                  onClick={handleRevokeAllSessions}
-                  disabled={revokeLoading}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition disabled:opacity-50 self-start"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`settings-tab${activeTab === tab.id ? " active" : ""}`}
                 >
-                  <MIcon name="logout" size={15} />
-                  {revokeLoading ? "Odhlašuji…" : "Odhlásit ze všech zařízení"}
-                </button>
-                <StatusMsg msg={revokeMsg} />
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* ── Změna e-mailu (jen Credentials uživatelé) ── */}
-          {hasPassword && (
-            <SectionCard title="Změna e-mailu" icon="mail">
-              <form onSubmit={handleChangeEmail} className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <FieldLabel>Nový e-mail</FieldLabel>
-                  <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder={email ?? ""} />
-                </div>
-                <PasswordInput id="emailPwd" label="Potvrdit heslem" value={emailPwd} onChange={setEmailPwd} placeholder="Vaše současné heslo" />
-                <StatusMsg msg={emailMsg} />
-                <OrangeButton disabled={emailSaving || !newEmail || !emailPwd}>
-                  {emailSaving ? "Měním…" : "Změnit e-mail"}
-                </OrangeButton>
-              </form>
-            </SectionCard>
-          )}
-
-          {/* ── Změna hesla ── */}
-          {hasPassword && (
-            <SectionCard title="Změna hesla" icon="lock">
-              <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
-                <PasswordInput id="oldPwd" label="Stávající heslo" value={oldPwd} onChange={setOldPwd} placeholder="Vaše současné heslo" />
-                <PasswordInput id="newPwd" label="Nové heslo" value={newPwd} onChange={setNewPwd} placeholder="Alespoň 6 znaků" />
-                <PasswordInput id="confirmPwd" label="Nové heslo znovu" value={confirmPwd} onChange={setConfirmPwd} placeholder="Zopakujte nové heslo" />
-                <StatusMsg msg={pwdMsg} />
-                <OrangeButton disabled={pwdSaving || !oldPwd || !newPwd || !confirmPwd}>
-                  {pwdSaving ? "Měním…" : "Změnit heslo"}
-                </OrangeButton>
-              </form>
-            </SectionCard>
-          )}
-
-          {/* Google uživatel bez hesla */}
-          {!hasPassword && (
-            <div
-              className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[12px] text-stone-500"
-              style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              <MIcon name="info" size={16} style={{ color: "#94a3b8", flexShrink: 0 }} />
-              Přihlašuješ se přes Google — e-mail a heslo spravuješ v účtu Google.
-            </div>
-          )}
-
-          {/* ── Notifikace ── */}
-          <SectionCard title="Notifikace" icon="notifications">
-            <div className="flex flex-col gap-3">
-              <Toggle
-                checked={emailConfLocal}
-                onChange={handleEmailConfToggle}
-                label="E-mail při odeslání objednávky"
-                description="Potvrzení e-mailem co jste si objednali"
-              />
-              {pushSupported && (
-                <Toggle
-                  checked={pushGranted}
-                  onChange={handlePushToggle}
-                  label="Push notifikace"
-                  description={pushGranted ? "Notifikace povoleny v tomto prohlížeči" : "Povolte pro připomenutí objednávky"}
-                />
-              )}
-              {telegramConfigured && (
-                <div className="flex items-start gap-2 pt-2 border-t border-white/40">
-                  <MIcon name="send" size={16} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
-                  <div>
-                    <div className="text-[13px] font-semibold text-stone-800">Telegram bot</div>
-                    <div className="text-[11.5px] text-stone-500 mt-0.5">
-                      {telegramBotUrl
-                        ? (
-                          <><a href={telegramBotUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline">Přidat bota</a> a odeslat /start</>
-                        )
-                        : "Bot je aktivní — zeptejte se správce na odkaz"}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <StatusMsg msg={notifMsg} />
-            </div>
-          </SectionCard>
-
-          {/* ── Moje objednávky ── */}
-          <SectionCard title="Moje objednávky" icon="history">
-            {orders === null ? (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <MIcon name="restaurant_menu" size={32} style={{ color: "#d6d3d1" }} />
-                <p className="text-[12.5px] text-stone-400 text-center">
-                  {totalOrders > 0
-                    ? `Celkem ${totalOrders} objednávek. Kliknutím načtěte historii.`
-                    : "Zatím žádné objednávky."}
-                </p>
-                {totalOrders > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleLoadOrders}
-                    disabled={ordersLoading}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn disabled:opacity-50"
-                  >
-                    <MIcon name="history" size={15} />
-                    {ordersLoading ? "Načítám…" : "Načíst historii"}
-                  </button>
-                )}
-              </div>
-            ) : orders.length === 0 ? (
-              <p className="text-[12.5px] text-stone-400 text-center py-3">Žádné objednávky nenalezeny.</p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                <p className="text-[11.5px] text-stone-400 mb-1">{orders.length} posledních objednávek</p>
-                {orders.map((o) => (
-                  <div key={o.date} className="flex items-center justify-between gap-3 py-2 border-b border-white/40 last:border-0">
-                    <span className="text-[12.5px] font-semibold text-stone-700">{formatDate(o.date)}</span>
-                    <span className="text-[12px] text-stone-500 truncate max-w-[55%] text-right">{o.mainDish ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* ── Historie útrat ── */}
-          {monthlyHistory.some((m) => m.spending > 0) && (
-            <SectionCard title="Historie útrat" icon="payments">
-              <div className="flex flex-col gap-2.5">
-                {monthlyHistory.map((m) => (
-                  <div key={m.month} className="flex items-center gap-3">
-                    <div className="text-[11.5px] text-stone-500 w-24 shrink-0 text-right leading-tight">{m.month}</div>
-                    <div className="flex-1 h-5 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.05)" }}>
-                      <div
-                        className="h-full rounded-lg"
-                        style={{
-                          width: m.spending > 0 ? `${Math.max((m.spending / maxSpending) * 100, 4)}%` : "0%",
-                          background: "linear-gradient(90deg,#F59E0B,#EA580C)",
-                          transition: "width 0.4s ease",
-                        }}
-                      />
-                    </div>
-                    <div className="text-[12px] font-semibold text-stone-700 w-14 shrink-0 text-right">
-                      {m.spending > 0 ? `${m.spending} Kč` : "—"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          )}
-
-          {/* ── QR kód profilu ── */}
-          <SectionCard title="QR kód profilu" icon="qr_code">
-            <div className="flex flex-col items-center gap-3 py-1">
-              <p className="text-[12px] text-stone-500 text-center">
-                Použijte QR kód pro rychlou identifikaci při výdeji jídla.
-              </p>
-              {!showQr ? (
-                <OrangeButton type="button" onClick={() => setShowQr(true)}>
-                  Zobrazit QR kód
-                </OrangeButton>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <img
-                    src="/api/profil/qr"
-                    alt="QR kód profilu"
-                    width={180}
-                    height={180}
-                    className="rounded-2xl"
-                    style={{ imageRendering: "pixelated" }}
+                  <MIcon
+                    name={tab.icon as "person"}
+                    size={15}
+                    fill={activeTab === tab.id}
+                    style={{ color: activeTab === tab.id ? "#D97706" : "#78716c" }}
                   />
-                  <p className="text-[12px] text-stone-500 font-semibold">
-                    {`${firstName} ${lastName}`.trim()}
-                  </p>
-                </div>
-              )}
-            </div>
-          </SectionCard>
+                  <span className="settings-tab__label">{tab.label}</span>
+                </button>
+              ))}
+            </nav>
 
-          {/* ── Smazat účet ── */}
-          <div className="glass-card rounded-3xl overflow-hidden">
-            <div
-              className="flex items-center gap-2 px-5 py-3.5 border-b border-white/40 cursor-pointer select-none"
-              style={{ background: deleteOpen ? "rgba(239,68,68,0.04)" : undefined }}
-              onClick={() => { setDeleteOpen((v) => !v); setDeleteMsg(null); setDeletePwd(""); }}
-            >
-              <MIcon name="delete_forever" size={16} style={{ color: "#ef4444" }} />
-              <span className="font-display font-bold text-[13.5px] text-red-600 flex-1">Smazat účet</span>
-              <MIcon name={deleteOpen ? "expand_less" : "expand_more"} size={16} style={{ color: "#ef4444" }} />
+            {/* Horizontal tabs (mobile + tablet) */}
+            <div className="lg:hidden overflow-x-auto no-scrollbar -mx-1 px-1 mb-4">
+              <div
+                className="flex p-1 rounded-2xl gap-0.5"
+                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+              >
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                    }`}
+                    style={activeTab === tab.id ? {
+                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                    } : {}}
+                  >
+                    <MIcon name={tab.icon as "person"} size={14} />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            {deleteOpen && (
-              <div className="p-4 md:p-5 flex flex-col gap-3">
-                <p className="text-[12.5px] text-stone-600 leading-relaxed">
-                  Tato akce je <strong>nevratná</strong>. Váš účet bude deaktivován a osobní údaje smazány. Objednávky v historii zůstanou anonymizované.
-                </p>
-                <form onSubmit={handleDeleteAccount} className="flex flex-col gap-3">
+
+            {/* Content */}
+            <div className="space-y-4 mt-4 lg:mt-0">
+
+              {/* ── PROFIL ── */}
+              {activeTab === "profil" && (
+                <Section title="Nastavení účtu" icon="edit">
+                  <form onSubmit={handleSaveProfile} className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <FieldLabel>Jméno</FieldLabel>
+                        <TextInput value={editFirst} onChange={setEditFirst} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <FieldLabel>Příjmení</FieldLabel>
+                        <TextInput value={editLast} onChange={setEditLast} />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <FieldLabel>E-mail</FieldLabel>
+                      <div className="relative">
+                        <TextInput value={email ?? ""} disabled />
+                        {hasPassword && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stone-400">
+                            změnit v Zabezpečení
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {departments.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <FieldLabel>Výchozí oddělení</FieldLabel>
+                        <p className="text-[11px] text-stone-400 -mt-0.5">Vaše oddělení bude označeno hvězdičkou v objednávce</p>
+                        <select
+                          value={editDept}
+                          onChange={(e) => setEditDept(e.target.value)}
+                          className="w-full rounded-xl px-3 py-2.5 text-[13px] bg-white/60 border border-white/70 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                        >
+                          <option value="">— žádné —</option>
+                          {departments.map((d) => (
+                            <option key={d.name} value={d.name}>{d.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <StatusMsg msg={profileMsg} />
+                    <OrangeButton disabled={profileSaving}>{profileSaving ? "Ukládám…" : "Uložit změny"}</OrangeButton>
+                  </form>
+                </Section>
+              )}
+
+              {/* ── ZABEZPEČENÍ ── */}
+              {activeTab === "zabezpeceni" && (
+                <>
+                  <Section title="Přihlašovací metody" icon="lock">
+                    <div className="flex flex-wrap gap-2">
+                      {hasCredentials && (
+                        <div
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                          style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
+                        >
+                          <MIcon name="lock" size={13} style={{ color: "#78716c" }} />
+                          Email a heslo
+                        </div>
+                      )}
+                      {hasGoogle && (
+                        <div
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-stone-700"
+                          style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)" }}
+                        >
+                          <GoogleIcon size={14} />
+                          Google
+                        </div>
+                      )}
+                      {!hasCredentials && !hasGoogle && (
+                        <p className="text-[12px] text-stone-400">Žádná přihlašovací metoda není propojena.</p>
+                      )}
+                    </div>
+                    {hasCredentials && !hasGoogle && (
+                      <div className="flex flex-col gap-1.5 pt-2 border-t border-white/40">
+                        <p className="text-[11.5px] text-stone-500">Propojením s Google se budete moci přihlásit oběma způsoby.</p>
+                        <button
+                          type="button"
+                          onClick={() => signIn("google", { callbackUrl: "/profil" })}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition self-start"
+                        >
+                          <GoogleIcon size={15} />
+                          Propojit Google účet
+                        </button>
+                      </div>
+                    )}
+                    {!hasPassword && (
+                      <div
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[12px] text-stone-500"
+                        style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.07)" }}
+                      >
+                        <MIcon name="info" size={16} style={{ color: "#94a3b8", flexShrink: 0 }} />
+                        Přihlašuješ se přes Google — e-mail a heslo spravuješ v účtu Google.
+                      </div>
+                    )}
+                  </Section>
+
                   {hasPassword && (
-                    <PasswordInput
-                      id="deletePwd"
-                      label="Potvrdit heslem"
-                      value={deletePwd}
-                      onChange={setDeletePwd}
-                      placeholder="Vaše současné heslo"
+                    <Section title="Změna e-mailu" icon="mail">
+                      <form onSubmit={handleChangeEmail} className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1">
+                          <FieldLabel>Nový e-mail</FieldLabel>
+                          <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder={email ?? ""} />
+                        </div>
+                        <PasswordInput id="emailPwd" label="Potvrdit heslem" value={emailPwd} onChange={setEmailPwd} placeholder="Vaše současné heslo" />
+                        <StatusMsg msg={emailMsg} />
+                        <OrangeButton disabled={emailSaving || !newEmail || !emailPwd}>
+                          {emailSaving ? "Měním…" : "Změnit e-mail"}
+                        </OrangeButton>
+                      </form>
+                    </Section>
+                  )}
+
+                  {hasPassword && (
+                    <Section title="Změna hesla" icon="key">
+                      <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
+                        <PasswordInput id="oldPwd" label="Stávající heslo" value={oldPwd} onChange={setOldPwd} placeholder="Vaše současné heslo" />
+                        <PasswordInput id="newPwd" label="Nové heslo" value={newPwd} onChange={setNewPwd} placeholder="Alespoň 6 znaků" />
+                        <PasswordInput id="confirmPwd" label="Nové heslo znovu" value={confirmPwd} onChange={setConfirmPwd} placeholder="Zopakujte nové heslo" />
+                        <StatusMsg msg={pwdMsg} />
+                        <OrangeButton disabled={pwdSaving || !oldPwd || !newPwd || !confirmPwd}>
+                          {pwdSaving ? "Měním…" : "Změnit heslo"}
+                        </OrangeButton>
+                      </form>
+                    </Section>
+                  )}
+
+                  <Section title="Aktivní relace" icon="devices">
+                    <p className="text-[12px] text-stone-500">Odhlásí všechna ostatní zařízení a prohlížeče kde jste přihlášeni. Toto zařízení zůstane přihlášeno.</p>
+                    <button
+                      type="button"
+                      onClick={handleRevokeAllSessions}
+                      disabled={revokeLoading}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn hover:text-stone-800 transition disabled:opacity-50 self-start"
+                    >
+                      <MIcon name="logout" size={15} />
+                      {revokeLoading ? "Odhlašuji…" : "Odhlásit ze všech zařízení"}
+                    </button>
+                    <StatusMsg msg={revokeMsg} />
+                  </Section>
+                </>
+              )}
+
+              {/* ── NOTIFIKACE ── */}
+              {activeTab === "notifikace" && (
+                <Section title="Notifikace" icon="notifications">
+                  <Toggle
+                    checked={emailConfLocal}
+                    onChange={handleEmailConfToggle}
+                    label="E-mail při odeslání objednávky"
+                    description="Potvrzení e-mailem co jste si objednali"
+                  />
+                  {pushSupported && (
+                    <Toggle
+                      checked={pushGranted}
+                      onChange={handlePushToggle}
+                      label="Push notifikace"
+                      description={pushGranted ? "Notifikace povoleny v tomto prohlížeči" : "Povolte pro připomenutí objednávky"}
                     />
                   )}
-                  <StatusMsg msg={deleteMsg} />
-                  <button
-                    type="submit"
-                    disabled={deleteLoading || (hasPassword && !deletePwd)}
-                    className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
-                  >
-                    {deleteLoading ? "Mažu účet…" : "Trvale smazat účet"}
-                  </button>
-                </form>
-              </div>
-            )}
+                  {telegramConfigured && (
+                    <div className="flex items-start gap-2 pt-2 border-t border-white/40">
+                      <MIcon name="send" size={16} style={{ color: "#D97706", marginTop: 1, flexShrink: 0 }} />
+                      <div>
+                        <div className="text-[13px] font-semibold text-stone-800">Telegram bot</div>
+                        <div className="text-[11.5px] text-stone-500 mt-0.5">
+                          {telegramBotUrl
+                            ? (<><a href={telegramBotUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline">Přidat bota</a> a odeslat /start</>)
+                            : "Bot je aktivní — zeptejte se správce na odkaz"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <StatusMsg msg={notifMsg} />
+                </Section>
+              )}
+
+              {/* ── AKTIVITA ── */}
+              {activeTab === "aktivita" && (
+                <>
+                  <Section title="Moje objednávky" icon="history">
+                    {orders === null ? (
+                      <div className="flex flex-col items-center gap-3 py-4">
+                        <MIcon name="restaurant_menu" size={32} style={{ color: "#d6d3d1" }} />
+                        <p className="text-[12.5px] text-stone-400 text-center">
+                          {totalOrders > 0
+                            ? `Celkem ${totalOrders} objednávek. Kliknutím načtěte historii.`
+                            : "Zatím žádné objednávky."}
+                        </p>
+                        {totalOrders > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleLoadOrders}
+                            disabled={ordersLoading}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-600 glass-btn disabled:opacity-50"
+                          >
+                            <MIcon name="history" size={15} />
+                            {ordersLoading ? "Načítám…" : "Načíst historii"}
+                          </button>
+                        )}
+                      </div>
+                    ) : orders.length === 0 ? (
+                      <p className="text-[12.5px] text-stone-400 text-center py-3">Žádné objednávky nenalezeny.</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[11.5px] text-stone-400 mb-1">{orders.length} posledních objednávek</p>
+                        {orders.map((o) => (
+                          <div key={o.date} className="flex items-center justify-between gap-3 py-2 border-b border-white/40 last:border-0">
+                            <span className="text-[12.5px] font-semibold text-stone-700">{formatDate(o.date)}</span>
+                            <span className="text-[12px] text-stone-500 truncate max-w-[55%] text-right">{o.mainDish ?? "—"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Section>
+
+                  {monthlyHistory.some((m) => m.spending > 0) && (
+                    <Section title="Historie útrat" icon="payments">
+                      <div className="flex flex-col gap-2.5">
+                        {monthlyHistory.map((m) => (
+                          <div key={m.month} className="flex items-center gap-3">
+                            <div className="text-[11.5px] text-stone-500 w-24 shrink-0 text-right leading-tight">{m.month}</div>
+                            <div className="flex-1 h-5 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.05)" }}>
+                              <div
+                                className="h-full rounded-lg"
+                                style={{
+                                  width: m.spending > 0 ? `${Math.max((m.spending / maxSpending) * 100, 4)}%` : "0%",
+                                  background: "linear-gradient(90deg,#F59E0B,#EA580C)",
+                                  transition: "width 0.4s ease",
+                                }}
+                              />
+                            </div>
+                            <div className="text-[12px] font-semibold text-stone-700 w-14 shrink-0 text-right">
+                              {m.spending > 0 ? `${m.spending} Kč` : "—"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  <Section title="QR kód profilu" icon="qr_code">
+                    <p className="text-[12px] text-stone-500 text-center">
+                      Použijte QR kód pro rychlou identifikaci při výdeji jídla.
+                    </p>
+                    {!showQr ? (
+                      <div className="flex justify-center">
+                        <OrangeButton type="button" onClick={() => setShowQr(true)}>
+                          Zobrazit QR kód
+                        </OrangeButton>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <img
+                          src="/api/profil/qr"
+                          alt="QR kód profilu"
+                          width={180}
+                          height={180}
+                          className="rounded-2xl"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                        <p className="text-[12px] text-stone-500 font-semibold">
+                          {`${firstName} ${lastName}`.trim()}
+                        </p>
+                      </div>
+                    )}
+                  </Section>
+                </>
+              )}
+
+              {/* ── ÚČET ── */}
+              {activeTab === "ucet" && (
+                <>
+                  <Section title="Informace o účtu" icon="info">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center py-2 border-b border-white/40">
+                        <span className="text-[12.5px] text-stone-500">Člen od</span>
+                        <span className="text-[12.5px] font-semibold text-stone-800">{formatDate(createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/40">
+                        <span className="text-[12.5px] text-stone-500">Naposledy přihlášen</span>
+                        <span className="text-[12.5px] font-semibold text-stone-800">{formatDate(lastLoginAt)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/40">
+                        <span className="text-[12.5px] text-stone-500">Role</span>
+                        <span className="text-[12.5px] font-semibold text-stone-800">{isAdmin ? "Administrátor" : "Uživatel"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-[12.5px] text-stone-500">Celkem objednávek</span>
+                        <span className="text-[12.5px] font-semibold text-stone-800">{totalOrders}</span>
+                      </div>
+                    </div>
+                  </Section>
+
+                  <div className="glass-card rounded-3xl overflow-hidden border border-red-100/60">
+                    <div
+                      className="flex items-center gap-2 px-5 py-3.5 border-b border-white/40 cursor-pointer select-none"
+                      style={{ background: deleteOpen ? "rgba(239,68,68,0.04)" : undefined }}
+                      onClick={() => { setDeleteOpen((v) => !v); setDeleteMsg(null); setDeletePwd(""); }}
+                    >
+                      <MIcon name="delete_forever" size={16} style={{ color: "#ef4444" }} />
+                      <span className="font-display font-bold text-[13.5px] text-red-600 flex-1">Smazat účet</span>
+                      <MIcon name={deleteOpen ? "expand_less" : "expand_more"} size={16} style={{ color: "#ef4444" }} />
+                    </div>
+                    {deleteOpen && (
+                      <div className="p-4 md:p-5 flex flex-col gap-3">
+                        <p className="text-[12.5px] text-stone-600 leading-relaxed">
+                          Tato akce je <strong>nevratná</strong>. Váš účet bude deaktivován a osobní údaje smazány. Objednávky v historii zůstanou anonymizované.
+                        </p>
+                        <form onSubmit={handleDeleteAccount} className="flex flex-col gap-3">
+                          {hasPassword && (
+                            <PasswordInput
+                              id="deletePwd"
+                              label="Potvrdit heslem"
+                              value={deletePwd}
+                              onChange={setDeletePwd}
+                              placeholder="Vaše současné heslo"
+                            />
+                          )}
+                          <StatusMsg msg={deleteMsg} />
+                          <button
+                            type="submit"
+                            disabled={deleteLoading || (hasPassword && !deletePwd)}
+                            className="self-start px-4 py-2 rounded-xl text-[12.5px] font-semibold text-white transition disabled:opacity-50"
+                            style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
+                          >
+                            {deleteLoading ? "Mažu účet…" : "Trvale smazat účet"}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+            </div>
           </div>
 
         </div>
