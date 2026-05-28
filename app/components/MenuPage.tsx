@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo } from "react";
+import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo, useId } from "react";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
 import type { ParsedMenuItem, ParseResult } from "@/lib/parse-menu";
@@ -446,6 +446,7 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
   onRequestDelete: (id: number) => void;
   onClose: () => void;
 }) {
+  const titleId = useId();
   const [code, setCode] = useState(item.code);
   const [name, setName] = useState(item.name);
   const [activeAllergens, setActiveAllergens] = useState<Set<number>>(() =>
@@ -482,13 +483,13 @@ function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }:
         className="modal-sheet !w-full sm:!w-[420px]"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="item-edit-modal-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="item-edit-modal-title">
+          <h3 className="modal-sheet__title" id={titleId}>
             Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
           </h3>
           <button
@@ -836,6 +837,7 @@ export default function MenuPage({
   hasPdfNext,
   userDefaultDepartment = null,
 }: Props) {
+  const importTitleId = useId();
   const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
   const [nextMenu, setNextMenu] = useState(initialNextMenu);
   // Sync state when server pushes new props (after router.refresh() following an import)
@@ -1466,13 +1468,13 @@ export default function MenuPage({
             className={`modal-sheet${importState.phase === "preview" ? " !w-full sm:!w-[760px]" : ""}`}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="import-modal-title"
+            aria-labelledby={importTitleId}
             onClick={(e) => e.stopPropagation()}
             ref={importSheetRef}
           >
             <div className="modal-sheet__drag-handle" aria-hidden />
             <div className="modal-sheet__header">
-              <h3 className="modal-sheet__title" id="import-modal-title">
+              <h3 className="modal-sheet__title" id={importTitleId}>
                 {importState.phase === "preview" ? "Náhled importu" : "Importovat PDF jídelníčku"}
               </h3>
               <button

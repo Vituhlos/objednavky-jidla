@@ -3,6 +3,7 @@
 import { useEffect, useRef, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import MIcon from "./MIcon";
+import { useFocusTrap } from "@/app/hooks/useFocusTrap";
 
 export function ConfirmModal({
   title,
@@ -30,6 +31,7 @@ export function ConfirmModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<Element | null>(null);
+  useFocusTrap(dialogRef, mounted);
 
   // Mount + focus save/restore
   useEffect(() => {
@@ -53,29 +55,6 @@ export function ConfirmModal({
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
-
-  // Focus trap
-  useEffect(() => {
-    if (!mounted) return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || !dialogRef.current) return;
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
-    };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [mounted]);
 
   if (!mounted) return null;
 

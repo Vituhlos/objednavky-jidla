@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useTransition, useRef, useEffect, memo, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
@@ -419,6 +419,7 @@ export default function SettingsPage({
   const [webhookMsg, setWebhookMsg] = useState("");
   const [commandsStatus, setCommandsStatus] = useState<"idle" | "pending" | "ok" | "error">("idle");
   const [showTelegramHelp, setShowTelegramHelp] = useState(false);
+  const telegramHelpTitleId = useId();
   const { sheetRef: telegramHelpSheetRef, sheetElRef: telegramHelpElRef } = useModalSwipe(useCallback(() => setShowTelegramHelp(false), []));
   useFocusTrap(telegramHelpElRef, showTelegramHelp);
   useEffect(() => {
@@ -441,6 +442,7 @@ export default function SettingsPage({
   const [linkCopied, setLinkCopied] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [showGoogleHelp, setShowGoogleHelp] = useState(false);
+  const googleHelpTitleId = useId();
   const { sheetRef: googleHelpSheetRef, sheetElRef: googleHelpElRef } = useModalSwipe(useCallback(() => setShowGoogleHelp(false), []));
   useFocusTrap(googleHelpElRef, showGoogleHelp);
   useEffect(() => {
@@ -2298,10 +2300,18 @@ export default function SettingsPage({
                 {/* Telegram help modal */}
                 {showTelegramHelp && (
                   <div className="modal-overlay" onClick={() => setShowTelegramHelp(false)}>
-                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()} ref={telegramHelpSheetRef}>
+                    <div
+                      className="modal-sheet"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby={telegramHelpTitleId}
+                      style={{ maxWidth: 520 }}
+                      onClick={(e) => e.stopPropagation()}
+                      ref={telegramHelpSheetRef}
+                    >
                       <div className="modal-sheet__drag-handle" aria-hidden />
                       <div className="modal-sheet__header">
-                        <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
+                        <h3 className="modal-sheet__title" id={telegramHelpTitleId}>Jak nastavit Telegram bota</h3>
                         <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
                       </div>
                       <div className="modal-sheet__body space-y-4">
@@ -2414,10 +2424,18 @@ export default function SettingsPage({
         {/* Google help modal */}
         {showGoogleHelp && (
           <div className="modal-overlay" onClick={() => setShowGoogleHelp(false)}>
-            <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()} ref={googleHelpSheetRef}>
+            <div
+              className="modal-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={googleHelpTitleId}
+              style={{ maxWidth: 540 }}
+              onClick={(e) => e.stopPropagation()}
+              ref={googleHelpSheetRef}
+            >
               <div className="modal-sheet__drag-handle" aria-hidden />
               <div className="modal-sheet__header">
-                <h3 className="modal-sheet__title">Jak nastavit Google přihlášení</h3>
+                <h3 className="modal-sheet__title" id={googleHelpTitleId}>Jak nastavit Google přihlášení</h3>
                 <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowGoogleHelp(false)} type="button">×</button>
               </div>
               <div className="modal-sheet__body space-y-4">

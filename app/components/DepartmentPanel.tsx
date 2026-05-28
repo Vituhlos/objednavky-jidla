@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useRef, useEffect, memo, useCallback, useId } from "react";
 import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
@@ -243,6 +243,7 @@ function OrderEditModal({
   existingNames: string[];
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
+  const titleId = useId();
   const [firstName, setFirstName] = useState(() => {
     if (row.personName) return row.personName.trim().split(/\s+/)[0] ?? "";
     try { return localStorage.getItem("lastFirstName") ?? ""; } catch { return ""; }
@@ -354,13 +355,13 @@ function OrderEditModal({
         className="modal-sheet"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="edit-modal-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="edit-modal-title">{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
+          <h3 className="modal-sheet__title" id={titleId}>{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
           <button
             aria-label="Zavřít"
             className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"

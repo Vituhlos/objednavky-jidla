@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef, useMemo, useId } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getHolidayEmoji } from "@/lib/holidays";
@@ -43,6 +43,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   const [advanced, setAdvanced] = useState(false);
   const { sheetRef, sheetElRef } = useModalSwipe(onClose);
   useFocusTrap(sheetElRef, true);
+  const titleId = useId();
 
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
@@ -69,14 +70,14 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         className="modal-sheet"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="help-modal-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         ref={sheetRef}
         style={{ maxWidth: 480 }}
       >
         <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
+          <h3 className="modal-sheet__title" id={titleId}>Jak objednat oběd</h3>
           <button
             aria-label="Zavřít"
             className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
