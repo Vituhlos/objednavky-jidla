@@ -8,7 +8,6 @@ import cz.pbas.kantyna.mobile.dto.TokenResponse
 import cz.pbas.kantyna.mobile.dto.UserProfile
 import cz.pbas.kantyna.mobile.network.ApiException
 import cz.pbas.kantyna.mobile.network.NetworkException
-import cz.pbas.kantyna.mobile.network.NetworkException
 import cz.pbas.kantyna.mobile.network.apiGet
 import cz.pbas.kantyna.mobile.network.apiPost
 import cz.pbas.kantyna.mobile.network.apiPostUnit
