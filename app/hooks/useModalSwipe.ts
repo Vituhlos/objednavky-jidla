@@ -153,6 +153,13 @@ export function useModalSwipe(onDismiss: () => void) {
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      // Prevent "ghost click" after a drag-dismiss: on iOS Safari/PWA a touch gesture
+      // can synthesize a click on the element underneath once the overlay unmounts.
+      // We only block it when a drag actually happened.
+      if (isDragging) {
+        try { e.preventDefault(); } catch {}
+        try { e.stopPropagation(); } catch {}
+      }
       if (!isDragging) { reset(); return; }
       const endY = e.changedTouches[0].clientY;
       const dy = endY - startY;
@@ -170,8 +177,8 @@ export function useModalSwipe(onDismiss: () => void) {
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: false });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: false });
 
     cleanupRef.current = () => {
       el.removeEventListener("touchstart", onTouchStart);
