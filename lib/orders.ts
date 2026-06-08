@@ -455,6 +455,20 @@ export interface OrderSummary {
   rowCount: number;
 }
 
+export function getOrderById(orderId: number): Order | null {
+  const row = getDb()
+    .prepare("SELECT * FROM orders WHERE id = ?")
+    .get(orderId) as Record<string, unknown> | undefined;
+  return row ? mapOrder(row) : null;
+}
+
+export function getOrderByRowId(rowId: number): Order | null {
+  const row = getDb()
+    .prepare("SELECT o.* FROM orders o JOIN order_rows r ON r.order_id = o.id WHERE r.id = ?")
+    .get(rowId) as Record<string, unknown> | undefined;
+  return row ? mapOrder(row) : null;
+}
+
 export function reopenOrder(orderId: number): void {
   getDb()
     .prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?")

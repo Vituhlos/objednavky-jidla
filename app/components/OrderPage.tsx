@@ -15,6 +15,7 @@ import {
   actionDeleteRow,
   actionSendOrder,
   actionReopenOrder,
+  actionUnlockCutoff,
   actionDismissAutoSendError,
 } from "@/app/actions";
 
@@ -184,6 +185,7 @@ export default function OrderPage({
   autoSendTime = "08:00",
   autoSendError,
   autoSendErrorTs,
+  forceOpenDate = "",
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -200,6 +202,7 @@ export default function OrderPage({
   autoSendTime?: string;
   autoSendError?: string;
   autoSendErrorTs?: string;
+  forceOpenDate?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -226,6 +229,11 @@ export default function OrderPage({
   const pendingDeleteRef = useRef<PendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [isForceOpen, setIsForceOpen] = useState(() => !!forceOpenDate && forceOpenDate === todayDate);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockPin, setUnlockPin] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
   // Sync state when selected date changes — component isn't remounted, only gets new props
   const prevOrderIdRef = useRef(initialData.order.id);
   if (prevOrderIdRef.current !== initialData.order.id) {
@@ -250,7 +258,6 @@ export default function OrderPage({
   }
 
   const isSent = orderStatus === "sent";
-
   // ── Live cutoff check ─────────────────────────────────────
   const checkCutoff = useCallback(() => {
     if (isFutureDay) return false;
@@ -264,6 +271,9 @@ export default function OrderPage({
     const id = setInterval(() => setIsPastCutoff(checkCutoff()), 30_000);
     return () => clearInterval(id);
   }, [checkCutoff]);
+
+  const isCutoffLocked = isPastCutoff && !isForceOpen && !isFutureDay;
+  const isOrderLocked = isSent || isCutoffLocked;
 
   // ── Real-time sync via SSE ────────────────────────────────
   const [sseConnected, setSseConnected] = useState(false);
@@ -529,6 +539,18 @@ export default function OrderPage({
       setSentAt(null);
     });
   }, [orderId]);
+
+  const handleUnlock = useCallback(async () => {
+    setUnlockError(null);
+    const result = await actionUnlockCutoff(unlockPin);
+    if (result.ok) {
+      setIsForceOpen(true);
+      setShowUnlockModal(false);
+      setUnlockPin("");
+    } else {
+      setUnlockError(result.error ?? "Chyba");
+    }
+  }, [unlockPin]);
 
   const commitDelete = useCallback((rowId: number) => {
     actionDeleteRow(rowId).catch(() => {});
@@ -982,7 +1004,7 @@ export default function OrderPage({
                     defaultSoupPrice={defaultSoupPrice}
                     existingNames={existingNames}
                     extrasPrices={extrasPrices}
-                    isSent={isSent}
+                    isSent={isOrderLocked}
                     key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
@@ -996,13 +1018,24 @@ export default function OrderPage({
               {/* Bottom status bar */}
               <div
                 className="glass rounded-2xl px-4 py-3 flex items-center gap-3"
-                style={isSent ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" } : {}}
+                style={
+                  isSent
+                    ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" }
+                    : isCutoffLocked
+                    ? { borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }
+                    : {}
+                }
               >
                 <div
                   className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
-                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : "rgba(100,116,139,0.1)" }}
+                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : isCutoffLocked ? "rgba(245,158,11,0.15)" : "rgba(100,116,139,0.1)" }}
                 >
-                  <MIcon name={isSent ? "check_circle" : "lock"} size={18} fill style={{ color: isSent ? "#16a34a" : "#94a3b8" }} />
+                  <MIcon
+                    name={isSent ? "check_circle" : isCutoffLocked ? "lock" : "lock_open"}
+                    size={18}
+                    fill
+                    style={{ color: isSent ? "#16a34a" : isCutoffLocked ? "#D97706" : "#94a3b8" }}
+                  />
                 </div>
                 <div className="flex-1 text-[12.5px] text-stone-700 leading-snug">
                   {isSent ? (
@@ -1010,6 +1043,11 @@ export default function OrderPage({
                       <strong className="text-green-700">Objednávka odeslána</strong>
                       {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
                       <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
+                    </>
+                  ) : isCutoffLocked ? (
+                    <>
+                      <strong className="text-amber-700">Objednávky uzavřeny</strong>
+                      <span className="text-stone-500"> · Uzávěrka proběhla v {cutoffTime}.</span>
                     </>
                   ) : isFutureDay ? (
                     <>
@@ -1019,11 +1057,20 @@ export default function OrderPage({
                   ) : (
                     <>
                       <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávku lze odeslat i po uzávěrce.</span>
+                      <span className="text-stone-500"> Objednávky se přijímají do {cutoffTime}.</span>
                     </>
                   )}
                 </div>
-                {!isSent && totalPrice > 0 && (
+                {isCutoffLocked && (
+                  <button
+                    className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-amber-700"
+                    onClick={() => { setShowUnlockModal(true); setUnlockPin(""); setUnlockError(null); }}
+                    type="button"
+                  >
+                    <MIcon name="lock_open" size={14} /> Odemknout
+                  </button>
+                )}
+                {!isOrderLocked && totalPrice > 0 && (
                   <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
                 )}
               </div>
@@ -1034,6 +1081,60 @@ export default function OrderPage({
 
       {/* ── Modals ── */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showUnlockModal && (
+        <div className="modal-overlay" onClick={() => setShowUnlockModal(false)}>
+          <div
+            className="modal-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unlock-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 400 }}
+          >
+            <div className="modal-sheet__header">
+              <h3 className="modal-sheet__title" id="unlock-modal-title">Odemknout objednávky</h3>
+              <button
+                aria-label="Zavřít"
+                className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+                onClick={() => setShowUnlockModal(false)}
+                type="button"
+              >×</button>
+            </div>
+            <div className="modal-sheet__body space-y-3">
+              <p className="text-[13px] text-stone-600">
+                Uzávěrka proběhla v <strong>{cutoffTime}</strong>. Zadejte administrátorský PIN pro otevření objednávek na zbytek dne.
+              </p>
+              <input
+                autoFocus
+                className="w-full px-3 py-2.5 rounded-2xl glass text-[14px] text-stone-800 outline-none focus:ring-2 focus:ring-amber-400/60 tracking-[0.3em] font-mono text-center"
+                inputMode="numeric"
+                maxLength={8}
+                onChange={(e) => { setUnlockPin(e.target.value); setUnlockError(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleUnlock(); }}
+                placeholder="PIN"
+                type="password"
+                value={unlockPin}
+              />
+              {unlockError && (
+                <p className="text-[12.5px] text-red-600 font-medium">{unlockError}</p>
+              )}
+            </div>
+            <div className="modal-sheet__footer">
+              <button
+                className="v2-btn v2-btn--secondary"
+                onClick={() => setShowUnlockModal(false)}
+                type="button"
+              >Zrušit</button>
+              <button
+                className="v2-btn v2-btn--primary"
+                disabled={!unlockPin}
+                onClick={handleUnlock}
+                type="button"
+              >Odemknout</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSendConfirm && (
         <ConfirmModal
           confirmLabel="Odeslat"

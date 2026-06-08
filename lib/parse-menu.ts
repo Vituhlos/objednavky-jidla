@@ -144,15 +144,25 @@ function normalizeCommaAlts(name: string): string {
   return parts.slice(0, i + 1).join(", ") + ", " + parts.slice(i + 1).join("/ ");
 }
 
+function cartesianProduct<T>(arrays: T[][]): T[][] {
+  return arrays.reduce<T[][]>(
+    (acc, curr) => acc.flatMap((a) => curr.map((c) => [...a, c])),
+    [[]]
+  );
+}
+
 // Recursively split "/" variants into separate items.
 //
 // Two patterns handled:
 //
-// 1. COMMA before slash → garnish/side variant (all parts after last comma):
+// 1. COMMA before slash → each comma-separated group after base may contain
+//    "/" alternatives; cartesian product of all groups is returned:
 //    "ptáček, rýže/ houskový knedlík"
 //      → ["ptáček, rýže", "ptáček, houskový knedlík"]
-//    "Katův šleh, rýže/ hranolky/ bramboráčky"
-//      → ["Katův šleh, rýže", "Katův šleh, hranolky", "Katův šleh, bramboráčky"]
+//    "uzené, knedlík/ bramboráčky, zelí/ špenát"
+//      → 4 items (2×2 kartézský součin)
+//    "stripsy, kaše/ krokety, dip"
+//      → ["stripsy, kaše, dip", "stripsy, krokety, dip"]  (dip ke všem)
 //
 // 2. NO comma before slash → adjective/noun variant (e.g. "vepřový/ kuřecí řízek"):
 //    left adjective + shared noun are reconstructed from context:
@@ -168,21 +178,17 @@ function splitVariants(text: string): string[] {
   const baseEnd = text.lastIndexOf(",", firstSlash);
 
   if (baseEnd !== -1) {
-    // Comma before slash → all variants are self-contained completions after the comma
+    // Comma before slash → split variantsPart do čárkou oddělených skupin,
+    // každá skupina může mít vlastní lomítkové alternativy → kartézský součin.
+    // Např. "knedlík/ bramboráčky, zelí/ špenát"
+    //   → [["knedlík","bramboráčky"], ["zelí","špenát"]] → 4 kombinace
     const base = text.slice(0, baseEnd).trim();
     const variantsPart = text.slice(baseEnd + 1).trim();
-    const rawParts = variantsPart.split("/").map((v) => v.trim()).filter(Boolean);
-    if (rawParts.length < 2) return [text];
-    // Suffix po posledním lomítku (např. ", dip" v "grenaille/mačkané brambory, dip")
-    // patří ke všem variantám, ne jen té poslední.
-    let suffix = "";
-    const lastPart = rawParts[rawParts.length - 1];
-    const suffixComma = lastPart.indexOf(",");
-    if (suffixComma !== -1) {
-      suffix = lastPart.slice(suffixComma);
-      rawParts[rawParts.length - 1] = lastPart.slice(0, suffixComma).trim();
-    }
-    return rawParts.flatMap((v) => splitVariants(`${base}, ${v}${suffix}`));
+    const groups = variantsPart.split(",").map((g) => g.trim()).filter(Boolean);
+    const groupOptions = groups.map((g) => g.split("/").map((v) => v.trim()).filter(Boolean));
+    const combos = cartesianProduct(groupOptions);
+    if (combos.length < 2) return [text];
+    return combos.flatMap((combo) => splitVariants(`${base}, ${combo.join(", ")}`));
   }
 
   // No comma before slash → adjective/noun variant

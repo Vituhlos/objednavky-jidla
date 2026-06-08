@@ -53,6 +53,7 @@ export interface AppSettings {
   pizzaCutoffTime: string;
   pizzaCutoffDays: string;
   pizzaEnabled: string;
+  orderForceOpenDate: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -103,6 +104,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   pizzaCutoffTime: "pizza_cutoff_time",
   pizzaCutoffDays: "pizza_cutoff_days",
   pizzaEnabled: "pizza_enabled",
+  orderForceOpenDate: "order_force_open_date",
 };
 
 function envDefaults(): AppSettings {
@@ -155,6 +157,7 @@ function envDefaults(): AppSettings {
     pizzaCutoffTime: "10:00",
     pizzaCutoffDays: "Pá",
     pizzaEnabled: "true",
+    orderForceOpenDate: "",
   };
 }
 

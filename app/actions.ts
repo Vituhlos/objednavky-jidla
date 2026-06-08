@@ -16,6 +16,8 @@ import {
   reopenOrder,
   clearOrderRows,
   resendOrderEmail,
+  getOrderById,
+  getOrderByRowId,
 } from "@/lib/orders";
 import type { Department, OrderRowEnriched, MealEntry } from "@/lib/types";
 import {
@@ -25,7 +27,8 @@ import {
   replacePizzaItems,
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
-import { saveSettings, checkPin } from "@/lib/settings";
+import { saveSettings, checkPin, getSettings } from "@/lib/settings";
+import { getPragueNow, getPragueISODate } from "@/lib/time";
 import type { AppSettings } from "@/lib/settings";
 import {
   setTelegramWebhook,
@@ -50,11 +53,23 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 
+function isCutoffActive(): boolean {
+  const { cutoffTime, orderForceOpenDate } = getSettings();
+  if (orderForceOpenDate === getPragueISODate()) return false;
+  const now = getPragueNow();
+  const [h, m] = cutoffTime.split(":").map(Number);
+  return now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
+}
+
 export async function actionAddRow(
   orderId: number,
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  const order = getOrderById(orderId);
+  if (order?.date === getPragueISODate() && isCutoffActive()) {
+    throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
+  }
   const row = addOrderRow(orderId, department, pushEndpoint);
   revalidatePath("/");
   broadcast();
@@ -80,12 +95,20 @@ export async function actionUpdateRow(
   }>,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  const order = getOrderByRowId(rowId);
+  if (order?.date === getPragueISODate() && isCutoffActive()) {
+    throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
+  }
   const row = updateOrderRow(rowId, updates, pushEndpoint);
   broadcast();
   return row;
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
+  const order = getOrderByRowId(rowId);
+  if (order?.date === getPragueISODate() && isCutoffActive()) {
+    throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
+  }
   deleteOrderRow(rowId);
   revalidatePath("/");
   broadcast();
@@ -189,9 +212,21 @@ export async function actionUpdatePizzaPrices(
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
   reopenOrder(orderId);
+  // Pokud se znovu otevírá dnešní objednávka po uzávěrce, admin implicitně odemyká
+  const order = getOrderById(orderId);
+  if (order?.date === getPragueISODate() && isCutoffActive()) {
+    saveSettings({ orderForceOpenDate: getPragueISODate() });
+  }
+  revalidatePath("/");
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
   broadcast();
+}
+
+export async function actionUnlockCutoff(pin: string): Promise<{ ok: boolean; error?: string }> {
+  if (!checkPin(pin)) return { ok: false, error: "Špatný PIN" };
+  saveSettings({ orderForceOpenDate: getPragueISODate() });
+  return { ok: true };
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
