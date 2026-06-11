@@ -20,13 +20,24 @@ function formatOrderDateForSubject(date: string): string {
   return date;
 }
 
+function compareMenuItemLabels(a: string, b: string): number {
+  const codeOf = (label: string) => {
+    const match = label.match(/^(\d+)\s*[–-]/);
+    return match ? Number.parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+  };
+  const codeA = codeOf(a);
+  const codeB = codeOf(b);
+  if (codeA !== codeB) return codeA - codeB;
+  return a.localeCompare(b, "cs", { sensitivity: "base" });
+}
+
 function summariseCounts(items: string[]): Array<{ label: string; count: number }> {
   const counts = new Map<string, number>();
   for (const item of items) {
     counts.set(item, (counts.get(item) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], "cs", { sensitivity: "base" }))
+    .sort((a, b) => compareMenuItemLabels(a[0], b[0]))
     .map(([label, count]) => ({ label, count }));
 }
 

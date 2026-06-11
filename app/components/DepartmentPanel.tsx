@@ -479,11 +479,11 @@ function OrderEditModal({
                 value={soupId}
                 onChange={(val) => setSoupIds((prev) => prev.map((id, i) => i === idx ? val : id))}
                 options={soups}
-                placeholder="— žádná polévka —"
+                placeholder="Vybrat polévku"
               />
             </div>
           ))}
-          {soupIds.length < 2 && (
+          {soupIds.length < 2 && soupIds[0] != null && (
             <button className="modal-add-second" onClick={() => setSoupIds((prev) => [...prev, null])} type="button">
               <MIcon name="add" size={14} style={{ color: "#D97706" }} />
               Přidat druhou polévku
@@ -509,7 +509,7 @@ function OrderEditModal({
                   value={entry.itemId}
                   onChange={(val) => setMealEntries((prev) => prev.map((ent, i) => i === idx ? { ...ent, itemId: val } : ent))}
                   options={meals}
-                  placeholder="— žádné jídlo —"
+                  placeholder="Vybrat jídlo"
                   style={{ flex: 1, width: "auto", minWidth: 0 }}
                 />
                 {entry.itemId && (
@@ -532,21 +532,23 @@ function OrderEditModal({
               </div>
             </div>
           ))}
-          <div style={{ position: "relative" }}>
-            {showMealTip && (
-              <div className="meal-tip-callout">
-                Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
-              </div>
-            )}
-            <button
-              className={`modal-add-second${showMealTip ? " modal-add-second--pulse" : ""}`}
-              onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
-              type="button"
-            >
-              <MIcon name="add" size={14} style={{ color: showMealTip ? "#b91c1c" : "#c2410c" }} />
-              Přidat další jídlo do objednávky
-            </button>
-          </div>
+          {mealEntries[0]?.itemId != null && (
+            <div style={{ position: "relative" }}>
+              {showMealTip && (
+                <div className="meal-tip-callout">
+                  Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
+                </div>
+              )}
+              <button
+                className={`modal-add-second${showMealTip ? " modal-add-second--pulse" : ""}`}
+                onClick={() => setMealEntries((prev) => [...prev, { itemId: null, count: 1 }])}
+                type="button"
+              >
+                <MIcon name="add" size={14} style={{ color: showMealTip ? "#b91c1c" : "#c2410c" }} />
+                Přidat další jídlo do objednávky
+              </button>
+            </div>
+          )}
 
           <div className="modal-field">
             <label className="modal-label" htmlFor="modal-note">Poznámka k jídlu</label>
