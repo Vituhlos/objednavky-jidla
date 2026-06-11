@@ -1017,7 +1017,7 @@ export default function OrderPage({
 
               {/* Bottom status bar */}
               <div
-                className="glass rounded-2xl px-4 py-3 flex items-center gap-3"
+                className="glass rounded-2xl px-4 py-3 flex items-center gap-3 mx-auto w-fit max-w-full"
                 style={
                   isSent
                     ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" }
@@ -1037,7 +1037,7 @@ export default function OrderPage({
                     style={{ color: isSent ? "#16a34a" : isCutoffLocked ? "#D97706" : "#94a3b8" }}
                   />
                 </div>
-                <div className="flex-1 text-[12.5px] text-stone-700 leading-snug">
+                <div className="text-[12.5px] text-stone-700 leading-snug">
                   {isSent ? (
                     <>
                       <strong className="text-green-700">Objednávka odeslána</strong>
