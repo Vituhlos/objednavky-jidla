@@ -112,7 +112,7 @@ Po vydání:
 
 1. Ověřit, že GitHub Actions doběhly.
 2. Ověřit existenci Docker tagů.
-3. U produkčního nasazení preferovat přesný tag `X.Y.Z`, ne `latest`.
+3. U běžného Unraid nasazení používat `stable`, pro rollback a audit používat přesný tag `X.Y.Z`.
 4. Zapsat nebo zkontrolovat GitHub Release notes podle `CHANGELOG.md`.
 
 GitHub Release se vytváří automaticky workflowem `.github/workflows/release.yml` po pushnutí tagu `vX.Y.Z`. Poznámky se extrahují z odpovídající sekce v `CHANGELOG.md`.
@@ -124,12 +124,13 @@ Stabilní release z tagu `v1.2.3` má publikovat:
 - `ghcr.io/vituhlos/objednavky-jidla:1.2.3`
 - `ghcr.io/vituhlos/objednavky-jidla:1.2`
 - `ghcr.io/vituhlos/objednavky-jidla:1`
+- `ghcr.io/vituhlos/objednavky-jidla:stable`
 - `ghcr.io/vituhlos/objednavky-jidla:latest`
 - `ghcr.io/vituhlos/objednavky-jidla:sha-<short-sha>`
 
-Prerelease z tagu `v1.2.3-beta.1` má publikovat jen přesný prerelease tag a SHA tag. Nemá přepisovat `latest`, `1.2` ani `1`.
+Prerelease z tagu `v1.2.3-beta.1` má publikovat jen přesný prerelease tag a SHA tag. Nemá přepisovat `stable`, `latest`, `1.2` ani `1`.
 
-Produkční dokumentace má doporučovat přesné verze, například `:1.2.3`. `latest` je pohodlný alias, ne bezpečný pin pro produkci.
+Produkční dokumentace pro Unraid má doporučovat `:stable`, protože umožní pohodlnou aktualizaci bez ručního přepisování verze image. Přesné verze, například `:1.2.3`, slouží pro audit, podporu a rychlý rollback. `latest` je jen technický alias pro rychlé testování.
 
 ## Build metadata v aplikaci
 

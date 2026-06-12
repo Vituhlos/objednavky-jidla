@@ -109,7 +109,7 @@ docker run -d \
   -e SMTP_PASS=heslo \
   -e ORDER_EMAIL_TO=prijemce@firma.cz \
   -e SETTINGS_PIN=1234 \
-  ghcr.io/vituhlos/objednavky-jidla:1.1.0
+  ghcr.io/vituhlos/objednavky-jidla:stable
 ```
 
 ### Docker Compose
@@ -117,7 +117,7 @@ docker run -d \
 ```yaml
 services:
   kantyna:
-    image: ghcr.io/vituhlos/objednavky-jidla:1.1.0
+    image: ghcr.io/vituhlos/objednavky-jidla:stable
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -134,7 +134,7 @@ services:
 
 Aplikace poběží na `http://localhost:3000`. SQLite databáze se vytvoří automaticky v namountovaném `/app/data`.
 
-Pro produkční nasazení používejte přesný tag verze, například `:1.1.0`. Tag `:latest` je vhodný jen pro rychlé testování, protože se může změnit bez úpravy vašeho `docker-compose.yml`.
+Pro běžné produkční nasazení na Unraidu používejte tag `:stable`. Při aktualizaci pak stačí stáhnout novější image bez ručního přepisování čísla verze. Pro audit a rollback jsou zároveň dostupné přesné tagy verzí, například `:1.1.0`. Tag `:latest` je vhodný jen pro rychlé testování.
 
 ---
 
@@ -164,13 +164,13 @@ Před aktualizací vždy stáhněte zálohu v `Nastavení -> Systém -> Záloha 
 
 1. Ověřte aktuální verzi v `Nastavení -> Systém -> O aplikaci` nebo přes `/api/version`.
 2. Stáhněte zálohu dat.
-3. V `docker-compose.yml` změňte image na konkrétní vydanou verzi, například:
+3. Pro běžný provoz mějte image nastavený na stabilní kanál:
 
 ```yaml
-image: ghcr.io/vituhlos/objednavky-jidla:1.0.3
+image: ghcr.io/vituhlos/objednavky-jidla:stable
 ```
 
-4. Stáhněte a spusťte novou verzi:
+4. Stáhněte a spusťte novou stabilní verzi:
 
 ```bash
 docker compose pull
@@ -188,7 +188,7 @@ curl http://localhost:3000/api/version
 
 Pokud nová verze nefunguje správně:
 
-1. Vraťte v `docker-compose.yml` předchozí image tag.
+1. Vraťte v `docker-compose.yml` předchozí přesný image tag, například `:1.1.0`.
 2. Spusťte:
 
 ```bash

@@ -12,6 +12,21 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.1.1",
+    date: "2026-06-12",
+    title: "Pohodlnější aktualizace na Unraidu",
+    sections: [
+      {
+        title: "Changed",
+        items: [
+          "Unraid template nově používá Docker tag stable, takže běžná aktualizace nevyžaduje ruční přepis čísla verze image.",
+          "Stabilní release workflow publikuje tag stable vedle přesných verzí pro rollback a podporu.",
+          "Dokumentace rozlišuje pohodlný stabilní kanál pro Unraid a přesné verze pro audit nebo návrat na starší release.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2026-06-12",
     title: "Profesionální release proces a diagnostika",

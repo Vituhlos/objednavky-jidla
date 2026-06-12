@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>objednavky-jidla</Name>
-  <Repository>ghcr.io/vituhlos/objednavky-jidla:latest</Repository>
+  <Repository>ghcr.io/vituhlos/objednavky-jidla:stable</Repository>
   <Registry>https://ghcr.io/vituhlos/objednavky-jidla</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>

@@ -8,6 +8,13 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 Zatím žádné nevydané změny.
 
+## [1.1.1] - 2026-06-12
+
+### Changed
+
+- Unraid template nově používá Docker tag `stable`, aby běžná aktualizace nevyžadovala ruční přepis verze image.
+- Stabilní release workflow nově publikuje Docker tag `stable` vedle přesných SemVer tagů.
+
 ## [1.1.0] - 2026-06-12
 
 ### Added
