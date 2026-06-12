@@ -572,15 +572,7 @@ export default function MenuPage({
   const [nextMenu, setNextMenu] = useState(initialNextMenu);
   // Sync state when server pushes new props (after router.refresh() following an import)
   const prevMenuPropsRef = useRef(initialCurrentMenu);
-  if (prevMenuPropsRef.current !== initialCurrentMenu) {
-    prevMenuPropsRef.current = initialCurrentMenu;
-    setCurrentMenu(initialCurrentMenu);
-  }
   const prevNextMenuPropsRef = useRef(initialNextMenu);
-  if (prevNextMenuPropsRef.current !== initialNextMenu) {
-    prevNextMenuPropsRef.current = initialNextMenu;
-    setNextMenu(initialNextMenu);
-  }
   const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
   const [editMode, setEditMode] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
@@ -599,14 +591,29 @@ export default function MenuPage({
   const activeMenu = activeWeek === "current" ? currentMenu : nextMenu;
   const activeHolidayNames = activeWeek === "current" ? currentHolidayNames : nextHolidayNames;
   const visibleTodayCode = activeWeek === "current" ? todayCode : null;
-  const [activeDay, setActiveDay] = useState<string>(() => resolveActiveDay(activeMenu, visibleTodayCode));
+  const [activeDayOverride, setActiveDayOverride] = useState<string | null>(null);
 
   useEffect(() => {
-    setActiveDay((prev) => resolveActiveDay(activeMenu, visibleTodayCode, prev));
-  }, [activeMenu, visibleTodayCode]);
+    if (prevMenuPropsRef.current !== initialCurrentMenu) {
+      prevMenuPropsRef.current = initialCurrentMenu;
+      setCurrentMenu(initialCurrentMenu);
+    }
+    if (prevNextMenuPropsRef.current !== initialNextMenu) {
+      prevNextMenuPropsRef.current = initialNextMenu;
+      setNextMenu(initialNextMenu);
+    }
+  }, [initialCurrentMenu, initialNextMenu]);
+
+  const activeDay = useMemo(
+    () => activeDayOverride && activeMenu[activeDayOverride]
+      ? activeDayOverride
+      : resolveActiveDay(activeMenu, visibleTodayCode),
+    [activeDayOverride, activeMenu, visibleTodayCode]
+  );
 
   const handleWeekSwitch = (week: "current" | "next") => {
     setActiveWeek(week);
+    setActiveDayOverride(null);
     setEditMode(false);
     setConfirmDeleteNext(false);
   };
@@ -846,7 +853,7 @@ export default function MenuPage({
             <button
               key={day}
               className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
-              onClick={() => setActiveDay(day)}
+              onClick={() => setActiveDayOverride(day)}
               style={active
                 ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
                 : { background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.7)" }

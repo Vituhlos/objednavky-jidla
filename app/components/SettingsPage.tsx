@@ -27,6 +27,8 @@ import {
   actionSetTelegramCommands,
 } from "@/app/actions";
 import type { TelegramSubscription } from "@/lib/telegram";
+import { RELEASE_NOTES } from "@/lib/release-notes";
+import { getAppVersionInfo } from "@/lib/version";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
@@ -282,6 +284,60 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "telegram",   label: "Telegram",   icon: "send" },
 ];
 
+const VERSION_INFO = getAppVersionInfo();
+
+const CHANNEL_LABELS: Record<string, string> = {
+  stable: "Stabilní",
+  beta: "Beta",
+  dev: "Vývoj",
+};
+
+const RELEASE_SECTION_LABELS: Record<string, string> = {
+  Added: "Přidáno",
+  Changed: "Změněno",
+  Deprecated: "Zastaralé",
+  Removed: "Odstraněno",
+  Fixed: "Opraveno",
+  Security: "Bezpečnost",
+  "Migration notes": "Migrační poznámky",
+  "Known issues": "Známá omezení",
+};
+
+function formatBuildDate(value: string): string {
+  if (!value) return "Lokální vývoj";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleString("cs-CZ", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function VersionMeta({
+  label,
+  value,
+  mono = false,
+  unavailable = "Až v release buildu",
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  unavailable?: string;
+}) {
+  const hasValue = !!value;
+  return (
+    <div className="glass-soft rounded-2xl px-3 py-2.5 min-w-0">
+      <p className="text-[10.5px] font-semibold uppercase text-stone-400">{label}</p>
+      <p className={`text-[13px] font-semibold truncate ${hasValue ? "text-stone-800" : "text-stone-400"} ${mono && hasValue ? "font-mono" : ""}`}>
+        {hasValue ? value : unavailable}
+      </p>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
@@ -343,6 +399,8 @@ export default function SettingsPage({
   const [botInfo, setBotInfo] = useState<{ ok: boolean; firstName?: string; username?: string; error?: string } | null>(null);
   const [webhookInfo, setWebhookInfo] = useState<{ ok: boolean; hasWebhook: boolean; url?: string } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [versionCopied, setVersionCopied] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState("");
   const [auditFilter, setAuditFilter] = useState<string>("all");
   const [departments, setDepartments] = useState<DepartmentInfo[]>(initialDepts);
@@ -451,6 +509,18 @@ export default function SettingsPage({
   const backupDepts = Array.isArray((restoreFile as Record<string, unknown> | null)?.departments)
     ? ((restoreFile as Record<string, unknown>).departments as unknown[]).length : 0;
   const backupHasSettings = typeof (restoreFile as Record<string, unknown> | null)?.settings === "object";
+  const getSupportInfoText = () => [
+    `${VERSION_INFO.name} v${VERSION_INFO.version}`,
+    `Channel: ${VERSION_INFO.releaseChannel}`,
+    `Commit: ${VERSION_INFO.commitSha || "unknown"}`,
+    `Build date: ${VERSION_INFO.buildDate || "unknown"}`,
+    `Git ref: ${VERSION_INFO.gitRef || "unknown"}`,
+    `Docker tag: ${VERSION_INFO.dockerTag || "unknown"}`,
+    `App URL: ${typeof window !== "undefined" ? window.location.origin : "unknown"}`,
+    `Client time: ${new Date().toISOString()}`,
+    `Client timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown"}`,
+    `User agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
+  ].join("\n");
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1096,7 +1166,7 @@ export default function SettingsPage({
                     <p className="font-semibold text-stone-800 text-[12.5px]">Jak nastavit automatický import z Gmailu</p>
                     <div className="space-y-1.5">
                       <p><span className="font-semibold text-stone-700">1. Zapni IMAP v Gmailu</span><br />Gmail → Nastavení (ozubené kolo) → Zobrazit všechna nastavení → záložka <em>Přesměrování a POP/IMAP</em> → sekce IMAP → vyber <strong>Zapnout IMAP</strong> → Uložit.</p>
-                      <p><span className="font-semibold text-stone-700">2. Vytvoř App Password</span><br />Gmail normální heslo nefunguje — potřebuješ speciální. Jdi na <strong>myaccount.google.com/apppasswords</strong>, přihlas se, vytvoř nové heslo (název např. „Kantyna"). Google vygeneruje 16 znaků — zkopíruj je <strong>bez mezer</strong> a vlož sem jako heslo.</p>
+                      <p><span className="font-semibold text-stone-700">2. Vytvoř App Password</span><br />Gmail normální heslo nefunguje — potřebuješ speciální. Jdi na <strong>myaccount.google.com/apppasswords</strong>, přihlas se, vytvoř nové heslo (název např. „Kantýna“). Google vygeneruje 16 znaků — zkopíruj je <strong>bez mezer</strong> a vlož sem jako heslo.</p>
                       <p><span className="font-semibold text-stone-700">3. Filtr odesílatele</span><br />Zadej e-mailovou adresu od které LIMA posílá jídelníčky (najdeš ji v hlavičce příchozího mailu). Tím se zajistí, že se nezpracuje žádný jiný mail.</p>
                       <p><span className="font-semibold text-stone-700">4. Jak to funguje</span><br />Každý pracovní den v nastavený čas appka zkontroluje schránku, najde nepřečtený mail s PDF od LIMY, importuje jídelníček a mail označí jako přečtený.</p>
                     </div>
@@ -1328,6 +1398,95 @@ export default function SettingsPage({
             {/* ── Systém — non-form sections ── */}
             {activeTab === "system" && (
               <>
+                <Section icon="info" title="O aplikaci" action={
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {CHANNEL_LABELS[VERSION_INFO.releaseChannel] ?? VERSION_INFO.releaseChannel}
+                  </span>
+                }>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-display font-bold text-[18px] text-stone-900">{VERSION_INFO.name}</p>
+                        <p className="text-[12.5px] text-stone-500">Produktová verze, release kanál a diagnostika aktuálně běžícího buildu.</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          className="modal-btn modal-btn--secondary"
+                          onClick={() => setShowReleaseNotes(true)}
+                          type="button"
+                        >
+                          Novinky
+                        </button>
+                        <button
+                          className="modal-btn modal-btn--secondary"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(getSupportInfoText());
+                            setVersionCopied(true);
+                            setTimeout(() => setVersionCopied(false), 1800);
+                          }}
+                          type="button"
+                        >
+                          {versionCopied ? "Zkopírováno" : "Kopírovat diagnostiku"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      <VersionMeta label="Verze" value={`v${VERSION_INFO.version}`} mono unavailable="Bez verze" />
+                      <VersionMeta label="Kanál" value={CHANNEL_LABELS[VERSION_INFO.releaseChannel] ?? VERSION_INFO.releaseChannel} unavailable="Lokální vývoj" />
+                      <VersionMeta label="Build" value={VERSION_INFO.buildDate ? formatBuildDate(VERSION_INFO.buildDate) : ""} unavailable="Lokální vývoj" />
+                      <VersionMeta label="Commit" value={VERSION_INFO.shortCommitSha || VERSION_INFO.commitSha} mono />
+                      <VersionMeta label="Git ref" value={VERSION_INFO.gitRef} mono />
+                      <VersionMeta label="Image" value={VERSION_INFO.dockerTag} mono unavailable="Mimo Docker release" />
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap text-[12px]">
+                      <a className="inline-flex items-center gap-1.5 font-semibold px-3 py-2 rounded-2xl glass-btn text-stone-600" href="/api/version" rel="noreferrer" target="_blank">
+                        <MIcon name="info" size={14} /> JSON diagnostika
+                      </a>
+                      <span className="text-stone-400">Technický endpoint pro podporu, monitoring a ověření nasazené verze.</span>
+                    </div>
+                  </div>
+                </Section>
+
+                {showReleaseNotes && (
+                  <div className="modal-overlay" onClick={() => setShowReleaseNotes(false)}>
+                    <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-sheet__header">
+                        <h3 className="modal-sheet__title">Co je nového</h3>
+                        <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowReleaseNotes(false)} type="button">×</button>
+                      </div>
+                      <div className="modal-sheet__body space-y-4">
+                        {RELEASE_NOTES.map((note) => (
+                          <div key={note.version} className="glass-soft rounded-2xl p-4 flex flex-col gap-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-display font-bold text-[15px] text-stone-900">{note.version === "Unreleased" ? "Připravuje se" : `v${note.version}`}</p>
+                                <p className="text-[12px] text-stone-500">{note.title}</p>
+                              </div>
+                              {note.date && <span className="text-[11px] text-stone-400 font-mono">{note.date}</span>}
+                            </div>
+                            {note.sections.map((section) => (
+                              <div key={`${note.version}-${section.title}`} className="flex flex-col gap-1">
+                                <p className="text-[11px] font-bold uppercase text-amber-700">{RELEASE_SECTION_LABELS[section.title] ?? section.title}</p>
+                                <ul className="space-y-1">
+                                  {section.items.map((item) => (
+                                    <li key={item} className="text-[12.5px] text-stone-600 leading-relaxed flex gap-2">
+                                      <span className="text-amber-500 mt-0.5">•</span>
+                                      <span>{item}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Section icon="build" title="Záloha a obnova dat">
               <p className="text-[12.5px] text-stone-500">
                 Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
@@ -1758,7 +1917,7 @@ export default function SettingsPage({
                           </div>
                         </div>
 
-                        <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé".</p>
+                        <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé“.</p>
                       </div>
                     </div>
                   </div>
@@ -1767,14 +1926,16 @@ export default function SettingsPage({
             )}
 
         {/* Version info */}
-        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400">
-          <span>Objednávky LIMA</span>
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 text-[11px] text-stone-400 flex-wrap">
+          <span>{VERSION_INFO.name}</span>
           <span className="text-stone-300">·</span>
-          <span>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</span>
-          {process.env.NEXT_PUBLIC_COMMIT_SHA && (
+          <span>v{VERSION_INFO.version}</span>
+          <span className="text-stone-300">·</span>
+          <span>{CHANNEL_LABELS[VERSION_INFO.releaseChannel] ?? VERSION_INFO.releaseChannel}</span>
+          {VERSION_INFO.shortCommitSha && (
             <>
               <span className="text-stone-300">·</span>
-              <span className="font-mono">{process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)}</span>
+              <span className="font-mono">{VERSION_INFO.shortCommitSha}</span>
             </>
           )}
         </div>

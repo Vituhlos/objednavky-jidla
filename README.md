@@ -7,7 +7,7 @@
 **Firemní systém pro objednávky obědů a pizzy**
 
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io-0ea5e9?style=flat-square&logo=docker&logoColor=white)](https://ghcr.io/vituhlos/objednavky-jidla)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003b57?style=flat-square&logo=sqlite)](https://github.com/WiseLibs/better-sqlite3)
 
@@ -109,7 +109,7 @@ docker run -d \
   -e SMTP_PASS=heslo \
   -e ORDER_EMAIL_TO=prijemce@firma.cz \
   -e SETTINGS_PIN=1234 \
-  ghcr.io/vituhlos/objednavky-jidla:latest
+  ghcr.io/vituhlos/objednavky-jidla:1.1.0
 ```
 
 ### Docker Compose
@@ -117,7 +117,7 @@ docker run -d \
 ```yaml
 services:
   kantyna:
-    image: ghcr.io/vituhlos/objednavky-jidla:latest
+    image: ghcr.io/vituhlos/objednavky-jidla:1.1.0
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -133,6 +133,8 @@ services:
 ```
 
 Aplikace poběží na `http://localhost:3000`. SQLite databáze se vytvoří automaticky v namountovaném `/app/data`.
+
+Pro produkční nasazení používejte přesný tag verze, například `:1.1.0`. Tag `:latest` je vhodný jen pro rychlé testování, protože se může změnit bez úpravy vašeho `docker-compose.yml`.
 
 ---
 
@@ -151,6 +153,62 @@ Aplikace poběží na `http://localhost:3000`. SQLite databáze se vytvoří aut
 | `DB_PATH` | Cesta k SQLite souboru | `/app/data/stros.db` |
 
 > Nastavení lze měnit také přímo v aplikaci přes `/nastaveni` (chráněno PINem). Hodnoty uložené v aplikaci mají přednost před env proměnnými.
+
+---
+
+## Aktualizace a rollback
+
+Před aktualizací vždy stáhněte zálohu v `Nastavení -> Systém -> Záloha a obnova dat`, případně zazálohujte celý namountovaný adresář `/app/data`.
+
+### Bezpečná aktualizace
+
+1. Ověřte aktuální verzi v `Nastavení -> Systém -> O aplikaci` nebo přes `/api/version`.
+2. Stáhněte zálohu dat.
+3. V `docker-compose.yml` změňte image na konkrétní vydanou verzi, například:
+
+```yaml
+image: ghcr.io/vituhlos/objednavky-jidla:1.0.3
+```
+
+4. Stáhněte a spusťte novou verzi:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+5. Ověřte stav aplikace:
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/version
+```
+
+### Rollback
+
+Pokud nová verze nefunguje správně:
+
+1. Vraťte v `docker-compose.yml` předchozí image tag.
+2. Spusťte:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+3. Zkontrolujte `/api/health` a `Nastavení -> Systém -> O aplikaci`.
+4. Pokud release poznámky obsahovaly migrační kroky a data byla změněna nekompatibilně, obnovte zálohu dat.
+
+---
+
+## Diagnostika a monitoring
+
+| Endpoint | Popis |
+|---|---|
+| `/api/health` | Healthcheck pro Docker, monitoring a rychlé ověření databáze |
+| `/api/version` | Build metadata: verze, commit, datum buildu, release kanál, Docker tag |
+
+Docker image obsahuje `HEALTHCHECK`, který pravidelně volá `/api/health`. V nastavení aplikace je také panel `O aplikaci` s tlačítkem `Kopírovat diagnostiku` pro podporu.
 
 ---
 

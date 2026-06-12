@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useRef, useEffect, memo, useCallback, useId, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
@@ -63,6 +63,26 @@ function DeptIcon({ name, color }: { name: Department; color: string }) {
   return <MIcon name={icon} size={18} fill style={{ color }} />;
 }
 
+const MOBILE_QUERY = "(max-width: 639px)";
+
+function subscribeMobile(callback: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getMobileSnapshot() {
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function getServerMobileSnapshot() {
+  return false;
+}
+
+const subscribeMounted = () => () => {};
+const getMountedSnapshot = () => true;
+const getServerMountedSnapshot = () => false;
+
 // ── Modal stepper ─────────────────────────────────────────
 
 function ModalStepper({
@@ -100,19 +120,13 @@ function MenuSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [hlIdx, setHlIdx] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useSyncExternalStore(subscribeMobile, getMobileSnapshot, getServerMobileSnapshot);
 
   const allCount = options.length + 1;
+  const generatedId = useId();
+  const listboxId = `${id ?? generatedId}-listbox`;
 
   // ── všechny hooky musí být před jakýmkoliv conditional return ──
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   const openList = useCallback(() => {
     const el = triggerRef.current;
@@ -193,7 +207,7 @@ function MenuSelect({
   return (
     <>
       <button
-        id={id} type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox"
+        id={id} type="button" role="combobox" aria-controls={listboxId} aria-expanded={open} aria-haspopup="listbox"
         className="modal-select"
         style={{ display: "flex", alignItems: "center", backgroundImage: "none", textAlign: "left", cursor: "default", ...style }}
         onClick={openList} onKeyDown={handleKeyDown} ref={triggerRef}
@@ -215,7 +229,7 @@ function MenuSelect({
       </button>
       {open && createPortal(
         <div
-          ref={listRef} role="listbox"
+          id={listboxId} ref={listRef} role="listbox"
           style={{
             position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
             background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",
@@ -286,8 +300,7 @@ function OrderEditModal({
   const [note, setNote] = useState(row.note);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, getServerMountedSnapshot);
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startY: number; currentY: number } | null>(null);

@@ -119,6 +119,43 @@ function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT
   );
 }
 
+function BackButton({ mobile }: { mobile?: boolean }) {
+  return (
+    <Link
+      href="/historie"
+      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+    >
+      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
+      <span>Historie</span>
+    </Link>
+  );
+}
+
+function StatusBadge({ sent }: { sent: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
+    >
+      {sent ? "Odesláno" : "Koncept"}
+    </span>
+  );
+}
+
+function ReopenButton({ canReopen, onReopen, pending, small }: { canReopen: boolean; onReopen: () => void; pending: boolean; small?: boolean }) {
+  if (!canReopen) return null;
+  return (
+    <button
+      className={`inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
+      disabled={pending}
+      onClick={onReopen}
+      type="button"
+    >
+      {pending ? "…" : "Znovu otevřít"}
+    </button>
+  );
+}
+
 export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderData; hasPdf?: boolean }) {
   const { order, departments, totalPrice } = data;
   const [pending, startTransition] = useTransition();
@@ -134,36 +171,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
     dept.rows.some((r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0)
   );
   const isEmpty = activeDepts.length === 0;
-
-  const BackButton = ({ mobile }: { mobile?: boolean }) => (
-    <Link
-      href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
-    >
-      <MIcon name="arrow_back" size={mobile ? 15 : 13} />
-      <span>Historie</span>
-    </Link>
-  );
-
-  const StatusBadge = () => (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-      style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-    >
-      {sent ? "Odesláno" : "Koncept"}
-    </span>
-  );
-
-  const ReopenBtn = ({ small }: { small?: boolean }) => canReopen ? (
-    <button
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
-      disabled={pending}
-      onClick={() => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); })}
-      type="button"
-    >
-      {pending ? "…" : "Znovu otevřít"}
-    </button>
-  ) : null;
+  const handleReopen = () => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); });
 
   return (
     <div className="k-shell">
@@ -172,7 +180,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <BackButton />
         <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDateWithDay(order.date)}</span>
-        <StatusBadge />
+        <StatusBadge sent={sent} />
         {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         {order.extraEmail && <span className="text-[12px] text-stone-500 hidden lg:inline">Kopie: {order.extraEmail}</span>}
         <div className="ml-auto flex items-center gap-2">
@@ -197,7 +205,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
               </a>
             </>
           )}
-          <ReopenBtn />
+          <ReopenButton canReopen={canReopen} onReopen={handleReopen} pending={pending} />
         </div>
       </div>
 
@@ -213,9 +221,9 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
           )}
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5 flex-wrap">
-          <StatusBadge />
+          <StatusBadge sent={sent} />
           {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
-          <ReopenBtn small />
+          <ReopenButton canReopen={canReopen} onReopen={handleReopen} pending={pending} small />
           {sent && hasPdf && (
             <>
               <a

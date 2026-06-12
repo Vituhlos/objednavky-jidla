@@ -6,6 +6,8 @@ on:
       - main
       - v2
       - v3
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
 env:
@@ -39,10 +41,39 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=v2-beta,enable=${{ github.ref == 'refs/heads/v2' }}
             type=raw,value=v3-beta,enable=${{ github.ref == 'refs/heads/v3' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
             type=sha,prefix=sha-,format=short
+
+      - name: Resolve build info
+        id: buildinfo
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          channel="dev"
+          docker_tag="sha-${GITHUB_SHA::7}"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            docker_tag="$version"
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+              channel="beta"
+            else
+              channel="stable"
+            fi
+          elif [[ "$GITHUB_REF" == "refs/heads/v2" || "$GITHUB_REF" == "refs/heads/v3" ]]; then
+            channel="beta"
+            docker_tag="${GITHUB_REF_NAME}-beta"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=$docker_tag" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -52,6 +83,12 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: COMMIT_SHA=${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ steps.buildinfo.outputs.version }}
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.buildinfo.outputs.build_date }}
+            RELEASE_CHANNEL=${{ steps.buildinfo.outputs.channel }}
+            GIT_REF=${{ github.ref_name }}
+            DOCKER_TAG=${{ steps.buildinfo.outputs.docker_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, useRef, memo } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef, memo, useId } from "react";
 import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
 import type { DepartmentInfo } from "@/lib/departments";
@@ -240,7 +240,7 @@ export default function PizzaPage({
       {!isClosed && pizzaItems.length === 0 && (
         <div className="mx-4 mt-4 p-3.5 glass rounded-2xl border border-slate-200/60 text-[12.5px] text-stone-700">
           <strong>Ceník není načten.</strong>{" "}
-          Klikněte na „Aktualizovat ceník" pro načtení aktuálního ceníku z webu.
+          Klikněte na „Aktualizovat ceník“ pro načtení aktuálního ceníku z webu.
         </div>
       )}
 
@@ -444,6 +444,7 @@ const PizzaSelect = memo(function PizzaSelect({
   const [hlIdx, setHlIdx] = useState(0);
 
   const allCount = items.length + 1;
+  const listboxId = `${useId()}-listbox`;
   const selectedItem = value !== null ? items.find((i) => i.id === value) : null;
 
   const openList = useCallback(() => {
@@ -504,7 +505,7 @@ const PizzaSelect = memo(function PizzaSelect({
   return (
     <>
       <button
-        type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox"
+        type="button" role="combobox" aria-controls={listboxId} aria-expanded={open} aria-haspopup="listbox"
         className="k-select"
         style={{ display: "flex", alignItems: "center", backgroundImage: "none", textAlign: "left", cursor: disabled ? "not-allowed" : "default", opacity: disabled ? 0.5 : 1 }}
         onClick={openList} onKeyDown={handleKeyDown} ref={triggerRef} disabled={disabled}
@@ -527,7 +528,7 @@ const PizzaSelect = memo(function PizzaSelect({
       </button>
       {open && createPortal(
         <div
-          ref={listRef} role="listbox"
+          id={listboxId} ref={listRef} role="listbox"
           style={{
             position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999,
             background: "rgba(255,255,255,0.92)", backdropFilter: "blur(32px) saturate(200%)",

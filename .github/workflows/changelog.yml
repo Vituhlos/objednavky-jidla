@@ -1,0 +1,26 @@
+name: Changelog Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin "${{ github.base_ref }}"
+
+      - name: Check changelog coverage
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node tools/check-changelog.mjs

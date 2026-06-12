@@ -222,7 +222,8 @@ export default function OrderPage({
   const justSentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [daySwitchPending, setDaySwitchPending] = useState(false);
+  const [pendingDate, setPendingDate] = useState<string | null>(null);
+  const daySwitchPending = pendingDate !== null && pendingDate !== selectedDate;
 
   type PendingDelete = { rowId: number; rowData: OrderRowEnriched; deptName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -236,7 +237,8 @@ export default function OrderPage({
 
   // Sync state when selected date changes — component isn't remounted, only gets new props
   const prevOrderIdRef = useRef(initialData.order.id);
-  if (prevOrderIdRef.current !== initialData.order.id) {
+  useEffect(() => {
+    if (prevOrderIdRef.current === initialData.order.id) return;
     prevOrderIdRef.current = initialData.order.id;
     orderIdRef.current = initialData.order.id;
     setDepartments(initialData.departments);
@@ -255,7 +257,7 @@ export default function OrderPage({
       }
     }
     setPendingDelete(null);
-  }
+  }, [initialData.departments, initialData.order.id, initialData.order.sentAt, initialData.order.status]);
 
   const isSent = orderStatus === "sent";
   // ── Live cutoff check ─────────────────────────────────────
@@ -279,18 +281,22 @@ export default function OrderPage({
   const [sseConnected, setSseConnected] = useState(false);
 
   // ── Push notifikace ───────────────────────────────────────
-  const [pushState, setPushState] = useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">("unsubscribed");
+  const [pushState, setPushState] = useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+    if (Notification.permission === "denied") return "denied";
+    return "unsubscribed";
+  });
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setPushState("unsupported");
-      return;
-    }
-    if (Notification.permission === "denied") { setPushState("denied"); return; }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (Notification.permission === "denied") return;
+    let cancelled = false;
     navigator.serviceWorker.ready.then(async (reg) => {
       const existing = await reg.pushManager.getSubscription();
+      if (cancelled) return;
       setPushState(existing ? "subscribed" : "unsubscribed");
     });
+    return () => { cancelled = true; };
   }, []);
 
   const handlePushToggle = useCallback(async () => {
@@ -327,7 +333,6 @@ export default function OrderPage({
     // Cancel any stale refresh for the previous date
     refreshAbortRef.current?.abort();
     selectedDateRef.current = selectedDate;
-    setDaySwitchPending(false);
   }, [selectedDate]);
 
   useEffect(() => {
@@ -341,8 +346,9 @@ export default function OrderPage({
       const next = e.key === "ArrowLeft" ? idx - 1 : idx + 1;
       if (next >= 0 && next < availableDates.length) {
         e.preventDefault();
-        setDaySwitchPending(true);
-        startTransition(() => { router.push(`/?date=${availableDates[next]}`); });
+        const nextDate = availableDates[next];
+        setPendingDate(nextDate);
+        startTransition(() => { router.push(`/?date=${nextDate}`); });
       }
     };
     document.addEventListener("keydown", handler);
@@ -374,7 +380,6 @@ export default function OrderPage({
         if (data.sentAt) setSentAt(data.sentAt);
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -463,7 +468,7 @@ export default function OrderPage({
         throw new Error("add failed");
       }
     },
-    [orderId]
+    [getPushEndpoint, orderId]
   );
 
   const handleUpdateRow = useCallback(
@@ -650,8 +655,7 @@ export default function OrderPage({
   useEffect(() => {
     const id = setInterval(() => setCountdownInfo(getCountdownInfo()), 30_000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cutoffTime]);
+  }, [getCountdownInfo]);
 
   const dayStr = useMemo(() => {
     const today = new Date();
@@ -922,7 +926,7 @@ export default function OrderPage({
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
-                        onClick={() => { if (isActive) return; setDaySwitchPending(true); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                        onClick={() => { if (isActive) return; setPendingDate(date); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
                           background: "linear-gradient(135deg,#F59E0B,#EA580C)",
                           color: "white",

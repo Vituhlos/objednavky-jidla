@@ -54,12 +54,8 @@ function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
   );
 }
 
-export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
-  const { order, rows, totalCount, totals } = data;
-  const pricePerPizza = totals.pricePerPizza;
-  const sent = order.status === "sent";
-
-  const BackButton = ({ mobile }: { mobile?: boolean }) => (
+function BackButton({ mobile }: { mobile?: boolean }) {
+  return (
     <Link
       href="/historie"
       className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
@@ -68,8 +64,10 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
       <span>Historie</span>
     </Link>
   );
+}
 
-  const StatusBadge = () => (
+function StatusBadge({ sent }: { sent: boolean }) {
+  return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
       style={sent ? { background: "rgba(21,128,61,0.12)", color: "#15803d" } : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
@@ -77,6 +75,12 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
       {sent ? "Odesláno" : "Koncept"}
     </span>
   );
+}
+
+export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
+  const { order, rows, totalCount, totals } = data;
+  const pricePerPizza = totals.pricePerPizza;
+  const sent = order.status === "sent";
 
   const pizzaCounts = new Map<string, number>();
   for (const r of rows) {
@@ -93,7 +97,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <BackButton />
         <span className="font-display font-bold text-[15px] text-stone-900">Pizza {formatDateWithDay(order.date)}</span>
-        <StatusBadge />
+        <StatusBadge sent={sent} />
         {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         {totalCount > 0 && (
           <span className="ml-auto font-display font-bold text-[16px] text-stone-900">{totals.finalTotal} Kč</span>
@@ -110,7 +114,7 @@ export default function PizzaDetailPage({ data }: { data: PizzaOrderData }) {
           )}
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5">
-          <StatusBadge />
+          <StatusBadge sent={sent} />
           {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
         </div>
       </div>
