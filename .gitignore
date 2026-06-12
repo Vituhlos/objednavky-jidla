@@ -1,11 +1,15 @@
 # Dependencies
 node_modules/
+tools/gravityui-reference-mcp/
 
 # Next.js build output
 .next/
 out/
 dist/
 next-env.d.ts
+
+# TypeScript incremental build
+*.tsbuildinfo
 
 # Runtime data – SQLite databáze, persistuje přes Docker volume
 data/
@@ -23,6 +27,11 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Cursor / Claude — lokální konfigurace
+.cursor/mcp.json
+skills-lock.json
+.claude/worktrees/
+
 # Interní plánovací dokumenty
 CHAT_HISTORY.md
 FUNCTIONAL_PARITY_FROM_XLSX.md
@@ -33,5 +42,3 @@ VISUAL_DIRECTION.md
 WIREFRAMES.md
 NEXT_STEPS.md
 SMTP_SETUP.md
-config.tsbuildinfo
-tsconfig.tsbuildinfo
