@@ -1,0 +1,48 @@
+---
+description: Gravity UI (@gravity-ui/uikit) — oficiální + projektová pravidla pro migraci Kantýny
+globs: app/**/*.{ts,tsx}, components/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Gravity UI — pravidla pro agenty (UIKit)
+
+Větev **GravityUI**. Oficiální zdroj: `docs/gravity-ui/official/uikit-AGENTS.md` ([GitHub](https://github.com/gravity-ui/uikit/blob/main/AGENTS.md)).
+
+## Oficiální pravidla @gravity-ui/uikit
+
+- Importuj **jen** z `@gravity-ui/uikit` (a `@gravity-ui/uikit/server` pro SSR). Nikdy z `uikit/src/...`.
+- Nepřepisuj komponenty — používej existující props a patterny.
+- Layout: `Container`, `Row`, `Col`, `Flex`. Formuláře: `TextInput`, `Select`, `TextArea`, `Button`. Data: `Table`, `Card`, `Text`.
+- UIKit **nemá llms.txt** — před implementací volaj MCP `gravityui-docs`: `find` → `get`.
+
+## Pravidla specifická pro Kantýnu
+
+1. **Nerozbíjej produkční UI** — `@gravity-ui/uikit/styles/*.css` jen v `app/gravity-preview/layout.tsx` (ne root layout), dokud není schválena plná migrace.
+2. **Client boundary** — interaktivní UIKit = `"use client"`; Server Actions / SQLite beze změny.
+3. **ThemeProvider** — `GravityRoot` z `@/components/gravity`.
+4. **České UI** — texty přes props; `configure({ lang: 'en' })` jen pro vestavěné tokeny komponent.
+
+## Mapování Kantýna → Gravity
+
+| Stávající | Gravity |
+|-----------|---------|
+| `v2-btn --primary` | `Button view="action"` |
+| `v2-btn --secondary` | `Button view="outlined"` |
+| `v2-btn --danger` | `Button view="outlined-danger"` |
+| `modal-sheet` | `Modal` |
+| `MenuSelect` | `Select` (filterable) |
+| `modal-input` | `TextInput` |
+| `modal-note` | `TextArea` |
+| `glass` karty | `Card` |
+| `AppTopBar` (později) | `@gravity-ui/navigation` — viz `docs/gravity-ui/official/navigation-agents.md` |
+
+## Dokumentace v repu
+
+- `docs/gravity-ui/README.md` — index všech AI zdrojů
+- `docs/GRAVITY-UI-MIGRATION.md` — strategie migrace
+- `app/gravity-preview/` — sandbox
+
+## Oficiální příklady promptů (z UIKit AGENTS.md)
+
+- „Build a page using `@gravity-ui/uikit` only: Container, Card, TextInput, Button, Table.“
+- „Refactor this component to UIKit — keep behavior, replace HTML/inline styles.“

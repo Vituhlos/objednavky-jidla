@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gravityui-docs": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "ABSOLUTE_PATH_TO_REPO/tools/gravityui-reference-mcp/src/server/server.ts"
+      ]
+    }
+  }
+}

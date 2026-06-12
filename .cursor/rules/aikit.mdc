@@ -1,0 +1,26 @@
+---
+description: Gravity UI AIKit (@gravity-ui/aikit) — volitelný AI chat UI (oficiální pravidlo z AI_AGENTS.md)
+globs: app/**/*.{ts,tsx}, components/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# @gravity-ui/aikit (volitelné)
+
+Kantýna **primárně migruje na UIKit**, ne AIKit. Toto pravidlo se aktivuje jen při práci s AI chatem.
+
+## Reference (v tomto pořadí)
+
+1. `docs/gravity-ui/official/aikit-llms.txt` — katalog komponent (vendored z GitHubu)
+2. `node_modules/@gravity-ui/aikit/llms.txt` — po `npm install @gravity-ui/aikit`
+3. `node_modules/@gravity-ui/aikit/llms-full.txt` — plná dokumentace na vyžádání
+4. `docs/gravity-ui/official/aikit-AI_AGENTS.md` — oficiální integrační guide
+
+Bez npm install: https://raw.githubusercontent.com/gravity-ui/aikit/main/llms.txt
+
+## Konvence (@gravity-ui/aikit)
+
+- Rychlá integrace: `ChatContainer`; vlastní layout: organismy `PromptInput`, `MessageList`, `Header`.
+- Vlastní typy zpráv: `createMessageRendererRegistry` + `registerMessageRenderer<T>` → prop `messageRendererRegistry` na `MessageList`. **Neexistuje** prop `messageTypeRegistry`.
+- Theme CSS v root layoutu chat route: `@gravity-ui/aikit/themes/common` + `/light` nebo `/dark`. Obalit v `<ThemeProvider>` z `@gravity-ui/uikit`.
+- Subpath importy (`@gravity-ui/aikit/Header`, …) pro tree-shaking.
+- Peer deps: `@gravity-ui/uikit`, `@gravity-ui/icons`, `@gravity-ui/i18n`, `@diplodoc/transform`, `highlight.js`, `react>=18`.
