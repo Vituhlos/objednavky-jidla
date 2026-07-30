@@ -28,7 +28,7 @@ import {
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin, getSettings } from "@/lib/settings";
-import { getClosures, addClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
+import { getClosures, addClosure, updateClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
 import { getPragueNow, getPragueISODate } from "@/lib/time";
 import type { AppSettings } from "@/lib/settings";
 import {
@@ -263,6 +263,25 @@ export async function actionAddClosure(
   if (problem) return { ok: false, error: problem };
 
   const closure = addClosure(startDate, endDate, label, note, icon);
+  revalidatePath("/");
+  revalidatePath("/jidelnicek");
+  revalidatePath("/nastaveni");
+  broadcast();
+  return { ok: true, closure };
+}
+
+export async function actionUpdateClosure(
+  id: number,
+  startDate: string,
+  endDate: string,
+  label: string,
+  note = "",
+  icon = ""
+): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
+  const problem = validateClosure(startDate, endDate, id);
+  if (problem) return { ok: false, error: problem };
+
+  const closure = updateClosure(id, { startDate, endDate, label, note, icon });
   revalidatePath("/");
   revalidatePath("/jidelnicek");
   revalidatePath("/nastaveni");

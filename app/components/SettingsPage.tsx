@@ -27,6 +27,7 @@ import {
   actionSetTelegramCommands,
   actionGetClosures,
   actionAddClosure,
+  actionUpdateClosure,
   actionDeleteClosure,
 } from "@/app/actions";
 import type { Closure } from "@/lib/closures";
@@ -448,6 +449,8 @@ export default function SettingsPage({
   const [closures, setClosures] = useState<Closure[]>([]);
   const [closuresLoaded, setClosuresLoaded] = useState(false);
   const [showAddClosure, setShowAddClosure] = useState(false);
+  // null = zakládá se nové zavření, číslo = upravuje se existující
+  const [editingClosureId, setEditingClosureId] = useState<number | null>(null);
   const [newClosureFrom, setNewClosureFrom] = useState("");
   const [newClosureTo, setNewClosureTo] = useState("");
   const [newClosureLabel, setNewClosureLabel] = useState("");
@@ -466,19 +469,44 @@ export default function SettingsPage({
   const closureCheck = validateClosureRange(
     newClosureFrom,
     newClosureTo,
-    closures,
+    closures.filter((c) => c.id !== editingClosureId),
     new Date().toISOString().slice(0, 10)
   );
 
-  const handleAddClosure = () => {
+  const resetClosureForm = () => {
+    setShowAddClosure(false);
+    setEditingClosureId(null);
+    setNewClosureFrom("");
+    setNewClosureTo("");
+    setNewClosureLabel("");
+    setNewClosureNote("");
+    setNewClosureIcon(DEFAULT_CLOSURE_ICON);
+  };
+
+  const startEditClosure = (c: Closure) => {
+    setEditingClosureId(c.id);
+    setNewClosureFrom(c.startDate);
+    setNewClosureTo(c.endDate);
+    setNewClosureLabel(c.label);
+    setNewClosureNote(c.note);
+    setNewClosureIcon(c.icon);
+    setShowAddClosure(true);
+    setClosureError(null);
+  };
+
+  const handleSaveClosure = () => {
     setClosureError(null);
     startTransition(async () => {
       try {
-        const res = await actionAddClosure(newClosureFrom, newClosureTo, newClosureLabel, newClosureNote, newClosureIcon);
+        const res = editingClosureId === null
+          ? await actionAddClosure(newClosureFrom, newClosureTo, newClosureLabel, newClosureNote, newClosureIcon)
+          : await actionUpdateClosure(editingClosureId, newClosureFrom, newClosureTo, newClosureLabel, newClosureNote, newClosureIcon);
         if (!res.ok) { setClosureError(res.error); return; }
-        setClosures((prev) => [...prev, res.closure].sort((a, b) => a.startDate.localeCompare(b.startDate)));
-        setShowAddClosure(false);
-        setNewClosureFrom(""); setNewClosureTo(""); setNewClosureLabel(""); setNewClosureNote(""); setNewClosureIcon(DEFAULT_CLOSURE_ICON);
+        setClosures((prev) =>
+          [...prev.filter((c) => c.id !== res.closure.id), res.closure]
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        );
+        resetClosureForm();
       } catch (err) {
         setClosureError(err instanceof Error ? err.message : "Zavření se nepodařilo uložit.");
       }
@@ -1143,7 +1171,7 @@ export default function SettingsPage({
                   <p className="text-[12.5px] text-stone-400">Zatím nic — provoz běží normálně.</p>
                 )}
                 <div className="flex flex-col gap-2">
-                  {closures.map((c) => (
+                  {closures.filter((c) => c.id !== editingClosureId).map((c) => (
                     <div className="glass-soft rounded-2xl px-3 py-2.5 flex items-center gap-3" key={c.id}>
                       <span className="emoji text-[18px] leading-none shrink-0" aria-hidden>{c.icon}</span>
                       <div className="min-w-0 flex-1">
@@ -1153,6 +1181,15 @@ export default function SettingsPage({
                         {c.label && <div className="text-[12px] text-stone-500 truncate">{c.label}</div>}
                         {c.note && <div className="text-[11.5px] text-stone-400 truncate">{c.note}</div>}
                       </div>
+                      <button
+                        aria-label={`Upravit zavření ${formatClosureRange(c.startDate, c.endDate)}`}
+                        className="modal-btn modal-btn--secondary shrink-0"
+                        disabled={isPending}
+                        onClick={() => startEditClosure(c)}
+                        type="button"
+                      >
+                        Upravit
+                      </button>
                       <button
                         aria-label="Smazat zavření"
                         className="modal-btn modal-btn--danger shrink-0"
@@ -1200,12 +1237,12 @@ export default function SettingsPage({
                       <button
                         className="modal-btn modal-btn--primary"
                         disabled={isPending || !newClosureFrom || !newClosureTo || !!closureCheck.error}
-                        onClick={handleAddClosure}
+                        onClick={handleSaveClosure}
                         type="button"
-                      >Přidat</button>
+                      >{editingClosureId === null ? "Přidat" : "Uložit změny"}</button>
                       <button
                         className="modal-btn modal-btn--secondary"
-                        onClick={() => { setShowAddClosure(false); setNewClosureFrom(""); setNewClosureTo(""); setNewClosureLabel(""); setNewClosureNote(""); setNewClosureIcon(DEFAULT_CLOSURE_ICON); }}
+                        onClick={resetClosureForm}
                         type="button"
                       >Zrušit</button>
                     </div>

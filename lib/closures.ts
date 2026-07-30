@@ -61,6 +61,28 @@ export function addClosure(startDate: string, endDate: string, label: string, no
   );
 }
 
+export function updateClosure(
+  id: number,
+  fields: { startDate: string; endDate: string; label: string; note: string; icon: string }
+): Closure {
+  // ignoreId: a closure must be allowed to overlap *itself* when only its label,
+  // note or icon changes — otherwise every edit would fail its own overlap check.
+  const problem = validateClosure(fields.startDate, fields.endDate, id);
+  if (problem) throw new Error(problem);
+  const db = getDb();
+  db.prepare(
+    "UPDATE closures SET start_date = ?, end_date = ?, label = ?, note = ?, icon = ? WHERE id = ?"
+  ).run(
+    fields.startDate,
+    fields.endDate,
+    fields.label.trim(),
+    fields.note.trim(),
+    fields.icon.trim() || DEFAULT_CLOSURE_ICON,
+    id
+  );
+  return mapRow(db.prepare("SELECT * FROM closures WHERE id = ?").get(id) as Record<string, unknown>);
+}
+
 export function deleteClosure(id: number): void {
   getDb().prepare("DELETE FROM closures WHERE id = ?").run(id);
 }
