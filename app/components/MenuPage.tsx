@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import type { WeekClosure, MenuWeek } from "@/app/jidelnicek/page";
 
 // Controlled textarea that auto-grows to fit its content (used in modal)
 function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
@@ -62,19 +63,10 @@ function resolveActiveDay(
 }
 
 interface Props {
-  currentMenu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
-  currentWeekLabel: string | null;
-  currentWeekStart: string;
-  currentHolidayNames: Record<string, string | null>;
+  weeks: MenuWeek[];
+  todayCode: string | null;
   defaultMealPrice: number;
   defaultSoupPrice: number;
-  nextMenu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
-  nextHolidayNames: Record<string, string | null>;
-  nextWeekLabel: string | null;
-  nextWeekStart: string;
-  todayCode: string | null;
-  hasPdfCurrent: boolean;
-  hasPdfNext: boolean;
 }
 
 type ImportState =
@@ -128,15 +120,81 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
   );
 });
 
+// ── Whole-week closure (replaces the day grid) ────────────────────────────────
+
+// Five identical "Zavřeno" cards say one thing five times. A closure covers a SPAN,
+// so when it swallows the whole week the page states it once — same type scale and
+// label/value pairs as the heads-up banner on the order page.
+function WeekClosurePanel({ closure }: { closure: WeekClosure }) {
+  const fmt = (iso: string) => {
+    const [, m, d] = iso.split("-").map(Number);
+    return `${d}. ${m}.`;
+  };
+  const fmtDay = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    const wd = new Date(y, m - 1, d).toLocaleDateString("cs-CZ", { weekday: "long" });
+    return `${wd} ${d}. ${m}.`;
+  };
+  return (
+    <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav md:pb-8 pt-3">
+      <div
+        className="glass-card rounded-3xl mx-auto max-w-lg overflow-hidden"
+        style={{ borderColor: "rgba(245,158,11,0.28)" }}
+      >
+        <div className="flex flex-col items-center text-center px-6 py-8 gap-3">
+          <div
+            className="w-16 h-16 rounded-2xl inline-flex items-center justify-center"
+            style={{ background: "rgba(245,158,11,0.14)" }}
+          >
+            <span className="emoji text-[32px] leading-none">{closure.icon}</span>
+          </div>
+          <div>
+            <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
+              {closure.label}
+            </div>
+            <div className="text-[13px] text-stone-500 mt-1 tabular-nums">
+              Od {fmt(closure.startDate)} do {fmt(closure.endDate)} se v LIMA nevaří
+            </div>
+          </div>
+        </div>
+        {(closure.lastOrderable || closure.reopens) && (
+          <div
+            className="flex flex-wrap justify-center gap-x-10 gap-y-3 px-6 py-4"
+            style={{ borderTop: "1px solid rgba(245,158,11,0.18)", background: "rgba(245,158,11,0.05)" }}
+          >
+            {closure.lastOrderable && (
+              <div className="text-center">
+                <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
+                  Poslední oběd
+                </div>
+                <div className="text-[14px] font-semibold text-stone-800 mt-1 tabular-nums">{fmtDay(closure.lastOrderable)}</div>
+              </div>
+            )}
+            {closure.reopens && (
+              <div className="text-center">
+                <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
+                  Vaří se zase od
+                </div>
+                <div className="text-[14px] font-semibold text-stone-800 mt-1 tabular-nums">{fmtDay(closure.reopens)}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
-  menu, dayDates, todayCode, holidayNames, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
+  menu, dayDates, todayCode, holidayNames, closureLabels, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
   menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
   dayDates: Record<string, number>;
   todayCode: string | null;
   holidayNames: Record<string, string | null>;
+  closureLabels: Record<string, { label: string; icon: string } | null>;
   editMode: boolean;
   disabled: boolean;
   weekStart: string;
@@ -151,6 +209,8 @@ const WeekGrid = memo(function WeekGrid({
         const isToday = day === todayCode;
         const { soups = [], meals = [] } = menu[day] ?? {};
         const holidayName = holidayNames[day];
+        const dayClosure = closureLabels[day];
+        const closureLabel = dayClosure?.label ?? null;
         const holidayEmoji = getHolidayEmoji(holidayName);
         const isClosed = [...soups, ...meals].every(i => i.name === "Zavřeno") && (soups.length + meals.length) > 0;
         const displaySoups = soups.filter(i => i.name !== "Zavřeno");
@@ -190,7 +250,7 @@ const WeekGrid = memo(function WeekGrid({
                         className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
                         style={{ background: "rgba(245,158,11,0.14)" }}
                       >
-                        <span className="text-[16px] leading-none">{holidayEmoji}</span>
+                        <span className="emoji text-[16px] leading-none">{holidayEmoji}</span>
                       </div>
                       <div className="min-w-0">
                         <div className="font-display font-bold text-[12px] text-stone-900 leading-none">{holidayName}</div>
@@ -200,6 +260,15 @@ const WeekGrid = memo(function WeekGrid({
                     <div className="px-3 py-2.5 text-[11px] text-stone-600 leading-snug">
                       V tento den jídelníček neprobíhá.
                     </div>
+                  </div>
+                ) : closureLabel ? (
+                  /* Only reached when part of the week is closed — a whole closed week
+                     is handled by WeekClosurePanel. This is a placeholder for an absence,
+                     so it gets no card of its own and says "closed" exactly once. */
+                  <div className="flex flex-col items-center text-center gap-1 py-4 px-2">
+                    <span className="emoji text-[22px] leading-none">{dayClosure!.icon}</span>
+                    <span className="text-[11.5px] font-semibold text-stone-500 mt-0.5">Zavřeno</span>
+                    <span className="text-[10.5px] text-stone-400 leading-snug">{closureLabel}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 py-2.5">
@@ -554,26 +623,17 @@ const MenuSection = memo(function MenuSection({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function MenuPage({
-  currentMenu: initialCurrentMenu,
-  currentWeekLabel,
-  currentWeekStart,
+  weeks,
+  todayCode,
   defaultMealPrice,
   defaultSoupPrice,
-  nextMenu: initialNextMenu,
-  nextHolidayNames,
-  nextWeekLabel,
-  nextWeekStart,
-  todayCode,
-  currentHolidayNames,
-  hasPdfCurrent,
-  hasPdfNext,
 }: Props) {
-  const [currentMenu, setCurrentMenu] = useState(initialCurrentMenu);
-  const [nextMenu, setNextMenu] = useState(initialNextMenu);
-  // Sync state when server pushes new props (after router.refresh() following an import)
-  const prevMenuPropsRef = useRef(initialCurrentMenu);
-  const prevNextMenuPropsRef = useRef(initialNextMenu);
-  const [activeWeek, setActiveWeek] = useState<"current" | "next">("current");
+  const currentWeekStart = weeks.find((w) => w.isCurrent)?.weekStart ?? weeks[0].weekStart;
+  const [activeWeekStart, setActiveWeekStart] = useState(currentWeekStart);
+  // Optimistic per-week overrides of the server menu, keyed by weekStart.
+  // Replaces the old pair of currentMenu/nextMenu states.
+  const [menuEdits, setMenuEdits] = useState<Record<string, Record<string, { soups: MenuItem[]; meals: MenuItem[] }>>>({});
+  const prevWeeksRef = useRef(weeks);
   const [editMode, setEditMode] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
@@ -584,25 +644,34 @@ export default function MenuPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const hasNextWeek = Object.keys(initialNextMenu).length > 0;
-  const activeWeekStart = activeWeek === "current" ? currentWeekStart : nextWeekStart;
-  const activeWeekLabel = activeWeek === "current" ? currentWeekLabel : nextWeekLabel;
-  const hasPdfActive = activeWeek === "current" ? hasPdfCurrent : hasPdfNext;
-  const activeMenu = activeWeek === "current" ? currentMenu : nextMenu;
-  const activeHolidayNames = activeWeek === "current" ? currentHolidayNames : nextHolidayNames;
-  const visibleTodayCode = activeWeek === "current" ? todayCode : null;
+  const activeWeekData = weeks.find((w) => w.weekStart === activeWeekStart) ?? weeks[0];
+  const nextWeekStart = weeks.find((w) => !w.isCurrent)?.weekStart ?? currentWeekStart;
+  const activeWeekLabel = activeWeekData.weekLabel;
+  const hasPdfActive = activeWeekData.hasPdf;
+  const activeMenu = menuEdits[activeWeekStart] ?? activeWeekData.menu;
+  const activeHolidayNames = activeWeekData.holidayNames;
+  const activeClosureLabels = activeWeekData.closureLabels;
+  const activeWeekClosure = activeWeekData.weekClosure;
+  const visibleTodayCode = activeWeekData.isCurrent ? todayCode : null;
+  // Any non-current week holding a menu can be deleted (was: only "next week")
+  const canDeleteActiveWeek = !activeWeekData.isCurrent && Object.keys(activeWeekData.menu).length > 0;
+  // The delete affordance now follows the displayed week, so its wording must too
+  const activeWeekName = activeWeekData.tabLabel === "Příští týden"
+    ? "příští týden"
+    : `týden ${activeWeekData.tabLabel}`;
+  const weekLabelOf = useCallback(
+    (weekStart: string) => weeks.find((w) => w.weekStart === weekStart)?.weekLabel ?? null,
+    [weeks]
+  );
   const [activeDayOverride, setActiveDayOverride] = useState<string | null>(null);
 
   useEffect(() => {
-    if (prevMenuPropsRef.current !== initialCurrentMenu) {
-      prevMenuPropsRef.current = initialCurrentMenu;
-      setCurrentMenu(initialCurrentMenu);
+    if (prevWeeksRef.current !== weeks) {
+      prevWeeksRef.current = weeks;
+      setMenuEdits({});
     }
-    if (prevNextMenuPropsRef.current !== initialNextMenu) {
-      prevNextMenuPropsRef.current = initialNextMenu;
-      setNextMenu(initialNextMenu);
-    }
-  }, [initialCurrentMenu, initialNextMenu]);
+  }, [weeks]);
+
 
   const activeDay = useMemo(
     () => activeDayOverride && activeMenu[activeDayOverride]
@@ -611,8 +680,8 @@ export default function MenuPage({
     [activeDayOverride, activeMenu, visibleTodayCode]
   );
 
-  const handleWeekSwitch = (week: "current" | "next") => {
-    setActiveWeek(week);
+  const handleWeekSwitch = (weekStart: string) => {
+    setActiveWeekStart(weekStart);
     setActiveDayOverride(null);
     setEditMode(false);
     setConfirmDeleteNext(false);
@@ -640,19 +709,19 @@ export default function MenuPage({
       let targetLabel: string;
       if (detectedStart === nextWeekStart) {
         targetWeekStart = nextWeekStart;
-        targetLabel = `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}`;
+        targetLabel = `příští týden${weekLabelOf(nextWeekStart) ? ` (${weekLabelOf(nextWeekStart)})` : ""}`;
       } else if (detectedStart && detectedStart !== currentWeekStart) {
         targetWeekStart = detectedStart;
         targetLabel = data.weekLabel ?? detectedStart;
       } else {
         targetWeekStart = currentWeekStart;
-        targetLabel = `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}`;
+        targetLabel = `aktuální týden${weekLabelOf(currentWeekStart) ? ` (${weekLabelOf(currentWeekStart)})` : ""}`;
       }
       setImportState({ phase: "preview", result: data, targetWeekStart, targetLabel, tmpPdfName: data.tmpPdfName });
     } catch {
       setImportState({ phase: "error", message: "Síťová chyba. Zkuste to znovu." });
     }
-  }, [currentWeekStart, currentWeekLabel, nextWeekStart, nextWeekLabel]);
+  }, [currentWeekStart, nextWeekStart, weekLabelOf]);
 
   const handleConfirm = () => {
     if (importState.phase !== "preview") return;
@@ -669,7 +738,8 @@ export default function MenuPage({
   // ── Edit mode ─────────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => {
-    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
+    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
+      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
     setMenu((prev) => {
       const next = { ...prev };
       for (const day of Object.keys(next)) {
@@ -681,10 +751,11 @@ export default function MenuPage({
       return next;
     });
     startTransition(async () => { await actionUpdateMenuItem(id, updates); });
-  }, [activeWeek]);
+  }, [activeWeekStart, activeWeekData]);
 
   const handleDelete = useCallback((id: number) => {
-    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
+    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
+      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
     startTransition(async () => {
       await actionDeleteMenuItem(id);
       setMenu((prev) => {
@@ -698,10 +769,11 @@ export default function MenuPage({
         return next;
       });
     });
-  }, [activeWeek]);
+  }, [activeWeekStart, activeWeekData]);
 
   const handleAdd = useCallback((day: string, type: "Polévka" | "Jídlo") => {
-    const setMenu = activeWeek === "current" ? setCurrentMenu : setNextMenu;
+    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
+      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
     startTransition(async () => {
       const newItem = await actionAddMenuItem({
         day, type,
@@ -722,12 +794,12 @@ export default function MenuPage({
       });
       setEditingItem(newItem);
     });
-  }, [activeWeek, activeWeekStart, defaultSoupPrice, defaultMealPrice]);
+  }, [activeWeekStart, activeWeekData, defaultSoupPrice, defaultMealPrice]);
 
   const handleDeleteNextWeek = () => {
     setConfirmDeleteNext(false);
     startTransition(async () => {
-      await actionDeleteMenuWeek(nextWeekStart);
+      await actionDeleteMenuWeek(activeWeekStart);
       router.refresh();
     });
   };
@@ -735,6 +807,8 @@ export default function MenuPage({
   const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
   const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
   const activeHolidayName = activeHolidayNames[activeDay];
+  const activeClosure = activeClosureLabels[activeDay];
+  const activeClosureLabel = activeClosure?.label ?? null;
   const activeHolidayEmoji = getHolidayEmoji(activeHolidayName);
   const isDayClosed = [...dayMenu.soups, ...dayMenu.meals].every(i => i.name === "Zavřeno") && (dayMenu.soups.length + dayMenu.meals.length) > 0;
   const displayDaySoups = dayMenu.soups.filter(i => i.name !== "Zavřeno");
@@ -772,14 +846,14 @@ export default function MenuPage({
           >
             {editMode ? "Zavřít úpravu" : "Upravit ručně"}
           </button>
-          {activeWeek === "next" && hasNextWeek && (
+          {canDeleteActiveWeek && (
             <button
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
               disabled={isPending}
               onClick={() => setConfirmDeleteNext(true)}
               type="button"
             >
-              Smazat příští týden
+              Smazat {activeWeekName}
             </button>
           )}
           <button
@@ -808,20 +882,23 @@ export default function MenuPage({
       </div>
 
       {/* Week tabs */}
-      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0">
-        <div className="flex p-1 rounded-2xl gap-0.5" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
-          {(["current", "next"] as const).map((week) => {
-            const active = activeWeek === week;
-            const label = week === "current" ? "Aktuální týden" : "Příští týden";
+      <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex p-1 rounded-2xl gap-0.5 shrink-0" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
+          {weeks.map((week) => {
+            const active = week.weekStart === activeWeekStart;
             return (
               <button
-                key={week}
-                className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-[0.97] ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
-                onClick={() => handleWeekSwitch(week)}
+                key={week.weekStart}
+                /* Same metrics as the day picker on the order page: one visual language, and
+                     44px is the touch-target minimum this strip was under. */
+                  className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.97] whitespace-nowrap ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
+                onClick={() => handleWeekSwitch(week.weekStart)}
                 style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
                 type="button"
               >
-                {label}
+                {/* A fully closed week says so in the tab — no need to click to find out */}
+                {week.weekClosure && <span className="emoji mr-1">{week.weekClosure.icon}</span>}
+                {week.tabLabel}
               </button>
             );
           })}
@@ -832,7 +909,7 @@ export default function MenuPage({
             ↓ PDF
           </a>
         )}
-        {activeWeek === "current" && (
+        {activeWeekData.isCurrent && (
           <button
             className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
             onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
@@ -843,6 +920,10 @@ export default function MenuPage({
         )}
       </div>
 
+      {activeWeekClosure ? (
+        <WeekClosurePanel closure={activeWeekClosure} />
+      ) : (
+      <>
       {/* Day tabs — mobile only */}
       <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
         {DAY_ORDER.map((day) => {
@@ -875,6 +956,7 @@ export default function MenuPage({
           disabled={isPending}
           editMode={!isReadOnly && editMode}
           holidayNames={activeHolidayNames}
+          closureLabels={activeClosureLabels}
           menu={activeMenu}
           onAdd={(day, type) => handleAdd(day, type)}
           onCloseDay={(day) => {
@@ -897,14 +979,16 @@ export default function MenuPage({
             <div className="glass-card rounded-3xl overflow-hidden">
               <div
                 className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40"
-                style={{ background: "rgba(245,158,11,0.08)" }}
+                style={{ background: activeHolidayName || !activeClosureLabel ? "rgba(245,158,11,0.08)" : "rgba(148,163,184,0.10)" }}
               >
                 <div
                   className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(245,158,11,0.14)" }}
+                  style={{ background: activeHolidayName || !activeClosureLabel ? "rgba(245,158,11,0.14)" : "rgba(148,163,184,0.16)" }}
                 >
                   {activeHolidayName ? (
-                    <span className="text-[18px] leading-none">{activeHolidayEmoji}</span>
+                    <span className="emoji text-[18px] leading-none">{activeHolidayEmoji}</span>
+                  ) : activeClosureLabel ? (
+                    <span className="emoji text-[18px] leading-none">{activeClosure!.icon}</span>
                   ) : (
                     <MIcon
                       name="event_busy"
@@ -916,10 +1000,14 @@ export default function MenuPage({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-display font-bold text-[13.5px] text-stone-900 leading-none">
-                    {activeHolidayName ?? "Zavřeno"}
+                    {activeHolidayName ?? activeClosureLabel ?? "Zavřeno"}
                   </div>
                   <div className="text-[11.5px] text-stone-500 mt-0.5">
-                    {activeHolidayName ? "Svátek / zavřeno" : "V tento den není jídelníček k dispozici."}
+                    {activeHolidayName
+                      ? "Svátek / zavřeno"
+                      : activeClosureLabel
+                        ? "Zavřeno — v tento den se nevaří"
+                        : "V tento den není jídelníček k dispozici."}
                   </div>
                 </div>
               </div>
@@ -929,9 +1017,15 @@ export default function MenuPage({
                   style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(245,158,11,0.14)" }}
                 >
                   <MIcon name="info" size={14} style={{ color: "#D97706" }} />
-                  <span>{activeHolidayName ? "V tento den se jídla nevydávají." : "Zkuste jiný den nebo doplnit menu v editaci."}</span>
+                  <span>
+                    {activeHolidayName
+                      ? "V tento den se jídla nevydávají."
+                      : activeClosureLabel
+                        ? (editMode ? "Zavřeno je nastavené v Nastavení → Zavřeno / dovolená." : "V tento den se v LIMA nevaří.")
+                        : "Zkuste jiný den nebo doplnit menu v editaci."}
+                  </span>
                 </div>
-                {!isReadOnly && editMode && (
+                {!isReadOnly && editMode && !activeClosureLabel && (
                   <button
                     className="text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
                     disabled={isPending}
@@ -983,6 +1077,8 @@ export default function MenuPage({
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Menu item edit modal */}
       {editingItem !== null && (
@@ -1008,10 +1104,10 @@ export default function MenuPage({
         <ConfirmModal
           confirmLabel="Smazat"
           isPending={isPending}
-          message="Celý jídelníček příštího týdne bude trvale odstraněn."
+          message={`Celý jídelníček (${activeWeekName}) bude trvale odstraněn.`}
           onClose={() => setConfirmDeleteNext(false)}
           onConfirm={handleDeleteNextWeek}
-          title="Smazat příští týden"
+          title={`Smazat ${activeWeekName}`}
         />
       )}
 
@@ -1075,7 +1171,7 @@ export default function MenuPage({
                       <span className="text-[11px] text-stone-400">Uložit jako:</span>
                       <button
                         className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${importState.targetWeekStart === currentWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
-                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: currentWeekStart, targetLabel: `aktuální týden${currentWeekLabel ? ` (${currentWeekLabel})` : ""}` } : prev)}
+                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: currentWeekStart, targetLabel: `aktuální týden${weekLabelOf(currentWeekStart) ? ` (${weekLabelOf(currentWeekStart)})` : ""}` } : prev)}
                         style={importState.targetWeekStart === currentWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                         type="button"
                       >
@@ -1083,7 +1179,7 @@ export default function MenuPage({
                       </button>
                       <button
                         className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${importState.targetWeekStart === nextWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
-                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: nextWeekStart, targetLabel: `příští týden${nextWeekLabel ? ` (${nextWeekLabel})` : ""}` } : prev)}
+                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: nextWeekStart, targetLabel: `příští týden${weekLabelOf(nextWeekStart) ? ` (${weekLabelOf(nextWeekStart)})` : ""}` } : prev)}
                         style={importState.targetWeekStart === nextWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                         type="button"
                       >

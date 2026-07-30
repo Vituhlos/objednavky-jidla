@@ -135,6 +135,55 @@ function getDayLabel(date: string, todayDate: string): string {
   return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d}.${m}.`;
 }
 
+// Compact label for one continuous closed stretch: "3.–7. 8." / "31. 7. – 3. 8." /
+// "3. 8." — the month is printed once when both ends share it.
+function formatGapLabel(from: string, to: string): string {
+  const [, fm, fd] = from.split("-").map(Number);
+  const [, tm, td] = to.split("-").map(Number);
+  if (from === to) return `${fd}. ${fm}.`;
+  if (fm === tm) return `${fd}.–${td}. ${fm}.`;
+  return `${fd}. ${fm}. – ${td}. ${tm}.`;
+}
+
+// The day picker is a timeline: orderable days are chips, closed stretches are the
+// gaps between them. A gap renders as ONE quiet marker, not one item per day —
+// five struck-through chips read as five choices, which is exactly what they aren't.
+type PickerItem = { kind: "day"; date: string } | { kind: "gap"; from: string; to: string };
+
+function buildPickerItems(availableDates: string[], closedDates: string[]): PickerItem[] {
+  const available = new Set(availableDates);
+  const gapDays = closedDates.filter((d) => !available.has(d)).sort();
+  const items: PickerItem[] = [];
+  let i = 0;
+
+  const flushRunBefore = (limit: string | null) => {
+    while (i < gapDays.length && (limit === null || gapDays[i] < limit)) {
+      const from = gapDays[i];
+      let to = from;
+      i++;
+      // Keep one marker per continuous stretch; a weekend (max 3 days apart) doesn't break it
+      while (i < gapDays.length && (limit === null || gapDays[i] < limit) && daysBetween(to, gapDays[i]) <= 3) {
+        to = gapDays[i];
+        i++;
+      }
+      items.push({ kind: "gap", from, to });
+    }
+  };
+
+  for (const date of availableDates) {
+    flushRunBefore(date);
+    items.push({ kind: "day", date });
+  }
+  flushRunBefore(null);
+  return items;
+}
+
+function daysBetween(a: string, b: string): number {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  return Math.round((new Date(by, bm - 1, bd).getTime() - new Date(ay, am - 1, ad).getTime()) / 86400000);
+}
+
 function getPragueNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
 }
@@ -142,6 +191,37 @@ function getPragueNow() {
 function parseCutoffMinutes(cutoffTime: string) {
   const [h, m] = cutoffTime.split(":").map(Number);
   return h * 60 + m;
+}
+
+// Genitive — reads correctly after both "od" and "do" (od pondělí … do pátku)
+const DAY_GENITIVE = ["neděle", "pondělí", "úterý", "středy", "čtvrtka", "pátku", "soboty"];
+
+function dayOfWeek(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+function shortDate(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d}. ${m}.`;
+}
+
+// The banner's headline — the one sentence a reader should leave with.
+// People think in "příští týden", not in date ranges, so use the relative phrase
+// whenever it's exactly true; the absolute dates sit on the line below anyway.
+function formatClosureHeadline(from: string, to: string, todayDate: string): string {
+  const nextMonday = addDays(todayDate, ((8 - dayOfWeek(todayDate)) % 7) || 7);
+  const nextFriday = addDays(nextMonday, 4);
+  if (from <= nextMonday && to >= nextFriday) return "Příští týden se nevaří";
+  if (from === to) return `${DAY_LOCATIVE[dayOfWeek(from)].replace(/^v/, "V")} ${shortDate(from)} se nevaří`;
+  return `Od ${shortDate(from)} do ${shortDate(to)} se nevaří`;
+}
+
+// "v pátek 31. 7." (withPreposition) or "pátek 31. 7." for label:value pairs
+function formatDayPhrase(iso: string, withPreposition = true): string {
+  const day = DAY_LOCATIVE[dayOfWeek(iso)];
+  const bare = day.replace(/^ve? /, "");
+  return `${withPreposition ? day : bare} ${shortDate(iso)}`;
 }
 
 const DAY_LOCATIVE = ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"];
@@ -177,6 +257,10 @@ export default function OrderPage({
   defaultMealPrice = 110,
   extrasPrices = EXTRAS_PRICES_DEFAULT,
   availableDates,
+  closedDates,
+  closureLabel,
+  isClosureDay = false,
+  upcomingClosure,
   selectedDate,
   todayDate,
   holidayName,
@@ -194,6 +278,10 @@ export default function OrderPage({
   defaultMealPrice?: number;
   extrasPrices?: ExtrasPrices;
   availableDates?: string[];
+  closedDates?: string[];
+  closureLabel?: string | null;
+  isClosureDay?: boolean;
+  upcomingClosure?: { startDate: string; endDate: string; label: string; note: string; icon: string } | null;
   selectedDate?: string;
   todayDate?: string;
   holidayName?: string | null;
@@ -206,7 +294,28 @@ export default function OrderPage({
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
-  const showDayPicker = !!(availableDates && availableDates.length > 1 && todayDate);
+
+  const closedSet = useMemo(() => new Set(closedDates ?? []), [closedDates]);
+  const pickerItems = useMemo(
+    () => buildPickerItems(availableDates ?? [], closedDates ?? []),
+    [availableDates, closedDates]
+  );
+  const showDayPicker = !!(pickerItems.length > 1 && todayDate);
+
+  // Last day people can still order before the closure starts — the actionable part
+  // of the heads-up ("objednej si, než zavřou").
+  const lastOrderableBeforeClosure = useMemo(() => {
+    if (!upcomingClosure) return null;
+    const before = (availableDates ?? []).filter((d) => d < upcomingClosure.startDate);
+    return before.length > 0 ? before[before.length - 1] : null;
+  }, [availableDates, upcomingClosure]);
+
+  // First day people can order again — only shown when a menu for it already exists,
+  // otherwise we'd be promising a date nobody has confirmed.
+  const reopensAfterClosure = useMemo(() => {
+    if (!upcomingClosure) return null;
+    return (availableDates ?? []).find((d) => d > upcomingClosure.endDate) ?? null;
+  }, [availableDates, upcomingClosure]);
 
   const [departments, setDepartments] = useState(initialData.departments);
   const departmentsRef = useRef(initialData.departments);
@@ -771,7 +880,10 @@ export default function OrderPage({
       )}
 
       {/* ── Desktop info strip ── */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+      {/* min-h: the bar used to shrink by 7px whenever "Odeslat" was absent (future days,
+          already sent, auto-send on) — it is the tallest child, so the row collapsed
+          with it. Reserving its height keeps the header still while switching days. */}
+      <div className="hidden md:flex px-5 py-2.5 min-h-[60px] border-b border-white/50 items-center gap-4 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
@@ -829,7 +941,7 @@ export default function OrderPage({
       </div>
 
       {/* ── Mobile info strip ── */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 flex items-center gap-2.5">
+      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 min-h-[60px] flex items-center gap-2.5">
         <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
         <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
         {activeOrderCount > 0 && (
@@ -918,13 +1030,26 @@ export default function OrderPage({
                   className="flex p-1 rounded-2xl gap-0.5"
                   style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
                 >
-                  {availableDates!.map((date) => {
+                  {pickerItems.map((item) => {
+                    if (item.kind === "gap") {
+                      return (
+                        <span
+                          className="flex-shrink-0 self-center px-3 text-[11.5px] text-stone-400 whitespace-nowrap select-none"
+                          key={`gap-${item.from}`}
+                          title="V tyto dny se v LIMA nevaří"
+                        >
+                          zavřeno {formatGapLabel(item.from, item.to)}
+                        </span>
+                      );
+                    }
+                    const date = item.date;
                     const isActive = date === selectedDate;
+                    const isClosed = closedSet.has(date);
                     return (
                       <button
                         key={date}
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                          isActive ? "" : `hover:bg-white/60 ${isClosed ? "text-stone-400 line-through decoration-stone-300 hover:text-stone-500" : "text-stone-500 hover:text-stone-700"}`
                         }`}
                         onClick={() => { if (isActive) return; setPendingDate(date); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
@@ -932,6 +1057,7 @@ export default function OrderPage({
                           color: "white",
                           boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
                         } : {}}
+                        title={isClosed ? "Zavřeno — nevaří se" : undefined}
                         type="button"
                       >
                         {getDayLabel(date, todayDate!)}
@@ -945,6 +1071,7 @@ export default function OrderPage({
             </div>
           )}
 
+
           {noMenu ? (
             /* ── Closed / no-menu banner ── */
             <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
@@ -957,14 +1084,14 @@ export default function OrderPage({
                   }
                 >
                   {holidayName ? (
-                    <span className="text-[28px] leading-none">{holidayEmoji}</span>
+                    <span className="emoji text-[28px] leading-none">{holidayEmoji}</span>
                   ) : (
-                    <MIcon name="no_meals" size={28} fill style={{ color: "#94a3b8" }} />
+                    <MIcon name="event_busy" size={28} fill style={{ color: "#94a3b8" }} />
                   )}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
-                    {holidayName ?? "Jídelníček není k dispozici"}
+                    {holidayName ?? (isClosureDay ? "Zavřeno" : "Jídelníček není k dispozici")}
                   </div>
                   {formattedClosedDate && (
                     <div className="text-[13px] text-stone-500">{formattedClosedDate}</div>
@@ -980,7 +1107,13 @@ export default function OrderPage({
                   style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
                 >
                   <MIcon name="info" size={13} style={{ color: "#D97706" }} />
-                  <span>{holidayName ? "V tento den se objednávky nevytvářejí." : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}</span>
+                  <span>
+                    {holidayName
+                      ? "V tento den se objednávky nevytvářejí."
+                      : isClosureDay
+                        ? (closureLabel || "V tento den se v LIMA nevaří.")
+                        : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1078,6 +1211,68 @@ export default function OrderPage({
                   <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
                 )}
               </div>
+
+              {upcomingClosure && (
+                <div
+                  /* Amber, not red: red means "something broke" everywhere else in
+                     this app. A planned shutdown is "notice and plan", same class as
+                     the cutoff bar. Sizing matches the status bar above it. */
+                  className="glass rounded-2xl px-4 py-3.5 flex items-center gap-3.5 mx-auto w-fit max-w-full"
+                  style={{ background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.34)" }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-full inline-flex items-center justify-center shrink-0"
+                    style={{ background: "rgba(245,158,11,0.16)" }}
+                  >
+                    <span className="emoji text-[18px] leading-none">{upcomingClosure.icon}</span>
+                  </div>
+                  {/* Type scale 16 / 12 / 10.5+14 — three distinct roles instead of
+                      four near-identical lines. The two dates are the only thing that
+                      demands action, so they're the largest thing after the headline. */}
+                  <div className="min-w-0">
+                    <div className="font-display font-bold text-[16px] text-stone-900 leading-tight">
+                      {formatClosureHeadline(upcomingClosure.startDate, upcomingClosure.endDate, todayDate!)}
+                    </div>
+                    <div className="text-[12px] text-stone-500 leading-snug mt-0.5 tabular-nums">
+                      {upcomingClosure.label || "Dovolená"}
+                      {" · "}
+                      {formatGapLabel(upcomingClosure.startDate, upcomingClosure.endDate)}
+                    </div>
+
+                    {(lastOrderableBeforeClosure || reopensAfterClosure) && (
+                      <div
+                        className="flex flex-wrap gap-x-7 gap-y-2 mt-3 pt-3"
+                        style={{ borderTop: "1px solid rgba(245,158,11,0.22)" }}
+                      >
+                        {lastOrderableBeforeClosure && (
+                          <div>
+                            <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
+                              Poslední oběd
+                            </div>
+                            <div className="text-[14px] font-semibold text-stone-800 leading-tight mt-1 tabular-nums">
+                              {formatDayPhrase(lastOrderableBeforeClosure, false)}
+                            </div>
+                          </div>
+                        )}
+                        {reopensAfterClosure && (
+                          <div>
+                            <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
+                              Vaří se zase od
+                            </div>
+                            <div className="text-[14px] font-semibold text-stone-800 leading-tight mt-1 tabular-nums">
+                              {formatDayPhrase(reopensAfterClosure, false)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {upcomingClosure.note && (
+                      <div className="text-[12px] text-stone-500 leading-snug mt-2.5">{upcomingClosure.note}</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -5,7 +5,7 @@ import { buildOrderEmail } from "./order-email";
 import { buildOrderPdfAttachment } from "./order-pdf";
 import { computeRowPrice, type ExtrasPrices } from "./pricing";
 import { getOrderRecipients, sendEmail } from "./email";
-import { getSettings } from "./settings";
+import { getSettings, saveSettings } from "./settings";
 import {
   getMenuItemsByIds,
   getMenuItemsForDay,
@@ -32,7 +32,7 @@ function savePdf(orderId: number, buffer: Buffer): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(getOrderPdfPath(orderId), buffer);
 }
-import { getPragueISODate } from "./time";
+import { getPragueISODate, getPragueNow } from "./time";
 import type {
   Order,
   DepartmentData,
@@ -474,6 +474,23 @@ export function reopenOrder(orderId: number): void {
     .prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?")
     .run(orderId);
   logAudit({ action: "order_reopen", orderId });
+}
+
+// Reopening today's order after the cutoff must also lift the cutoff lock, otherwise
+// the order is "open" but nobody can actually edit it. The web action did this and the
+// bot's /zrusit didn't — same operation, two different outcomes. Both call this now.
+export function reopenOrderAndUnlock(orderId: number): void {
+  reopenOrder(orderId);
+  const order = getOrderById(orderId);
+  const today = getPragueISODate();
+  if (order?.date !== today) return;
+
+  const { cutoffTime, orderForceOpenDate } = getSettings();
+  if (orderForceOpenDate === today) return;
+  const now = getPragueNow();
+  const [h, m] = cutoffTime.split(":").map(Number);
+  const cutoffPassed = now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
+  if (cutoffPassed) saveSettings({ orderForceOpenDate: today });
 }
 
 export function getOrderList(): OrderSummary[] {

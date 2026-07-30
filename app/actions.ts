@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
@@ -13,7 +13,7 @@ import {
   updateOrderRow,
   deleteOrderRow,
   sendOrder as dbSendOrder,
-  reopenOrder,
+  reopenOrderAndUnlock,
   clearOrderRows,
   resendOrderEmail,
   getOrderById,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin, getSettings } from "@/lib/settings";
+import { getClosures, addClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
 import { getPragueNow, getPragueISODate } from "@/lib/time";
 import type { AppSettings } from "@/lib/settings";
 import {
@@ -122,9 +123,9 @@ export async function actionSendOrder(orderId: number): Promise<void> {
     const { sendTelegramToSubscribers } = await import("@/lib/telegram");
     const { getTodayOrderData } = await import("@/lib/orders");
     const data = getTodayOrderData();
-    const totalPeople = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
+    const { formatOrderTotals } = await import("@/lib/order-summary");
     const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`);
+    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n${formatOrderTotals(data)}`);
   } catch {}
 }
 
@@ -211,7 +212,7 @@ export async function actionUpdatePizzaPrices(
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
-  reopenOrder(orderId);
+  reopenOrderAndUnlock(orderId);
   // Pokud se znovu otevírá dnešní objednávka po uzávěrce, admin implicitně odemyká
   const order = getOrderById(orderId);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
@@ -243,6 +244,38 @@ export async function actionOpenDay(dayCode: string, weekStart: string): Promise
   openDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
+}
+
+export async function actionGetClosures(): Promise<Closure[]> {
+  return getClosures();
+}
+
+// Returns a result instead of throwing: Next masks server-action error messages in
+// production, so a thrown validation message would reach the user as a generic digest.
+export async function actionAddClosure(
+  startDate: string,
+  endDate: string,
+  label: string,
+  note = "",
+  icon = ""
+): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
+  const problem = validateClosure(startDate, endDate);
+  if (problem) return { ok: false, error: problem };
+
+  const closure = addClosure(startDate, endDate, label, note, icon);
+  revalidatePath("/");
+  revalidatePath("/jidelnicek");
+  revalidatePath("/nastaveni");
+  broadcast();
+  return { ok: true, closure };
+}
+
+export async function actionDeleteClosure(id: number): Promise<void> {
+  deleteClosure(id);
+  revalidatePath("/");
+  revalidatePath("/jidelnicek");
+  revalidatePath("/nastaveni");
+  broadcast();
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
@@ -286,10 +319,17 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
   revalidatePath("/nastaveni");
 }
 
-export async function actionCheckPin(pin: string): Promise<boolean> {
+// A blocked attempt used to be indistinguishable from a wrong PIN — the screen said
+// "nesprávný PIN" while the user was typing the right one. Report the two apart.
+export async function actionCheckPin(
+  pin: string
+): Promise<{ ok: boolean; lockedUntil?: number }> {
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  if (!checkRateLimit(`pin:${ip}`, 5, 10 * 60 * 1000)) return false;
-  return checkPin(pin);
+  const key = `pin:${ip}`;
+  if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
+    return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
+  }
+  return { ok: checkPin(pin) };
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {

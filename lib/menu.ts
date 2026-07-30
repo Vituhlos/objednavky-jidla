@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { getSettings } from "./settings";
+import { getClosureDates, getClosureForDate } from "./closures";
 import { getPragueNow, toLocalISODate } from "./time";
 import type { MenuItem, DayCode } from "./types";
 
@@ -40,6 +41,31 @@ export function getMenuDates(): string[] {
   return dates.sort();
 }
 
+// ISO dates of every closed day, from BOTH sources:
+//   1. menu_day_closed — a single day toggled off in the menu screen
+//   2. closures        — a date range entered in settings (dovolená)
+// Closed days have no menu_items rows of their own, so getMenuDates() never
+// returns them — they must be read separately.
+export function getClosedDates(): string[] {
+  return [...new Set([...getManuallyClosedDates(), ...getClosureDates()])].sort();
+}
+
+function getManuallyClosedDates(): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT week_start, day FROM menu_day_closed ORDER BY week_start, day")
+    .all() as { week_start: string; day: string }[];
+  const offsets: Record<string, number> = { Po: 0, Út: 1, St: 2, Čt: 3, Pá: 4 };
+  const dates = new Set<string>();
+  for (const r of rows) {
+    const off = offsets[r.day];
+    if (off === undefined) continue;
+    const [y, m, d] = r.week_start.split("-").map(Number);
+    dates.add(toLocalISODate(new Date(y, m - 1, d + off)));
+  }
+  return [...dates].sort();
+}
+
 // ISO date of Monday of the week containing `date`
 export function getMondayISO(date: Date = getPragueNow()): string {
   const d = new Date(date);
@@ -74,9 +100,26 @@ function zavrenoItem(day: string): MenuItem {
   return { id: 0, weekLabel: null, day, type: "Jídlo", code: "0", name: "Zavřeno", price: 0, allergens: "" };
 }
 
+const DAY_OFFSETS: Record<string, number> = { Po: 0, Út: 1, St: 2, Čt: 3, Pá: 4 };
+
+// ISO date of `day` (Po–Pá) within the week starting at `weekStart`
+function isoForDay(weekStart: string, day: string): string | null {
+  const off = DAY_OFFSETS[day];
+  if (off === undefined) return null;
+  const [y, m, d] = weekStart.split("-").map(Number);
+  return toLocalISODate(new Date(y, m - 1, d + off));
+}
+
+// Days of `weekStart` that are closed — toggled off in the menu screen, or covered
+// by a closure range from settings.
 function getClosedDays(db: ReturnType<typeof getDb>, weekStart: string): Set<string> {
   const rows = db.prepare("SELECT day FROM menu_day_closed WHERE week_start = ?").all(weekStart) as { day: string }[];
-  return new Set(rows.map((r) => r.day));
+  const closed = new Set(rows.map((r) => r.day));
+  for (const day of Object.keys(DAY_OFFSETS)) {
+    const iso = isoForDay(weekStart, day);
+    if (iso && getClosureForDate(iso)) closed.add(day);
+  }
+  return closed;
 }
 
 export function getMenuItemsForDay(day: string, weekStart?: string): {
@@ -88,7 +131,9 @@ export function getMenuItemsForDay(day: string, weekStart?: string): {
   const isManuallyClosed = db.prepare(
     "SELECT 1 FROM menu_day_closed WHERE week_start = ? AND day = ?"
   ).get(ws, day);
-  if (isManuallyClosed) return { soups: [], meals: [zavrenoItem(day)] };
+  const iso = isoForDay(ws, day);
+  const isClosure = iso ? !!getClosureForDate(iso) : false;
+  if (isManuallyClosed || isClosure) return { soups: [], meals: [zavrenoItem(day)] };
   const items = db
     .prepare(
       "SELECT * FROM menu_items WHERE day = ? AND (week_start = ? OR week_start IS NULL) ORDER BY type DESC, CAST(code AS INTEGER) ASC, code ASC, id ASC"

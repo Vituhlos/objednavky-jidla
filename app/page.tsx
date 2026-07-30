@@ -1,6 +1,7 @@
 import { getOrderDataForDate } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
-import { getMenuWeekLabel, getMenuDates, getMondayISO } from "@/lib/menu";
+import { getMenuWeekLabel, getMenuDates, getClosedDates, getMondayISO } from "@/lib/menu";
+import { getClosureForDate, getUpcomingClosure } from "@/lib/closures";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
 import OrderPage from "@/app/components/OrderPage";
@@ -19,6 +20,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const menuDates = getMenuDates();
   const allDates = [...new Set([todayISO, ...menuDates.filter((d) => d >= todayISO)])].sort();
 
+  // Closed days that fall inside the span of the day picker — these fill the gap
+  // that would otherwise look like an unexplained jump (např. Zítra → Po 10.8.).
+  const lastDate = allDates[allDates.length - 1];
+  const closedDates = getClosedDates().filter((d) => d >= todayISO && d <= lastDate);
+
   const isAfterNoon = pragueNow.getHours() >= 12;
   const autoDate = isAfterNoon && menuDates.includes(tomorrowISO) ? tomorrowISO : todayISO;
   const selectedDate = params.date && allDates.includes(params.date) ? params.date : autoDate;
@@ -30,10 +36,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
   const holidayName = getHolidayName(selectedDate);
   const holidayDescription = getHolidayDescription(holidayName);
+  const selectedClosure = getClosureForDate(selectedDate);
+  const upcomingClosure = getUpcomingClosure(todayISO);
 
   return (
     <OrderPage
       availableDates={allDates}
+      closedDates={closedDates}
+      closureLabel={selectedClosure?.label || null}
+      isClosureDay={!!selectedClosure}
+      upcomingClosure={upcomingClosure}
       holidayName={holidayName}
       holidayDescription={holidayDescription}
       cutoffTime={s.cutoffTime}

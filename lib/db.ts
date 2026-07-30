@@ -178,6 +178,20 @@ function migrate(db: Database.Database): void {
     )
   `).run();
 
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS closures (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_date TEXT NOT NULL,
+      end_date   TEXT NOT NULL,
+      label      TEXT NOT NULL DEFAULT '',
+      note       TEXT NOT NULL DEFAULT '',
+      icon       TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
+  // note + icon were added after closures shipped — idempotent for existing databases
+  try { db.exec("ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''"); } catch {}
+
   // Performance indexes
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);
