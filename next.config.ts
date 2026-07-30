@@ -11,6 +11,17 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GIT_REF: process.env.GIT_REF ?? "",
     NEXT_PUBLIC_DOCKER_TAG: process.env.DOCKER_TAG ?? "",
   },
+  async headers() {
+    return [
+      {
+        // Emoji font slices and the generated emoji list never change in place —
+        // a new build ships new files. Without this, Next serves everything under
+        // public/ with max-age=0 and the browser re-validates them on every visit.
+        source: "/:path(fonts/.*\\.woff2|fonts/noto-color-emoji\\.css|emoji\\.json)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

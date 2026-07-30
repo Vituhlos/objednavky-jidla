@@ -25,7 +25,13 @@ import {
   actionGetTelegramBotInfo,
   actionGetTelegramWebhookStatus,
   actionSetTelegramCommands,
+  actionGetClosures,
+  actionAddClosure,
+  actionDeleteClosure,
 } from "@/app/actions";
+import type { Closure } from "@/lib/closures";
+import { DEFAULT_CLOSURE_ICON } from "@/lib/closure-icons";
+import { EmojiPicker } from "./EmojiPicker";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { RELEASE_NOTES } from "@/lib/release-notes";
 import { getAppVersionInfo } from "@/lib/version";
@@ -102,6 +108,38 @@ function formatTs(ts: string): string {
   });
 }
 
+// "2026-08-03" + "2026-08-07" → "3. 8. – 7. 8. 2026"
+// N5: the range used to be corrected silently on the server (a reversed range was
+// just swapped) and overlaps were never checked at all — two closures over the same
+// day make getClosureForDate() pick whichever came first, which is a coin toss.
+function validateClosureRange(
+  from: string,
+  to: string,
+  existing: Closure[],
+  todayISO: string
+): { error?: string; warning?: string } {
+  if (!from || !to) return {};
+  if (from > to) return { error: "Datum „Do“ je dřív než „Od“ — prohoďte je." };
+
+  const clash = existing.find((c) => from <= c.endDate && to >= c.startDate);
+  if (clash) {
+    return {
+      error: `Překrývá se s „${clash.label || "Dovolená"}“ (${formatClosureRange(clash.startDate, clash.endDate)}).`,
+    };
+  }
+
+  if (to < todayISO) return { warning: "Termín je celý v minulosti — na provoz už nemá vliv." };
+  return {};
+}
+
+function formatClosureRange(startDate: string, endDate: string): string {
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const [ey, em, ed] = endDate.split("-").map(Number);
+  if (startDate === endDate) return `${sd}. ${sm}. ${sy}`;
+  if (sy === ey) return `${sd}. ${sm}. – ${ed}. ${em}. ${ey}`;
+  return `${sd}. ${sm}. ${sy} – ${ed}. ${em}. ${ey}`;
+}
+
 // ── Section card ──────────────────────────────────────────────────────────────
 
 function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
@@ -135,12 +173,14 @@ function Section({ title, icon, children, helpContent, action }: { title: string
 
 // ── Field ─────────────────────────────────────────────────────────────────────
 
+// mt-auto on the control keeps inputs on one line even when only some fields carry a
+// hint — without it a hinted field pushes its input a row lower than its neighbours.
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 h-full">
       <span className="text-[12px] font-semibold text-stone-600">{label}</span>
       {hint && <span className="text-[10.5px] text-stone-400 -mt-0.5">{hint}</span>}
-      {children}
+      <div className="mt-auto">{children}</div>
     </div>
   );
 }
@@ -273,15 +313,18 @@ const DeptRow = memo(function DeptRow({
 
 // ── Tabs ─────────────────────────────────────────────────
 
-type Tab = "objednavka" | "email" | "ceny" | "oddeleni" | "system" | "telegram";
+// Categories follow what the operator is trying to do, not which technology the
+// setting talks to — push notifications used to live under "E-mail & IMAP" and the
+// pizza module under "Objednávka".
+type Tab = "provoz" | "lide" | "ceny" | "napojeni" | "pizza" | "system";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "objednavka", label: "Objednávka", icon: "assignment" },
-  { id: "email",      label: "E-mail & IMAP", icon: "mail" },
-  { id: "ceny",       label: "Ceny",       icon: "payments" },
-  { id: "oddeleni",   label: "Oddělení",   icon: "groups" },
-  { id: "system",     label: "Systém",     icon: "build" },
-  { id: "telegram",   label: "Telegram",   icon: "send" },
+const TABS: { id: Tab; label: string; icon: string; hint: string }[] = [
+  { id: "provoz",   label: "Provoz",   icon: "schedule",         hint: "Uzávěrka, odesílání, zavřeno" },
+  { id: "lide",     label: "Lidé",     icon: "groups",           hint: "Oddělení a uživatelé bota" },
+  { id: "ceny",     label: "Ceny",     icon: "shopping_basket",  hint: "Ceník jídel a příloh" },
+  { id: "napojeni", label: "Napojení", icon: "send",             hint: "E-mail, IMAP, push, Telegram" },
+  { id: "pizza",    label: "Pizza",    icon: "local_pizza",      hint: "Samostatný modul" },
+  { id: "system",   label: "Systém",   icon: "build",            hint: "Zálohy, historie, PIN" },
 ];
 
 const VERSION_INFO = getAppVersionInfo();
@@ -349,9 +392,15 @@ export default function SettingsPage({
   todayOrder?: { id: number; status: string };
 }) {
   const [unlocked, setUnlocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("objednavka");
+  const [activeTab, setActiveTab] = useState<Tab>("provoz");
+  // Which categories hold edits that the big form hasn't saved yet. Sections that
+  // save on the spot (oddělení, zavřeno, dnešní objednávka) sit outside the form and
+  // never land here — that's the point: the dot only marks what is genuinely pending.
+  const [dirtyTabs, setDirtyTabs] = useState<string[]>([]);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockLeftMs, setLockLeftMs] = useState(0);
   const [isPending, startTransition] = useTransition();
   const pinInputRef = useRef<HTMLInputElement>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -382,6 +431,73 @@ export default function SettingsPage({
       return () => clearTimeout(t);
     }
   }, [unlocked]);
+
+  // Re-render once a second while locked; the label itself is derived below, so the
+  // effect only nudges the clock instead of storing formatted text in state.
+  // The remaining time lives in state and is refreshed from a timer — reading the
+  // clock during render would make the component impure.
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const id = setInterval(() => {
+      const left = lockedUntil - Date.now();
+      if (left <= 0) { setLockedUntil(null); setLockLeftMs(0); }
+      else setLockLeftMs(left);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+  const [closures, setClosures] = useState<Closure[]>([]);
+  const [closuresLoaded, setClosuresLoaded] = useState(false);
+  const [showAddClosure, setShowAddClosure] = useState(false);
+  const [newClosureFrom, setNewClosureFrom] = useState("");
+  const [newClosureTo, setNewClosureTo] = useState("");
+  const [newClosureLabel, setNewClosureLabel] = useState("");
+  const [newClosureNote, setNewClosureNote] = useState("");
+  const [newClosureIcon, setNewClosureIcon] = useState(DEFAULT_CLOSURE_ICON);
+  const [closureError, setClosureError] = useState<string | null>(null);
+  const [confirmDeleteClosure, setConfirmDeleteClosure] = useState<Closure | null>(null);
+
+  useEffect(() => {
+    if (!unlocked || closuresLoaded) return;
+    actionGetClosures()
+      .then((list) => { setClosures(list); setClosuresLoaded(true); })
+      .catch(() => setClosureError("Nepodařilo se načíst zavření."));
+  }, [unlocked, closuresLoaded]);
+
+  const closureCheck = validateClosureRange(
+    newClosureFrom,
+    newClosureTo,
+    closures,
+    new Date().toISOString().slice(0, 10)
+  );
+
+  const handleAddClosure = () => {
+    setClosureError(null);
+    startTransition(async () => {
+      try {
+        const res = await actionAddClosure(newClosureFrom, newClosureTo, newClosureLabel, newClosureNote, newClosureIcon);
+        if (!res.ok) { setClosureError(res.error); return; }
+        setClosures((prev) => [...prev, res.closure].sort((a, b) => a.startDate.localeCompare(b.startDate)));
+        setShowAddClosure(false);
+        setNewClosureFrom(""); setNewClosureTo(""); setNewClosureLabel(""); setNewClosureNote(""); setNewClosureIcon(DEFAULT_CLOSURE_ICON);
+      } catch (err) {
+        setClosureError(err instanceof Error ? err.message : "Zavření se nepodařilo uložit.");
+      }
+    });
+  };
+
+  const handleDeleteClosure = (closure: Closure) => {
+    setClosureError(null);
+    startTransition(async () => {
+      try {
+        await actionDeleteClosure(closure.id);
+        setClosures((prev) => prev.filter((c) => c.id !== closure.id));
+        setConfirmDeleteClosure(null);
+      } catch (err) {
+        setClosureError(err instanceof Error ? err.message : "Zavření se nepodařilo smazat.");
+      }
+    });
+  };
+
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
@@ -420,7 +536,7 @@ export default function SettingsPage({
   useEffect(() => () => { if (imapTimeoutRef.current) clearTimeout(imapTimeoutRef.current); }, []);
 
   useEffect(() => {
-    if (activeTab !== "telegram") return;
+    if (activeTab !== "lide" && activeTab !== "napojeni") return;
     if (!telegramSubsLoaded) {
       actionGetTelegramSubscriptions().then((subs) => {
         setTelegramSubs(subs);
@@ -522,13 +638,29 @@ export default function SettingsPage({
     `User agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
   ].join("\n");
 
+  const isLocked = !!lockedUntil && lockLeftMs > 0;
+  const lockLeft = isLocked
+    ? `${Math.floor(Math.ceil(lockLeftMs / 1000) / 60)}:${String(Math.ceil(lockLeftMs / 1000) % 60).padStart(2, "0")}`
+    : "";
+
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPinError(false);
     startTransition(async () => {
-      const ok = await actionCheckPin(pin);
-      if (ok) { setUnlocked(true); confirmedPinRef.current = pin; }
-      else { setPinError(true); setPin(""); }
+      const res = await actionCheckPin(pin);
+      if (res.ok) {
+        setUnlocked(true);
+        confirmedPinRef.current = pin;
+        setLockedUntil(null);
+        return;
+      }
+      setPin("");
+      if (res.lockedUntil) {
+        setLockedUntil(res.lockedUntil);
+        setLockLeftMs(Math.max(0, res.lockedUntil - Date.now()));
+        setPinError(false);
+      }
+      else setPinError(true);
     });
   };
 
@@ -596,6 +728,8 @@ export default function SettingsPage({
       try {
         await actionSaveSettings(updates, confirmedPinRef.current);
         resetSessionTimer();
+        // Nothing is pending any more — clears the bar and the sidebar dots
+        setDirtyTabs([]);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 3000);
       } catch {
@@ -772,15 +906,21 @@ export default function SettingsPage({
                   pattern="[0-9]*"
                   placeholder="••••"
                   style={{ fontSize: "20px" }}
+                  disabled={isLocked}
                   type="password"
                   value={pin}
                 />
-                {pinError && (
+                {pinError && !isLocked && (
                   <p className="text-[12px] text-red-500 text-center -mt-1">Nesprávný PIN. Zkuste to znovu.</p>
+                )}
+                {isLocked && (
+                  <p className="text-[12px] text-amber-700 text-center -mt-1">
+                    Moc pokusů po sobě. Zkuste to znovu za <b className="tabular-nums">{lockLeft}</b>.
+                  </p>
                 )}
                 <button
                   className="modal-btn modal-btn--primary w-full"
-                  disabled={isPending || pin.length === 0}
+                  disabled={isPending || pin.length === 0 || isLocked}
                   type="submit"
                 >
                   {isPending ? "Ověřuji..." : "Odemknout"}
@@ -790,40 +930,88 @@ export default function SettingsPage({
           </div>
         ) : (
           <>
-            {/* Tab bar */}
-            <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-              <div
-                className="flex p-1 rounded-2xl gap-0.5"
-                style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
-              >
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                      activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
-                    }`}
-                    style={activeTab === tab.id ? {
-                      background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                      boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                    } : {}}
-                  >
-                    <MIcon name={tab.icon as "settings"} size={14} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
-                    {tab.id === "telegram" && telegramSubsLoaded && telegramSubs.length > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === "telegram" ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
-                        {telegramSubs.length}
-                      </span>
-                    )}
-                  </button>
-                ))}
+            <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
+
+            {/* Category nav — sidebar on desktop, the original strip on mobile */}
+            {/* top-0, not top-4: a sticky element is held at least `top` from the edge of the
+                scroll area, so top-4 pushed the sidebar 16px below the first card in every
+                category tall enough to scroll (Pizza is short, so it looked fine there). */}
+            <nav className="md:w-[212px] md:shrink-0 md:sticky md:top-0" aria-label="Kategorie nastavení">
+              <div className="md:hidden overflow-x-auto no-scrollbar -mx-1 px-1">
+                <div
+                  className="flex p-1 rounded-2xl gap-0.5"
+                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+                >
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                        activeTab === tab.id ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                      }`}
+                      style={activeTab === tab.id ? {
+                        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                        boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                      } : {}}
+                    >
+                      <MIcon name={tab.icon as "settings"} size={14} />
+                      {tab.label}
+                      {dirtyTabs.includes(tab.id) && (
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeTab === tab.id ? "rgba(255,255,255,0.9)" : "#EA580C" }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              <div className="hidden md:flex md:flex-col gap-0.5 p-1.5 rounded-2xl"
+                style={{ background: "rgba(26,18,8,0.05)", border: "1px solid rgba(255,255,255,0.55)" }}>
+                {TABS.map((tab) => {
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      aria-current={active ? "page" : undefined}
+                      className={`w-full text-left flex items-start gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 active:scale-[0.98] ${
+                        active ? "text-white" : "text-stone-600 hover:bg-white/60"
+                      }`}
+                      style={active ? {
+                        background: "linear-gradient(135deg,#F59E0B,#EA580C)",
+                        boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
+                      } : {}}
+                    >
+                      <MIcon name={tab.icon as "settings"} size={16} style={{ marginTop: 1, flexShrink: 0 }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold leading-none">{tab.label}</span>
+                          {dirtyTabs.includes(tab.id) && (
+                            <span title="Neuložené změny" className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ background: active ? "rgba(255,255,255,0.9)" : "#EA580C" }} />
+                          )}
+                          {tab.id === "lide" && telegramSubsLoaded && telegramSubs.length > 0 && (
+                            <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                              {telegramSubs.length}
+                            </span>
+                          )}
+                        </span>
+                        <span className={`block text-[11px] leading-snug mt-0.5 ${active ? "text-white/75" : "text-stone-400"}`}>
+                          {tab.hint}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
+            {/* Content column — capped so a single input stops spanning the whole screen */}
+            <div className="flex-1 min-w-0 flex flex-col gap-4" style={{ maxWidth: 760 }}>
 
             {/* ── Objednávka — non-form sections ── */}
-            {activeTab === "objednavka" && todayOrder && (
+            {activeTab === "provoz" && todayOrder && (
               <Section icon="lock_open" title="Dnešní objednávka">
                 {todayOrder.status === "sent" && !reopenDone ? (
                   <div className="flex flex-col gap-3">
@@ -942,8 +1130,110 @@ export default function SettingsPage({
               />
             )}
 
+            {/* ── Zavřeno / dovolená ── */}
+            {activeTab === "provoz" && (
+              <Section icon="event_busy" title="Zavřeno / dovolená">
+                <p className="text-[12.5px] text-stone-500">
+                  Období, kdy se v LIMA nevaří. Zobrazí se v přepínači dnů na objednávkové
+                  stránce a vypne automatické odeslání. Lze zadat dopředu, nezávisle na
+                  importu jídelníčku.
+                </p>
+                {closureError && <p className="text-[12px] text-red-500">{closureError}</p>}
+                {closuresLoaded && closures.length === 0 && !showAddClosure && (
+                  <p className="text-[12.5px] text-stone-400">Zatím nic — provoz běží normálně.</p>
+                )}
+                <div className="flex flex-col gap-2">
+                  {closures.map((c) => (
+                    <div className="glass-soft rounded-2xl px-3 py-2.5 flex items-center gap-3" key={c.id}>
+                      <span className="emoji text-[18px] leading-none shrink-0" aria-hidden>{c.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold text-stone-700">
+                          {formatClosureRange(c.startDate, c.endDate)}
+                        </div>
+                        {c.label && <div className="text-[12px] text-stone-500 truncate">{c.label}</div>}
+                        {c.note && <div className="text-[11.5px] text-stone-400 truncate">{c.note}</div>}
+                      </div>
+                      <button
+                        aria-label="Smazat zavření"
+                        className="modal-btn modal-btn--danger shrink-0"
+                        disabled={isPending}
+                        onClick={() => setConfirmDeleteClosure(c)}
+                        type="button"
+                      >
+                        Smazat
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {showAddClosure ? (
+                  <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Field label="Od">
+                        <input className="modal-input" onChange={(e) => setNewClosureFrom(e.target.value)} type="date" value={newClosureFrom} />
+                      </Field>
+                      <Field label="Do">
+                        <input className="modal-input" onChange={(e) => setNewClosureTo(e.target.value)} type="date" value={newClosureTo} />
+                      </Field>
+                      <Field label="Popis">
+                        <input className="modal-input" onChange={(e) => setNewClosureLabel(e.target.value)} placeholder="např. Celozávodní dovolená" value={newClosureLabel} />
+                      </Field>
+                    </div>
+                    {closureCheck.error && (
+                      <p className="flex items-start gap-1.5 text-[12px] text-red-600">
+                        <MIcon name="error" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                        {closureCheck.error}
+                      </p>
+                    )}
+                    {closureCheck.warning && (
+                      <p className="flex items-start gap-1.5 text-[12px] text-amber-700">
+                        <MIcon name="warning" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                        {closureCheck.warning}
+                      </p>
+                    )}
+                    <Field hint="ukáže se v upozornění, v jídelníčku i v botovi" label="Ikona">
+                      <EmojiPicker onChange={setNewClosureIcon} value={newClosureIcon} />
+                    </Field>
+                    <Field hint="nepovinné — přidá se do upozornění na hlavní stránce; data se doplňují sama" label="Vlastní poznámka">
+                      <input className="modal-input" onChange={(e) => setNewClosureNote(e.target.value)} placeholder="např. Kdo chce oběd, musí si ho zajistit sám." value={newClosureNote} />
+                    </Field>
+                    <div className="flex gap-2">
+                      <button
+                        className="modal-btn modal-btn--primary"
+                        disabled={isPending || !newClosureFrom || !newClosureTo || !!closureCheck.error}
+                        onClick={handleAddClosure}
+                        type="button"
+                      >Přidat</button>
+                      <button
+                        className="modal-btn modal-btn--secondary"
+                        onClick={() => { setShowAddClosure(false); setNewClosureFrom(""); setNewClosureTo(""); setNewClosureLabel(""); setNewClosureNote(""); setNewClosureIcon(DEFAULT_CLOSURE_ICON); }}
+                        type="button"
+                      >Zrušit</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+                    onClick={() => setShowAddClosure(true)}
+                    type="button"
+                  >
+                    <MIcon name="add" size={14} /> Přidat zavření
+                  </button>
+                )}
+                {confirmDeleteClosure && (
+                  <ConfirmModal
+                    confirmLabel="Smazat"
+                    isPending={isPending}
+                    message={`${formatClosureRange(confirmDeleteClosure.startDate, confirmDeleteClosure.endDate)} — ${confirmDeleteClosure.label || "Dovolená"}. V těchto dnech se zase začne objednávat a auto-odeslání se obnoví.`}
+                    onClose={() => setConfirmDeleteClosure(null)}
+                    onConfirm={() => handleDeleteClosure(confirmDeleteClosure)}
+                    title="Smazat zavření"
+                  />
+                )}
+              </Section>
+            )}
+
             {/* ── Oddělení tab ── */}
-            {activeTab === "oddeleni" && (
+            {activeTab === "lide" && (
               <Section icon="groups" title="Oddělení">
                 <p className="text-[12.5px] text-stone-500">
                   Správa oddělení zobrazovaných v objednávkovém formuláři. Změny se projeví okamžitě.
@@ -1007,10 +1297,18 @@ export default function SettingsPage({
             )}
 
             {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
-            <form id="settings-form" onSubmit={handleSave} ref={formRef}>
+            <form
+              id="settings-form"
+              onSubmit={handleSave}
+              ref={formRef}
+              onChange={(e) => {
+                const cat = (e.target as HTMLElement).closest("[data-cat]")?.getAttribute("data-cat");
+                if (cat) setDirtyTabs((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
+              }}
+            >
 
               {/* Objednávka tab: Provoz + AutoSend */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "objednavka" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-4" data-cat="provoz" style={{ display: activeTab === "provoz" ? "flex" : "none" }}>
 
                 <Section icon="schedule" title="Provoz">
                   <Field hint="zobrazuje se v hlavičce objednávkové stránky" label="Čas uzávěrky">
@@ -1059,7 +1357,10 @@ export default function SettingsPage({
                     <span className="font-semibold text-stone-700">{getNextAutoSend(settings.autoSendEnabled, settings.autoSendTime, settings.autoSendDays)}</span>
                   </div>
                 </Section>
+              </div>
 
+              {/* Pizza — vlastní kategorie, je to samostatný modul */}
+              <div className="flex flex-col gap-4" data-cat="pizza" style={{ display: activeTab === "pizza" ? "flex" : "none" }}>
                 <Section icon="local_pizza" title="Pizza modul">
                   <p className="text-[12.5px] text-stone-500">
                     Pizza modul přidává do appky stránku Pizza, sekci v Historii a vlastní příkazy v Telegram botovi. Při vypnutí je vše skryto a scraper běží naprázdno (objednávky v DB zůstávají).
@@ -1104,7 +1405,7 @@ export default function SettingsPage({
               </div>
 
               {/* E-mail & IMAP tab */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "email" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-4" data-cat="napojeni" style={{ display: activeTab === "napojeni" ? "flex" : "none" }}>
 
                 <Section icon="send" title="SMTP – odchozí pošta">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1267,7 +1568,7 @@ export default function SettingsPage({
               </div>
 
               {/* Ceny tab */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-4" data-cat="ceny" style={{ display: activeTab === "ceny" ? "flex" : "none" }}>
 
                 <Section icon="restaurant" title="Ceník jídel">
                   <p className="text-[12.5px] text-stone-500">
@@ -1312,7 +1613,7 @@ export default function SettingsPage({
               </div>
 
               {/* Systém tab — form part (PIN only) */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "system" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-4" data-cat="system" style={{ display: activeTab === "system" ? "flex" : "none" }}>
 
                 <Section icon="lock" title="Zabezpečení">
                   <Field hint="nechte prázdné pro zachování stávajícího PINu" label="Nový PIN (číslice)">
@@ -1323,7 +1624,7 @@ export default function SettingsPage({
               </div>
 
               {/* Telegram tab — form part (token + toggle) */}
-              <div className="flex flex-col gap-4" style={{ display: activeTab === "telegram" ? "flex" : "none" }}>
+              <div className="flex flex-col gap-4" data-cat="napojeni" style={{ display: activeTab === "napojeni" ? "flex" : "none" }}>
                 <Section icon="send" title="Telegram bot" action={
                   <div className="flex items-center gap-2">
                     {/* Status dot */}
@@ -1630,8 +1931,8 @@ export default function SettingsPage({
               </>
             )}
 
-            {/* ── Telegram tab — non-form sections ── */}
-            {activeTab === "telegram" && (
+            {/* ── Registrovaní uživatelé bota ── */}
+            {activeTab === "lide" && (
               <>
                 <div className="flex flex-col gap-4">
 
@@ -1695,6 +1996,14 @@ export default function SettingsPage({
                     )}
                   </Section>
 
+                </div>
+              </>
+            )}
+
+            {/* ── Telegram — informační sekce ── */}
+            {activeTab === "napojeni" && (
+              <>
+                <div className="flex flex-col gap-4">
                   <Section icon="notifications" title="Co bot hlásí">
                     <div className="space-y-2 text-[12.5px]">
                       <div className="flex items-start gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a", marginTop: 2 }} /><span className="text-stone-600"><b>Objednávka odeslána</b> — upozornění adminu (auto-send i ruční)</span></div>
@@ -1940,18 +2249,32 @@ export default function SettingsPage({
           )}
         </div>
 
+            </div>
+            </div>
           </>
         )}
       </main>
 
-      {/* ── Floating save button ── */}
-      {unlocked && activeTab !== "oddeleni" && (
+      {/* ── Lišta neuložených změn — objeví se, až když je co uložit ── */}
+      {unlocked && (dirtyTabs.length > 0 || saveStatus === "error") && (
         <div className="settings-save-fab">
-          {saveStatus === "saved" && <span className="settings-save-fab__status text-emerald-700">Nastavení uloženo.</span>}
-          {saveStatus === "error" && <span className="settings-save-fab__status text-red-600">Chyba při ukládání.</span>}
+          {saveStatus === "error"
+            ? <span className="settings-save-fab__status text-red-600">Chyba při ukládání.</span>
+            : <span className="settings-save-fab__status text-stone-600">Máte neuložené změny.</span>}
+          <button
+            className="modal-btn modal-btn--secondary"
+            disabled={isPending}
+            onClick={() => { formRef.current?.reset(); setDirtyTabs([]); setSaveStatus("idle"); }}
+            type="button"
+          >Zahodit</button>
           <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
-            {isPending ? "Ukládám..." : "Uložit nastavení"}
+            {isPending ? "Ukládám..." : "Uložit"}
           </button>
+        </div>
+      )}
+      {unlocked && dirtyTabs.length === 0 && saveStatus === "saved" && (
+        <div className="settings-save-fab">
+          <span className="settings-save-fab__status text-emerald-700">Nastavení uloženo.</span>
         </div>
       )}
     </div>

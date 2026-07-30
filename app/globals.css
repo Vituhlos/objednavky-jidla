@@ -620,3 +620,26 @@ body {
 .row-menu-dropdown button:hover { background: rgba(26,18,8,0.04); }
 .row-menu-danger { color: #dc2626 !important; }
 .row-menu-danger:hover { background: #fef2f2 !important; }
+
+/* ── Emoji ────────────────────────────────────────────────────────────────
+   Self-hosted Noto Color Emoji so the same character looks the same on Windows,
+   macOS, iOS and Android. The @font-face rules live in the generated
+   public/fonts/noto-color-emoji.css (10 slices with unicode-range, so a browser
+   only downloads the slice holding the emoji actually on screen); it is linked
+   from layout.tsx. Missing file = system emoji, nothing breaks.
+   Licence: SIL Open Font License 1.1 (credit belongs in "O aplikaci").      */
+
+.emoji {
+  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+  font-variant-emoji: emoji;
+}
+
+@keyframes emoji-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes emoji-pop { from { opacity: 1; } to { opacity: 1; } }
+}

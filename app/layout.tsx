@@ -48,7 +48,15 @@ export default function RootLayout({
   const pizzaEnabled = settings.pizzaEnabled !== "false";
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
-      <head />
+      <head>
+        {/* Self-hosted Noto Color Emoji, generated into public/fonts by
+            tools/download-emoji-font. Ten slices with unicode-range, so a browser
+            fetches only the slice holding an emoji actually on screen. Missing file
+            just 404s and the system emoji font takes over. */}
+        {/* eslint-disable-next-line @next/next/no-css-tags -- generated file, deliberately
+            outside the bundle graph: importing it would make a missing font break the build */}
+        <link href="/fonts/noto-color-emoji.css" rel="stylesheet" />
+      </head>
       <body className={inter.className}>
         <div className="stage-bg" aria-hidden>
           <div className="orb orb-sky" />
