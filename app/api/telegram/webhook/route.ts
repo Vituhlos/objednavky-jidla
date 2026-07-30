@@ -12,10 +12,13 @@ import {
   toggleNotifySetting,
   setPersonalReminderTime,
   setPersonalMorningMenuTime,
+  escapeHtml,
 } from "@/lib/telegram";
 import { getDb } from "@/lib/db";
-import { getTodayOrderData, sendOrder, reopenOrder, getOrderPdfPath, orderPdfExists } from "@/lib/orders";
+import { formatOrderTotals, describeRowItems, describeRowCodes } from "@/lib/order-summary";
+import { getTodayOrderData, sendOrder, reopenOrderAndUnlock, getOrderPdfPath, orderPdfExists } from "@/lib/orders";
 import { getMenuItemsForDay, getMondayISO } from "@/lib/menu";
+import { getClosureForDate, getUpcomingClosure } from "@/lib/closures";
 import fs from "fs";
 import path from "path";
 import { broadcast } from "@/lib/sse-broadcast";
@@ -25,7 +28,10 @@ import { scrapePizzaMenu } from "@/lib/pizza-scraper";
 export const dynamic = "force-dynamic";
 
 // In-memory state for force_reply custom time inputs (chatId → pending action)
-const pendingActions = new Map<string, "reminder" | "morning">();
+// chatId → pending action. Expires so a reply typed hours later isn't swallowed
+// as an invalid time; the map is in-memory and resets with the container anyway.
+const PENDING_TTL_MS = 10 * 60 * 1000;
+const pendingActions = new Map<string, { action: "reminder" | "morning"; at: number }>();
 
 const DAY_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá", 6: "So", 0: "Ne" };
 
@@ -38,22 +44,45 @@ const DAY_INPUT_MAP: Record<string, string> = {
   pa: "Pá", "pá": "Pá", patek: "Pá", "pátek": "Pá",
 };
 
+// ISO date of a weekday code within the current Prague week, for closure lookups
+function isoForDayCode(dayCode: string): string | null {
+  const offsets: Record<string, number> = { Po: 0, "Út": 1, St: 2, "Čt": 3, "Pá": 4 };
+  const offset = offsets[dayCode];
+  if (offset === undefined) return null;
+  const [y, m, d] = getMondayISO().split("-").map(Number);
+  const date = new Date(y, m - 1, d + offset, 12, 0, 0);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function closureForDay(dayCode: string): { label: string; icon: string } | null {
+  const iso = isoForDayCode(dayCode);
+  if (!iso) return null;
+  const closure = getClosureForDate(iso);
+  return closure ? { label: closure.label || "dovolená", icon: closure.icon } : null;
+}
+
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 function formatMenuForDay(dayCode: string, dateStr: string): string {
   const menu = getMenuItemsForDay(dayCode);
+  // A closed day comes back as a single synthetic "Zavřeno" item — printing it as a
+  // dish (and promising a cutoff) is nonsense, so say what actually happens.
+  const closure = closureForDay(dayCode);
+  if (closure) {
+    return `${closure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${escapeHtml(closure.label)}.`;
+  }
   if (menu.soups.length === 0 && menu.meals.length === 0)
     return `🍽 <b>Jídelníček ${dateStr}</b>\n\nJídelníček zatím není k dispozici.`;
   const lines: string[] = [`🍽 <b>Jídelníček ${dateStr}</b>`];
   if (menu.soups.length > 0) {
     lines.push("");
     lines.push("<b>🍲 Polévky</b>");
-    menu.soups.forEach((s) => lines.push(`  • ${s.name}`));
+    menu.soups.forEach((s) => lines.push(`  • ${escapeHtml(s.name)}`));
   }
   if (menu.meals.length > 0) {
     lines.push("");
     lines.push("<b>🍽 Hlavní jídla</b>");
-    menu.meals.forEach((m) => lines.push(`  • ${m.name}`));
+    menu.meals.forEach((m) => lines.push(`  • ${escapeHtml(m.name)}`));
   }
   return lines.join("\n");
 }
@@ -84,9 +113,7 @@ function formatStav(): string {
   });
   const sent = data.order.status === "sent";
   const totalPeople = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
-  const statusLine = sent
-    ? `✅ <b>Odesláno</b>  ·  👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`
-    : `📝 <b>Rozepsáno</b>  ·  👥 ${totalPeople} osob  ·  💰 ${data.totalPrice} Kč`;
+  const statusLine = `${sent ? "✅ <b>Odesláno</b>" : "📝 <b>Rozepsáno</b>"}  ·  ${formatOrderTotals(data)}`;
   const lines: string[] = [`📋 <b>Objednávka ${dateStr}</b>`, statusLine];
   if (totalPeople === 0) {
     lines.push("", "<i>Zatím nikdo neobjednal.</i>");
@@ -95,13 +122,11 @@ function formatStav(): string {
       const active = dept.rows.filter((r) => r.personName);
       if (active.length === 0) return;
       lines.push("");
-      lines.push(`<b>📂 ${dept.label}</b>`);
+      lines.push(`<b>📂 ${escapeHtml(dept.label)}</b>`);
       active.forEach((r) => {
-        const parts: string[] = [];
-        if (r.soupItem) parts.push(`🍲 ${r.soupItem.name}`);
-        if (r.mainItem) parts.push(`<i>${r.mainItem.name}</i>`);
+        const parts = describeRowItems(r);
         const detail = parts.length > 0 ? `  —  ${parts.join("  +  ")}` : "";
-        lines.push(`  • <b>${r.personName}</b>${detail}`);
+        lines.push(`  • <b>${escapeHtml(r.personName)}</b>${detail}`);
       });
     });
   }
@@ -123,14 +148,13 @@ function formatSouhrn(): string {
     const nameWidth = Math.min(18, Math.max(...active.map((r) => r.personName.length)));
     const rows = active.map((r) => {
       const name = r.personName.slice(0, nameWidth).padEnd(nameWidth);
-      const meal = r.mainItem?.code ?? (r.mainItem ? "?" : "—");
-      return `${name}  ${meal}`;
+      return `${name}  ${describeRowCodes(r)}`;
     });
-    blocks.push(`${dept.label}\n${rows.join("\n")}`);
+    blocks.push(`${escapeHtml(dept.label)}\n${escapeHtml(rows.join("\n"))}`);
   });
   return (
     `📊 <b>Souhrn ${dateStr}</b>\n` +
-    `${statusIcon} ${statusLabel}  ·  👥 ${totalRows} osob  ·  💰 ${data.totalPrice} Kč\n\n` +
+    `${statusIcon} ${statusLabel}  ·  ${formatOrderTotals(data)}\n\n` +
     `<pre>${blocks.join("\n\n")}</pre>`
   );
 }
@@ -522,7 +546,9 @@ async function answerInlineQuery(token: string, inlineQueryId: string, results: 
   await fetch(`https://api.telegram.org/bot${token}/answerInlineQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ inline_query_id: inlineQueryId, results, cache_time: 60 }),
+    // is_personal + cache_time 0: results contain the order, they must never be
+    // cached or served to a different user
+    body: JSON.stringify({ inline_query_id: inlineQueryId, results, cache_time: 0, is_personal: true }),
   }).catch(() => {});
 }
 
@@ -574,6 +600,19 @@ type TelegramUpdate = {
 export async function POST(req: NextRequest) {
   const s = getSettings();
   if (s.telegramEnabled !== "true" || !s.telegramBotToken) return new Response("ok");
+
+  // This endpoint is reachable from the internet — without the shared secret anyone
+  // who knows the URL could drive the bot (including sending the order). The secret is
+  // generated when the webhook is registered; if it isn't set yet, refuse rather than
+  // run unauthenticated. Re-register the webhook in Nastavení to create it.
+  if (s.telegramWebhookSecret) {
+    if (req.headers.get("x-telegram-bot-api-secret-token") !== s.telegramWebhookSecret) {
+      console.warn("[telegram] Odmítnut požadavek na webhook — neplatný secret token.");
+      return new Response("forbidden", { status: 403 });
+    }
+  } else {
+    console.warn("[telegram] Webhook běží BEZ ověření — přeregistrujte webhook v Nastavení.");
+  }
 
   let update: TelegramUpdate;
   try {
@@ -659,7 +698,7 @@ export async function POST(req: NextRequest) {
         setPersonalReminderTime(chatId, null);
         await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
       } else if (val === "custom") {
-        pendingActions.set(chatId, "reminder");
+        pendingActions.set(chatId, { action: "reminder", at: Date.now() });
         await sendTelegramToChat(chatId, "Napiš čas připomenutí ve formátu <b>HH:MM</b> (např. <code>11:45</code>):", { force_reply: true, selective: true });
       } else if (/^\d{2}:\d{2}$/.test(val)) {
         setPersonalReminderTime(chatId, val);
@@ -674,7 +713,7 @@ export async function POST(req: NextRequest) {
         setPersonalMorningMenuTime(chatId, null);
         await editMessageText(s.telegramBotToken, chatId, messageId, SETTINGS_TEXT, buildSettingsKeyboard(chatId));
       } else if (val === "custom") {
-        pendingActions.set(chatId, "morning");
+        pendingActions.set(chatId, { action: "morning", at: Date.now() });
         await sendTelegramToChat(chatId, "Napiš čas ranního jídelníčku ve formátu <b>HH:MM</b> (např. <code>08:15</code>):", { force_reply: true, selective: true });
       } else if (/^\d{2}:\d{2}$/.test(val)) {
         setPersonalMorningMenuTime(chatId, val);
@@ -747,9 +786,9 @@ export async function POST(req: NextRequest) {
             if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "✅ <b>Objednávka odeslána.</b>", buildStavKeyboard(chatId));
             const totalPeople = orderData.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
             const dateStr = new Date(`${orderData.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-            await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${totalPeople} osob  ·  💰 ${orderData.totalPrice} Kč`);
+            await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n${formatOrderTotals(orderData)}`);
           } catch (err) {
-            await sendTelegramToChat(chatId, `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`);
+            await sendTelegramToChat(chatId, `❌ Odeslání selhalo: ${escapeHtml(err instanceof Error ? err.message : String(err))}`);
           }
         }
       }
@@ -758,7 +797,7 @@ export async function POST(req: NextRequest) {
         if (orderData.order.status !== "sent") {
           await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
         } else {
-          reopenOrder(orderData.order.id);
+          reopenOrderAndUnlock(orderData.order.id);
           broadcast();
           if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "🔓 <b>Objednávka znovu otevřena.</b>", buildStavKeyboard(chatId));
           await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
@@ -776,6 +815,18 @@ export async function POST(req: NextRequest) {
   // ── Inline query (@bot menu / pizza / stav / souhrn) ────────────────────
   if (update.inline_query) {
     const iq = update.inline_query;
+    // Inline queries arrive from ANY chat, so this is the only gate — without it
+    // anyone who knows the bot's @username could read the whole company order.
+    if (!isTelegramRegistered(String(iq.from.id))) {
+      await answerInlineQuery(s.telegramBotToken, iq.id, [{
+        type: "article",
+        id: "unregistered",
+        title: "Nejsi registrovaný",
+        description: "Napiš botovi /start",
+        input_message_content: { message_text: "Nejsi registrovaný u bota Objednávky LIMA." },
+      }]);
+      return new Response("ok");
+    }
     const query = iq.query.toLowerCase().trim();
     const show = (key: string) => !query || key.startsWith(query) || query.includes(key);
     const results: object[] = [];
@@ -801,7 +852,9 @@ export async function POST(req: NextRequest) {
   const effectiveCmd = BUTTON_MAP[cmd] ?? cmd;
 
   // Pending custom time input (from force_reply)
-  const pendingAction = pendingActions.get(chatId);
+  const pendingEntry = pendingActions.get(chatId);
+  if (pendingEntry && Date.now() - pendingEntry.at > PENDING_TTL_MS) pendingActions.delete(chatId);
+  const pendingAction = pendingActions.get(chatId)?.action;
   if (pendingAction && isTelegramRegistered(chatId) && !cmd.startsWith("/")) {
     pendingActions.delete(chatId);
     const timeMatch = message.text.trim().match(/^(\d{1,2}):(\d{2})$/);
@@ -829,7 +882,7 @@ export async function POST(req: NextRequest) {
 
   if (cmd === "/start") {
     const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, senderUsername);
-    const name = firstName ? `, <b>${firstName}</b>` : "";
+    const name = firstName ? `, <b>${escapeHtml(firstName)}</b>` : "";
     if (!isNew) {
       await sendTelegramToChat(
         chatId,
@@ -936,11 +989,13 @@ export async function POST(req: NextRequest) {
           broadcast();
           const tp = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
           const ds = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-          await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${ds}\n👥 ${tp} osob  ·  💰 ${data.totalPrice} Kč`);
+          await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${ds}\n${formatOrderTotals(data)}`);
+          // The admin who ran the command may have order notifications switched off
+          await sendTelegramToChat(chatId, "✅ <b>Objednávka byla odeslána.</b>");
         } catch (err) {
           await sendTelegramToChat(
             chatId,
-            `❌ Odeslání selhalo: ${err instanceof Error ? err.message : String(err)}`,
+            `❌ Odeslání selhalo: ${escapeHtml(err instanceof Error ? err.message : String(err))}`,
           );
         }
       }
@@ -953,7 +1008,7 @@ export async function POST(req: NextRequest) {
       if (data.order.status !== "sent") {
         await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
       } else {
-        reopenOrder(data.order.id);
+        reopenOrderAndUnlock(data.order.id);
         broadcast();
         await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
       }

@@ -1,5 +1,6 @@
 import { getDb } from "./db";
-import { getSettings } from "./settings";
+import { getSettings, saveSettings } from "./settings";
+import { randomBytes } from "crypto";
 
 export interface TelegramSubscription {
   id: number;
@@ -149,17 +150,73 @@ export function getSubscribersFor(col: NotifyColumn): TelegramSubscription[] {
   });
 }
 
-async function sendToChat(token: string, chatId: string, text: string, replyMarkup?: object): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-    }),
-  });
+// Every message goes out with parse_mode HTML, so any value that came from a human
+// (person name, dish name from a PDF, Telegram first_name) must be escaped —
+// a single "<" makes Telegram reject the whole message with 400.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Telegram hard-limits a message to 4096 chars. Split on line boundaries so a
+// long /stav arrives as several readable messages instead of vanishing.
+const MAX_MESSAGE_LENGTH = 3900;
+
+function splitMessage(text: string): string[] {
+  if (text.length <= MAX_MESSAGE_LENGTH) return [text];
+  const chunks: string[] = [];
+  let chunk = "";
+  for (const line of text.split("\n")) {
+    if (chunk && chunk.length + line.length + 1 > MAX_MESSAGE_LENGTH) {
+      chunks.push(chunk);
+      chunk = "";
+    }
+    // A single line longer than the limit still has to be cut somewhere
+    if (line.length > MAX_MESSAGE_LENGTH) {
+      for (let i = 0; i < line.length; i += MAX_MESSAGE_LENGTH) {
+        chunks.push(line.slice(i, i + MAX_MESSAGE_LENGTH));
+      }
+      continue;
+    }
+    chunk = chunk ? `${chunk}\n${line}` : line;
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks;
+}
+
+// Returns false when Telegram refused the message. fetch() does NOT throw on 400/403,
+// so without reading the body a rejected message looks exactly like a delivered one.
+async function sendToChat(token: string, chatId: string, text: string, replyMarkup?: object): Promise<boolean> {
+  const parts = splitMessage(text);
+  let allOk = true;
+  for (let i = 0; i < parts.length; i++) {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: parts[i],
+        parse_mode: "HTML",
+        // keyboard belongs on the last chunk only
+        ...(replyMarkup && i === parts.length - 1 ? { reply_markup: replyMarkup } : {}),
+      }),
+    });
+    if (res.ok) continue;
+
+    allOk = false;
+    const body = (await res.json().catch(() => ({}))) as { description?: string };
+    console.error(`[telegram] Zpráva na ${chatId} odmítnuta (${res.status}): ${body.description ?? "bez popisu"}`);
+    // 403 = user blocked the bot or the chat is gone; drop the dead subscription
+    // the same way push does, otherwise every broadcast keeps paying for it.
+    if (res.status === 403) {
+      removeTelegramSubscription(chatId);
+      console.warn(`[telegram] Odběr ${chatId} odstraněn — bot je zablokovaný.`);
+    }
+    break;
+  }
+  return allOk;
 }
 
 export async function sendTelegramMessage(text: string): Promise<void> {
@@ -262,11 +319,16 @@ export async function getTelegramWebhookStatus(): Promise<{
 export async function setTelegramWebhook(webhookUrl: string): Promise<{ ok: boolean; description?: string }> {
   const s = getSettings();
   if (!s.telegramBotToken) return { ok: false, description: "Bot token není nastaven." };
+  // The endpoint must be reachable from the internet, so a shared secret is the only
+  // thing separating Telegram's updates from anyone else's POST. Telegram echoes it
+  // back in the X-Telegram-Bot-Api-Secret-Token header on every update.
+  const secret = s.telegramWebhookSecret || randomBytes(32).toString("hex");
+  if (secret !== s.telegramWebhookSecret) saveSettings({ telegramWebhookSecret: secret });
   try {
     const res = await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/setWebhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: webhookUrl }),
+      body: JSON.stringify({ url: webhookUrl, secret_token: secret }),
     });
     return (await res.json()) as { ok: boolean; description?: string };
   } catch (err) {

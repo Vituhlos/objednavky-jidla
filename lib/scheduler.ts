@@ -3,8 +3,11 @@ import { getSettings, saveSettings } from "./settings";
 import type { AppSettings } from "./settings";
 import { checkImapForMenu } from "./imap";
 import { getTodayOrderData, sendOrder } from "./orders";
+import { formatOrderTotals } from "./order-summary";
 import { getTodayPizzaOrderData, closePizzaOrder } from "./pizza";
 import { getMenuItemsForDay, getMondayISO } from "./menu";
+import { getClosureForDate, getUpcomingClosure } from "./closures";
+import { getPragueISODate } from "./time";
 import { sendEmail } from "./email";
 import { logAudit } from "./audit";
 import { getDb } from "./db";
@@ -72,7 +75,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     // Vymaž případnou předchozí chybu a pošli Telegram potvrzení
     saveSettings({ autoSendLastError: "", autoSendErrorAcked: "true" });
     const dateStr = getPragueNow().toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" });
-    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n👥 ${activeCount} objednávek  ·  💰 ${data.totalPrice} Kč`);
+    await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n${formatOrderTotals(data)}`);
   } catch (err) {
     console.error("[scheduler] Auto-send selhal:", err);
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -267,6 +270,15 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
   const dateStr = now.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
   const menu = getMenuItemsForDay(dayCode);
 
+  const todayClosure = getClosureForDate(getPragueISODate());
+  if (todayClosure) {
+    await sendTelegramToSubscribers(
+      "notify_morning_menu",
+      `${todayClosure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${todayClosure.label || "dovolená"}.`,
+    );
+    return;
+  }
+
   let text: string;
   if (menu.soups.length === 0 && menu.meals.length === 0) {
     text = `🍽 <b>Jídelníček ${dateStr}</b>\n\nJídelníček zatím není k dispozici.`;
@@ -286,6 +298,13 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
   }
 
   text += `\n\n⏰ Uzávěrka je v <b>${s.cutoffTime}</b>`;
+
+  // Heads-up about a closure that starts soon — the same warning the order page shows
+  const upcoming = getUpcomingClosure(getPragueISODate());
+  if (upcoming) {
+    const fmt = (iso: string) => { const [, mm, dd] = iso.split("-").map(Number); return `${dd}. ${mm}.`; };
+    text += `\n\n${upcoming.icon} <b>${upcoming.label || "Dovolená"}</b> — od ${fmt(upcoming.startDate)} do ${fmt(upcoming.endDate)} se nevaří.`;
+  }
 
   await sendTelegramToSubscribers("notify_morning_menu", text);
 }
@@ -335,6 +354,13 @@ async function checkPersonalMorningMenu(currentTime: string, jsDay: number): Pro
   const now = getPragueNow();
   const dateStr = now.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
   const menu = getMenuItemsForDay(dayCode);
+
+  const personalClosure = getClosureForDate(getPragueISODate());
+  if (personalClosure) {
+    const closedText = `${personalClosure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${personalClosure.label || "dovolená"}.`;
+    for (const sub of subs) await sendTelegramToChat(sub.chatId, closedText);
+    return;
+  }
 
   const lines = [`🍽 <b>Jídelníček ${dateStr}</b>`, ""];
   if (menu.soups.length === 0 && menu.meals.length === 0) {

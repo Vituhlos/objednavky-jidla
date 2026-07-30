@@ -44,6 +44,7 @@ export interface AppSettings {
   autoSendFailureEmail: string;
   telegramEnabled: string;
   telegramBotToken: string;
+  telegramWebhookSecret: string;
   telegramMorningMenuTime: string;
   telegramAppUrl: string;
   autoSendLastError: string;
@@ -95,6 +96,7 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   autoSendFailureEmail: "auto_send_failure_email",
   telegramEnabled: "telegram_enabled",
   telegramBotToken: "telegram_bot_token",
+  telegramWebhookSecret: "telegram_webhook_secret",
   telegramMorningMenuTime: "telegram_morning_menu_time",
   telegramAppUrl: "telegram_app_url",
   autoSendLastError: "auto_send_last_error",
@@ -148,6 +150,7 @@ function envDefaults(): AppSettings {
     autoSendFailureEmail: "",
     telegramEnabled: "false",
     telegramBotToken: "",
+    telegramWebhookSecret: "",
     telegramMorningMenuTime: "",
     telegramAppUrl: "",
     autoSendLastError: "",
