@@ -12,6 +12,46 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.2.0",
+    date: "2026-07-30",
+    title: "Dovolená, přehlednější nastavení a spolehlivější bot",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "V Nastavení lze zadat období, kdy se nevaří — dovolenou, údržbu i svátek. Zadává se dopředu a nezávisle na importu jídelníčku.",
+          "Na objednávkové stránce se s předstihem objeví upozornění, kdy si dát poslední oběd a odkdy se zase vaří.",
+          "Ke každému zavření si vyberete vlastní ikonu z 1914 emoji, včetně hledání podle názvu.",
+          "Jídelníček ukáže i týdny za příštím týdnem, pokud pro ně už existuje jídelníček nebo zavření.",
+          "Nastavení má postranní navigaci s kategoriemi a upozorní vás, když máte neuložené změny.",
+        ],
+      },
+      {
+        title: "Fixed",
+        items: [
+          "Bot v přehledu objednávky ukazoval jen první polévku a první jídlo. Nově vypíše i druhé polévky, další jídla, počty porcí a přílohy.",
+          "Horní lišta a postranní navigace přestaly poskakovat při přepínání dnů a kategorií.",
+          "Zrušení objednávky přes bota nově odemkne objednávky i po uzávěrce, stejně jako v aplikaci.",
+          "Po vyčerpání pokusů o PIN se zobrazí zbývající čas místo hlášky o nesprávném PINu.",
+        ],
+      },
+      {
+        title: "Security",
+        items: [
+          "Telegram bot vydával přes inline režim celou objednávku včetně jmen komukoli, kdo znal jméno bota. Nově je nutná registrace.",
+          "Webhook bota nově ověřuje sdílený secret token, takže na něj nemůže poslat příkaz kdokoliv.",
+        ],
+      },
+      {
+        title: "Migration notes",
+        items: [
+          "Po aktualizaci znovu zaregistrujte webhook v Nastavení → Napojení. Tím se vytvoří ověřovací token.",
+          "Databáze se rozšíří sama při startu, žádný ruční zásah není potřeba.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.1.1",
     date: "2026-06-12",
     title: "Pohodlnější aktualizace na Unraidu",
