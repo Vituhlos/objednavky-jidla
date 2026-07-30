@@ -12,6 +12,20 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.2.1",
+    date: "2026-07-30",
+    title: "Úprava zadaného zavření",
+    sections: [
+      {
+        title: "Fixed",
+        items: [
+          "Zadanou dovolenou nebo zavření lze nově upravit tlačítkem Upravit. Dřív se musela smazat a vypsat celá znovu.",
+          "Při úpravě jde změnit jen popis, poznámku nebo ikonu beze změny termínu; kontrola překryvu už nehlásí kolizi záznamu se sebou samým.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.2.0",
     date: "2026-07-30",
     title: "Dovolená, přehlednější nastavení a spolehlivější bot",

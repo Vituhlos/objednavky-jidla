@@ -8,6 +8,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 Zatím žádné nevydané změny.
 
+## [1.2.1] - 2026-07-30
+
+### Fixed
+
+- Zadané zavření provozu nešlo upravit. Oprava překlepu v popisu nebo posun termínu vyžadovaly smazání a zadání celého záznamu znovu, což navíc blokovala kontrola překryvu — opravenou verzi nešlo zadat vedle původní.
+
+### Changed
+
+- Zavření se upravuje ve stejném formuláři, jaký slouží pro zakládání. Kontrola překryvu při úpravě ignoruje upravovaný záznam, takže lze změnit popis, poznámku nebo ikonu beze změny termínu.
+
 ## [1.2.0] - 2026-07-30
 
 ### Added
