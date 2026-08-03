@@ -7,6 +7,7 @@ import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import type { ClosureContext } from "@/lib/menu";
+import { DEFAULT_CLOSURE_ICON } from "@/lib/closure-icons";
 import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -1058,27 +1059,46 @@ export default function OrderPage({
                       const isActive = !!selectedDate && selectedDate >= item.from && selectedDate <= item.to;
                       const holdsToday = !!todayDate && todayDate >= item.from && todayDate <= item.to;
                       // Same emoji the menu screen puts on its week tabs — a closure
-                      // should be recognisable at a glance from either screen.
-                      const mark = item.icon
-                        ? <span className="emoji text-[13px] leading-none">{item.icon}</span>
-                        : <MIcon name="event_busy" size={14} style={{ color: isActive ? "#b45309" : "#a8a29e" }} />;
+                      // should be recognisable at a glance from either screen. Manual
+                      // one-off closed days carry no icon of their own, so they borrow
+                      // the closure default rather than switching to a Material glyph:
+                      // one slot, one drawing voice.
+                      const mark = (
+                        <span className="emoji text-[13px] leading-none">
+                          {item.icon ?? DEFAULT_CLOSURE_ICON}
+                        </span>
+                      );
 
-                      if (isActive || holdsToday) {
+                      // Deliberately NOT a disabled button when active. `disabled`
+                      // announces "unavailable" and drops the element out of the tab
+                      // order — but this marker means "you are here", which is the
+                      // opposite claim. Non-interactive markup states position; the
+                      // button exists only when there is somewhere to go.
+                      if (isActive) {
+                        return (
+                          <span
+                            aria-current="date"
+                            className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap select-none"
+                            key={`gap-${item.from}`}
+                            style={{ background: "rgba(245,158,11,0.16)", color: "#92400e" }}
+                            title="V tyto dny se v LIMA nevaří"
+                          >
+                            {mark}
+                            {label}
+                          </span>
+                        );
+                      }
+
+                      if (holdsToday) {
                         return (
                           <button
-                            aria-current={isActive ? "date" : undefined}
-                            className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap transition-all duration-200 ${
-                              isActive ? "cursor-default" : "text-stone-500 hover:text-stone-700 hover:bg-white/60 active:scale-[0.96]"
-                            }`}
-                            disabled={isActive}
+                            className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap text-stone-600 transition-all duration-200 hover:text-stone-800 hover:bg-white/60 active:scale-[0.96]"
                             key={`gap-${item.from}`}
                             onClick={() => {
-                              if (isActive) return;
                               setPendingDate(todayDate!);
                               startTransition(() => { router.push(`/?date=${todayDate}`); });
                             }}
-                            style={isActive ? { background: "rgba(245,158,11,0.16)", color: "#b45309" } : {}}
-                            title={isActive ? "V tyto dny se v LIMA nevaří" : "Zpět na dnešek — v tyto dny se nevaří"}
+                            title="Zpět na dnešek — v tyto dny se nevaří"
                             type="button"
                           >
                             {mark}
@@ -1089,7 +1109,7 @@ export default function OrderPage({
 
                       return (
                         <span
-                          className="flex-shrink-0 self-center px-3 inline-flex items-center gap-1.5 text-[11.5px] text-stone-400 whitespace-nowrap select-none"
+                          className="flex-shrink-0 self-center px-3 inline-flex items-center gap-1.5 text-[11.5px] text-stone-500 whitespace-nowrap select-none"
                           key={`gap-${item.from}`}
                           title="V tyto dny se v LIMA nevaří"
                         >
@@ -1106,7 +1126,7 @@ export default function OrderPage({
                         aria-current={isActive ? "date" : undefined}
                         key={date}
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+                          isActive ? "" : "text-stone-600 hover:text-stone-800 hover:bg-white/60"
                         }`}
                         onClick={() => { if (isActive) return; setPendingDate(date); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
