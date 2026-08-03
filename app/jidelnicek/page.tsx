@@ -4,9 +4,9 @@ import {
   getTodayDayCode,
   getMondayISO,
   getNextMondayISO,
-  getMenuDates,
-  getClosedDates,
   getAllMenuWeeks,
+  withOrderableBounds,
+  type ClosureContext,
 } from "@/lib/menu";
 import { getHolidayName } from "@/lib/holidays";
 import { getClosureForDate, getClosureDates } from "@/lib/closures";
@@ -47,14 +47,7 @@ function buildClosureMap(weekStart: string): Record<string, { label: string; ico
   );
 }
 
-export interface WeekClosure {
-  label: string;
-  icon: string;
-  startDate: string;
-  endDate: string;
-  lastOrderable: string | null;
-  reopens: string | null;
-}
+export type WeekClosure = ClosureContext;
 
 // A closure is a property of a SPAN, not of a day. When it swallows the whole
 // displayed week there is nothing per-day left to say, so the page states it once.
@@ -63,17 +56,7 @@ function buildWeekClosure(weekStart: string): WeekClosure | null {
   const closures = DAY_ORDER.map((_, i) => getClosureForDate(isoOfWeekday(weekStart, i)));
   const first = closures[0];
   if (!first || closures.some((c) => c?.id !== first.id)) return null;
-
-  const closed = new Set(getClosedDates());
-  const orderable = getMenuDates().filter((d) => !closed.has(d));
-  return {
-    label: first.label || "Dovolená",
-    icon: first.icon,
-    startDate: first.startDate,
-    endDate: first.endDate,
-    lastOrderable: orderable.filter((d) => d < first.startDate).pop() ?? null,
-    reopens: orderable.find((d) => d > first.endDate) ?? null,
-  };
+  return withOrderableBounds(first);
 }
 
 // "10.–14. 8." — tab label for weeks beyond "příští"

@@ -6,9 +6,11 @@ import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
+import type { ClosureContext } from "@/lib/menu";
 import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import ClosureCard from "./ClosureCard";
 import {
   actionAddRow,
   actionUpdateRow,
@@ -148,11 +150,27 @@ function formatGapLabel(from: string, to: string): string {
 // The day picker is a timeline: orderable days are chips, closed stretches are the
 // gaps between them. A gap renders as ONE quiet marker, not one item per day —
 // five struck-through chips read as five choices, which is exactly what they aren't.
-type PickerItem = { kind: "day"; date: string } | { kind: "gap"; from: string; to: string };
+type PickerItem =
+  | { kind: "day"; date: string }
+  | { kind: "gap"; from: string; to: string; icon: string | null };
 
-function buildPickerItems(availableDates: string[], closedDates: string[]): PickerItem[] {
-  const available = new Set(availableDates);
-  const gapDays = closedDates.filter((d) => !available.has(d)).sort();
+// The emoji the operator picked for the closure, so the strip names the shutdown the
+// same way the menu screen's week tabs do. null for a day toggled closed by hand —
+// that has no icon to show, and inventing one would imply a closure that isn't there.
+export type ClosureRange = { startDate: string; endDate: string; icon: string };
+
+function buildPickerItems(
+  availableDates: string[],
+  closedDates: string[],
+  closureRanges: ClosureRange[]
+): PickerItem[] {
+  // Today is always in availableDates so the page has something to select. When it is
+  // itself closed it still belongs to the gap, not beside it — otherwise the strip
+  // contradicts itself: a struck-through "Dnes" chip next to a marker whose range
+  // starts tomorrow, both describing the same shutdown. One span, one marker.
+  const closed = new Set(closedDates);
+  const openDays = availableDates.filter((d) => !closed.has(d));
+  const gapDays = [...closed].sort();
   const items: PickerItem[] = [];
   let i = 0;
 
@@ -166,11 +184,12 @@ function buildPickerItems(availableDates: string[], closedDates: string[]): Pick
         to = gapDays[i];
         i++;
       }
-      items.push({ kind: "gap", from, to });
+      const icon = closureRanges.find((c) => from >= c.startDate && from <= c.endDate)?.icon ?? null;
+      items.push({ kind: "gap", from, to, icon });
     }
   };
 
-  for (const date of availableDates) {
+  for (const date of openDays) {
     flushRunBefore(date);
     items.push({ kind: "day", date });
   }
@@ -258,8 +277,8 @@ export default function OrderPage({
   extrasPrices = EXTRAS_PRICES_DEFAULT,
   availableDates,
   closedDates,
-  closureLabel,
-  isClosureDay = false,
+  closureRanges,
+  activeClosure,
   upcomingClosure,
   selectedDate,
   todayDate,
@@ -279,8 +298,8 @@ export default function OrderPage({
   extrasPrices?: ExtrasPrices;
   availableDates?: string[];
   closedDates?: string[];
-  closureLabel?: string | null;
-  isClosureDay?: boolean;
+  closureRanges?: ClosureRange[];
+  activeClosure?: ClosureContext | null;
   upcomingClosure?: { startDate: string; endDate: string; label: string; note: string; icon: string } | null;
   selectedDate?: string;
   todayDate?: string;
@@ -295,10 +314,9 @@ export default function OrderPage({
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
 
-  const closedSet = useMemo(() => new Set(closedDates ?? []), [closedDates]);
   const pickerItems = useMemo(
-    () => buildPickerItems(availableDates ?? [], closedDates ?? []),
-    [availableDates, closedDates]
+    () => buildPickerItems(availableDates ?? [], closedDates ?? [], closureRanges ?? []),
+    [availableDates, closedDates, closureRanges]
   );
   const showDayPicker = !!(pickerItems.length > 1 && todayDate);
 
@@ -1032,24 +1050,63 @@ export default function OrderPage({
                 >
                   {pickerItems.map((item) => {
                     if (item.kind === "gap") {
+                      const label = `zavřeno ${formatGapLabel(item.from, item.to)}`;
+                      // The gap swallowed today's chip, so it inherits its two jobs:
+                      // showing where you are, and getting you back. Amber fill rather
+                      // than the orange gradient — this IS the current position, but
+                      // the gradient means "actionable day" everywhere else in the strip.
+                      const isActive = !!selectedDate && selectedDate >= item.from && selectedDate <= item.to;
+                      const holdsToday = !!todayDate && todayDate >= item.from && todayDate <= item.to;
+                      // Same emoji the menu screen puts on its week tabs — a closure
+                      // should be recognisable at a glance from either screen.
+                      const mark = item.icon
+                        ? <span className="emoji text-[13px] leading-none">{item.icon}</span>
+                        : <MIcon name="event_busy" size={14} style={{ color: isActive ? "#b45309" : "#a8a29e" }} />;
+
+                      if (isActive || holdsToday) {
+                        return (
+                          <button
+                            aria-current={isActive ? "date" : undefined}
+                            className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap transition-all duration-200 ${
+                              isActive ? "cursor-default" : "text-stone-500 hover:text-stone-700 hover:bg-white/60 active:scale-[0.96]"
+                            }`}
+                            disabled={isActive}
+                            key={`gap-${item.from}`}
+                            onClick={() => {
+                              if (isActive) return;
+                              setPendingDate(todayDate!);
+                              startTransition(() => { router.push(`/?date=${todayDate}`); });
+                            }}
+                            style={isActive ? { background: "rgba(245,158,11,0.16)", color: "#b45309" } : {}}
+                            title={isActive ? "V tyto dny se v LIMA nevaří" : "Zpět na dnešek — v tyto dny se nevaří"}
+                            type="button"
+                          >
+                            {mark}
+                            {label}
+                          </button>
+                        );
+                      }
+
                       return (
                         <span
-                          className="flex-shrink-0 self-center px-3 text-[11.5px] text-stone-400 whitespace-nowrap select-none"
+                          className="flex-shrink-0 self-center px-3 inline-flex items-center gap-1.5 text-[11.5px] text-stone-400 whitespace-nowrap select-none"
                           key={`gap-${item.from}`}
                           title="V tyto dny se v LIMA nevaří"
                         >
-                          zavřeno {formatGapLabel(item.from, item.to)}
+                          {mark}
+                          {label}
                         </span>
                       );
                     }
+                    // Day chips are orderable days only — closed ones live in the gaps.
                     const date = item.date;
                     const isActive = date === selectedDate;
-                    const isClosed = closedSet.has(date);
                     return (
                       <button
+                        aria-current={isActive ? "date" : undefined}
                         key={date}
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : `hover:bg-white/60 ${isClosed ? "text-stone-400 line-through decoration-stone-300 hover:text-stone-500" : "text-stone-500 hover:text-stone-700"}`
+                          isActive ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
                         }`}
                         onClick={() => { if (isActive) return; setPendingDate(date); startTransition(() => { router.push(`/?date=${date}`); }); }}
                         style={isActive ? {
@@ -1057,7 +1114,6 @@ export default function OrderPage({
                           color: "white",
                           boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
                         } : {}}
-                        title={isClosed ? "Zavřeno — nevaří se" : undefined}
                         type="button"
                       >
                         {getDayLabel(date, todayDate!)}
@@ -1073,50 +1129,56 @@ export default function OrderPage({
 
 
           {noMenu ? (
-            /* ── Closed / no-menu banner ── */
-            <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
-              <div className="flex flex-col items-center text-center px-6 py-8 md:py-10 gap-3">
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={holidayName
-                    ? { background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.45)" }
-                    : { background: "rgba(148,163,184,0.18)", border: "1px solid rgba(148,163,184,0.25)" }
-                  }
-                >
-                  {holidayName ? (
-                    <span className="emoji text-[28px] leading-none">{holidayEmoji}</span>
-                  ) : (
-                    <MIcon name="event_busy" size={28} fill style={{ color: "#94a3b8" }} />
-                  )}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
-                    {holidayName ?? (isClosureDay ? "Zavřeno" : "Jídelníček není k dispozici")}
+            activeClosure ? (
+              /* A closure outranks a state holiday here even when both land on the
+                 same day: "Dovolená do 7. 8." answers the question the reader
+                 actually has, "Státní svátek" only answers today's. Same card as
+                 the menu screen — one closure, one visual, both pages. */
+              <ClosureCard closure={activeClosure} />
+            ) : (
+              /* ── Closed / no-menu banner ── */
+              <div className="glass rounded-3xl overflow-hidden" style={{ borderColor: holidayName ? "rgba(245,158,11,0.22)" : "rgba(26,18,8,0.08)" }}>
+                <div className="flex flex-col items-center text-center px-6 py-8 md:py-10 gap-3">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                    style={holidayName
+                      ? { background: "linear-gradient(135deg,#fbbf24,#d97706)", boxShadow: "0 8px 24px -6px rgba(245,158,11,0.45)" }
+                      : { background: "rgba(148,163,184,0.18)", border: "1px solid rgba(148,163,184,0.25)" }
+                    }
+                  >
+                    {holidayName ? (
+                      <span className="emoji text-[28px] leading-none">{holidayEmoji}</span>
+                    ) : (
+                      <MIcon name="event_busy" size={28} fill style={{ color: "#94a3b8" }} />
+                    )}
                   </div>
-                  {formattedClosedDate && (
-                    <div className="text-[13px] text-stone-500">{formattedClosedDate}</div>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
+                      {holidayName ?? "Jídelníček není k dispozici"}
+                    </div>
+                    {formattedClosedDate && (
+                      <div className="text-[13px] text-stone-500">{formattedClosedDate}</div>
+                    )}
+                  </div>
+                  {holidayDescription && (
+                    <p className="text-[13px] text-stone-500 leading-relaxed max-w-sm">
+                      {holidayDescription}
+                    </p>
                   )}
-                </div>
-                {holidayDescription && (
-                  <p className="text-[13px] text-stone-500 leading-relaxed max-w-sm">
-                    {holidayDescription}
-                  </p>
-                )}
-                <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500 mt-1"
-                  style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
-                >
-                  <MIcon name="info" size={13} style={{ color: "#D97706" }} />
-                  <span>
-                    {holidayName
-                      ? "V tento den se objednávky nevytvářejí."
-                      : isClosureDay
-                        ? (closureLabel || "V tento den se v LIMA nevaří.")
+                  <div
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium text-stone-500 mt-1"
+                    style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(26,18,8,0.08)" }}
+                  >
+                    <MIcon name="info" size={13} style={{ color: "#D97706" }} />
+                    <span>
+                      {holidayName
+                        ? "V tento den se objednávky nevytvářejí."
                         : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}
-                  </span>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           ) : (
             <>
               {menuEmpty && !isSent && (

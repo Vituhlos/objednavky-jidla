@@ -1,6 +1,6 @@
 import { getDb } from "./db";
 import { getSettings } from "./settings";
-import { getClosureDates, getClosureForDate } from "./closures";
+import { getClosureDates, getClosureForDate, type Closure } from "./closures";
 import { getPragueNow, toLocalISODate } from "./time";
 import type { MenuItem, DayCode } from "./types";
 
@@ -48,6 +48,35 @@ export function getMenuDates(): string[] {
 // returns them — they must be read separately.
 export function getClosedDates(): string[] {
   return [...new Set([...getManuallyClosedDates(), ...getClosureDates()])].sort();
+}
+
+// A closure is a property of a SPAN, so the two dates people actually act on are
+// the last lunch before it and the first one after. Both are read from the menu
+// (minus closed days) rather than guessed — promising a reopen date nobody has
+// imported a menu for would be a lie. Shared by the menu screen's week panel and
+// the order screen's closed banner so the two never drift apart.
+export interface ClosureContext {
+  label: string;
+  icon: string;
+  note: string;
+  startDate: string;
+  endDate: string;
+  lastOrderable: string | null;
+  reopens: string | null;
+}
+
+export function withOrderableBounds(closure: Closure): ClosureContext {
+  const closed = new Set(getClosedDates());
+  const orderable = getMenuDates().filter((d) => !closed.has(d));
+  return {
+    label: closure.label || "Dovolená",
+    icon: closure.icon,
+    note: closure.note,
+    startDate: closure.startDate,
+    endDate: closure.endDate,
+    lastOrderable: orderable.filter((d) => d < closure.startDate).pop() ?? null,
+    reopens: orderable.find((d) => d > closure.endDate) ?? null,
+  };
 }
 
 function getManuallyClosedDates(): string[] {

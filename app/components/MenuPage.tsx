@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
+import ClosureCard from "./ClosureCard";
 import type { WeekClosure, MenuWeek } from "@/app/jidelnicek/page";
 
 // Controlled textarea that auto-grows to fit its content (used in modal)
@@ -123,64 +124,12 @@ const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuIt
 // ── Whole-week closure (replaces the day grid) ────────────────────────────────
 
 // Five identical "Zavřeno" cards say one thing five times. A closure covers a SPAN,
-// so when it swallows the whole week the page states it once — same type scale and
-// label/value pairs as the heads-up banner on the order page.
+// so when it swallows the whole week the page states it once. The card itself lives
+// in ClosureCard — the order screen shows the same one for a closed day.
 function WeekClosurePanel({ closure }: { closure: WeekClosure }) {
-  const fmt = (iso: string) => {
-    const [, m, d] = iso.split("-").map(Number);
-    return `${d}. ${m}.`;
-  };
-  const fmtDay = (iso: string) => {
-    const [y, m, d] = iso.split("-").map(Number);
-    const wd = new Date(y, m - 1, d).toLocaleDateString("cs-CZ", { weekday: "long" });
-    return `${wd} ${d}. ${m}.`;
-  };
   return (
     <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav md:pb-8 pt-3">
-      <div
-        className="glass-card rounded-3xl mx-auto max-w-lg overflow-hidden"
-        style={{ borderColor: "rgba(245,158,11,0.28)" }}
-      >
-        <div className="flex flex-col items-center text-center px-6 py-8 gap-3">
-          <div
-            className="w-16 h-16 rounded-2xl inline-flex items-center justify-center"
-            style={{ background: "rgba(245,158,11,0.14)" }}
-          >
-            <span className="emoji text-[32px] leading-none">{closure.icon}</span>
-          </div>
-          <div>
-            <div className="font-display font-bold text-[20px] text-stone-900 leading-tight">
-              {closure.label}
-            </div>
-            <div className="text-[13px] text-stone-500 mt-1 tabular-nums">
-              Od {fmt(closure.startDate)} do {fmt(closure.endDate)} se v LIMA nevaří
-            </div>
-          </div>
-        </div>
-        {(closure.lastOrderable || closure.reopens) && (
-          <div
-            className="flex flex-wrap justify-center gap-x-10 gap-y-3 px-6 py-4"
-            style={{ borderTop: "1px solid rgba(245,158,11,0.18)", background: "rgba(245,158,11,0.05)" }}
-          >
-            {closure.lastOrderable && (
-              <div className="text-center">
-                <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
-                  Poslední oběd
-                </div>
-                <div className="text-[14px] font-semibold text-stone-800 mt-1 tabular-nums">{fmtDay(closure.lastOrderable)}</div>
-              </div>
-            )}
-            {closure.reopens && (
-              <div className="text-center">
-                <div className="text-[10.5px] font-semibold uppercase tracking-wide text-stone-400 leading-none">
-                  Vaří se zase od
-                </div>
-                <div className="text-[14px] font-semibold text-stone-800 mt-1 tabular-nums">{fmtDay(closure.reopens)}</div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <ClosureCard closure={closure} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { getOrderDataForDate } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
-import { getMenuWeekLabel, getMenuDates, getClosedDates, getMondayISO } from "@/lib/menu";
-import { getClosureForDate, getUpcomingClosure } from "@/lib/closures";
+import { getMenuWeekLabel, getMenuDates, getClosedDates, getMondayISO, withOrderableBounds } from "@/lib/menu";
+import { getClosures, getClosureForDate, getUpcomingClosure } from "@/lib/closures";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
 import OrderPage from "@/app/components/OrderPage";
@@ -43,8 +43,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <OrderPage
       availableDates={allDates}
       closedDates={closedDates}
-      closureLabel={selectedClosure?.label || null}
-      isClosureDay={!!selectedClosure}
+      activeClosure={selectedClosure ? withOrderableBounds(selectedClosure) : null}
+      closureRanges={getClosures().map((c) => ({ startDate: c.startDate, endDate: c.endDate, icon: c.icon }))}
       upcomingClosure={upcomingClosure}
       holidayName={holidayName}
       holidayDescription={holidayDescription}
