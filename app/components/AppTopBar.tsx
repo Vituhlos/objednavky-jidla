@@ -14,16 +14,22 @@ const NAV = [
 ];
 
 const SidebarClock = memo(function SidebarClock() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    const initialUpdate = setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initialUpdate);
+      clearInterval(id);
+    };
   }, []);
 
-  const timeStr = now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = now?.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) ?? "—";
   const dateStr = now
-    .toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-    .replace(/^\w/, (c) => c.toUpperCase());
+    ? now
+        .toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
+        .replace(/^\w/, (c) => c.toUpperCase())
+    : "Načítání data";
 
   return (
     <div className="glass-soft rounded-2xl p-3">
