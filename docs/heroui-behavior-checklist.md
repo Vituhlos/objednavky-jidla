@@ -22,7 +22,15 @@ approved.
 
 ## History (`/historie`)
 
-- [ ] Draft and sent lunch orders are listed with the same totals and status.
+- [x] Draft and sent lunch orders are listed with the same totals and status.
+- [x] Empty drafts are hidden by default and the HeroUI switch restores them.
+- [x] Search still matches the formatted date and lunch extra e-mail.
+- [x] Empty data and zero search results remain distinct; filtered results can be
+      reset directly from the empty state.
+- [x] Lunch and pizza rows preserve their original detail destinations.
+- [x] `pizzaEnabled` still controls whether the pizza history section is rendered.
+- [x] Narrow viewports keep date, status, and the open action visible without
+      covering the mobile navigation.
 - [ ] Lunch order detail shows all departments, rows, notes, and prices.
 - [ ] Pizza history and pizza detail remain reachable and accurate.
 - [ ] Existing PDF/detail actions still work.
@@ -78,3 +86,19 @@ For each migrated page record:
 - Mobile/PWA result:
 - Keyboard result:
 - Known intentional differences:
+
+### `3c71256 feat: migrate history list to HeroUI`
+
+- Desktop browser/result: Chromium 1695×920; lunch records, hide-empty switch,
+  date/e-mail search, filtered-zero reset, row navigation and responsive columns
+  passed. The list uses only stock HeroUI surfaces, cards, tables, fields, switch,
+  chips, typography, empty state and button components.
+- Mobile/PWA result: Chromium 390×844; compact header, core table columns,
+  scrolling and bottom-navigation clearance passed.
+- Keyboard result: switch and search are reachable by Tab; the HeroUI table
+  receives focus and `ArrowDown` + `Enter` opened `/historie/637`.
+- Known intentional differences: the migrated page uses the neutral HeroUI theme,
+  semantic success/default status chips and a constrained centered content column.
+  The shared application navigation remains legacy until its own migration step.
+- Console: clean after fixing the shared sidebar clock's server/client timestamp
+  mismatch. The separate pre-existing push-control mismatch on `/` remains.

@@ -60,3 +60,43 @@ Chronologický, append-only protokol práce. Aktuální stručný stav je v
 - Přidáno `.claude/launch.json` pro Desktop preview na portu 3020.
 - Nastaveno `NODE_OPTIONS=--use-system-ca` pro lokální Claude Code prostředí kvůli
   lokálnímu TLS certifikátu při npm/npx voláních.
+
+## 2026-08-04 – HeroUI pilot seznamu historie
+
+### Rozsah
+
+- `/historie` je přestavěná na stock HeroUI `Surface`, `Card`, `Table`,
+  `SearchField`, `Switch`, `Chip`, `Typography`, `EmptyState` a `Button`.
+- Staré ruční tabulky, inline barvy, glass třídy, gradientový switch a `MIcon`
+  byly z migrované stránky odstraněny.
+- Data, řazení, hide-empty pravidlo, datum/e-mail search a detailní routy zůstaly
+  stejné.
+- Filtrování, mapování a české formátování/počty jsou v testovaném helper modulu.
+- Shared sidebar clock už na `/historie` nevytváří hydration mismatch.
+
+### Designové rozhodnutí
+
+- Plnošířkový legacy topbar nebyl napodoben. Nadpis a ovládání jsou v kompaktní,
+  centrované produktové kompozici na `surface-secondary`.
+- Výchozí bílá HeroUI karta je oddělená pouze standardním povrchem a shadow
+  komponenty; nebyl přidán vlastní border ani barva.
+- Při vypnuté pizze obědová historie využije celou obsahovou šířku. Při zapnuté
+  pizze se od `xl` zobrazí dvě rovnocenné sekce.
+
+### Commit
+
+- `3c71256 feat: migrate history list to HeroUI`
+
+### Ověření
+
+- `npm test`: 19/19 testů prošlo.
+- Cílený ESLint a `npx tsc --noEmit` prošly bez výstupu.
+- Produkční build prošel.
+- Chromium 1695×920 a 390×844: vizuální hierarchie, responzivní sloupce,
+  hledání, zrušení hledání, switch a prázdné stavy prošly.
+- Myš i klávesnice otevřely původní detailní routu; konzole byla bez chyb.
+
+### Další krok
+
+- Migrovat `/historie/[id]`, potom `/historie/pizza/[id]`, se stejnými HeroUI
+  guardrails a samostatnými commity.

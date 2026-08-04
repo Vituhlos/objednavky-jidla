@@ -12,7 +12,7 @@ logickém kroku ho aktualizuj a přidej záznam do `docs/MIGRATION-LOG.md`.
 | Samostatný worktree | `C:\Users\Pech\Downloads\Objednavani jurka\docker-app-heroui` |
 | Branch | `feat/heroui-migration` |
 | Výchozí commit z `main` | `d49bc416ec1c9e33e5a774339bd6f773d5668943` |
-| Poslední implementační commit | `4418595 refactor: split settings page foundations` |
+| Poslední implementační commit | `3c71256 feat: migrate history list to HeroUI` |
 | HeroUI | přesně `3.2.3` |
 | Stav serveru | žádný dev server neběží; port 3020 je volný |
 | Poslední aktualizace | 2026-08-04 |
@@ -66,8 +66,8 @@ jsou v `docs/heroui-behavior-checklist.md`.
 | HeroUI runtime | hotovo | styles import + `I18nProvider` s `cs-CZ` |
 | Phase A-lite | první část hotová | Vitest, sdílené helpery, první rozdělení Settings |
 | Behavior baseline | hotovo pro hlavní routy | viz checklist; `/` má známý starý hydration warning |
-| Vizuální HeroUI migrace | nezačala | všechny stránky stále používají legacy vzhled |
-| Pilot `/historie` | další krok | read-only stránka s nejnižším rizikem |
+| Vizuální HeroUI migrace | probíhá | seznam historie je první hotový pilot |
+| Pilot `/historie` | hotovo | stock HeroUI, desktop/mobile/keyboard ověřeno |
 
 ## Co už bylo dokončeno
 
@@ -85,23 +85,35 @@ jsou v `docs/heroui-behavior-checklist.md`.
    - `SettingsPage.tsx` zmenšen z 2319 na 1946 řádků.
    - Nové moduly v `app/components/settings/`.
    - Čisté mapování formuláře, datumové helpery a validace mají testy.
+6. `3c71256 feat: migrate history list to HeroUI`
+   - Seznam `/historie` používá stock HeroUI komponenty a výchozí neutrální
+     povrchy bez legacy barev, glass tříd, gradientů nebo inline stylů.
+   - Filtry a formátování jsou oddělené v `app/components/history/history-utils.ts`
+     a pokryté testy.
+   - HeroUI Table zachovává lunch/pizza odkazy a přidává správnou klávesnicovou
+     navigaci; mobil skrývá pouze vedlejší sloupce.
+   - Opraven server/client mismatch hodin ve sdíleném sidebaru.
 
 ## Poslední známé ověření
 
-Pro stav na commitu `4418595` platí:
+Pro stav na commitu `3c71256` platí:
 
-- `npm test`: 2 test files, 14 testů prošlo.
+- `npm test`: 3 test files, 19 testů prošlo.
 - Cílený ESLint změněných frontendových souborů prošel bez výstupu.
+- `npx tsc --noEmit`: prošel bez výstupu.
 - `npm run build`: prošel, všechny routy byly vygenerované.
-- Runtime smoke test `GET /nastaveni`: HTTP 200 a stránka obsahovala nadpis
-  „Nastavení“.
-- Worktree byl po commitu čistý.
+- Chromium desktop 1695×920 a mobil 390×844: layout, hledání, přepínač,
+  prázdný/filtered-zero stav a otevření řádku prošly.
+- Klávesnice: `Tab`, `ArrowDown`, `Enter` otevřely detail objednávky.
+- Konzole `/historie` byla bez chyb; dev server na portu 3020 byl ukončen.
 
 ## Známé problémy a úmyslně odložené věci
 
 - Na `/` existuje hydration mismatch kolem responzivních ovládacích prvků push
   notifikací/headeru. Stejný warning byl reprodukován na nezměněném `main`, takže
   ho nezpůsobila HeroUI větev. Je zapsaný v behavior checklistu.
+- Vizuální shell a detailní stránky historie jsou stále legacy. Pilot změnil jen
+  seznam `/historie`; sdílený sidebar clock dostal pouze opravu hydratace.
 - `SettingsPage.tsx` je stále příliš velký. Další rozdělení má proběhnout podle
   domén (`provoz`, `lidé`, `ceny`, `napojení`, `pizza`, `systém`), ideálně při
   migraci Settings. Cílem je z něj udělat koordinátor, ne jen přesunout JSX.
@@ -122,13 +134,13 @@ Pro stav na commitu `4418595` platí:
 2. Před implementací přečíst lokální HeroUI 3.2.3 dokumentaci pro použité
    komponenty v `.heroui-docs/react/` a případně ověřit instalované TypeScript
    deklarace.
-3. Migrovat pouze seznam `/historie` jako první read-only pilot:
-   - zachovat data, odkazy, filtrování, prázdné stavy a mobilní chování;
-   - použít stock HeroUI a Tailwind jen pro layout;
+3. Migrovat read-only detail obědové historie `/historie/[id]`:
+   - zachovat oddělení, řádky, poznámky, ceny, PDF a všechny akce;
+   - před změnou zapsat stavovou matici a ověřit HeroUI API v lokálních docs;
    - nepřenášet staré barevné nebo glass třídy.
-4. Spustit `npm test`, cílený ESLint, `npm run build` a desktop/mobile smoke test.
-5. Zapsat výsledek do checklistu, aktualizovat tento soubor, přidat záznam do
-   `docs/MIGRATION-LOG.md` a vytvořit samostatný Conventional Commit.
+4. Potom stejným vzorem migrovat `/historie/pizza/[id]`.
+5. Pro každý detail spustit `npm test`, cílený ESLint, `npm run build` a
+   desktop/mobile/keyboard smoke test a vše zapsat do checklistu a logu.
 
 ## Pravidla předání mezi agenty
 
