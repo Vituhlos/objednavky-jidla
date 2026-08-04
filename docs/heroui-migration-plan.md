@@ -58,14 +58,24 @@ not authoritative.
 - Keep the current application shell and legacy CSS working.
 - Confirm the production build without changing page behavior.
 
-### 2. Baseline and pilot
+### 2. Phase A-lite: structural safety before visual migration
+
+- Add a small Vitest suite for pure formatting, validation, and form-mapping logic.
+- Move settings helpers, constants, and reusable legacy primitives out of the page
+  component without changing their rendered output.
+- Split large pages by product responsibility as they are touched; avoid both a
+  one-shot rewrite and cosmetic file shuffling that leaves one oversized state owner.
+- Keep server actions, persistence, and business rules stable unless a test exposes
+  an existing defect that blocks the migration.
+
+### 3. Baseline and pilot
 
 - Record the current flows using the behavior checklist.
 - Migrate `/historie` and its detail pages first because they are read-only.
 - Establish reusable neutral layout patterns without creating a custom design
   system.
 
-### 3. Page-by-page migration
+### 4. Page-by-page migration
 
 1. `/nastaveni`
 2. `/jidelnicek`
@@ -81,7 +91,7 @@ For every page:
   and disabled states.
 - Remove only the legacy styles that no remaining page uses.
 
-### 4. Cleanup
+### 5. Cleanup
 
 - Remove dead legacy components and CSS.
 - Verify PWA safe areas and iOS standalone behavior.

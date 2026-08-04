@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, memo } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -38,350 +38,33 @@ import { RELEASE_NOTES } from "@/lib/release-notes";
 import { getAppVersionInfo } from "@/lib/version";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
-
-const ACCENT_OPTIONS = [
-  { value: "blue",   label: "Modrá" },
-  { value: "rust",   label: "Rezavá" },
-  { value: "green",  label: "Zelená" },
-  { value: "amber",  label: "Jantarová" },
-  { value: "navy",   label: "Námořnická" },
-  { value: "orange", label: "Oranžová" },
-  { value: "red",    label: "Červená" },
-];
-
-const ACCENT_COLORS: Record<string, string> = {
-  blue: "#3B82F6", rust: "#C2654D", green: "#4F8A53",
-  amber: "#F59E0B", navy: "#1e40af", orange: "#EA580C", red: "#dc2626",
-};
-
-const DAY_OPTIONS = [
-  { code: "Po", label: "Po" },
-  { code: "Út", label: "Út" },
-  { code: "St", label: "St" },
-  { code: "Čt", label: "Čt" },
-  { code: "Pá", label: "Pá" },
-];
-
-const ACTION_LABELS: Record<string, string> = {
-  row_add: "Přidání řádku",
-  row_update: "Úprava řádku",
-  row_delete: "Smazání řádku",
-  order_send: "Odeslání objednávky",
-  order_reopen: "Znovuotevření",
-  order_clear: "Vymazání objednávky",
-  auto_send: "Auto-odeslání",
-  menu_reminder: "Upozornění na chybějící menu",
-};
-
-function getNextAutoSend(enabled: string, time: string, daysStr: string): string {
-  if (enabled !== "true") return "Vypnuto";
-  const days = daysStr.split(",").map((d) => d.trim()).filter(Boolean);
-  if (days.length === 0 || !time) return "Nenastaveno";
-  const JS_TO_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" };
-  const DAY_NAMES: Record<string, string> = { Po: "pondělí", "Út": "úterý", St: "středu", "Čt": "čtvrtek", "Pá": "pátek" };
-  try {
-    const p = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-    const curDay = p.getDay();
-    const curTime = `${String(p.getHours()).padStart(2, "0")}:${String(p.getMinutes()).padStart(2, "0")}`;
-    for (let offset = 0; offset < 7; offset++) {
-      const jsDay = (curDay + offset) % 7;
-      const code = JS_TO_CODE[jsDay];
-      if (!code || !days.includes(code)) continue;
-      if (offset === 0 && curTime >= time) continue;
-      const label = offset === 0 ? "Dnes" : offset === 1 ? "Zítra" : `V ${DAY_NAMES[code] ?? code}`;
-      return `${label} v ${time}`;
-    }
-  } catch { /* ignore */ }
-  return `Příštích ${days[0]} v ${time}`;
-}
-
-function formatTs(ts: string): string {
-  if (!ts) return "—";
-  const normalized =
-    ts.includes("T") && (ts.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(ts))
-      ? ts
-      : ts.replace(" ", "T") + "Z";
-  const d = new Date(normalized);
-  if (isNaN(d.getTime())) return ts;
-  return d.toLocaleString("cs-CZ", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-// "2026-08-03" + "2026-08-07" → "3. 8. – 7. 8. 2026"
-// N5: the range used to be corrected silently on the server (a reversed range was
-// just swapped) and overlaps were never checked at all — two closures over the same
-// day make getClosureForDate() pick whichever came first, which is a coin toss.
-function validateClosureRange(
-  from: string,
-  to: string,
-  existing: Closure[],
-  todayISO: string
-): { error?: string; warning?: string } {
-  if (!from || !to) return {};
-  if (from > to) return { error: "Datum „Do“ je dřív než „Od“ — prohoďte je." };
-
-  const clash = existing.find((c) => from <= c.endDate && to >= c.startDate);
-  if (clash) {
-    return {
-      error: `Překrývá se s „${clash.label || "Dovolená"}“ (${formatClosureRange(clash.startDate, clash.endDate)}).`,
-    };
-  }
-
-  if (to < todayISO) return { warning: "Termín je celý v minulosti — na provoz už nemá vliv." };
-  return {};
-}
-
-function formatClosureRange(startDate: string, endDate: string): string {
-  const [sy, sm, sd] = startDate.split("-").map(Number);
-  const [ey, em, ed] = endDate.split("-").map(Number);
-  if (startDate === endDate) return `${sd}. ${sm}. ${sy}`;
-  if (sy === ey) return `${sd}. ${sm}. – ${ed}. ${em}. ${ey}`;
-  return `${sd}. ${sm}. ${sy} – ${ed}. ${em}. ${ey}`;
-}
-
-// ── Section card ──────────────────────────────────────────────────────────────
-
-function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
-  const [showHelp, setShowHelp] = useState(false);
-  return (
-    <div className="glass rounded-3xl overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
-        {icon && <MIcon name={icon as "settings"} size={17} fill style={{ color: "#D97706" }} />}
-        <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
-        {action}
-        {helpContent && (
-          <button
-            type="button"
-            onClick={() => setShowHelp((v) => !v)}
-            aria-label="Nápověda"
-            className="w-7 h-7 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
-          >
-            <MIcon name="info" size={15} />
-          </button>
-        )}
-      </div>
-      {helpContent && showHelp && (
-        <div className="px-4 pt-3 pb-1 border-b border-white/40 flex flex-col gap-2" style={{ background: "rgba(245,158,11,0.04)" }}>
-          {helpContent}
-        </div>
-      )}
-      <div className="p-4 flex flex-col gap-3">{children}</div>
-    </div>
-  );
-}
-
-// ── Field ─────────────────────────────────────────────────────────────────────
-
-// mt-auto on the control keeps inputs on one line even when only some fields carry a
-// hint — without it a hinted field pushes its input a row lower than its neighbours.
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1 h-full">
-      <span className="text-[12px] font-semibold text-stone-600">{label}</span>
-      {hint && <span className="text-[10.5px] text-stone-400 -mt-0.5">{hint}</span>}
-      <div className="mt-auto">{children}</div>
-    </div>
-  );
-}
-
-function EmailListInput({
-  defaultValue,
-  name,
-  placeholder,
-}: {
-  defaultValue: string;
-  name: string;
-  placeholder: string;
-}) {
-  return (
-    <input
-      className="modal-input"
-      defaultValue={defaultValue}
-      name={name}
-      placeholder={placeholder}
-      type="text"
-    />
-  );
-}
-
-// ── Toggle checkbox ───────────────────────────────────────────────────────────
-
-const Toggle = memo(function Toggle({ name, defaultChecked, label }: { name: string; defaultChecked: boolean; label: string }) {
-  return (
-    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-      <div className="relative shrink-0">
-        <input type="checkbox" className="peer sr-only" name={name} defaultChecked={defaultChecked} />
-        <div className="w-11 h-[22px] rounded-full transition-colors bg-black/15 peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-        <div className="absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[18px]" />
-      </div>
-      <span className="text-[13px] text-stone-700">{label}</span>
-    </label>
-  );
-});
-
-// ── Department row ────────────────────────────────────────────────────────────
-
-const DeptRow = memo(function DeptRow({
-  dept, onSave, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
-}: {
-  dept: DepartmentInfo;
-  onSave: (id: number, data: Partial<{ label: string; emailLabel: string; accent: string }>) => void;
-  onDelete: (id: number) => void;
-  onMoveUp: (id: number) => void;
-  onMoveDown: (id: number) => void;
-  isFirst: boolean;
-  isLast: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [label, setLabel] = useState(dept.label);
-  const [emailLabel, setEmailLabel] = useState(dept.emailLabel);
-  const [accent, setAccent] = useState(dept.accent);
-  const dotColor = ACCENT_COLORS[dept.accent] ?? "#94a3b8";
-
-  if (!editing) {
-    return (
-      <div className="glass-soft rounded-2xl px-3 py-2.5 flex items-center gap-3">
-        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: dotColor }} />
-        <span className="text-[13px] font-semibold text-stone-800 flex-1 min-w-0 truncate">{dept.label}</span>
-        <span className="text-[11px] text-stone-400 hidden sm:inline shrink-0">({dept.name})</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            aria-label={`Přesunout ${dept.label} nahoru`}
-            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isFirst} onClick={() => onMoveUp(dept.id)} type="button"
-          >↑</button>
-          <button
-            aria-label={`Přesunout ${dept.label} dolů`}
-            className="inline-flex w-10 h-10 rounded-full items-center justify-center text-stone-400 hover:bg-white/60 transition disabled:opacity-30"
-            disabled={isLast} onClick={() => onMoveDown(dept.id)} type="button"
-          >↓</button>
-          <button
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg glass-btn text-stone-600"
-            onClick={() => setEditing(true)} type="button"
-          >Upravit</button>
-          <button
-            aria-label={`Smazat oddělení ${dept.label}`}
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg text-red-600 transition"
-            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}
-            onClick={() => setConfirmDelete(true)} type="button"
-          >Smazat</button>
-        </div>
-        {confirmDelete && (
-          <ConfirmModal
-            message={`Oddělení „${dept.label}" bude trvale smazáno.`}
-            onClose={() => setConfirmDelete(false)}
-            onConfirm={() => { onDelete(dept.id); setConfirmDelete(false); }}
-            title="Smazat oddělení"
-          />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <Field label="Zobrazovaný název">
-          <input className="modal-input" onChange={(e) => setLabel(e.target.value)} value={label} />
-        </Field>
-        <Field label="Název v e-mailu">
-          <input className="modal-input" onChange={(e) => setEmailLabel(e.target.value)} value={emailLabel} />
-        </Field>
-        <Field label="Barva">
-          <select className="k-select" onChange={(e) => setAccent(e.target.value)} value={accent}>
-            {ACCENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </Field>
-      </div>
-      <div className="flex gap-2">
-        <button
-          className="modal-btn modal-btn--primary"
-          onClick={() => { onSave(dept.id, { label, emailLabel, accent }); setEditing(false); }}
-          type="button"
-        >Uložit</button>
-        <button
-          className="modal-btn modal-btn--secondary"
-          onClick={() => { setLabel(dept.label); setEmailLabel(dept.emailLabel); setAccent(dept.accent); setEditing(false); }}
-          type="button"
-        >Zrušit</button>
-      </div>
-    </div>
-  );
-});
-
-// ── Tabs ─────────────────────────────────────────────────
-
-// Categories follow what the operator is trying to do, not which technology the
-// setting talks to — push notifications used to live under "E-mail & IMAP" and the
-// pizza module under "Objednávka".
-type Tab = "provoz" | "lide" | "ceny" | "napojeni" | "pizza" | "system";
-
-const TABS: { id: Tab; label: string; icon: string; hint: string }[] = [
-  { id: "provoz",   label: "Provoz",   icon: "schedule",         hint: "Uzávěrka, odesílání, zavřeno" },
-  { id: "lide",     label: "Lidé",     icon: "groups",           hint: "Oddělení a uživatelé bota" },
-  { id: "ceny",     label: "Ceny",     icon: "shopping_basket",  hint: "Ceník jídel a příloh" },
-  { id: "napojeni", label: "Napojení", icon: "send",             hint: "E-mail, IMAP, push, Telegram" },
-  { id: "pizza",    label: "Pizza",    icon: "local_pizza",      hint: "Samostatný modul" },
-  { id: "system",   label: "Systém",   icon: "build",            hint: "Zálohy, historie, PIN" },
-];
+import { DepartmentRow as DeptRow } from "./settings/DepartmentRow";
+import {
+  EmailListInput,
+  SettingsField as Field,
+  SettingsSection as Section,
+  SettingsToggle as Toggle,
+  VersionMeta,
+} from "./settings/SettingsPrimitives";
+import {
+  ACCENT_OPTIONS,
+  ACTION_LABELS,
+  CHANNEL_LABELS,
+  DAY_OPTIONS,
+  RELEASE_SECTION_LABELS,
+  SETTINGS_TABS as TABS,
+  type SettingsTab as Tab,
+} from "./settings/constants";
+import {
+  formatBuildDate,
+  formatClosureRange,
+  formatTimestamp as formatTs,
+  getNextAutoSend,
+  getSettingsUpdates,
+  validateClosureRange,
+} from "./settings/settings-utils";
 
 const VERSION_INFO = getAppVersionInfo();
-
-const CHANNEL_LABELS: Record<string, string> = {
-  stable: "Stabilní",
-  beta: "Beta",
-  dev: "Vývoj",
-};
-
-const RELEASE_SECTION_LABELS: Record<string, string> = {
-  Added: "Přidáno",
-  Changed: "Změněno",
-  Deprecated: "Zastaralé",
-  Removed: "Odstraněno",
-  Fixed: "Opraveno",
-  Security: "Bezpečnost",
-  "Migration notes": "Migrační poznámky",
-  "Known issues": "Známá omezení",
-};
-
-function formatBuildDate(value: string): string {
-  if (!value) return "Lokální vývoj";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  return d.toLocaleString("cs-CZ", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function VersionMeta({
-  label,
-  value,
-  mono = false,
-  unavailable = "Až v release buildu",
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  unavailable?: string;
-}) {
-  const hasValue = !!value;
-  return (
-    <div className="glass-soft rounded-2xl px-3 py-2.5 min-w-0">
-      <p className="text-[10.5px] font-semibold uppercase text-stone-400">{label}</p>
-      <p className={`text-[13px] font-semibold truncate ${hasValue ? "text-stone-800" : "text-stone-400"} ${mono && hasValue ? "font-mono" : ""}`}>
-        {hasValue ? value : unavailable}
-      </p>
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
@@ -694,63 +377,7 @@ export default function SettingsPage({
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const autoSendDays = DAY_OPTIONS
-      .filter((d) => fd.get(`autoSendDay_${d.code}`) === "on")
-      .map((d) => d.code)
-      .join(",");
-    const updates: Partial<AppSettings> = {
-      smtpHost: fd.get("smtpHost") as string,
-      smtpPort: fd.get("smtpPort") as string,
-      smtpUser: fd.get("smtpUser") as string,
-      smtpPass: fd.get("smtpPass") as string,
-      smtpFrom: fd.get("smtpFrom") as string,
-      smtpSecure: fd.get("smtpSecure") === "on" ? "true" : "false",
-      orderEmailTo: fd.get("orderEmailTo") as string,
-      orderExtraEmail: fd.get("orderExtraEmail") as string,
-      smtpReplyTo: fd.get("smtpReplyTo") as string,
-      reminderEmailTo: fd.get("reminderEmailTo") as string,
-      cutoffTime: fd.get("cutoffTime") as string,
-      defaultSoupPrice: fd.get("defaultSoupPrice") as string,
-      defaultMealPrice: fd.get("defaultMealPrice") as string,
-      priceRoll: fd.get("priceRoll") as string,
-      priceBreadDumpling: fd.get("priceBreadDumpling") as string,
-      pricePotatoDumpling: fd.get("pricePotatoDumpling") as string,
-      priceKetchup: fd.get("priceKetchup") as string,
-      priceTatarka: fd.get("priceTatarka") as string,
-      priceBbq: fd.get("priceBbq") as string,
-      autoSendEnabled: fd.get("autoSendEnabled") === "on" ? "true" : "false",
-      autoSendTime: fd.get("autoSendTime") as string,
-      autoSendDays,
-      autoSendMinOrders: fd.get("autoSendMinOrders") as string,
-      autoSendFailureEmail: fd.get("autoSendFailureEmail") as string,
-      imapEnabled: fd.get("imapEnabled") === "on" ? "true" : "false",
-      imapHost: fd.get("imapHost") as string,
-      imapPort: fd.get("imapPort") as string,
-      imapUser: fd.get("imapUser") as string,
-      imapPass: fd.get("imapPass") as string,
-      imapSender: fd.get("imapSender") as string,
-      imapCheckTime: fd.get("imapCheckTime") as string,
-      imapCheckDays: DAY_OPTIONS
-        .filter((d) => fd.get(`imapCheckDay_${d.code}`) === "on")
-        .map((d) => d.code)
-        .join(","),
-      pushReminderMinutes: fd.get("pushReminderMinutes") as string,
-      telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
-      telegramBotToken: fd.get("telegramBotToken") as string,
-      telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
-      telegramAppUrl: fd.get("telegramAppUrl") as string,
-      pizzaEnabled: fd.get("pizzaEnabled") === "on" ? "true" : "false",
-      pizzaCutoffEnabled: fd.get("pizzaCutoffEnabled") === "on" ? "true" : "false",
-      pizzaCutoffTime: fd.get("pizzaCutoffTime") as string,
-      pizzaCutoffDays: DAY_OPTIONS
-        .filter((d) => fd.get(`pizzaCutoffDay_${d.code}`) === "on")
-        .map((d) => d.code)
-        .join(","),
-    };
-    const newPin = (fd.get("newPin") as string).trim();
-    if (newPin) updates.settingsPin = newPin;
-
+    const updates = getSettingsUpdates(new FormData(e.currentTarget));
     setSaveStatus("idle");
     startTransition(async () => {
       try {
