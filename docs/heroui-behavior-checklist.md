@@ -6,6 +6,11 @@ approved.
 
 ## Global shell and PWA
 
+> Baseline recorded on 2026-08-04: `/` already reports a hydration mismatch in
+> `OrderPage` around the responsive push-notification/header controls on unchanged
+> `main`. Treat it as a pre-existing issue and ensure migration work does not add
+> new console errors.
+
 - [ ] All enabled navigation destinations remain reachable.
 - [ ] `/pizza` visibility still follows `pizzaEnabled`.
 - [ ] Current page indication works on desktop and mobile.

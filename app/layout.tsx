@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
+import ClientProviders from "./providers";
 import { getSettings } from "@/lib/settings";
 
 const inter = Inter({
@@ -47,7 +48,7 @@ export default function RootLayout({
   const settings = getSettings();
   const pizzaEnabled = settings.pizzaEnabled !== "false";
   return (
-    <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
+    <html lang="cs-CZ" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head>
         {/* Self-hosted Noto Color Emoji, generated into public/fonts by
             tools/download-emoji-font. Ten slices with unicode-range, so a browser
@@ -58,14 +59,16 @@ export default function RootLayout({
         <link href="/fonts/noto-color-emoji.css" rel="stylesheet" />
       </head>
       <body className={inter.className}>
-        <div className="stage-bg" aria-hidden>
-          <div className="orb orb-sky" />
-          <div className="orb orb-amber" />
-          <div className="orb orb-mint" />
-        </div>
-        <AppTopBar pizzaEnabled={pizzaEnabled} />
-        {children}
-        <SwRegister />
+        <ClientProviders>
+          <div className="stage-bg" aria-hidden>
+            <div className="orb orb-sky" />
+            <div className="orb orb-amber" />
+            <div className="orb orb-mint" />
+          </div>
+          <AppTopBar pizzaEnabled={pizzaEnabled} />
+          {children}
+          <SwRegister />
+        </ClientProviders>
       </body>
     </html>
   );
