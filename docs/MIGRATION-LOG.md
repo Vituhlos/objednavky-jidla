@@ -47,3 +47,16 @@ Chronologický, append-only protokol práce. Aktuální stručný stav je v
 ### Další krok
 
 - HeroUI pilot seznamu `/historie` podle `docs/MIGRATION-HANDOFF.md`.
+
+## 2026-08-04 – podpora Claude Desktop Code
+
+- Ověřeno v oficiální dokumentaci, že Code tab používá stejné projektové
+  `CLAUDE.md` a `.mcp.json` jako Claude Code CLI.
+- Přidáno `.claude/settings.json` s `worktree.baseRef: head`, aby automatické
+  desktopové worktrees vycházely z lokální HeroUI migrační větve a ne ze starého
+  `origin/HEAD`.
+- Přidáno `.worktreeinclude` pro přenos ignorované `.heroui-docs/` do izolovaných
+  worktrees.
+- Přidáno `.claude/launch.json` pro Desktop preview na portu 3020.
+- Nastaveno `NODE_OPTIONS=--use-system-ca` pro lokální Claude Code prostředí kvůli
+  lokálnímu TLS certifikátu při npm/npx voláních.

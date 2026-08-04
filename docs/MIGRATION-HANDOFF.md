@@ -20,6 +20,29 @@ logickém kroku ho aktualizuj a přidej záznam do `docs/MIGRATION-LOG.md`.
 Pracuj pouze v uvedeném worktree. Původní worktree s `main` se pro migraci
 nemění.
 
+## Claude Desktop – záložka Code
+
+Tento projekt je připravený primárně i pro Claude Desktop Code:
+
+1. V nové Code session vyber prostředí **Local** a jako project folder přesně
+   `C:\Users\Pech\Downloads\Objednavani jurka\docker-app-heroui`.
+2. Desktop automaticky načte kořenový `CLAUDE.md`, projektový `.mcp.json` a
+   `.claude/settings.json`.
+3. Při prvním použití schval projektový MCP server `heroui-react`.
+4. Každá Desktop Code session běží v automaticky izolovaném worktree.
+   `.claude/settings.json` nastavuje `worktree.baseRef` na `head`, takže nová
+   session vychází z aktuálního lokálního migračního commitu místo ze starého
+   `origin/HEAD`.
+5. `.worktreeinclude` kopíruje ignorovanou `.heroui-docs/` i do desktopového
+   worktree. `node_modules` se nekopíruje; v nové session může být potřeba
+   `npm ci`.
+6. Preview „Kantýna HeroUI“ je v `.claude/launch.json` připravené na portu 3020.
+
+Desktopová session obvykle commitne práci na své izolované větvi. Před ukončením
+si vždy nech vypsat commit SHA a stav worktree. Commit se pak začlení do
+`feat/heroui-migration` pomocí běžného merge/cherry-pick workflow; agent nesmí
+bez instrukce přepisovat nebo resetovat migrační větev.
+
 ## Cíl a neměnné zásady
 
 - Zachovat veškeré produktové chování, routy, server actions, SQLite, SSE,
@@ -87,8 +110,8 @@ Pro stav na commitu `4418595` platí:
 - Globální konfigurace Codex MCP není součástí Gitu. Projektový `.mcp.json`
   zpřístupňuje stejný HeroUI server nástrojům, které tento formát podporují.
 - Claude Code `2.1.162` projektový server rozpoznal jako `heroui-react`. Při prvním
-  spuštění Claude v tomto repozitáři je ve stavu `Pending approval` a musí se
-  jednorázově schválit v interaktivním Claude CLI.
+  spuštění Code session v tomto repozitáři je ve stavu `Pending approval` a musí
+  se jednorázově schválit v Claude Desktop nebo interaktivním CLI.
 
 ## Přesný doporučený další krok
 
@@ -128,3 +151,7 @@ Každý agent má před ukončením práce:
 > `docs/heroui-behavior-checklist.md`. Pokračuj přesně od doporučeného dalšího
 > kroku, zachovej produktové chování a před koncem aktualizuj handoff i
 > `docs/MIGRATION-LOG.md`.
+
+Pro Claude Desktop Code v promptu není nutné opakovat celý technický kontext:
+`CLAUDE.md` se načítá automaticky. Výše uvedený prompt ale jasně určí, že má agent
+pokračovat z handoffu a na konci zanechat znovu převzatelný stav.

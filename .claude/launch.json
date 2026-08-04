@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "name": "Kantýna HeroUI",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3020"],
+      "port": 3020,
+      "cwd": "${workspaceFolder}",
+      "autoPort": false
+    }
+  ]
+}
