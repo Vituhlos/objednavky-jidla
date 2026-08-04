@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+Zatím žádné nevydané změny.
+
+## [1.3.0] - 2026-08-04
+
 ### Changed
 
 - Objednávková stránka ukazuje během zavření stejnou kartu jako jídelníček — název zavření, období, poslední oběd a den návratu. Dřív tam byla obecná šedá cedule „Zavřeno" a název dovolené se krčil v drobném řádku pod ní.
@@ -20,6 +24,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - Popisky „poslední oběd" a „vaří se zase od" byly příliš světlé na to, aby splnily požadavek na kontrast textu. Totéž platilo pro neaktivní dny v přepínači a pro označení zavřeného období.
 - Název zavření je nadpisem stránky, takže čtečka obrazovky oznámí, proč je stránka bez objednávek. Dřív na obou obrazovkách nebyl žádný nadpis.
 - Označení aktuálního zavřeného období v přepínači přestalo být nedostupným tlačítkem — klávesnice ho přeskakovala a jeho vysvětlující popisek se tím pádem nedal zobrazit.
+
+### Known issues
+
+- Předěl v přepínači dnů uvádí jen zbývající zavřené dny, zatímco karta pod ním uvádí celé období. Druhý a další den dovolené si tak obě čísla neodpovídají (například „zavřeno 4.–7. 8." nad kartou „Od 3. 8. do 7. 8.").
 
 ## [1.2.1] - 2026-07-30
 

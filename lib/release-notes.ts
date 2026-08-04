@@ -12,6 +12,35 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.3.0",
+    date: "2026-08-04",
+    title: "Dovolená na objednávkové stránce",
+    sections: [
+      {
+        title: "Changed",
+        items: [
+          "Když se nevaří, objednávková stránka ukáže stejnou kartu jako jídelníček: název dovolené, od kdy do kdy trvá, kdy byl poslední oběd a odkdy se zase vaří. Dřív tam byla jen šedá cedule „Zavřeno“ a název dovolené se krčil v drobném řádku pod ní.",
+          "V přepínači dnů se celá dovolená ukazuje jako jeden předěl s vaší ikonou. Dnešek už z ní nevyčnívá jako zvlášť přeškrtnutý den a přes ten předěl se dá kliknutím vrátit na dnešek.",
+          "Karta dovolené je zarovnaná doleva a ikona stojí vedle názvu, takže se čte jedním tahem shora dolů.",
+        ],
+      },
+      {
+        title: "Fixed",
+        items: [
+          "Karta dovolené byla na objednávkové stránce zúžená, takže se údaje o posledním obědu a návratu tiskly k sobě a karta vypadala jako dvě.",
+          "Popisky „poslední oběd“ a „vaří se zase od“, neaktivní dny v přepínači i označení dovolené byly moc světlé a špatně se četly.",
+          "Na obou obrazovkách chyběl při dovolené nadpis, takže čtečka obrazovky neoznámila, proč je stránka prázdná.",
+        ],
+      },
+      {
+        title: "Known issues",
+        items: [
+          "Předěl v přepínači dnů uvádí jen zbývající dny dovolené, kdežto karta pod ním celé období. Od druhého dne dovolené si tak obě data neodpovídají.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.2.1",
     date: "2026-07-30",
     title: "Úprava zadaného zavření",
