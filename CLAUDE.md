@@ -175,6 +175,11 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 
 ## Design systém
 
+> **Legacy reference only during the HeroUI migration.** Do not copy the colors,
+> glassmorphism, gradients, shadows, or animation rules below into migrated
+> components. Follow `docs/heroui-migration-plan.md` and preserve these styles only
+> for pages that have not been migrated yet.
+
 ### CSS proměnné (barvy)
 ```css
 --paper: #f3efe6     /* pozadí */
