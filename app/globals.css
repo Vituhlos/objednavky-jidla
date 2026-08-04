@@ -1,13 +1,13 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* ── Tokens (warm amber palette from template) ── */
+/* ── Legacy tokens (warm palette; do not reuse in migrated HeroUI surfaces) ── */
 :root {
   --bg: #f8f4ef;
   --ink: #1a1208;
   --ink-2: #3d2c1a;
   --ink-3: #7a6552;
-  --muted: #9b8474;
+  --legacy-muted: #9b8474;
   --divider: rgba(26,18,8,0.08);
   --font-inter: 'Inter', -apple-system, system-ui, sans-serif;
   --font-jakarta: 'Plus Jakarta Sans', sans-serif;
@@ -17,7 +17,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; overflow: hidden; margin: 0; }
 button, a { touch-action: manipulation; }
-:focus-visible { outline: 2px solid rgba(245,158,11,0.7); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -505,7 +505,7 @@ body {
 .dropdown-item[aria-selected="true"] { font-weight: 600; }
 .dropdown-item--placeholder { color: #a8a29e; font-style: italic; font-weight: 400; }
 
-.modal-remove-second { font-size: 0.72rem; color: var(--muted); background: none; border: none; cursor: pointer; }
+.modal-remove-second { font-size: 0.72rem; color: var(--legacy-muted); background: none; border: none; cursor: pointer; }
 .modal-remove-second:hover { color: #dc2626; }
 .modal-add-second {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
@@ -563,7 +563,7 @@ body {
 .modal-stepper { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 0.85rem; min-height: 44px; border-bottom: 1px solid rgba(255,255,255,0.5); }
 .modal-stepper:last-child { border-bottom: none; }
 .modal-stepper__label { flex: 1; font-size: 0.8125rem; font-weight: 500; color: var(--ink); }
-.modal-stepper__price { font-size: 0.74rem; color: var(--muted); }
+.modal-stepper__price { font-size: 0.74rem; color: var(--legacy-muted); }
 .modal-stepper__controls { display: flex; align-items: center; gap: 0.4rem; }
 .stepper-btn {
   width: 44px; height: 44px; border-radius: 9999px;

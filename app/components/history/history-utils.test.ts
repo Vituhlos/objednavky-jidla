@@ -5,9 +5,11 @@ import {
   formatHistoryDate,
   formatHistoryRecordCount,
   formatHistoryRecordTotal,
+  formatHistoryRowCount,
   formatHistorySentAt,
   formatSentLunchCount,
   formatSentPizzaCount,
+  sortHistoryRecords,
   type HistoryRecord,
 } from "./history-utils";
 
@@ -62,6 +64,20 @@ describe("history helpers", () => {
     expect(countSentHistoryRecords(records)).toBe(1);
   });
 
+  it("sorts records by date or row count without mutating the source", () => {
+    expect(
+      sortHistoryRecords(records, { column: "date", direction: "descending" }).map(
+        (record) => record.id,
+      ),
+    ).toEqual([3, 2, 1]);
+    expect(
+      sortHistoryRecords(records, { column: "rowCount", direction: "ascending" }).map(
+        (record) => record.id,
+      ),
+    ).toEqual([2, 3, 1]);
+    expect(records.map((record) => record.id)).toEqual([1, 2, 3]);
+  });
+
   it("uses natural Czech count labels", () => {
     expect([0, 1, 3, 5].map(formatHistoryRecordCount)).toEqual([
       "0 záznamů",
@@ -71,6 +87,9 @@ describe("history helpers", () => {
     ]);
     expect(formatHistoryRecordTotal(1)).toBe("1 záznamu");
     expect(formatHistoryRecordTotal(3)).toBe("3 záznamů");
+    expect(formatHistoryRowCount(0)).toBe("0 řádků");
+    expect(formatHistoryRowCount(1)).toBe("1 řádek");
+    expect(formatHistoryRowCount(3)).toBe("3 řádky");
     expect(formatSentLunchCount(1)).toBe("1 odeslaný oběd");
     expect(formatSentLunchCount(3)).toBe("3 odeslané obědy");
     expect(formatSentPizzaCount(1)).toBe("1 odeslaná pizza");

@@ -11,6 +11,11 @@ export type HistoryRecord = {
   href: string;
 };
 
+export type HistorySortDescriptor = {
+  column: string | number;
+  direction: "ascending" | "descending";
+};
+
 export function formatHistoryDate(iso: string): string {
   const [year, month, day] = iso.split("-");
   return `${day}.${month}.${year}`;
@@ -73,6 +78,28 @@ export function countVisibleHistoryRecords(
 
 export function countSentHistoryRecords(records: HistoryRecord[]): number {
   return records.filter((record) => record.status === "sent").length;
+}
+
+export function sortHistoryRecords(
+  records: HistoryRecord[],
+  descriptor: HistorySortDescriptor,
+): HistoryRecord[] {
+  const multiplier = descriptor.direction === "ascending" ? 1 : -1;
+
+  return [...records].sort((left, right) => {
+    const comparison =
+      descriptor.column === "rowCount"
+        ? left.rowCount - right.rowCount
+        : left.date.localeCompare(right.date);
+
+    return comparison * multiplier;
+  });
+}
+
+export function formatHistoryRowCount(count: number): string {
+  if (count === 1) return "1 řádek";
+  if (count >= 2 && count <= 4) return `${count} řádky`;
+  return `${count} řádků`;
 }
 
 export function formatHistoryRecordCount(count: number): string {
