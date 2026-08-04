@@ -100,3 +100,52 @@ Chronologický, append-only protokol práce. Aktuální stručný stav je v
 
 - Migrovat `/historie/[id]`, potom `/historie/pizza/[id]`, se stejnými HeroUI
   guardrails a samostatnými commity.
+
+## 2026-08-04 – finální doladění workspace historie
+
+### Rozsah
+
+- Seznam historie používá jednu adaptivní pracovní plochu: krátký obsah má
+  přirozenou výšku, dlouhý obsah scrolluje uvnitř dostupného viewportu se sticky
+  záhlavím. Dokument samotný nepřetéká.
+- Desktop získal HeroUI třídění podle data a počtu řádků; mobil samostatný
+  plnořádkový seznam s HeroUI hover, pressed a focus stavy.
+- Přidán ikonový HeroUI empty/filtered-zero stav a `app/historie/loading.tsx` se
+  Skeleton podobou desktopové tabulky i mobilního seznamu.
+- `Surface` stránky je výchozí a HeroUI Table používá svůj sekundární povrch, takže
+  tabulka sedí na pozadí stejně jako v oficiálních ukázkách.
+- Legacy `--muted` byl přejmenován na `--legacy-muted`, aby nepřepisoval HeroUI
+  token; globální focus ring používá HeroUI `--focus`.
+- Kategorie Obědy/Pizza používají HeroUI Tabs jen při zapnuté pizze. V běžném
+  vypnutém stavu se nezobrazuje osamocený nebo mrtvý tab.
+
+### Stavová a přístupnostní rozhodnutí
+
+- Řádek je jediná navigační akce. Šipka reaguje na hover/focus celého řádku, ale
+  nemá tooltip, protože samostatně klikací není; přístupný název záznamu říká
+  „Otevřít objednávku…“.
+- HeroUI zajišťuje hover/pressed/focus pro tabulkové řádky, mobilní ghost odkazy,
+  switch, search a případné tabs. Empty a filtered-zero jsou obsahově odlišené.
+- Loading se nepředstírá pomocí `Table.LoadMore`: SQLite vrací celý seznam
+  synchronně. Route Skeleton je připravený pro skutečné čekání/suspense; zpomalená
+  klientská navigace zatím plynule drží předchozí obraz do dokončení.
+
+### Kapacita a ověření
+
+- Produkce má přibližně 67 záznamů. `getOrderList()` nemá limit a tento objem je
+  bezpečně pod hranicí, kde by virtualizace přinesla užitek; zvažovat ji až podle
+  měření při řádově vyšších počtech.
+- `npm test`: 20/20; celý ESLint, TypeScript a produkční build prošly.
+- Chromium 1366×768, 390×844 a 320×700: krátký/dlouhý seznam, vnitřní scroll,
+  sticky header, hover, keyboard focus, search, empty state a třídění prošly.
+- Měřeno: desktop dokument `768/768`, tabulka `596/864`; mobil dokument `844/844`,
+  seznam `520/1473`. Konzole bez aplikačních chyb.
+
+### Commit
+
+- `ad7135c feat: refine HeroUI history workspace`
+
+### Další krok
+
+- Migrovat používaný obědový detail `/historie/[id]`. Pizza detail ponechat
+  kompatibilní, ale neupřednostňovat, dokud je modul v ostré verzi vypnutý.

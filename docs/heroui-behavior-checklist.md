@@ -31,6 +31,10 @@ approved.
 - [x] `pizzaEnabled` still controls whether the pizza history section is rendered.
 - [x] Narrow viewports keep date, status, and the open action visible without
       covering the mobile navigation.
+- [x] Short histories keep a natural content height; long desktop and mobile
+      histories scroll inside the collection with stable page controls.
+- [x] Desktop records support HeroUI sorting by date and row count without
+      mutating the original server data.
 - [ ] Lunch order detail shows all departments, rows, notes, and prices.
 - [ ] Pizza history and pizza detail remain reachable and accurate.
 - [ ] Existing PDF/detail actions still work.
@@ -102,3 +106,23 @@ For each migrated page record:
   The shared application navigation remains legacy until its own migration step.
 - Console: clean after fixing the shared sidebar clock's server/client timestamp
   mismatch. The separate pre-existing push-control mismatch on `/` remains.
+
+### `ad7135c feat: refine HeroUI history workspace`
+
+- Desktop browser/result: Chromium 1366×768; default HeroUI page surface and
+  secondary table surface, adaptive short/long height, sticky header, date/row
+  sorting, hover and filtered-zero state passed.
+- Mobile/PWA result: Chromium 390×844 and 320×700; dedicated full-row HeroUI
+  links, natural short height, internal long-list scrolling and bottom-nav
+  clearance passed.
+- Keyboard result: Space toggles the switch; Tab exposes a continuous HeroUI focus
+  ring on records and each link has a descriptive accessible name. Chevron is
+  decorative and follows row hover/focus rather than acting as a separate button.
+- Loading/result: route-level HeroUI Skeleton mirrors desktop and mobile layouts.
+  Current synchronous SQLite navigation does not flash a fake loader; the prior
+  page remains stable until the route is ready.
+- Capacity/result: SQL has no list limit; current design covers the production
+  volume of about 67 records. Desktop document/table measured `768/768` and
+  `596/864`; mobile document/list `844/844` and `520/1473`.
+- Known intentional differences: Tabs are omitted entirely while pizza is disabled.
+  The shared legacy sidebar remains warm until the shell migration.

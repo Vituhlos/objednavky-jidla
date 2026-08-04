@@ -12,9 +12,9 @@ logickém kroku ho aktualizuj a přidej záznam do `docs/MIGRATION-LOG.md`.
 | Samostatný worktree | `C:\Users\Pech\Downloads\Objednavani jurka\docker-app-heroui` |
 | Branch | `feat/heroui-migration` |
 | Výchozí commit z `main` | `d49bc416ec1c9e33e5a774339bd6f773d5668943` |
-| Poslední implementační commit | `3c71256 feat: migrate history list to HeroUI` |
+| Poslední implementační commit | `ad7135c feat: refine HeroUI history workspace` |
 | HeroUI | přesně `3.2.3` |
-| Stav serveru | žádný dev server neběží; port 3020 je volný |
+| Stav serveru | dev server běží na `http://localhost:3020` nad preview DB `data/stros-preview-20260804.db` |
 | Poslední aktualizace | 2026-08-04 |
 
 Pracuj pouze v uvedeném worktree. Původní worktree s `main` se pro migraci
@@ -67,7 +67,7 @@ jsou v `docs/heroui-behavior-checklist.md`.
 | Phase A-lite | první část hotová | Vitest, sdílené helpery, první rozdělení Settings |
 | Behavior baseline | hotovo pro hlavní routy | viz checklist; `/` má známý starý hydration warning |
 | Vizuální HeroUI migrace | probíhá | seznam historie je první hotový pilot |
-| Pilot `/historie` | hotovo | stock HeroUI, desktop/mobile/keyboard ověřeno |
+| Pilot `/historie` | hotovo | adaptivní stock HeroUI workspace, desktop/mobile/loading/keyboard ověřeno |
 
 ## Co už bylo dokončeno
 
@@ -93,19 +93,34 @@ jsou v `docs/heroui-behavior-checklist.md`.
    - HeroUI Table zachovává lunch/pizza odkazy a přidává správnou klávesnicovou
      navigaci; mobil skrývá pouze vedlejší sloupce.
    - Opraven server/client mismatch hodin ve sdíleném sidebaru.
+7. `ad7135c feat: refine HeroUI history workspace`
+   - Výchozí HeroUI `Surface` odděluje stránku od sekundárního povrchu tabulky;
+     odstraněna kolize legacy `--muted` tokenu s HeroUI a globální focus používá
+     sémantický HeroUI token.
+   - Krátká tabulka/list se výškově přizpůsobí obsahu, dlouhá využije dostupnou
+     plochu a scrolluje uvnitř se sticky záhlavím.
+   - Desktopová tabulka třídí datum a počet řádků; mobil používá plnořádkové
+     HeroUI odkazy s hover/pressed/focus stavy.
+   - Přidán skutečný route loading skeleton a ikonové empty/filtered-zero stavy.
+   - Tabs se renderují pouze při zapnutém pizza modulu; vypnutá pizza nezanechá
+     v rozhraní osamocený tab ani jinou stopu.
 
 ## Poslední známé ověření
 
-Pro stav na commitu `3c71256` platí:
+Pro stav na commitu `ad7135c` platí:
 
-- `npm test`: 3 test files, 19 testů prošlo.
-- Cílený ESLint změněných frontendových souborů prošel bez výstupu.
+- `npm test`: 3 test files, 20 testů prošlo.
+- Celý `npm run lint` prošel bez výstupu.
 - `npx tsc --noEmit`: prošel bez výstupu.
 - `npm run build`: prošel, všechny routy byly vygenerované.
-- Chromium desktop 1695×920 a mobil 390×844: layout, hledání, přepínač,
-  prázdný/filtered-zero stav a otevření řádku prošly.
-- Klávesnice: `Tab`, `ArrowDown`, `Enter` otevřely detail objednávky.
-- Konzole `/historie` byla bez chyb; dev server na portu 3020 byl ukončen.
+- Chromium desktop 1366×768 a mobil 390×844/320×700: adaptivní krátký i dlouhý
+  seznam, hledání, empty/filtered-zero, hover, sticky header a třídění prošly.
+- Dlouhý desktop: dokument `768/768`, vnitřní tabulka `596/864`; dlouhý mobil:
+  dokument `844/844`, vnitřní seznam `520/1473`. Stránka sama nepřetéká.
+- Klávesnice: switch funguje přes Space, tabulka/list mají souvislý HeroUI focus
+  ring a záznamy mají popisný přístupný název.
+- Konzole `/historie` byla bez chyb. Dev server na portu 3020 zůstává úmyslně
+  spuštěný pro uživatelské vizuální hodnocení.
 
 ## Známé problémy a úmyslně odložené věci
 
@@ -113,7 +128,14 @@ Pro stav na commitu `3c71256` platí:
   notifikací/headeru. Stejný warning byl reprodukován na nezměněném `main`, takže
   ho nezpůsobila HeroUI větev. Je zapsaný v behavior checklistu.
 - Vizuální shell a detailní stránky historie jsou stále legacy. Pilot změnil jen
-  seznam `/historie`; sdílený sidebar clock dostal pouze opravu hydratace.
+  seznam `/historie`; proto je vedle neutrální stránky stále vidět starý teplý
+  sidebar. Sdílený sidebar clock dostal pouze opravu hydratace.
+- Pizza modul je v aktuálním ostrém nasazení vypnutý a podle uživatele se nejspíš
+  brzy nevrátí. Kód dál zachovává kompatibilitu, ale vypnutá pizza se nesmí
+  vizuálně připomínat a její detail není prioritní migrační krok.
+- `getOrderList()` nemá SQL `LIMIT`; současný adaptivní workspace je určen pro
+  desítky až nižší stovky řádků (ostrý stav je přibližně 67). Virtualizaci nebo
+  serverové stránkování přidat až podle měření při řádově vyšších objemech.
 - `SettingsPage.tsx` je stále příliš velký. Další rozdělení má proběhnout podle
   domén (`provoz`, `lidé`, `ceny`, `napojení`, `pizza`, `systém`), ideálně při
   migraci Settings. Cílem je z něj udělat koordinátor, ne jen přesunout JSX.
@@ -138,7 +160,8 @@ Pro stav na commitu `3c71256` platí:
    - zachovat oddělení, řádky, poznámky, ceny, PDF a všechny akce;
    - před změnou zapsat stavovou matici a ověřit HeroUI API v lokálních docs;
    - nepřenášet staré barevné nebo glass třídy.
-4. Potom stejným vzorem migrovat `/historie/pizza/[id]`.
+4. `/historie/pizza/[id]` migrovat stejným vzorem pouze pokud se pizza modul
+   znovu stane produktovou prioritou; zatím zachovat funkční kompatibilitu.
 5. Pro každý detail spustit `npm test`, cílený ESLint, `npm run build` a
    desktop/mobile/keyboard smoke test a vše zapsat do checklistu a logu.
 
