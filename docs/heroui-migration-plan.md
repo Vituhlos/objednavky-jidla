@@ -3,6 +3,10 @@
 This document is the tracked source of truth for rebuilding the Kantyna frontend
 with HeroUI v3 while preserving existing product behavior.
 
+Current implementation state and the next resumable task live in
+`docs/MIGRATION-HANDOFF.md`; completed sessions are appended to
+`docs/MIGRATION-LOG.md`.
+
 ## Goal
 
 - Preserve routes, data flows, server actions, SSE synchronization, calculations,

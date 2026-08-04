@@ -3,13 +3,18 @@
 Firemní webová aplikace pro sdílené objednávky obědů (LIMA) a pizzy.
 Běží jako **jeden Docker kontejner**, bez přihlášení — přístup omezený sítí.
 
+> **Než začneš pracovat na HeroUI migraci:** přečti
+> `docs/MIGRATION-HANDOFF.md`, `docs/heroui-migration-plan.md` a
+> `docs/heroui-behavior-checklist.md`. Po dokončení kroku aktualizuj handoff a
+> přidej append-only záznam do `docs/MIGRATION-LOG.md`.
+
 ---
 
 ## Tech stack
 
 | Vrstva | Technologie |
 |---|---|
-| Framework | Next.js 15, App Router, React 19 |
+| Framework | Next.js 16, App Router, React 19 |
 | Jazyk | TypeScript (striktní) |
 | CSS | Tailwind CSS 4 + vlastní třídy v `globals.css` |
 | Databáze | SQLite přes `better-sqlite3` (singleton, WAL mode) |

@@ -32,6 +32,9 @@ Kantýna je single-service Next.js 16 aplikace (App Router, React 19, TypeScript
 
 ## HeroUI migration guardrails
 
+- Before any migration work, read `docs/MIGRATION-HANDOFF.md`. Keep its current
+  state synchronized and append completed work to `docs/MIGRATION-LOG.md` so Codex,
+  Claude, and humans can safely hand the branch between each other.
 - The tracked migration source of truth is `docs/heroui-migration-plan.md`; use
   `docs/heroui-behavior-checklist.md` to prevent functional regressions.
 - Preserve product behavior. A visual migration does not authorize changes to
