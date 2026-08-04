@@ -8,6 +8,7 @@ import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib
 import { hasOrderRowContent } from "@/lib/order-utils";
 import type { ClosureContext } from "@/lib/menu";
 import { DEFAULT_CLOSURE_ICON } from "@/lib/closure-icons";
+import { getPragueNow } from "@/lib/time";
 import { DepartmentPanel } from "./DepartmentPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
@@ -202,10 +203,6 @@ function daysBetween(a: string, b: string): number {
   const [ay, am, ad] = a.split("-").map(Number);
   const [by, bm, bd] = b.split("-").map(Number);
   return Math.round((new Date(by, bm - 1, bd).getTime() - new Date(ay, am - 1, ad).getTime()) / 86400000);
-}
-
-function getPragueNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
 }
 
 function parseCutoffMinutes(cutoffTime: string) {

@@ -5,6 +5,8 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
+import { getInitials, pluralizeOrders } from "@/lib/format";
+import { getPragueISODate } from "@/lib/time";
 import MIcon from "./MIcon";
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
@@ -40,16 +42,6 @@ function formatSentAt(iso: string | null): string {
   });
 }
 
-function getPragueTodayISO(): string {
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function getInitials(name: string): string {
-  if (!name.trim()) return "?";
-  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
 function getChips(row: OrderRowEnriched): string[] {
   const chips: string[] = [];
   if (row.rollCount > 0)           chips.push(`Houska ×${row.rollCount}`);
@@ -59,12 +51,6 @@ function getChips(row: OrderRowEnriched): string[] {
   if (row.tatarkaCount > 0)        chips.push(`Tatarka ×${row.tatarkaCount}`);
   if (row.bbqCount > 0)            chips.push(`BBQ ×${row.bbqCount}`);
   return chips;
-}
-
-function pluralOrders(n: number): string {
-  if (n === 1) return "objednávka";
-  if (n >= 2 && n <= 4) return "objednávky";
-  return "objednávek";
 }
 
 function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT }) {
@@ -163,7 +149,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
 
   const canReopen =
     order.status === "sent" &&
-    order.date === getPragueTodayISO();
+    order.date === getPragueISODate();
 
   const sent = order.status === "sent";
 
@@ -272,7 +258,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                   </div>
                   <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
                   <span className="text-[11px] text-stone-500">
-                    {activeRows.length} {pluralOrders(activeRows.length)}
+                    {activeRows.length} {pluralizeOrders(activeRows.length)}
                     {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
                   </span>
                 </div>

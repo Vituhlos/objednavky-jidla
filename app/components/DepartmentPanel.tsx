@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { DepartmentData, OrderRowEnriched, Department, MealEntry } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
+import { getInitials, pluralizeOrders } from "@/lib/format";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
 
@@ -614,11 +615,6 @@ function OrderEditModal({
 
 // ── Order row ─────────────────────────────────────────────
 
-function getInitials(name: string): string {
-  if (!name.trim()) return "?";
-  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
 function getChips(row: OrderRowEnriched): string[] {
   const chips: string[] = [];
   if (row.rollCount > 0) chips.push(`Houska ×${row.rollCount}`);
@@ -724,12 +720,6 @@ function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
 
 // ── Helpers ───────────────────────────────────────────────
 
-function pluralOrders(n: number): string {
-  if (n === 1) return "objednávka";
-  if (n >= 2 && n <= 4) return "objednávky";
-  return "objednávek";
-}
-
 // ── Main component ────────────────────────────────────────
 
 function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
@@ -778,7 +768,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
             <div className="text-[11.5px] text-stone-500 mt-0.5">
               {activeRows.length > 0 ? (
                 <>
-                  {activeRows.length} {pluralOrders(activeRows.length)}
+                  {activeRows.length} {pluralizeOrders(activeRows.length)}
                   {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
                 </>
               ) : (
