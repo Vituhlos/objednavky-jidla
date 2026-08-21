@@ -12,6 +12,27 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.3.1",
+    date: "2026-08-21",
+    title: "Oprava objednávkového PDF",
+    sections: [
+      {
+        title: "Fixed",
+        items: [
+          "Když se tabulka oddělení nevešla na jednu stránku, PDF se rozsypalo — z objednávky s 23 lidmi vypadlo 51 stran, na kterých byly jen útržky (na jedné pořadové číslo, na další jméno). Nově se tabulka správně stránkuje: na každé další straně se zopakuje hlavička sloupců i název oddělení s poznámkou „(pokračování)“ a řádky plynule navazují.",
+          "Patička byla jen na poslední straně. Teď je na každé a u víc stránek přibylo označení „Strana X / Y“.",
+          "„Znovu odeslat email“ v Nastavení poslalo správné PDF, ale ke stažení v historii zůstala starší verze. Nově se obě shodují.",
+        ],
+      },
+      {
+        title: "Migration notes",
+        items: [
+          "Aktualizace nevyžaduje žádné kroky navíc. Už odeslané objednávky si nechávají původní PDF — opravené dostanou po opětovném otevření a odeslání, nebo přes „Znovu odeslat email“.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2026-08-04",
     title: "Dovolená na objednávkové stránce",

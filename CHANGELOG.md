@@ -6,14 +6,25 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+Zatím žádné nevydané změny.
+
+## [1.3.1] - 2026-08-21
+
 ### Fixed
 
 - Objednávkové PDF se rozpadlo, jakmile se tabulka oddělení nevešla na stránku. Z objednávky na 21. 8. 2026 (23 objednávek) vypadlo 51 stran, na kterých byly jednotlivé útržky — na jedné jen pořadové číslo, na další jen jméno, a rámečky s podbarvením zůstaly na předchozí straně. Tabulka se teď stránkuje sama: na každé další straně se zopakuje hlavička sloupců a nadpis oddělení s poznámkou „(pokračování)", číslování řádků plynule navazuje.
 - Patička „Vygenerováno automaticky" byla jen na poslední straně. Nově je na každé, a u vícestránkových objednávek přibylo označení „Strana X / Y".
+- „Znovu odeslat email" v Nastavení přeposlalo aktuální PDF, ale neaktualizovalo archivovanou kopii. Stažení z historie a Telegram tak mohly nabízet starší verzi, než jaká odešla e-mailem.
 
 ### Added
 
 - `npm run test:pdf` — regresní test stránkování objednávkového PDF (23 až 800 řádků, jedno i pět oddělení). Hlídá, že počet stran odpovídá počtu řádků, že každá strana nese hlavičku tabulky a že nevznikají skoro prázdné strany.
+
+### Migration notes
+
+- Žádné. Beze změny databáze, env proměnných, Docker konfigurace i formátu záloh. Aktualizace i návrat na `1.3.0` jsou bez dalších kroků.
+- Už odeslané objednávky si podržely původní PDF. Opravenou verzi dostanou tím, že se objednávka znovu otevře a odešle, nebo přes „Znovu odeslat email" v Nastavení.
+- Volitelná proměnná `PDF_FONT_DIR` umožní spustit generátor PDF mimo Docker (potřebuje ji `npm run test:pdf`). Nenastavená se chová jako dosud a v produkci ji není potřeba nastavovat.
 
 ## [1.3.0] - 2026-08-04
 

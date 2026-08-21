@@ -529,6 +529,9 @@ export async function resendOrderEmail(orderId: number): Promise<void> {
   const email = buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail: normalizedExtraEmail } });
   const attachments = [await buildOrderPdfAttachment(orderData)];
   await sendEmail({ to: recipients, subject: email.subject, html: email.html, text: email.text, attachments });
+  // Archiv musí odpovídat tomu, co odešlo — jinak by stažení z historie
+  // a Telegram servírovaly starší verzi než e-mail.
+  savePdf(orderId, attachments[0].content);
   logAudit({ action: "order_send", orderId, details: "Znovu odesláno" });
 }
 
