@@ -1,9 +1,12 @@
 import PDFDocument from "pdfkit";
 import path from "path";
 
-const FONT = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans.ttf");
-const FONT_BOLD = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Bold.ttf");
-const FONT_ITALIC = path.join("/usr/share/fonts/truetype/dejavu", "DejaVuSans-Oblique.ttf");
+// V kontejneru jsou fonty na této cestě. PDF_FONT_DIR umožní spustit
+// generátor i mimo Docker (např. tools/order-pdf.test.mjs na Windows).
+const FONT_DIR = process.env.PDF_FONT_DIR || "/usr/share/fonts/truetype/dejavu";
+const FONT = path.join(FONT_DIR, "DejaVuSans.ttf");
+const FONT_BOLD = path.join(FONT_DIR, "DejaVuSans-Bold.ttf");
+const FONT_ITALIC = path.join(FONT_DIR, "DejaVuSans-Oblique.ttf");
 import { PassThrough } from "stream";
 import { type DepartmentData, type OrderData, type OrderRowEnriched } from "./types";
 import { getSubmittedRows } from "./order-utils";
@@ -102,6 +105,13 @@ const FONT_BODY = 10;
 const FONT_HEADER = 9;
 const ROW_PAD = 10;
 
+// Patička se tiskne na PAGE_H - MARGIN - 10; obsah musí skončit nad ní.
+const FOOTER_RESERVE = 22;
+const BOTTOM_LIMIT = PAGE_H - MARGIN - FOOTER_RESERVE;
+// Nadpis oddělení + hlavička tabulky + nejnižší možný řádek — pod tím
+// nemá smysl sekci na stránce vůbec začínat.
+const SECTION_MIN_H = 15 + HEADER_H + 20;
+
 function calcRowHeight(doc: PDFKit.PDFDocument, row: OrderRowEnriched, idx: number): number {
   doc.font(FONT).fontSize(FONT_BODY);
   let maxH = 0;
@@ -164,13 +174,7 @@ function drawMealCell(
   });
 }
 
-function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: number): number {
-  const rowHeights = rows.map((row, idx) => calcRowHeight(doc, row, idx));
-  const totalH = HEADER_H + rowHeights.reduce((s, h) => s + h, 0);
-
-  let y = startY;
-
-  // header bg
+function drawTableHeader(doc: PDFKit.PDFDocument, y: number): number {
   doc.rect(TABLE_X, y, TABLE_W, HEADER_H).fill(TABLE_HEADER_BG);
   let x = TABLE_X;
   doc.font(FONT_BOLD).fontSize(FONT_HEADER).fillColor("#F5F1E8");
@@ -178,16 +182,21 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
     doc.text(col.header, x + 3, y + 7, { width: col.width - 6, align: col.align, lineBreak: false });
     x += col.width;
   }
-  y += HEADER_H;
+  return y + HEADER_H;
+}
 
-  // data rows
-  rows.forEach((row, idx) => {
-    const rh = rowHeights[idx];
+function drawTableRow(
+  doc: PDFKit.PDFDocument,
+  row: OrderRowEnriched,
+  idx: number,
+  y: number,
+  rh: number,
+) {
     const hasNote = !!row.note?.trim();
     const bg = hasNote ? "#FFFBEB" : (idx % 2 === 0 ? "#FFFFFF" : "#F5F1E8");
     doc.rect(TABLE_X, y, TABLE_W, rh).fill(bg);
 
-    x = TABLE_X;
+  let x = TABLE_X;
     const hasNoMeal = !row.mainItem && row.extraMealItems.length === 0;
     COL_DEFS.forEach((col, colIdx) => {
       if (colIdx === 3) {
@@ -243,26 +252,73 @@ function drawTable(doc: PDFKit.PDFDocument, rows: OrderRowEnriched[], startY: nu
       }
       x += col.width;
     });
-    y += rh;
-  });
+}
 
-  // grid: outer border
+// Rámeček a linky se kreslí zvlášť pro každou část tabulky (tj. pro každou
+// stránku), ne pro tabulku jako celek.
+function drawTableGrid(doc: PDFKit.PDFDocument, headerY: number, rowHeights: number[]) {
+  const totalH = HEADER_H + rowHeights.reduce((s, h) => s + h, 0);
+
   doc.strokeColor("#C0B8A8").lineWidth(0.5);
-  doc.rect(TABLE_X, startY, TABLE_W, totalH).stroke();
+  doc.rect(TABLE_X, headerY, TABLE_W, totalH).stroke();
 
-  // horizontal lines
-  let lineY = startY + HEADER_H;
+  let lineY = headerY + HEADER_H;
   for (const rh of rowHeights) {
     doc.moveTo(TABLE_X, lineY).lineTo(TABLE_X + TABLE_W, lineY).stroke();
     lineY += rh;
   }
 
-  // vertical lines
   let lineX = TABLE_X;
   for (const col of COL_DEFS) {
     lineX += col.width;
     if (lineX < TABLE_X + TABLE_W) {
-      doc.moveTo(lineX, startY).lineTo(lineX, startY + totalH).stroke();
+      doc.moveTo(lineX, headerY).lineTo(lineX, headerY + totalH).stroke();
+    }
+  }
+}
+
+function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number): number {
+  doc.font(FONT_BOLD).fontSize(11).fillColor("#B55233");
+  doc.text(title, MARGIN, y, { lineBreak: false });
+  return y + 15;
+}
+
+// Tabulka se stránkuje sama. Bez toho pdfkit u přetečení zakládá novou
+// stránku pro každou buňku zvlášť (23 objednávek → 51 stran, 21.08.2026),
+// zatímco pozadí a linky jdou na absolutní souřadnice a zůstanou na
+// staré stránce.
+function drawTable(
+  doc: PDFKit.PDFDocument,
+  rows: OrderRowEnriched[],
+  startY: number,
+  sectionTitle: string,
+): number {
+  const rowHeights = rows.map((row, idx) => calcRowHeight(doc, row, idx));
+
+  let y = startY;
+  let idx = 0;
+
+  while (idx < rows.length) {
+    const headerY = y;
+    y = drawTableHeader(doc, y);
+
+    const pageRowHeights: number[] = [];
+    while (idx < rows.length) {
+      const rh = rowHeights[idx];
+      // Aspoň jeden řádek na stránku, jinak by se cyklus zacyklil na řádku
+      // vyšším než stránka.
+      if (pageRowHeights.length > 0 && y + rh > BOTTOM_LIMIT) break;
+      drawTableRow(doc, rows[idx], idx, y, rh);
+      y += rh;
+      pageRowHeights.push(rh);
+      idx += 1;
+    }
+
+    drawTableGrid(doc, headerY, pageRowHeights);
+
+    if (idx < rows.length) {
+      doc.addPage();
+      y = drawSectionTitle(doc, `${sectionTitle} (pokračování)`, MARGIN);
     }
   }
 
@@ -405,8 +461,30 @@ function drawSummaryRow(doc: PDFKit.PDFDocument, row: SummaryRow, idx: number, y
   return y + rh;
 }
 
+function stampFooters(doc: PDFKit.PDFDocument) {
+  const range = doc.bufferedPageRange();
+  for (let i = 0; i < range.count; i += 1) {
+    doc.switchToPage(range.start + i);
+    doc.font(FONT).fontSize(7.5).fillColor("#AAAAAA");
+    doc.text(
+      "Vygenerováno automaticky – automat objednávek STROS",
+      MARGIN,
+      PAGE_H - MARGIN - 10,
+      { lineBreak: false },
+    );
+    if (range.count > 1) {
+      doc.text(
+        `Strana ${i + 1} / ${range.count}`,
+        PAGE_W - MARGIN - 90,
+        PAGE_H - MARGIN - 10,
+        { width: 90, align: "right", lineBreak: false },
+      );
+    }
+  }
+}
+
 function ensureSpace(doc: PDFKit.PDFDocument, y: number, needed: number): number {
-  if (y + needed <= PAGE_H - MARGIN - 15) return y;
+  if (y + needed <= BOTTOM_LIMIT) return y;
   doc.addPage();
   return MARGIN;
 }
@@ -419,20 +497,16 @@ function drawSummarySection(
   const rows = getSubmittedRows(department.rows).flatMap(toSummaryRows);
   if (rows.length === 0) return startY;
 
-  let y = ensureSpace(doc, startY, 50);
-  doc.font(FONT_BOLD).fontSize(11).fillColor("#B55233");
-  doc.text(department.emailLabel, MARGIN, y, { lineBreak: false });
-  y += 15;
+  let y = ensureSpace(doc, startY, SECTION_MIN_H);
+  y = drawSectionTitle(doc, department.emailLabel, y);
   y = drawSummaryHeader(doc, y);
 
   rows.forEach((row, idx) => {
     const rh = calcSummaryRowHeight(doc, row, idx);
-    if (y + rh > PAGE_H - MARGIN - 15) {
+    if (y + rh > BOTTOM_LIMIT) {
       doc.addPage();
       y = MARGIN;
-      doc.font(FONT_BOLD).fontSize(10).fillColor("#B55233");
-      doc.text(`${department.emailLabel} (pokračování)`, MARGIN, y, { lineBreak: false });
-      y += 14;
+      y = drawSectionTitle(doc, `${department.emailLabel} (pokračování)`, y);
       y = drawSummaryHeader(doc, y);
     }
     y = drawSummaryRow(doc, row, idx, y);
@@ -451,6 +525,7 @@ export async function buildOrderPdfAttachment(
   const doc = new PDFDocument({
     size: [PAGE_W, PAGE_H],
     margin: MARGIN,
+    bufferPages: true,
     info: {
       Title: `Objednávka LIMA – ${formatDate(orderData.order.date)}`,
       Author: "STROS – automat objednávek",
@@ -478,22 +553,14 @@ export async function buildOrderPdfAttachment(
   } else {
     for (const department of activeDepartments) {
       const activeRows = getSubmittedRows(department.rows);
-      y = ensureSpace(doc, y, 50);
-      doc.font(FONT_BOLD).fontSize(11).fillColor("#B55233");
-      doc.text(department.emailLabel, MARGIN, y, { lineBreak: false });
-      y += 15;
-      y = drawTable(doc, activeRows, y);
+      y = ensureSpace(doc, y, SECTION_MIN_H);
+      y = drawSectionTitle(doc, department.emailLabel, y);
+      y = drawTable(doc, activeRows, y, department.emailLabel);
       y += 10;
     }
   }
 
-  doc.font(FONT).fontSize(7.5).fillColor("#AAAAAA");
-  doc.text(
-    "Vygenerováno automaticky – automat objednávek STROS",
-    MARGIN,
-    PAGE_H - MARGIN - 10,
-    { lineBreak: false }
-  );
+  stampFooters(doc);
 
   const content = await pdfToBuffer(doc);
   return {
@@ -512,6 +579,7 @@ export async function buildDepartmentPdfAttachment(
   const doc = new PDFDocument({
     size: [PAGE_W, PAGE_H],
     margin: MARGIN,
+    bufferPages: true,
     info: {
       Title: `Objednávka LIMA – ${department.emailLabel}`,
       Author: "STROS – automat objednávek",
@@ -538,16 +606,10 @@ export async function buildDepartmentPdfAttachment(
     doc.font(FONT).fontSize(11).fillColor("#888").text("Žádné aktivní řádky.", MARGIN, y);
     y += 20;
   } else {
-    y = drawTable(doc, activeRows, y);
+    y = drawTable(doc, activeRows, y, department.emailLabel);
   }
 
-  doc.font(FONT).fontSize(7.5).fillColor("#AAAAAA");
-  doc.text(
-    "Vygenerováno automaticky – automat objednávek STROS",
-    MARGIN,
-    PAGE_H - MARGIN - 10,
-    { lineBreak: false }
-  );
+  stampFooters(doc);
 
   const content = await pdfToBuffer(doc);
   return {

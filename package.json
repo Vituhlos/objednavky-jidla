@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "check:changelog": "node tools/check-changelog.mjs"
+    "check:changelog": "node tools/check-changelog.mjs",
+    "test:pdf": "node --test tools/order-pdf.test.mjs"
   },
   "keywords": [
     "nextjs",

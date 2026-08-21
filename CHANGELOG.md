@@ -6,7 +6,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
-Zatím žádné nevydané změny.
+### Fixed
+
+- Objednávkové PDF se rozpadlo, jakmile se tabulka oddělení nevešla na stránku. Z objednávky na 21. 8. 2026 (23 objednávek) vypadlo 51 stran, na kterých byly jednotlivé útržky — na jedné jen pořadové číslo, na další jen jméno, a rámečky s podbarvením zůstaly na předchozí straně. Tabulka se teď stránkuje sama: na každé další straně se zopakuje hlavička sloupců a nadpis oddělení s poznámkou „(pokračování)", číslování řádků plynule navazuje.
+- Patička „Vygenerováno automaticky" byla jen na poslední straně. Nově je na každé, a u vícestránkových objednávek přibylo označení „Strana X / Y".
+
+### Added
+
+- `npm run test:pdf` — regresní test stránkování objednávkového PDF (23 až 800 řádků, jedno i pět oddělení). Hlídá, že počet stran odpovídá počtu řádků, že každá strana nese hlavičku tabulky a že nevznikají skoro prázdné strany.
 
 ## [1.3.0] - 2026-08-04
 
