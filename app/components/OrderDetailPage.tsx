@@ -5,6 +5,16 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderData, OrderRowEnriched } from "@/lib/types";
 import { actionReopenOrder } from "@/app/actions";
+import { getPragueISODate } from "@/lib/time";
+import { getInitials, pluralizeOrders } from "@/lib/format";
+import {
+  canReopenOrder,
+  formatOrderDetailDate,
+  formatOrderDetailSentAt,
+  getDetailDepartments,
+  getDetailRows,
+  getRowExtras,
+} from "./order-detail/order-detail-utils";
 import MIcon from "./MIcon";
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; grad: string }> = {
@@ -18,57 +28,9 @@ const DEPT_COLORS: Record<string, { bg: string; border: string; icon: string; gr
 };
 const DC_DEFAULT = DEPT_COLORS.blue;
 
-const DAYS_CS = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
-}
-
-function formatDateWithDay(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dow = DAYS_CS[new Date(y, m - 1, d).getDay()];
-  return `${dow} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
-}
-
-function formatSentAt(iso: string | null): string {
-  if (!iso) return "–";
-  return new Date(iso).toLocaleString("cs-CZ", {
-    timeZone: "Europe/Prague",
-    day: "numeric", month: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-function getPragueTodayISO(): string {
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function getInitials(name: string): string {
-  if (!name.trim()) return "?";
-  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function getChips(row: OrderRowEnriched): string[] {
-  const chips: string[] = [];
-  if (row.rollCount > 0)           chips.push(`Houska ×${row.rollCount}`);
-  if (row.breadDumplingCount > 0)  chips.push(`H. kned. ×${row.breadDumplingCount}`);
-  if (row.potatoDumplingCount > 0) chips.push(`B. kned. ×${row.potatoDumplingCount}`);
-  if (row.ketchupCount > 0)        chips.push(`Kečup ×${row.ketchupCount}`);
-  if (row.tatarkaCount > 0)        chips.push(`Tatarka ×${row.tatarkaCount}`);
-  if (row.bbqCount > 0)            chips.push(`BBQ ×${row.bbqCount}`);
-  return chips;
-}
-
-function pluralOrders(n: number): string {
-  if (n === 1) return "objednávka";
-  if (n >= 2 && n <= 4) return "objednávky";
-  return "objednávek";
-}
 
 function ReadOnlyRow({ row, dc }: { row: OrderRowEnriched; dc: typeof DC_DEFAULT }) {
-  const chips = getChips(row);
+  const chips = getRowExtras(row);
   return (
     <div className="flex items-start gap-3 px-4 py-3 border-b border-white/30 last:border-0">
       <div
@@ -161,15 +123,11 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const canReopen =
-    order.status === "sent" &&
-    order.date === getPragueTodayISO();
+  const canReopen = canReopenOrder(order, getPragueISODate());
 
   const sent = order.status === "sent";
 
-  const activeDepts = departments.filter((dept) =>
-    dept.rows.some((r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0)
-  );
+  const activeDepts = getDetailDepartments(departments);
   const isEmpty = activeDepts.length === 0;
   const handleReopen = () => startTransition(async () => { await actionReopenOrder(order.id); router.refresh(); });
 
@@ -179,9 +137,9 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
         <BackButton />
-        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatDateWithDay(order.date)}</span>
+        <span className="font-display font-bold text-[15px] text-stone-900">Objednávka {formatOrderDetailDate(order.date)}</span>
         <StatusBadge sent={sent} />
-        {order.sentAt && <span className="text-[12px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
+        {order.sentAt && <span className="text-[12px] text-stone-500">{formatOrderDetailSentAt(order.sentAt)}</span>}
         {order.extraEmail && <span className="text-[12px] text-stone-500 hidden lg:inline">Kopie: {order.extraEmail}</span>}
         <div className="ml-auto flex items-center gap-2">
           {totalPrice > 0 && (
@@ -214,7 +172,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
         <div className="flex items-center gap-2 px-4 py-2.5">
           <BackButton mobile />
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">
-            {formatDateWithDay(order.date)}
+            {formatOrderDetailDate(order.date)}
           </span>
           {totalPrice > 0 && (
             <span className="font-display font-bold text-[14px] text-stone-900">{totalPrice} Kč</span>
@@ -222,7 +180,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
         </div>
         <div className="flex items-center gap-2 px-4 pb-2.5 flex-wrap">
           <StatusBadge sent={sent} />
-          {order.sentAt && <span className="text-[11px] text-stone-500">{formatSentAt(order.sentAt)}</span>}
+          {order.sentAt && <span className="text-[11px] text-stone-500">{formatOrderDetailSentAt(order.sentAt)}</span>}
           <ReopenButton canReopen={canReopen} onReopen={handleReopen} pending={pending} small />
           {sent && hasPdf && (
             <>
@@ -253,9 +211,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
             </div>
           )}
           {activeDepts.map((dept) => {
-            const activeRows = dept.rows.filter(
-              (r) => r.personName || r.soupItem || r.mainItem || r.rollCount > 0
-            );
+            const activeRows = getDetailRows(dept);
             const dc = DEPT_COLORS[dept.accent] ?? DC_DEFAULT;
             return (
               <section
@@ -272,7 +228,7 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                   </div>
                   <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{dept.label}</span>
                   <span className="text-[11px] text-stone-500">
-                    {activeRows.length} {pluralOrders(activeRows.length)}
+                    {activeRows.length} {pluralizeOrders(activeRows.length)}
                     {dept.subtotal > 0 && <> · <strong className="text-stone-700">{dept.subtotal} Kč</strong></>}
                   </span>
                 </div>

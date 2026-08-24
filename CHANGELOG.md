@@ -19,6 +19,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Changed
 
+- Interně: detail historické objednávky má logiku v `app/components/order-detail/order-detail-utils.ts` a společné formátování v `lib/format.ts`. `getInitials` a skloňování počtu objednávek byly do té doby ve dvou komponentách zvlášť, pravidlo pro zobrazení řádku dokonce dvakrát v jednom souboru. Chování zůstává beze změny, přibylo 18 testů.
 - Interně: z `OrderPage.tsx` se vydělilo šest hooků do `app/components/order/` — `useOrderSync` (živá synchronizace přes SSE), `useDayNavigation` (přepínání dnů páskem i šipkami), `useRowDeletion` (mazání s pětivteřinovým oknem na vrácení) a `usePushNotifications`, `useCutoff` (uzávěrka a odpočet) a `useCutoffUnlock` (odemčení na PIN). Komponenta klesla z 1 466 na 1 076 řádků. Chování zůstává beze změny; ověřeno proklikáním přidání, mazání i přepínání dnů.
 - Interně: pomocné funkce objednávkové obrazovky (práce s daty, sestavení přepínače dnů, přepočet oddělení) se přesunuly z `OrderPage.tsx` do `app/components/order/order-utils.ts`. Těla funkcí jsou beze změny — jde o přesun, ne přepis. `OrderPage.tsx` je o 124 řádků kratší a na funkce nově dosáhne 36 testů. Umístění i názvy odpovídají větvi `feat/heroui-migration`, aby se obě verze strukturálně sbíhaly.
 - Interně: `sendOrder()` a `resendOrderEmail()` sdílí přípravu e-mailu a jeho odeslání s archivací. Dřív obě funkce opakovaly stejných dvanáct kroků, což byl důvod, proč jedné z nich chyběl zápis do archivu. Chování obou zůstává beze změny.
