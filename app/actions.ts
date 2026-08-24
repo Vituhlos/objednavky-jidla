@@ -30,6 +30,7 @@ import type { PizzaOrderRow } from "@/lib/pizza";
 import { saveSettings, checkPin, getSettings } from "@/lib/settings";
 import { getClosures, addClosure, updateClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
 import { getPragueNow, getPragueISODate } from "@/lib/time";
+import { forceOpenStamp, isOrderingLocked } from "@/lib/cutoff";
 import type { AppSettings } from "@/lib/settings";
 import {
   setTelegramWebhook,
@@ -55,11 +56,8 @@ import {
 import type { DepartmentInfo } from "@/lib/departments";
 
 function isCutoffActive(): boolean {
-  const { cutoffTime, orderForceOpenDate } = getSettings();
-  if (orderForceOpenDate === getPragueISODate()) return false;
-  const now = getPragueNow();
-  const [h, m] = cutoffTime.split(":").map(Number);
-  return now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
+  const { cutoffTime, orderForceOpenAt } = getSettings();
+  return isOrderingLocked({ cutoffTime, forceOpenAt: orderForceOpenAt, now: getPragueNow() });
 }
 
 export async function actionAddRow(
@@ -212,12 +210,9 @@ export async function actionUpdatePizzaPrices(
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
+  // reopenOrderAndUnlock() po uzávěrce zároveň odemkne objednávání — jinak
+  // by byla objednávka "otevřená", ale nikdo by do ní nemohl psát.
   reopenOrderAndUnlock(orderId);
-  // Pokud se znovu otevírá dnešní objednávka po uzávěrce, admin implicitně odemyká
-  const order = getOrderById(orderId);
-  if (order?.date === getPragueISODate() && isCutoffActive()) {
-    saveSettings({ orderForceOpenDate: getPragueISODate() });
-  }
   revalidatePath("/");
   revalidatePath("/historie");
   revalidatePath(`/historie/${orderId}`);
@@ -226,7 +221,7 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 
 export async function actionUnlockCutoff(pin: string): Promise<{ ok: boolean; error?: string }> {
   if (!checkPin(pin)) return { ok: false, error: "Špatný PIN" };
-  saveSettings({ orderForceOpenDate: getPragueISODate() });
+  saveSettings({ orderForceOpenAt: forceOpenStamp(getPragueNow()) });
   return { ok: true };
 }
 

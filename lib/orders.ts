@@ -33,6 +33,7 @@ function savePdf(orderId: number, buffer: Buffer): void {
   fs.writeFileSync(getOrderPdfPath(orderId), buffer);
 }
 import { getPragueISODate, getPragueNow } from "./time";
+import { forceOpenStamp, isOrderingLocked } from "./cutoff";
 import type {
   Order,
   DepartmentData,
@@ -509,15 +510,13 @@ export function reopenOrder(orderId: number): void {
 export function reopenOrderAndUnlock(orderId: number): void {
   reopenOrder(orderId);
   const order = getOrderById(orderId);
-  const today = getPragueISODate();
-  if (order?.date !== today) return;
+  if (order?.date !== getPragueISODate()) return;
 
-  const { cutoffTime, orderForceOpenDate } = getSettings();
-  if (orderForceOpenDate === today) return;
+  const { cutoffTime, orderForceOpenAt } = getSettings();
   const now = getPragueNow();
-  const [h, m] = cutoffTime.split(":").map(Number);
-  const cutoffPassed = now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
-  if (cutoffPassed) saveSettings({ orderForceOpenDate: today });
+  if (isOrderingLocked({ cutoffTime, forceOpenAt: orderForceOpenAt, now })) {
+    saveSettings({ orderForceOpenAt: forceOpenStamp(now) });
+  }
 }
 
 export function getOrderList(): OrderSummary[] {

@@ -6,6 +6,7 @@ import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
+import { isCutoffPassed, isCutoffLifted, forceOpenStamp } from "@/lib/cutoff";
 import type { ClosureContext } from "@/lib/menu";
 import { DEFAULT_CLOSURE_ICON } from "@/lib/closure-icons";
 import { DepartmentPanel } from "./DepartmentPanel";
@@ -289,7 +290,7 @@ export default function OrderPage({
   autoSendTime = "08:00",
   autoSendError,
   autoSendErrorTs,
-  forceOpenDate = "",
+  forceOpenAt = "",
 }: {
   initialData: OrderData;
   cutoffTime?: string;
@@ -310,7 +311,7 @@ export default function OrderPage({
   autoSendTime?: string;
   autoSendError?: string;
   autoSendErrorTs?: string;
-  forceOpenDate?: string;
+  forceOpenAt?: string;
 }) {
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
@@ -358,7 +359,7 @@ export default function OrderPage({
   const pendingDeleteRef = useRef<PendingDelete | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [isForceOpen, setIsForceOpen] = useState(() => !!forceOpenDate && forceOpenDate === todayDate);
+  const [forceOpenValue, setForceOpenValue] = useState(forceOpenAt);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockPin, setUnlockPin] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
@@ -389,19 +390,24 @@ export default function OrderPage({
 
   const isSent = orderStatus === "sent";
   // ── Live cutoff check ─────────────────────────────────────
-  const checkCutoff = useCallback(() => {
-    if (isFutureDay) return false;
-    const now = getPragueNow();
-    return now.getHours() * 60 + now.getMinutes() >= parseCutoffMinutes(cutoffTime);
-  }, [cutoffTime, isFutureDay]);
-
-  const [isPastCutoff, setIsPastCutoff] = useState(checkCutoff);
+  // Hodiny tikají ve stavu, samotný stav uzávěrky se z nich odvozuje při
+  // renderu — přepočítá se tak i při změně času uzávěrky nebo po odemčení,
+  // ne až s dalším tikem.
+  const [now, setNow] = useState(getPragueNow);
 
   useEffect(() => {
-    const id = setInterval(() => setIsPastCutoff(checkCutoff()), 30_000);
+    const id = setInterval(() => setNow(getPragueNow()), 30_000);
     return () => clearInterval(id);
-  }, [checkCutoff]);
+  }, []);
 
+  const cutoffState = useMemo(() => {
+    if (isFutureDay) return { passed: false, lifted: false };
+    const input = { cutoffTime, forceOpenAt: forceOpenValue, now };
+    return { passed: isCutoffPassed(input), lifted: isCutoffLifted(input) };
+  }, [cutoffTime, forceOpenValue, isFutureDay, now]);
+
+  const isPastCutoff = cutoffState.passed;
+  const isForceOpen = cutoffState.lifted;
   const isCutoffLocked = isPastCutoff && !isForceOpen && !isFutureDay;
   const isOrderLocked = isSent || isCutoffLocked;
 
@@ -677,7 +683,7 @@ export default function OrderPage({
     setUnlockError(null);
     const result = await actionUnlockCutoff(unlockPin);
     if (result.ok) {
-      setIsForceOpen(true);
+      setForceOpenValue(forceOpenStamp(getPragueNow()));
       setShowUnlockModal(false);
       setUnlockPin("");
     } else {
@@ -919,9 +925,14 @@ export default function OrderPage({
               <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
             </span>
           )}
-          {!isFutureDay && !isSent && isPastCutoff && (
+          {!isFutureDay && !isSent && isPastCutoff && !isForceOpen && (
             <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
               <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
+            </span>
+          )}
+          {!isFutureDay && !isSent && isForceOpen && (
+            <span className="inline-flex items-center gap-1 text-green-700 font-medium">
+              <MIcon name="lock_open" size={13} /> Objednávání odemčeno{autoSendEnabled ? ` · odešle se v ${autoSendTime}` : ""}
             </span>
           )}
           {isSent && sentAt && (
@@ -985,9 +996,14 @@ export default function OrderPage({
             <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
-        {!isFutureDay && !isSent && isPastCutoff && (
+        {!isFutureDay && !isSent && isPastCutoff && !isForceOpen && (
           <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
             <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
+          </span>
+        )}
+        {!isFutureDay && !isSent && isForceOpen && (
+          <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-medium shrink-0">
+            <MIcon name="lock_open" size={12} /> Odemčeno{autoSendEnabled ? " · auto" : ""}
           </span>
         )}
         {isSent && (
@@ -1267,6 +1283,14 @@ export default function OrderPage({
                     <>
                       <strong className="text-amber-700">Objednávky uzavřeny</strong>
                       <span className="text-stone-500"> · Uzávěrka proběhla v {cutoffTime}.</span>
+                    </>
+                  ) : isForceOpen ? (
+                    <>
+                      <strong className="text-green-700">Objednávání odemčeno</strong>
+                      <span className="text-stone-500">
+                        {` · Uzávěrka v ${cutoffTime} dnes už neplatí.`}
+                        {autoSendEnabled ? ` Objednávka se odešle v ${autoSendTime}.` : ""}
+                      </span>
                     </>
                   ) : isFutureDay ? (
                     <>

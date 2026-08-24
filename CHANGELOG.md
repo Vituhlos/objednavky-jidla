@@ -6,9 +6,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Když se objednávka po uzávěrce znovu otevřela, uzávěrka se ten den už nikdy nezapnula — příznak odemčení nesl jen datum, takže přenastavení času uzávěrky nemělo kam zabrat. Nově se pamatuje i čas odemčení a platí pravidlo „odemčení promíjí jen tu uzávěrku, která už proběhla". Odemčeno v 8:05 a uzávěrka přesunutá na 8:10 tedy v 8:10 zase zamkne; odemčení předtím platné uzávěrky se nemění.
+- Po odemčení appka dál hlásila „Po uzávěrce (08:00)" a v panelu „Objednávky uzavřeny", i když objednávat šlo. Nově ukazuje „Objednávání odemčeno" s tím, kdy se objednávka odešle.
+
 ### Added
 
-- `npm test` — testy odesílací cesty objednávky (`tools/orders-send.test.mjs`) proti dočasné SQLite a falešnému SMTP serveru. Pokrývají dvojí odeslání, návrat na draft při chybě SMTP, chování „Znovu odeslat email" i přepis archivovaného PDF.
+- `npm test` — testy vyhodnocení uzávěrky (`tools/cutoff.test.mjs`) a odesílací cesty objednávky (`tools/orders-send.test.mjs`) proti dočasné SQLite a falešnému SMTP serveru. Pokrývají dvojí odeslání, návrat na draft při chybě SMTP, chování „Znovu odeslat email" i přepis archivovaného PDF.
 
 ### Changed
 

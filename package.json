@@ -11,7 +11,8 @@
     "check:changelog": "node tools/check-changelog.mjs",
     "test": "node --test tools/*.test.mjs",
     "test:pdf": "node --test tools/order-pdf.test.mjs",
-    "test:orders": "node --test tools/orders-send.test.mjs"
+    "test:orders": "node --test tools/orders-send.test.mjs",
+    "test:cutoff": "node --test tools/cutoff.test.mjs"
   },
   "keywords": [
     "nextjs",

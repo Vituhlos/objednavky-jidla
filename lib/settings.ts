@@ -54,7 +54,8 @@ export interface AppSettings {
   pizzaCutoffTime: string;
   pizzaCutoffDays: string;
   pizzaEnabled: string;
-  orderForceOpenDate: string;
+  /** Razítko odemčení uzávěrky, "YYYY-MM-DDTHH:mm". Viz lib/cutoff.ts. */
+  orderForceOpenAt: string;
 }
 
 const KEY_MAP: Record<keyof AppSettings, string> = {
@@ -106,7 +107,8 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   pizzaCutoffTime: "pizza_cutoff_time",
   pizzaCutoffDays: "pizza_cutoff_days",
   pizzaEnabled: "pizza_enabled",
-  orderForceOpenDate: "order_force_open_date",
+  // Klíč si drží historický název; hodnota je nově časové razítko, ne jen datum.
+  orderForceOpenAt: "order_force_open_date",
 };
 
 function envDefaults(): AppSettings {
@@ -160,7 +162,7 @@ function envDefaults(): AppSettings {
     pizzaCutoffTime: "10:00",
     pizzaCutoffDays: "Pá",
     pizzaEnabled: "true",
-    orderForceOpenDate: "",
+    orderForceOpenAt: "",
   };
 }
 

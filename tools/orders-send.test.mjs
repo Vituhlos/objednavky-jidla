@@ -23,12 +23,13 @@ const smtp = await startFakeSmtp();
 const lib = loadLib();
 
 const { getDb } = await lib("db");
-const { saveSettings } = await lib("settings");
+const { saveSettings, getSettings } = await lib("settings");
 const { getAuditLog } = await lib("audit");
 const {
   getOrderDataForDate, getOrderById, getOrderPdfPath, orderPdfExists,
-  addOrderRow, updateOrderRow, sendOrder, resendOrderEmail, reopenOrder,
+  addOrderRow, updateOrderRow, sendOrder, resendOrderEmail, reopenOrder, reopenOrderAndUnlock,
 } = await lib("orders");
+const { getPragueISODate } = await lib("time");
 
 let SOUP_ID;
 let MEAL_ID;
@@ -178,6 +179,29 @@ test("reopen a opětovné odeslání projde a přepíše archiv", async () => {
   assert.equal(getOrderById(orderId).status, "sent");
   assert.equal(smtp.messages.length, 2);
   assert.ok(!before.equals(archivedPdf(orderId)), "archiv se musí přepsat");
+});
+
+test("znovuotevření po uzávěrce zapíše razítko odemčení", () => {
+  const orderId = seedOrder(getPragueISODate(), "Dnesni Stravnik");
+  saveSettings({ cutoffTime: "00:00", orderForceOpenAt: "" }); // uzávěrka už proběhla
+
+  reopenOrderAndUnlock(orderId);
+
+  const { orderForceOpenAt } = getSettings();
+  assert.match(orderForceOpenAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "má se uložit razítko s časem");
+  assert.equal(orderForceOpenAt.split("T")[0], getPragueISODate(), "razítko musí být dnešní");
+
+  saveSettings({ cutoffTime: "08:00", orderForceOpenAt: "" });
+});
+
+test("znovuotevření před uzávěrkou nic neodemyká", () => {
+  const orderId = seedOrder(getPragueISODate(), "Dalsi Stravnik");
+  saveSettings({ cutoffTime: "23:59", orderForceOpenAt: "" }); // uzávěrka ještě nenastala
+
+  reopenOrderAndUnlock(orderId);
+  assert.equal(getSettings().orderForceOpenAt, "", "není co promíjet");
+
+  saveSettings({ cutoffTime: "08:00" });
 });
 
 test("prázdná objednávka se neodešle ani jednou cestou", async () => {
