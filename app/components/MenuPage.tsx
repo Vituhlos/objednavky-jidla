@@ -29,6 +29,16 @@ interface Props {
 }
 
 /**
+ * Rozepsaná nová položka, která ještě není v databázi.
+ *
+ * Dřív „Přidat" položku rovnou zapsalo a teprve pak otevřelo dialog. Zavření
+ * bez vyplnění tak v jídelníčku nechalo řádek „bez názvu", který se navíc
+ * počítal do souhrnu dne — a přes SSE se rozeslal ostatním. Záporné id
+ * odlišuje koncept od skutečného řádku; skutečná `id` z SQLite jsou kladná.
+ */
+const DRAFT_ITEM_ID = -1;
+
+/**
  * Koordinátor jídelníčku. Drží výběr týdne a dne, optimistické úpravy položek
  * a skládá domény dohromady: záhlaví, pracovní plochu, import PDF a mazání.
  *
@@ -120,28 +130,61 @@ export default function MenuPage({
     });
   }, [setActiveWeekMenu]);
 
+  /**
+   * „Přidat" jen otevře dialog s konceptem. Do databáze se nezapisuje nic,
+   * dokud uživatel neuloží — proto po zavření dialogu nemá co zůstat.
+   */
   const handleAdd = useCallback((day: string, type: "Polévka" | "Jídlo") => {
+    setEditingItem({
+      id: DRAFT_ITEM_ID,
+      weekLabel: activeWeekData.weekLabel,
+      day,
+      type,
+      code: type === "Polévka" ? "A" : "1",
+      name: "",
+      price: type === "Polévka" ? defaultSoupPrice : defaultMealPrice,
+      allergens: "",
+    });
+  }, [activeWeekData, defaultSoupPrice, defaultMealPrice]);
+
+  /**
+   * Uložení z dialogu. Koncept se teprve zakládá, existující položka se
+   * aktualizuje — dialog o tom rozdílu vědět nemusí, řeší ho koordinátor.
+   */
+  const handleSaveItem = useCallback((id: number, updates: Partial<{ code: string; name: string; allergens: string }>) => {
+    if (id !== DRAFT_ITEM_ID) {
+      handleUpdate(id, updates);
+      return;
+    }
+    const draft = editingItem;
+    if (!draft) return;
+
     startTransition(async () => {
-      const newItem = await actionAddMenuItem({
-        day, type,
-        code: type === "Polévka" ? "A" : "1",
-        name: "",
-        price: type === "Polévka" ? defaultSoupPrice : defaultMealPrice,
+      const created = await actionAddMenuItem({
+        day: draft.day,
+        type: draft.type,
+        code: updates.code ?? draft.code,
+        name: updates.name ?? "",
+        price: draft.price,
         weekStart: activeWeekStart,
       });
+      // `actionAddMenuItem` alergeny nepřijímá, doplní se hned poté. Druhý
+      // zápis se dělá jen když nějaké alergeny opravdu jsou.
+      const allergens = updates.allergens ?? "";
+      const item = allergens ? await actionUpdateMenuItem(created.id, { allergens }) : created;
+
       setActiveWeekMenu((prev) => {
-        const dayData = prev[day] ?? { soups: [], meals: [] };
+        const dayData = prev[draft.day] ?? { soups: [], meals: [] };
         return {
           ...prev,
-          [day]: {
-            soups: type === "Polévka" ? [...dayData.soups, newItem] : dayData.soups,
-            meals: type === "Jídlo" ? [...dayData.meals, newItem] : dayData.meals,
+          [draft.day]: {
+            soups: draft.type === "Polévka" ? [...dayData.soups, item] : dayData.soups,
+            meals: draft.type === "Jídlo" ? [...dayData.meals, item] : dayData.meals,
           },
         };
       });
-      setEditingItem(newItem);
     });
-  }, [activeWeekStart, setActiveWeekMenu, defaultSoupPrice, defaultMealPrice]);
+  }, [activeWeekStart, editingItem, handleUpdate, setActiveWeekMenu]);
 
   // ── Domény ────────────────────────────────────────────────────────────────
 
@@ -229,10 +272,11 @@ export default function MenuPage({
       {editingItem !== null && (
         <MenuItemEditModal
           disabled={isPending}
+          isNew={editingItem.id === DRAFT_ITEM_ID}
           item={editingItem}
           onClose={() => setEditingItem(null)}
           onRequestDelete={(id) => { setEditingItem(null); deletion.requestDeleteItem(id); }}
-          onSave={handleUpdate}
+          onSave={handleSaveItem}
         />
       )}
 

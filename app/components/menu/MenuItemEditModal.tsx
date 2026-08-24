@@ -11,9 +11,15 @@ import { AutoResizeTextarea } from "./AutoResizeTextarea";
  *
  * Komponenta se montuje až ve chvíli, kdy je co upravovat — rozepsaná pole
  * tak vzniknou čerstvá pro každou položku a nemusí se resetovat efektem.
+ *
+ * `isNew` odlišuje rozepsaný koncept od skutečného řádku v databázi. Koncept
+ * nemá co mazat a nedá se uložit bez názvu — právě bezejmenný řádek byl to,
+ * co dřív po zavření dialogu zůstávalo v jídelníčku viset.
  */
-export function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }: {
+export function MenuItemEditModal({ item, isNew, disabled, onSave, onRequestDelete, onClose }: {
   item: MenuItem;
+  /** Rozepsaná nová položka, která ještě není v databázi. */
+  isNew: boolean;
   disabled: boolean;
   onSave: (id: number, updates: Partial<{ code: string; name: string; allergens: string }>) => void;
   onRequestDelete: (id: number) => void;
@@ -49,7 +55,7 @@ export function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onC
       >
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="item-edit-modal-title">
-            Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
+            {isNew ? "Přidat" : "Upravit"} {item.type === "Polévka" ? "polévku" : "jídlo"}
           </h3>
           <button
             aria-label="Zavřít"
@@ -106,21 +112,23 @@ export function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onC
           </div>
         </div>
         <div className="modal-sheet__footer">
-          <button
-            className="modal-btn modal-btn--danger"
-            disabled={disabled}
-            onClick={() => { onRequestDelete(item.id); onClose(); }}
-            type="button"
-          >
-            Smazat
-          </button>
+          {!isNew && (
+            <button
+              className="modal-btn modal-btn--danger"
+              disabled={disabled}
+              onClick={() => { onRequestDelete(item.id); onClose(); }}
+              type="button"
+            >
+              Smazat
+            </button>
+          )}
           <button
             className="modal-btn modal-btn--primary"
-            disabled={disabled}
+            disabled={disabled || (isNew && name.trim() === "")}
             onClick={handleSave}
             type="button"
           >
-            Uložit
+            {isNew ? "Přidat" : "Uložit"}
           </button>
         </div>
       </div>
