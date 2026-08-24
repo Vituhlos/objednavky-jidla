@@ -13,10 +13,11 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Added
 
-- `npm test` — testy vyhodnocení uzávěrky (`tools/cutoff.test.mjs`) a odesílací cesty objednávky (`tools/orders-send.test.mjs`) proti dočasné SQLite a falešnému SMTP serveru. Pokrývají dvojí odeslání, návrat na draft při chybě SMTP, chování „Znovu odeslat email" i přepis archivovaného PDF.
+- `npm test` — vitest nad `app/` a `lib/` plus dosavadní `node --test` nad `tools/`. Přibyly testy vyhodnocení uzávěrky (`tools/cutoff.test.mjs`) a odesílací cesty objednávky (`tools/orders-send.test.mjs`) proti dočasné SQLite a falešnému SMTP serveru. Pokrývají dvojí odeslání, návrat na draft při chybě SMTP, chování „Znovu odeslat email" i přepis archivovaného PDF.
 
 ### Changed
 
+- Interně: pomocné funkce objednávkové obrazovky (práce s daty, sestavení přepínače dnů, přepočet oddělení) se přesunuly z `OrderPage.tsx` do `app/components/order/order-utils.ts`. Těla funkcí jsou beze změny — jde o přesun, ne přepis. `OrderPage.tsx` je o 124 řádků kratší a na funkce nově dosáhne 36 testů. Umístění i názvy odpovídají větvi `feat/heroui-migration`, aby se obě verze strukturálně sbíhaly.
 - Interně: `sendOrder()` a `resendOrderEmail()` sdílí přípravu e-mailu a jeho odeslání s archivací. Dřív obě funkce opakovaly stejných dvanáct kroků, což byl důvod, proč jedné z nich chyběl zápis do archivu. Chování obou zůstává beze změny.
 
 ## [1.3.1] - 2026-08-21
