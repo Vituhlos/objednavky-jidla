@@ -60,3 +60,17 @@ export const RELEASE_SECTION_LABELS: Record<string, string> = {
   "Migration notes": "Migrační poznámky",
   "Known issues": "Známá omezení",
 };
+
+// Categories follow what the operator is trying to do, not which technology the
+// setting talks to — push notifications used to live under "E-mail & IMAP" and the
+// pizza module under "Objednávka".
+export type SettingsTab = "provoz" | "lide" | "ceny" | "napojeni" | "pizza" | "system";
+
+export const SETTINGS_TABS: { id: SettingsTab; label: string; icon: string; hint: string }[] = [
+  { id: "provoz",   label: "Provoz",   icon: "schedule",         hint: "Uzávěrka, odesílání, zavřeno" },
+  { id: "lide",     label: "Lidé",     icon: "groups",           hint: "Oddělení a uživatelé bota" },
+  { id: "ceny",     label: "Ceny",     icon: "shopping_basket",  hint: "Ceník jídel a příloh" },
+  { id: "napojeni", label: "Napojení", icon: "send",             hint: "E-mail, IMAP, push, Telegram" },
+  { id: "pizza",    label: "Pizza",    icon: "local_pizza",      hint: "Samostatný modul" },
+  { id: "system",   label: "Systém",   icon: "build",            hint: "Zálohy, historie, PIN" },
+];
