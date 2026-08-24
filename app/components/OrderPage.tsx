@@ -316,14 +316,19 @@ export default function OrderPage({
     [departments]
   );
 
+  // ⚠️ Datum **vybraného** dne, ne dneška. Dřív se počítalo z `new Date()`,
+  // takže při přepnutí na zítřek zůstalo v záhlaví dnešní datum — záložka
+  // tvrdila jedno, nadpis druhé a člověk upravoval jiný den, než si myslel.
   const dayStr = useMemo(() => {
-    const today = new Date();
+    // Poledne, ne půlnoc: o den se tak nezavadí ani při přechodu na letní čas.
+    const day = selectedDate ? new Date(`${selectedDate}T12:00:00`) : new Date();
     return (
-      today.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^\w/, (c) => c.toUpperCase()) +
+      // `\w` je jen ASCII, takže „čtvrtek“ a „úterý“ zůstávaly s malým písmenem.
+      day.toLocaleDateString("cs-CZ", { weekday: "long" }).replace(/^./u, (c) => c.toLocaleUpperCase("cs-CZ")) +
       " " +
-      today.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
+      day.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
     );
-  }, []);
+  }, [selectedDate]);
 
   const futureDayPhrase = isFutureDay && selectedDate && todayDate
     ? getFutureDayPhrase(selectedDate, todayDate)
