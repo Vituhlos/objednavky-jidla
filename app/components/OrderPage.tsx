@@ -6,11 +6,12 @@ import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
-import { isCutoffPassed, isCutoffLifted, forceOpenStamp } from "@/lib/cutoff";
 import { usePushNotifications } from "./order/usePushNotifications";
 import { useRowDeletion } from "./order/useRowDeletion";
 import { useDayNavigation } from "./order/useDayNavigation";
 import { useOrderSync } from "./order/useOrderSync";
+import { useCutoff } from "./order/useCutoff";
+import { useCutoffUnlock } from "./order/useCutoffUnlock";
 import {
   addDays,
   buildPickerItems,
@@ -21,7 +22,6 @@ import {
   formatGapLabel,
   getDayLabel,
   getFutureDayPhrase,
-  parseCutoffMinutes,
   patchRow,
   recalcDepartments,
   shortDate,
@@ -143,12 +143,6 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────
-
-function getPragueNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-}
-
 // ── Component ─────────────────────────────────────────────
 
 export default function OrderPage({
@@ -236,10 +230,16 @@ export default function OrderPage({
     clearPendingDelete,
   } = useRowDeletion({ departmentsRef, setDepartments });
 
-  const [forceOpenValue, setForceOpenValue] = useState(forceOpenAt);
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
-  const [unlockPin, setUnlockPin] = useState("");
-  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const {
+    forceOpenAt: forceOpenValue,
+    showUnlockModal,
+    unlockPin,
+    unlockError,
+    openUnlock,
+    closeUnlock,
+    changePin,
+    handleUnlock,
+  } = useCutoffUnlock(forceOpenAt);
 
   // Sync state when selected date changes — component isn't remounted, only gets new props
   const prevOrderIdRef = useRef(initialData.order.id);
@@ -260,24 +260,12 @@ export default function OrderPage({
 
   const isSent = orderStatus === "sent";
   // ── Live cutoff check ─────────────────────────────────────
-  // Hodiny tikají ve stavu, samotný stav uzávěrky se z nich odvozuje při
-  // renderu — přepočítá se tak i při změně času uzávěrky nebo po odemčení,
-  // ne až s dalším tikem.
-  const [now, setNow] = useState(getPragueNow);
+  const { isPastCutoff, isForceOpen, countdown, countdownMins } = useCutoff({
+    cutoffTime,
+    forceOpenAt: forceOpenValue,
+    isFutureDay,
+  });
 
-  useEffect(() => {
-    const id = setInterval(() => setNow(getPragueNow()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const cutoffState = useMemo(() => {
-    if (isFutureDay) return { passed: false, lifted: false };
-    const input = { cutoffTime, forceOpenAt: forceOpenValue, now };
-    return { passed: isCutoffPassed(input), lifted: isCutoffLifted(input) };
-  }, [cutoffTime, forceOpenValue, isFutureDay, now]);
-
-  const isPastCutoff = cutoffState.passed;
-  const isForceOpen = cutoffState.lifted;
   const isCutoffLocked = isPastCutoff && !isForceOpen && !isFutureDay;
   const isOrderLocked = isSent || isCutoffLocked;
 
@@ -388,18 +376,6 @@ export default function OrderPage({
     });
   }, [orderId]);
 
-  const handleUnlock = useCallback(async () => {
-    setUnlockError(null);
-    const result = await actionUnlockCutoff(unlockPin);
-    if (result.ok) {
-      setForceOpenValue(forceOpenStamp(getPragueNow()));
-      setShowUnlockModal(false);
-      setUnlockPin("");
-    } else {
-      setUnlockError(result.error ?? "Chyba");
-    }
-  }, [unlockPin]);
-
   const handleSend = () => {
     if (isSent) return;
     setSendError(null);
@@ -434,24 +410,6 @@ export default function OrderPage({
     () => departments.reduce((s, d) => s + d.subtotal, 0),
     [departments]
   );
-
-  const getCountdownInfo = useCallback((): { label: string; mins: number } | null => {
-    if (isFutureDay) return null;
-    const now = getPragueNow();
-    const diff = parseCutoffMinutes(cutoffTime) - (now.getHours() * 60 + now.getMinutes());
-    if (diff <= 0) return null;
-    if (diff < 60) return { label: `za ${diff} min`, mins: diff };
-    const hours = Math.floor(diff / 60);
-    const mins = diff % 60;
-    return { label: mins > 0 ? `za ${hours} h ${mins} min` : `za ${hours} h`, mins: diff };
-  }, [cutoffTime, isFutureDay]);
-  const [countdownInfo, setCountdownInfo] = useState(getCountdownInfo);
-  const countdown = countdownInfo?.label ?? null;
-  const countdownMins = countdownInfo?.mins ?? null;
-  useEffect(() => {
-    const id = setInterval(() => setCountdownInfo(getCountdownInfo()), 30_000);
-    return () => clearInterval(id);
-  }, [getCountdownInfo]);
 
   const dayStr = useMemo(() => {
     const today = new Date();
@@ -959,7 +917,7 @@ export default function OrderPage({
                 {isCutoffLocked && (
                   <button
                     className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-amber-700"
-                    onClick={() => { setShowUnlockModal(true); setUnlockPin(""); setUnlockError(null); }}
+                    onClick={openUnlock}
                     type="button"
                   >
                     <MIcon name="lock_open" size={14} /> Odemknout
@@ -1039,7 +997,7 @@ export default function OrderPage({
       {/* ── Modals ── */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showUnlockModal && (
-        <div className="modal-overlay" onClick={() => setShowUnlockModal(false)}>
+        <div className="modal-overlay" onClick={closeUnlock}>
           <div
             className="modal-sheet"
             role="dialog"
@@ -1053,20 +1011,20 @@ export default function OrderPage({
               <button
                 aria-label="Zavřít"
                 className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
-                onClick={() => setShowUnlockModal(false)}
+                onClick={closeUnlock}
                 type="button"
               >×</button>
             </div>
             <div className="modal-sheet__body space-y-3">
               <p className="text-[13px] text-stone-600">
-                Uzávěrka proběhla v <strong>{cutoffTime}</strong>. Zadejte administrátorský PIN pro otevření objednávek na zbytek dne.
+                Uzávěrka proběhla v <strong>{cutoffTime}</strong>. Zadejte administrátorský PIN pro otevření objednávek. Pokud se čas uzávěrky posune dál, začne zase platit.
               </p>
               <input
                 autoFocus
                 className="w-full px-3 py-2.5 rounded-2xl glass text-[14px] text-stone-800 outline-none focus:ring-2 focus:ring-amber-400/60 tracking-[0.3em] font-mono text-center"
                 inputMode="numeric"
                 maxLength={8}
-                onChange={(e) => { setUnlockPin(e.target.value); setUnlockError(null); }}
+                onChange={(e) => changePin(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleUnlock(); }}
                 placeholder="PIN"
                 type="password"
@@ -1079,7 +1037,7 @@ export default function OrderPage({
             <div className="modal-sheet__footer">
               <button
                 className="v2-btn v2-btn--secondary"
-                onClick={() => setShowUnlockModal(false)}
+                onClick={closeUnlock}
                 type="button"
               >Zrušit</button>
               <button

@@ -10,6 +10,8 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - Když se objednávka po uzávěrce znovu otevřela, uzávěrka se ten den už nikdy nezapnula — příznak odemčení nesl jen datum, takže přenastavení času uzávěrky nemělo kam zabrat. Nově se pamatuje i čas odemčení a platí pravidlo „odemčení promíjí jen tu uzávěrku, která už proběhla". Odemčeno v 8:05 a uzávěrka přesunutá na 8:10 tedy v 8:10 zase zamkne; odemčení předtím platné uzávěrky se nemění.
 - Po odemčení appka dál hlásila „Po uzávěrce (08:00)" a v panelu „Objednávky uzavřeny", i když objednávat šlo. Nově ukazuje „Objednávání odemčeno" s tím, kdy se objednávka odešle.
+- Odpočet do uzávěrky v záhlaví se po přepnutí z budoucího dne zpět na dnešek aktualizoval až s dalším tikem hodin, tedy až půl minuty ukazoval nesprávnou hodnotu. Nově se přepočítá okamžitě.
+- Dialog pro odemčení sliboval otevření objednávek „na zbytek dne". To po opravě uzávěrky neplatí — když se čas uzávěrky posune dál, zase začne platit. Text to teď říká.
 
 ### Added
 
@@ -17,7 +19,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Changed
 
-- Interně: z `OrderPage.tsx` se vydělily čtyři hooky do `app/components/order/` — `useOrderSync` (živá synchronizace přes SSE), `useDayNavigation` (přepínání dnů páskem i šipkami), `useRowDeletion` (mazání s pětivteřinovým oknem na vrácení) a `usePushNotifications`. Komponenta klesla z 1 466 na 1 118 řádků. Chování zůstává beze změny; ověřeno proklikáním přidání, mazání i přepínání dnů.
+- Interně: z `OrderPage.tsx` se vydělilo šest hooků do `app/components/order/` — `useOrderSync` (živá synchronizace přes SSE), `useDayNavigation` (přepínání dnů páskem i šipkami), `useRowDeletion` (mazání s pětivteřinovým oknem na vrácení) a `usePushNotifications`, `useCutoff` (uzávěrka a odpočet) a `useCutoffUnlock` (odemčení na PIN). Komponenta klesla z 1 466 na 1 076 řádků. Chování zůstává beze změny; ověřeno proklikáním přidání, mazání i přepínání dnů.
 - Interně: pomocné funkce objednávkové obrazovky (práce s daty, sestavení přepínače dnů, přepočet oddělení) se přesunuly z `OrderPage.tsx` do `app/components/order/order-utils.ts`. Těla funkcí jsou beze změny — jde o přesun, ne přepis. `OrderPage.tsx` je o 124 řádků kratší a na funkce nově dosáhne 36 testů. Umístění i názvy odpovídají větvi `feat/heroui-migration`, aby se obě verze strukturálně sbíhaly.
 - Interně: `sendOrder()` a `resendOrderEmail()` sdílí přípravu e-mailu a jeho odeslání s archivací. Dřív obě funkce opakovaly stejných dvanáct kroků, což byl důvod, proč jedné z nich chyběl zápis do archivu. Chování obou zůstává beze změny.
 
