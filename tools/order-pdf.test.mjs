@@ -11,59 +11,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 
-// ---------------------------------------------------------------------------
-// Fonty: v kontejneru DejaVu, jinde se poskládá náhradní adresář z fontů
-// systému. Metriky se liší, ale stránkování na fontu nezávisí.
-// ---------------------------------------------------------------------------
-const DEJAVU_DIR = "/usr/share/fonts/truetype/dejavu";
-const FALLBACKS = {
-  win32: ["C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/segoeuii.ttf"],
-  darwin: ["/Library/Fonts/Arial.ttf", "/Library/Fonts/Arial Bold.ttf", "/Library/Fonts/Arial Italic.ttf"],
-};
+import { loadLib, resolveFontDir } from "./test-helpers.mjs";
 
-function resolveFontDir() {
-  if (process.env.PDF_FONT_DIR) return process.env.PDF_FONT_DIR;
-  if (fs.existsSync(path.join(DEJAVU_DIR, "DejaVuSans.ttf"))) return DEJAVU_DIR;
-
-  const sources = FALLBACKS[process.platform];
-  if (!sources || !sources.every((f) => fs.existsSync(f))) {
-    throw new Error(
-      `Nenalezeny fonty pro PDF. Nastav PDF_FONT_DIR na adresář s DejaVuSans{,-Bold,-Oblique}.ttf.`
-    );
-  }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "order-pdf-fonts-"));
-  const names = ["DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans-Oblique.ttf"];
-  sources.forEach((src, i) => fs.copyFileSync(src, path.join(dir, names[i])));
-  return dir;
-}
 process.env.PDF_FONT_DIR = resolveFontDir();
-
-// ---------------------------------------------------------------------------
-// lib/*.ts používá bezpříponové importy, které native type-stripping v Node
-// neumí rozřešit. Vyrobíme si spustitelnou kopii s doplněnými příponami.
-// ---------------------------------------------------------------------------
-const LIB_MODULES = ["types", "order-utils", "order-pdf"];
-
-async function importOrderPdf() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "order-pdf-src-"));
-  for (const name of LIB_MODULES) {
-    const src = fs.readFileSync(path.join("lib", `${name}.ts`), "utf8");
-    const rewritten = src.replace(
-      new RegExp(`from "\\./(${LIB_MODULES.join("|")})"`, "g"),
-      'from "./$1.ts"'
-    );
-    fs.writeFileSync(path.join(dir, `${name}.ts`), rewritten);
-  }
-  // pdfkit se musí rozřešit z node_modules projektu
-  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ type: "module" }));
-  fs.symlinkSync(path.resolve("node_modules"), path.join(dir, "node_modules"), "junction");
-  return import(pathToFileURL(path.join(dir, "order-pdf.ts")).href);
-}
+const lib = loadLib();
 
 // ---------------------------------------------------------------------------
 // Data
@@ -175,7 +127,7 @@ async function assertPagination(buffer, totalRows, label) {
 // ---------------------------------------------------------------------------
 // Testy
 // ---------------------------------------------------------------------------
-const { buildOrderPdfAttachment, buildDepartmentPdfAttachment } = await importOrderPdf();
+const { buildOrderPdfAttachment, buildDepartmentPdfAttachment } = await lib("order-pdf");
 
 test("souhrnné PDF se stránkuje – reálná objednávka z 21.08.2026", async () => {
   const data = makeOrderData([11, 10, 2]);

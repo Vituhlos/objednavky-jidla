@@ -385,7 +385,19 @@ export function deleteOrderRow(rowId: number): void {
   if (row) logAudit({ action: "row_delete", orderId: row.order_id as number, department: row.department as string, personName: row.person_name as string });
 }
 
-export async function sendOrder(orderId: number, source: "manual" | "auto" = "manual"): Promise<Order> {
+interface PreparedOrderEmail {
+  extraEmail: string | null;
+  recipients: string[];
+  email: { subject: string; html: string; text: string };
+  attachments: Array<{ filename: string; content: Buffer; contentType: string }>;
+}
+
+/**
+ * Načte objednávku a sestaví e-mail včetně PDF přílohy. Společné pro první
+ * odeslání i pro pozdější přeposlání — liší se jen hláška u prázdné
+ * objednávky, proto se předává parametrem.
+ */
+async function prepareOrderEmail(orderId: number, emptyMessage: string): Promise<PreparedOrderEmail> {
   const db = getDb();
   const current = db
     .prepare("SELECT * FROM orders WHERE id = ?")
@@ -395,21 +407,43 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     throw new Error("Objednávka nebyla nalezena.");
   }
 
-  const currentOrder = mapOrder(current);
   const configuredExtraEmail = getSettings().orderExtraEmail.trim();
-  const normalizedExtraEmail = configuredExtraEmail || currentOrder.extraEmail || null;
+  const extraEmail = configuredExtraEmail || mapOrder(current).extraEmail || null;
 
   const orderData = getOrderData(orderId);
-  const activeDepartments = orderData.departments.filter(isDepartmentSubmitted);
-  if (activeDepartments.length === 0) {
-    throw new Error("Nebyla nalezena žádná objednávka. V tabulkách nejsou vyplněna žádná data pro export.");
+  if (orderData.departments.filter(isDepartmentSubmitted).length === 0) {
+    throw new Error(emptyMessage);
   }
-  const recipients = getOrderRecipients(normalizedExtraEmail);
-  const email = buildOrderEmail({
-    ...orderData,
-    order: { ...orderData.order, extraEmail: normalizedExtraEmail },
+
+  return {
+    extraEmail,
+    recipients: getOrderRecipients(extraEmail),
+    email: buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail } }),
+    attachments: [await buildOrderPdfAttachment(orderData)],
+  };
+}
+
+/**
+ * Odešle e-mail a týmž PDF přepíše archiv. Obojí patří k sobě — jinak by
+ * stažení z historie a Telegram servírovaly jinou verzi, než jaká odešla.
+ */
+async function deliverAndArchive(orderId: number, prepared: PreparedOrderEmail): Promise<void> {
+  await sendEmail({
+    to: prepared.recipients,
+    subject: prepared.email.subject,
+    html: prepared.email.html,
+    text: prepared.email.text,
+    attachments: prepared.attachments,
   });
-  const attachments = [await buildOrderPdfAttachment(orderData)];
+  savePdf(orderId, prepared.attachments[0].content);
+}
+
+export async function sendOrder(orderId: number, source: "manual" | "auto" = "manual"): Promise<Order> {
+  const db = getDb();
+  const prepared = await prepareOrderEmail(
+    orderId,
+    "Nebyla nalezena žádná objednávka. V tabulkách nejsou vyplněna žádná data pro export."
+  );
 
   // Atomic claim: only one concurrent caller wins — the one whose UPDATE touches a row.
   // WHERE status = 'draft' ensures a second caller (or retry) gets changes = 0 and throws.
@@ -418,21 +452,14 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     .prepare(
       "UPDATE orders SET status = 'sent', sent_at = ?, extra_email = ? WHERE id = ? AND status = 'draft'"
     )
-    .run(sentAt, normalizedExtraEmail, orderId);
+    .run(sentAt, prepared.extraEmail, orderId);
 
   if (claim.changes === 0) {
     throw new Error("Objednávka již byla odeslána.");
   }
 
   try {
-    await sendEmail({
-      to: recipients,
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-      attachments,
-    });
-    savePdf(orderId, attachments[0].content);
+    await deliverAndArchive(orderId, prepared);
   } catch (err) {
     // Revert the claim so the user can retry after fixing SMTP
     db.prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?").run(orderId);
@@ -515,23 +542,14 @@ export function getOrderList(): OrderSummary[] {
   }));
 }
 
+/**
+ * Přepošle už odeslanou objednávku. Na rozdíl od sendOrder() si nenárokuje
+ * status — objednávka je 'sent' už teď, takže se nemění ani sent_at.
+ * Nezapisuje se ani extra_email; ten drží čas prvního odeslání.
+ */
 export async function resendOrderEmail(orderId: number): Promise<void> {
-  const db = getDb();
-  const current = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId) as Record<string, unknown> | undefined;
-  if (!current) throw new Error("Objednávka nebyla nalezena.");
-  const currentOrder = mapOrder(current);
-  const configuredExtraEmail = getSettings().orderExtraEmail.trim();
-  const normalizedExtraEmail = configuredExtraEmail || currentOrder.extraEmail || null;
-  const orderData = getOrderData(orderId);
-  const activeDepartments = orderData.departments.filter(isDepartmentSubmitted);
-  if (activeDepartments.length === 0) throw new Error("Objednávka neobsahuje žádná data k odeslání.");
-  const recipients = getOrderRecipients(normalizedExtraEmail);
-  const email = buildOrderEmail({ ...orderData, order: { ...orderData.order, extraEmail: normalizedExtraEmail } });
-  const attachments = [await buildOrderPdfAttachment(orderData)];
-  await sendEmail({ to: recipients, subject: email.subject, html: email.html, text: email.text, attachments });
-  // Archiv musí odpovídat tomu, co odešlo — jinak by stažení z historie
-  // a Telegram servírovaly starší verzi než e-mail.
-  savePdf(orderId, attachments[0].content);
+  const prepared = await prepareOrderEmail(orderId, "Objednávka neobsahuje žádná data k odeslání.");
+  await deliverAndArchive(orderId, prepared);
   logAudit({ action: "order_send", orderId, details: "Znovu odesláno" });
 }
 
