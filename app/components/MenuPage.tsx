@@ -3,9 +3,7 @@
 import { useState, useRef, useTransition, useCallback, useEffect, memo, useMemo } from "react";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { MenuItem } from "@/lib/types";
-import type { ParsedMenuItem, ParseResult } from "@/lib/parse-menu";
 import {
-  actionConfirmMenuImport,
   actionDeleteMenuWeek,
   actionAddMenuItem,
   actionUpdateMenuItem,
@@ -16,52 +14,23 @@ import {
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
-import ClosureCard from "./ClosureCard";
-import type { WeekClosure, MenuWeek } from "@/app/jidelnicek/page";
-
-// Controlled textarea that auto-grows to fit its content (used in modal)
-function AutoResizeTextarea({ value, onChange, disabled, placeholder }: {
-  value: string; onChange: (v: string) => void; disabled: boolean; placeholder?: string;
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
-  }, [value]);
-  return (
-    <textarea
-      ref={ref}
-      className="modal-input w-full resize-none overflow-hidden leading-snug"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onInput={(e) => {
-        const el = e.currentTarget;
-        el.style.height = "auto";
-        el.style.height = el.scrollHeight + "px";
-      }}
-      disabled={disabled}
-      placeholder={placeholder}
-      rows={2}
-    />
-  );
-}
-
-const DAY_ORDER = ["Po", "Út", "St", "Čt", "Pá"];
-const DAY_LABELS: Record<string, string> = {
-  Po: "Pondělí", Út: "Úterý", St: "Středa", Čt: "Čtvrtek", Pá: "Pátek",
-};
-
-function resolveActiveDay(
-  menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>,
-  visibleTodayCode: string | null,
-  currentDay?: string
-): string {
-  if (currentDay && menu[currentDay]) return currentDay;
-  if (visibleTodayCode && menu[visibleTodayCode]) return visibleTodayCode;
-  return DAY_ORDER.find((day) => menu[day]) ?? DAY_ORDER[0];
-}
+import type { MenuWeek } from "@/app/jidelnicek/page";
+import {
+  DAY_LABELS,
+  DAY_ORDER,
+  describeDay,
+  describeWeekName,
+  resolveActiveDay,
+  weekDayDates,
+  type WeekMenu,
+} from "./menu/menu-utils";
+import { useMenuDeletion } from "./menu/useMenuDeletion";
+import { useMenuImport } from "./menu/useMenuImport";
+import { MenuItemEditModal } from "./menu/MenuItemEditModal";
+import { MenuItemRow } from "./menu/MenuItemRow";
+import { MenuSection } from "./menu/MenuSection";
+import { PreviewTable } from "./menu/PreviewTable";
+import { WeekClosurePanel } from "./menu/WeekClosurePanel";
 
 interface Props {
   weeks: MenuWeek[];
@@ -70,76 +39,12 @@ interface Props {
   defaultSoupPrice: number;
 }
 
-type ImportState =
-  | { phase: "idle" }
-  | { phase: "uploading" }
-  | { phase: "preview"; result: ParseResult; targetWeekStart: string; targetLabel: string; tmpPdfName?: string }
-  | { phase: "saving" }
-  | { phase: "done" }
-  | { phase: "error"; message: string };
-
-// ── Preview table ──────────────────────────────────────────────────────────────
-
-const PreviewTable = memo(function PreviewTable({ items }: { items: ParsedMenuItem[] }) {
-  const byDay = useMemo(() => {
-    const acc: Record<string, { soups: ParsedMenuItem[]; meals: ParsedMenuItem[] }> = {};
-    for (const item of items) {
-      if (!acc[item.day]) acc[item.day] = { soups: [], meals: [] };
-      if (item.type === "Polévka") acc[item.day].soups.push(item);
-      else acc[item.day].meals.push(item);
-    }
-    return acc;
-  }, [items]);
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-      {DAY_ORDER.filter((d) => byDay[d]).map((day) => (
-        <div className="glass-soft rounded-2xl p-3" key={day}>
-          <h4 className="font-display font-bold text-[12px] text-stone-700 mb-2">{DAY_LABELS[day]}</h4>
-          {byDay[day].soups.length > 0 && (
-            <div className="mb-2">
-              <p className="font-display text-[10px] uppercase tracking-wide text-stone-500 font-semibold mb-1">Polévky</p>
-              {byDay[day].soups.map((s, i) => (
-                <p className="text-[12px] text-stone-700 py-0.5" key={i}>
-                  <span className="font-mono text-[10px] text-stone-400 mr-1">{s.code}</span>{s.name}
-                </p>
-              ))}
-            </div>
-          )}
-          {byDay[day].meals.length > 0 && (
-            <div>
-              <p className="font-display text-[10px] uppercase tracking-wide text-stone-500 font-semibold mb-1">Jídla</p>
-              {byDay[day].meals.map((m, i) => (
-                <p className="text-[12px] text-stone-700 py-0.5" key={i}>
-                  <span className="font-mono text-[10px] text-stone-400 mr-1">{m.code}</span>{m.name}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-});
-
-// ── Whole-week closure (replaces the day grid) ────────────────────────────────
-
-// Five identical "Zavřeno" cards say one thing five times. A closure covers a SPAN,
-// so when it swallows the whole week the page states it once. The card itself lives
-// in ClosureCard — the order screen shows the same one for a closed day.
-function WeekClosurePanel({ closure }: { closure: WeekClosure }) {
-  return (
-    <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav md:pb-8 pt-3">
-      <ClosureCard closure={closure} />
-    </div>
-  );
-}
-
 // ── Week grid (desktop read/edit view) ────────────────────────────────────────
 
 const WeekGrid = memo(function WeekGrid({
   menu, dayDates, todayCode, holidayNames, closureLabels, editMode, disabled, weekStart, onAdd, onEdit, onCloseDay, onOpenDay,
 }: {
-  menu: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>;
+  menu: WeekMenu;
   dayDates: Record<string, number>;
   todayCode: string | null;
   holidayNames: Record<string, string | null>;
@@ -156,15 +61,11 @@ const WeekGrid = memo(function WeekGrid({
     <div className="grid grid-cols-5 gap-3 items-start">
       {DAY_ORDER.map((day) => {
         const isToday = day === todayCode;
-        const { soups = [], meals = [] } = menu[day] ?? {};
         const holidayName = holidayNames[day];
         const dayClosure = closureLabels[day];
         const closureLabel = dayClosure?.label ?? null;
         const holidayEmoji = getHolidayEmoji(holidayName);
-        const isClosed = [...soups, ...meals].every(i => i.name === "Zavřeno") && (soups.length + meals.length) > 0;
-        const displaySoups = soups.filter(i => i.name !== "Zavřeno");
-        const displayMeals = meals.filter(i => i.name !== "Zavřeno");
-        const hasItems = displaySoups.length > 0 || displayMeals.length > 0;
+        const { isClosed, soups: displaySoups, meals: displayMeals, hasItems } = describeDay(menu[day]);
         return (
           <div
             key={day}
@@ -262,7 +163,7 @@ const WeekGrid = memo(function WeekGrid({
                       )}
                     </div>
                     {displaySoups.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
+                      <MenuItemRow disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
                     ))}
                     {displaySoups.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
@@ -285,7 +186,7 @@ const WeekGrid = memo(function WeekGrid({
                       )}
                     </div>
                     {displayMeals.map((item) => (
-                      <WeekItem disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
+                      <MenuItemRow disabled={disabled} editMode={editMode} item={item} key={item.id} onEdit={onEdit} />
                     ))}
                     {displayMeals.length === 0 && editMode && <p className="text-[11px] text-stone-300 py-0.5">Žádné</p>}
                   </div>
@@ -311,264 +212,6 @@ const WeekGrid = memo(function WeekGrid({
   );
 });
 
-const ALLERGEN_NAMES: Record<number, string> = {
-  1: "Lepek", 2: "Korýši", 3: "Vejce", 4: "Ryby", 5: "Arašídy",
-  6: "Sója", 7: "Mléko", 8: "Ořechy", 9: "Celer", 10: "Hořčice",
-  11: "Sezam", 12: "Siřičitany", 13: "Vlčí bob", 14: "Měkkýši",
-};
-
-const AllergenBadges = memo(function AllergenBadges({ allergens }: { allergens: string }) {
-  const nums = allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14);
-  if (nums.length === 0) return null;
-  return (
-    <span className="inline-flex flex-wrap gap-0.5 mt-0.5">
-      {nums.map((n) => (
-        <span
-          key={n}
-          title={ALLERGEN_NAMES[n]}
-          className="inline-block text-[11px] font-semibold leading-none px-1.5 py-0.5 rounded"
-          style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
-        >
-          {n}
-        </span>
-      ))}
-    </span>
-  );
-});
-
-function MenuItemEditModal({ item, disabled, onSave, onRequestDelete, onClose }: {
-  item: MenuItem;
-  disabled: boolean;
-  onSave: (id: number, updates: Partial<{ code: string; name: string; allergens: string }>) => void;
-  onRequestDelete: (id: number) => void;
-  onClose: () => void;
-}) {
-  const [code, setCode] = useState(item.code);
-  const [name, setName] = useState(item.name);
-  const [activeAllergens, setActiveAllergens] = useState<Set<number>>(() =>
-    new Set(item.allergens.split(/[\s,;]+/).map(Number).filter((n) => n >= 1 && n <= 14))
-  );
-
-  const toggleAllergen = (n: number) => {
-    setActiveAllergens((prev) => {
-      const next = new Set(prev);
-      if (next.has(n)) next.delete(n); else next.add(n);
-      return next;
-    });
-  };
-
-  const handleSave = () => {
-    const allergenStr = [...activeAllergens].sort((a, b) => a - b).join(",");
-    onSave(item.id, { code, name, allergens: allergenStr });
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-sheet !w-full sm:!w-[420px]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="item-edit-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="item-edit-modal-title">
-            Upravit {item.type === "Polévka" ? "polévku" : "jídlo"}
-          </h3>
-          <button
-            aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500"
-            onClick={onClose}
-            type="button"
-          >
-            <MIcon name="close" size={16} />
-          </button>
-        </div>
-        <div className="modal-sheet__body space-y-4">
-          <div>
-            <label className="modal-label">Kód</label>
-            <input
-              className="modal-input w-20 mt-1"
-              disabled={disabled}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="modal-label">Název</label>
-            <div className="mt-1">
-              <AutoResizeTextarea
-                disabled={disabled}
-                onChange={setName}
-                placeholder="Název jídla"
-                value={name}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="modal-label">Alergeny</label>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => {
-                const active = activeAllergens.has(n);
-                return (
-                  <button
-                    key={n}
-                    disabled={disabled}
-                    onClick={() => toggleAllergen(n)}
-                    title={ALLERGEN_NAMES[n]}
-                    aria-label={`Alergen ${n}: ${ALLERGEN_NAMES[n]}`}
-                    type="button"
-                    className="w-11 h-11 rounded-lg text-[13px] font-bold transition active:scale-95"
-                    style={active
-                      ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 6px -1px rgba(234,88,12,0.30)" }
-                      : { background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.6)", color: "#78716c" }
-                    }
-                  >{n}</button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        <div className="modal-sheet__footer">
-          <button
-            className="modal-btn modal-btn--danger"
-            disabled={disabled}
-            onClick={() => { onRequestDelete(item.id); onClose(); }}
-            type="button"
-          >
-            Smazat
-          </button>
-          <button
-            className="modal-btn modal-btn--primary"
-            disabled={disabled}
-            onClick={handleSave}
-            type="button"
-          >
-            Uložit
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const WeekItem = memo(function WeekItem({
-  item, editMode, disabled, onEdit,
-}: {
-  item: MenuItem;
-  editMode: boolean;
-  disabled: boolean;
-  onEdit: (item: MenuItem) => void;
-}) {
-  return (
-    <div className="flex items-start gap-1.5 py-1">
-      <span className="font-mono text-[11px] text-stone-600 w-5 shrink-0 text-right mt-[3px]">{item.code}</span>
-      <span className="flex-1 min-w-0 text-[13px] font-medium text-stone-800 leading-snug">
-        {item.name}
-        {item.allergens && <AllergenBadges allergens={item.allergens} />}
-      </span>
-      {editMode ? (
-        <button
-          aria-label="Upravit"
-          className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-stone-500 bg-stone-100/70 hover:text-amber-600 hover:bg-amber-50 transition shrink-0 mt-[1px]"
-          disabled={disabled}
-          onClick={() => onEdit(item)}
-          type="button"
-        >
-          <MIcon name="edit" size={14} />
-        </button>
-      ) : (
-        <span className="shrink-0 text-[12px] font-semibold text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
-      )}
-    </div>
-  );
-});
-
-// ── Menu section (mobile) ──────────────────────────────────────────────────────
-
-const MenuSection = memo(function MenuSection({
-  title,
-  icon,
-  accent,
-  iconColor,
-  items,
-  disabled,
-  editMode,
-  emptyLabel,
-  onAdd,
-  onEdit,
-}: {
-  title: string;
-  icon: string;
-  accent: string;
-  iconColor: string;
-  items: MenuItem[];
-  disabled: boolean;
-  editMode: boolean;
-  emptyLabel: string;
-  onAdd?: () => void;
-  onEdit?: (item: MenuItem) => void;
-}) {
-  return (
-    <div className="glass-card rounded-3xl overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: accent }}>
-        <MIcon name={icon} size={17} fill style={{ color: iconColor }} />
-        <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
-        {editMode && onAdd && (
-          <button
-            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-            disabled={disabled}
-            onClick={onAdd}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-            type="button"
-          >
-            <MIcon name="add" size={13} /> Přidat
-          </button>
-        )}
-      </div>
-      {items.length === 0 ? (
-        <div className="px-4 py-4 text-[12.5px] text-stone-400 text-center">{emptyLabel}</div>
-      ) : editMode ? (
-        <div className="px-4 divide-y divide-white/30">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-start gap-2 py-2.5">
-              <span className="font-mono text-[11px] text-stone-400 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
-              <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
-                {item.name}
-                {item.allergens && <AllergenBadges allergens={item.allergens} />}
-              </span>
-              <button
-                className="w-10 h-10 rounded-xl inline-flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50/80 transition shrink-0"
-                disabled={disabled}
-                onClick={() => onEdit?.(item)}
-                title="Upravit"
-                type="button"
-              >
-                <MIcon name="edit" size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        items.map((item, i) => (
-          <div
-            key={item.id}
-            className={`flex items-start gap-2 px-4 py-2.5 ${i < items.length - 1 ? "border-b border-white/30" : ""}`}
-          >
-            <span className="font-mono text-[11px] text-stone-600 w-6 shrink-0 text-right mt-[3px]">{item.code}</span>
-            <span className="flex-1 min-w-0 text-[13px] text-stone-800 leading-snug">
-              {item.name}
-              {item.allergens && <AllergenBadges allergens={item.allergens} />}
-            </span>
-            <span className="shrink-0 font-semibold text-[12.5px] text-stone-600 tabular-nums mt-[2px]">{item.price} Kč</span>
-          </div>
-        ))
-      )}
-    </div>
-  );
-});
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function MenuPage({
@@ -581,13 +224,10 @@ export default function MenuPage({
   const [activeWeekStart, setActiveWeekStart] = useState(currentWeekStart);
   // Optimistic per-week overrides of the server menu, keyed by weekStart.
   // Replaces the old pair of currentMenu/nextMenu states.
-  const [menuEdits, setMenuEdits] = useState<Record<string, Record<string, { soups: MenuItem[]; meals: MenuItem[] }>>>({});
+  const [menuEdits, setMenuEdits] = useState<Record<string, WeekMenu>>({});
   const prevWeeksRef = useRef(weeks);
   const [editMode, setEditMode] = useState(false);
-  const [importState, setImportState] = useState<ImportState>({ phase: "idle" });
   const [isDragging, setIsDragging] = useState(false);
-  const [confirmDeleteNext, setConfirmDeleteNext] = useState(false);
-  const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -604,10 +244,7 @@ export default function MenuPage({
   const visibleTodayCode = activeWeekData.isCurrent ? todayCode : null;
   // Any non-current week holding a menu can be deleted (was: only "next week")
   const canDeleteActiveWeek = !activeWeekData.isCurrent && Object.keys(activeWeekData.menu).length > 0;
-  // The delete affordance now follows the displayed week, so its wording must too
-  const activeWeekName = activeWeekData.tabLabel === "Příští týden"
-    ? "příští týden"
-    : `týden ${activeWeekData.tabLabel}`;
+  const activeWeekName = describeWeekName(activeWeekData.tabLabel);
   const weekLabelOf = useCallback(
     (weekStart: string) => weeks.find((w) => w.weekStart === weekStart)?.weekLabel ?? null,
     [weeks]
@@ -629,67 +266,18 @@ export default function MenuPage({
     [activeDayOverride, activeMenu, visibleTodayCode]
   );
 
-  const handleWeekSwitch = (weekStart: string) => {
-    setActiveWeekStart(weekStart);
-    setActiveDayOverride(null);
-    setEditMode(false);
-    setConfirmDeleteNext(false);
-  };
+  // ── Optimistické úpravy položek ───────────────────────────────────────────
 
-  // ── Import ────────────────────────────────────────────────────────────────
-
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setImportState({ phase: "error", message: "Soubor musí být PDF." });
-      return;
-    }
-    setImportState({ phase: "uploading" });
-    const fd = new FormData();
-    fd.append("file", file);
-    try {
-      const res = await fetch("/api/menu/import", { method: "POST", body: fd });
-      const data = await res.json() as ParseResult;
-      if (!res.ok) {
-        setImportState({ phase: "error", message: (data as { error?: string }).error ?? "Neznámá chyba." });
-        return;
-      }
-      const detectedStart = data.weekStart;
-      let targetWeekStart: string;
-      let targetLabel: string;
-      if (detectedStart === nextWeekStart) {
-        targetWeekStart = nextWeekStart;
-        targetLabel = `příští týden${weekLabelOf(nextWeekStart) ? ` (${weekLabelOf(nextWeekStart)})` : ""}`;
-      } else if (detectedStart && detectedStart !== currentWeekStart) {
-        targetWeekStart = detectedStart;
-        targetLabel = data.weekLabel ?? detectedStart;
-      } else {
-        targetWeekStart = currentWeekStart;
-        targetLabel = `aktuální týden${weekLabelOf(currentWeekStart) ? ` (${weekLabelOf(currentWeekStart)})` : ""}`;
-      }
-      setImportState({ phase: "preview", result: data, targetWeekStart, targetLabel, tmpPdfName: data.tmpPdfName });
-    } catch {
-      setImportState({ phase: "error", message: "Síťová chyba. Zkuste to znovu." });
-    }
-  }, [currentWeekStart, nextWeekStart, weekLabelOf]);
-
-  const handleConfirm = () => {
-    if (importState.phase !== "preview") return;
-    const { result, targetWeekStart, tmpPdfName } = importState;
-    setImportState({ phase: "saving" });
-    startTransition(async () => {
-      const label = result.weekLabel ?? targetWeekStart;
-      await actionConfirmMenuImport(targetWeekStart, label, result.items, tmpPdfName);
-      setImportState({ phase: "done" });
-      router.refresh();
-    });
-  };
-
-  // ── Edit mode ─────────────────────────────────────────────────────────────
+  // Úpravy se zapisují vždy do přepisu pro *aktivní* týden; jako výchozí stav
+  // se bere serverové menu, dokud pro ten týden žádný přepis neexistuje.
+  const setActiveWeekMenu = useCallback(
+    (fn: (prev: WeekMenu) => WeekMenu) =>
+      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) })),
+    [activeWeekStart, activeWeekData]
+  );
 
   const handleUpdate = useCallback((id: number, updates: Partial<{ code: string; name: string; price: number; allergens: string }>) => {
-    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
-      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
-    setMenu((prev) => {
+    setActiveWeekMenu((prev) => {
       const next = { ...prev };
       for (const day of Object.keys(next)) {
         next[day] = {
@@ -700,14 +288,12 @@ export default function MenuPage({
       return next;
     });
     startTransition(async () => { await actionUpdateMenuItem(id, updates); });
-  }, [activeWeekStart, activeWeekData]);
+  }, [setActiveWeekMenu]);
 
   const handleDelete = useCallback((id: number) => {
-    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
-      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
     startTransition(async () => {
       await actionDeleteMenuItem(id);
-      setMenu((prev) => {
+      setActiveWeekMenu((prev) => {
         const next = { ...prev };
         for (const day of Object.keys(next)) {
           next[day] = {
@@ -718,11 +304,9 @@ export default function MenuPage({
         return next;
       });
     });
-  }, [activeWeekStart, activeWeekData]);
+  }, [setActiveWeekMenu]);
 
   const handleAdd = useCallback((day: string, type: "Polévka" | "Jídlo") => {
-    const setMenu = (fn: (prev: Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) => Record<string, { soups: MenuItem[]; meals: MenuItem[] }>) =>
-      setMenuEdits((edits) => ({ ...edits, [activeWeekStart]: fn(edits[activeWeekStart] ?? activeWeekData.menu) }));
     startTransition(async () => {
       const newItem = await actionAddMenuItem({
         day, type,
@@ -731,7 +315,7 @@ export default function MenuPage({
         price: type === "Polévka" ? defaultSoupPrice : defaultMealPrice,
         weekStart: activeWeekStart,
       });
-      setMenu((prev) => {
+      setActiveWeekMenu((prev) => {
         const dayData = prev[day] ?? { soups: [], meals: [] };
         return {
           ...prev,
@@ -743,34 +327,58 @@ export default function MenuPage({
       });
       setEditingItem(newItem);
     });
-  }, [activeWeekStart, activeWeekData, defaultSoupPrice, defaultMealPrice]);
+  }, [activeWeekStart, setActiveWeekMenu, defaultSoupPrice, defaultMealPrice]);
 
-  const handleDeleteNextWeek = () => {
-    setConfirmDeleteNext(false);
+  // ── Domény ────────────────────────────────────────────────────────────────
+
+  const refresh = useCallback(() => router.refresh(), [router]);
+
+  const handleDeleteWeek = useCallback(() => {
     startTransition(async () => {
       await actionDeleteMenuWeek(activeWeekStart);
-      router.refresh();
+      refresh();
     });
-  };
+  }, [activeWeekStart, refresh]);
 
-  const isImportOpen = importState.phase !== "idle" && importState.phase !== "done";
-  const dayMenu = activeMenu[activeDay] ?? { soups: [], meals: [] };
+  const deletion = useMenuDeletion({ onDeleteItem: handleDelete, onDeleteWeek: handleDeleteWeek });
+
+  const menuImport = useMenuImport({
+    currentWeekStart,
+    nextWeekStart,
+    weekLabelOf,
+    startTransition,
+    onImported: refresh,
+  });
+
+  const { importState, closeImport, openImport } = menuImport;
+  const { cancelDeleteWeek } = deletion;
+
+  const handleWeekSwitch = useCallback((weekStart: string) => {
+    setActiveWeekStart(weekStart);
+    setActiveDayOverride(null);
+    setEditMode(false);
+    cancelDeleteWeek();
+  }, [cancelDeleteWeek]);
+
+  // Úpravy a import se navzájem vylučují — otevření jednoho zavírá druhý.
+  const handleToggleEdit = useCallback(() => {
+    setEditMode((v) => !v);
+    closeImport();
+  }, [closeImport]);
+
+  const handleOpenImport = useCallback(() => {
+    setEditMode(false);
+    openImport();
+  }, [openImport]);
+
+  const dayView = describeDay(activeMenu[activeDay]);
   const activeHolidayName = activeHolidayNames[activeDay];
   const activeClosure = activeClosureLabels[activeDay];
   const activeClosureLabel = activeClosure?.label ?? null;
   const activeHolidayEmoji = getHolidayEmoji(activeHolidayName);
-  const isDayClosed = [...dayMenu.soups, ...dayMenu.meals].every(i => i.name === "Zavřeno") && (dayMenu.soups.length + dayMenu.meals.length) > 0;
-  const displayDaySoups = dayMenu.soups.filter(i => i.name !== "Zavřeno");
-  const displayDayMeals = dayMenu.meals.filter(i => i.name !== "Zavřeno");
   const isReadOnly = false;
 
-  const dayDates: Record<string, number> = {};
-  const weekBase = new Date(activeWeekStart + "T00:00:00");
-  DAY_ORDER.forEach((d, i) => {
-    const dt = new Date(weekBase);
-    dt.setDate(weekBase.getDate() + i);
-    dayDates[d] = dt.getDate();
-  });
+  const dayDates = weekDayDates(activeWeekStart);
 
   return (
     <div className="k-shell">
@@ -790,7 +398,7 @@ export default function MenuPage({
         <div className="ml-auto flex items-center gap-2">
           <button
             className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+            onClick={handleToggleEdit}
             type="button"
           >
             {editMode ? "Zavřít úpravu" : "Upravit ručně"}
@@ -799,7 +407,7 @@ export default function MenuPage({
             <button
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
               disabled={isPending}
-              onClick={() => setConfirmDeleteNext(true)}
+              onClick={deletion.requestDeleteWeek}
               type="button"
             >
               Smazat {activeWeekName}
@@ -807,7 +415,7 @@ export default function MenuPage({
           )}
           <button
             className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-            onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
+            onClick={handleOpenImport}
             type="button"
           >
             <MIcon name="upload_file" size={14} /> Import PDF
@@ -822,7 +430,7 @@ export default function MenuPage({
           {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
           <button
             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
-            onClick={() => { setEditMode(false); setImportState({ phase: "uploading" }); }}
+            onClick={handleOpenImport}
             type="button"
           >
             <MIcon name="upload_file" size={13} /> PDF
@@ -861,7 +469,7 @@ export default function MenuPage({
         {activeWeekData.isCurrent && (
           <button
             className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={() => { setEditMode((v) => !v); setImportState({ phase: "idle" }); }}
+            onClick={handleToggleEdit}
             type="button"
           >
             {editMode ? "Zavřít" : "Upravit"}
@@ -924,7 +532,7 @@ export default function MenuPage({
       <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav">
         <div className="space-y-3">
           <div className="font-display font-bold text-[17px] text-stone-900 mb-1 pt-2">{DAY_LABELS[activeDay]}</div>
-          {isDayClosed ? (
+          {dayView.isClosed ? (
             <div className="glass-card rounded-3xl overflow-hidden">
               <div
                 className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40"
@@ -995,7 +603,7 @@ export default function MenuPage({
                 emptyLabel="Žádné polévky pro tento den."
                 icon="restaurant"
                 iconColor="#D97706"
-                items={displayDaySoups}
+                items={dayView.soups}
                 onAdd={() => handleAdd(activeDay, "Polévka")}
                 onEdit={(item) => setEditingItem(item)}
                 title="Polévky"
@@ -1007,7 +615,7 @@ export default function MenuPage({
                 emptyLabel="Žádná jídla pro tento den."
                 icon="restaurant_menu"
                 iconColor="#EA580C"
-                items={displayDayMeals}
+                items={dayView.meals}
                 onAdd={() => handleAdd(activeDay, "Jídlo")}
                 onEdit={(item) => setEditingItem(item)}
                 title="Jídla"
@@ -1035,36 +643,36 @@ export default function MenuPage({
           disabled={isPending}
           item={editingItem}
           onClose={() => setEditingItem(null)}
-          onRequestDelete={(id) => { setEditingItem(null); setConfirmDeleteItemId(id); }}
+          onRequestDelete={(id) => { setEditingItem(null); deletion.requestDeleteItem(id); }}
           onSave={(id, updates) => handleUpdate(id, updates)}
         />
       )}
 
       {/* Confirm modals */}
-      {confirmDeleteItemId !== null && (
+      {deletion.pendingItemId !== null && (
         <ConfirmModal
           message="Tato položka jídelníčku bude trvale odstraněna."
-          onClose={() => setConfirmDeleteItemId(null)}
-          onConfirm={() => { handleDelete(confirmDeleteItemId); setConfirmDeleteItemId(null); }}
+          onClose={deletion.cancelDeleteItem}
+          onConfirm={deletion.confirmDeleteItem}
           title="Smazat položku"
         />
       )}
-      {confirmDeleteNext && (
+      {deletion.isWeekConfirmOpen && (
         <ConfirmModal
           confirmLabel="Smazat"
           isPending={isPending}
           message={`Celý jídelníček (${activeWeekName}) bude trvale odstraněn.`}
-          onClose={() => setConfirmDeleteNext(false)}
-          onConfirm={handleDeleteNextWeek}
+          onClose={deletion.cancelDeleteWeek}
+          onConfirm={deletion.confirmDeleteWeek}
           title={`Smazat ${activeWeekName}`}
         />
       )}
 
       {/* Import modal */}
-      {isImportOpen && (
+      {menuImport.isImportOpen && (
         <div
           className="modal-overlay"
-          onClick={() => setImportState({ phase: "idle" })}
+          onClick={closeImport}
         >
           <div
             className={`modal-sheet${importState.phase === "preview" ? " !w-full sm:!w-[760px]" : ""}`}
@@ -1080,7 +688,7 @@ export default function MenuPage({
               <button
                 aria-label="Zavřít"
                 className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 font-bold"
-                onClick={() => setImportState({ phase: "idle" })}
+                onClick={closeImport}
                 type="button"
               >
                 <MIcon name="close" size={16} />
@@ -1094,11 +702,11 @@ export default function MenuPage({
                     onClick={() => fileInputRef.current?.click()}
                     onDragLeave={() => setIsDragging(false)}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) menuImport.handleFile(f); }}
                   >
                     <MIcon name="upload_file" size={32} style={{ color: "#D97706" }} />
                     <p className="text-[13px] text-stone-600 text-center">Přetáhněte PDF sem nebo klikněte pro výběr</p>
-                    <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
+                    <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) menuImport.handleFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
                   </div>
                   <p className="text-[12px] text-stone-400 text-center">Čekám na soubor...</p>
                 </>
@@ -1106,7 +714,7 @@ export default function MenuPage({
               {importState.phase === "error" && (
                 <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-[13px] text-red-700">
                   <strong>Chyba:</strong> {importState.message}
-                  <button className="ml-3 text-[12px] font-semibold text-red-600 underline" onClick={() => setImportState({ phase: "uploading" })} type="button">Zkusit znovu</button>
+                  <button className="ml-3 text-[12px] font-semibold text-red-600 underline" onClick={menuImport.retryImport} type="button">Zkusit znovu</button>
                 </div>
               )}
               {importState.phase === "preview" && (
@@ -1120,7 +728,7 @@ export default function MenuPage({
                       <span className="text-[11px] text-stone-400">Uložit jako:</span>
                       <button
                         className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${importState.targetWeekStart === currentWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
-                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: currentWeekStart, targetLabel: `aktuální týden${weekLabelOf(currentWeekStart) ? ` (${weekLabelOf(currentWeekStart)})` : ""}` } : prev)}
+                        onClick={menuImport.selectCurrentWeek}
                         style={importState.targetWeekStart === currentWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                         type="button"
                       >
@@ -1128,7 +736,7 @@ export default function MenuPage({
                       </button>
                       <button
                         className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${importState.targetWeekStart === nextWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
-                        onClick={() => setImportState((prev) => prev.phase === "preview" ? { ...prev, targetWeekStart: nextWeekStart, targetLabel: `příští týden${weekLabelOf(nextWeekStart) ? ` (${weekLabelOf(nextWeekStart)})` : ""}` } : prev)}
+                        onClick={menuImport.selectNextWeek}
                         style={importState.targetWeekStart === nextWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                         type="button"
                       >
@@ -1145,8 +753,8 @@ export default function MenuPage({
             </div>
             {importState.phase === "preview" && (
               <div className="modal-sheet__footer">
-                <button className="modal-btn modal-btn--secondary" onClick={() => setImportState({ phase: "idle" })} type="button">Zrušit</button>
-                <button className="modal-btn modal-btn--primary" disabled={isPending} onClick={handleConfirm} type="button">
+                <button className="modal-btn modal-btn--secondary" onClick={closeImport} type="button">Zrušit</button>
+                <button className="modal-btn modal-btn--primary" disabled={isPending} onClick={menuImport.confirmImport} type="button">
                   {isPending ? "Ukládám..." : "Uložit jídelníček"}
                 </button>
               </div>
