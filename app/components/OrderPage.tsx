@@ -7,6 +7,10 @@ import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry
 import { computeRowPrice, EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
 import { isCutoffPassed, isCutoffLifted, forceOpenStamp } from "@/lib/cutoff";
+import { usePushNotifications } from "./order/usePushNotifications";
+import { useRowDeletion } from "./order/useRowDeletion";
+import { useDayNavigation } from "./order/useDayNavigation";
+import { useOrderSync } from "./order/useOrderSync";
 import {
   addDays,
   buildPickerItems,
@@ -193,27 +197,6 @@ export default function OrderPage({
   const router = useRouter();
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
 
-  const pickerItems = useMemo(
-    () => buildPickerItems(availableDates ?? [], closedDates ?? [], closureRanges ?? []),
-    [availableDates, closedDates, closureRanges]
-  );
-  const showDayPicker = !!(pickerItems.length > 1 && todayDate);
-
-  // Last day people can still order before the closure starts — the actionable part
-  // of the heads-up ("objednej si, než zavřou").
-  const lastOrderableBeforeClosure = useMemo(() => {
-    if (!upcomingClosure) return null;
-    const before = (availableDates ?? []).filter((d) => d < upcomingClosure.startDate);
-    return before.length > 0 ? before[before.length - 1] : null;
-  }, [availableDates, upcomingClosure]);
-
-  // First day people can order again — only shown when a menu for it already exists,
-  // otherwise we'd be promising a date nobody has confirmed.
-  const reopensAfterClosure = useMemo(() => {
-    if (!upcomingClosure) return null;
-    return (availableDates ?? []).find((d) => d > upcomingClosure.endDate) ?? null;
-  }, [availableDates, upcomingClosure]);
-
   const [departments, setDepartments] = useState(initialData.departments);
   const departmentsRef = useRef(initialData.departments);
   useEffect(() => { departmentsRef.current = departments; }, [departments]);
@@ -228,13 +211,30 @@ export default function OrderPage({
   const justSentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [pendingDate, setPendingDate] = useState<string | null>(null);
-  const daySwitchPending = pendingDate !== null && pendingDate !== selectedDate;
+  const {
+    pickerItems,
+    showDayPicker,
+    daySwitchPending,
+    goToDate,
+    lastOrderableBeforeClosure,
+    reopensAfterClosure,
+  } = useDayNavigation({
+    availableDates,
+    closedDates,
+    closureRanges,
+    selectedDate,
+    todayDate,
+    upcomingClosure,
+    startTransition,
+  });
 
-  type PendingDelete = { rowId: number; rowData: OrderRowEnriched; deptName: string };
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
-  const pendingDeleteRef = useRef<PendingDelete | null>(null);
-  const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    pendingDelete,
+    handleDeleteRow,
+    handleUndoDelete,
+    flushPendingDelete,
+    clearPendingDelete,
+  } = useRowDeletion({ departmentsRef, setDepartments });
 
   const [forceOpenValue, setForceOpenValue] = useState(forceOpenAt);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
@@ -254,16 +254,9 @@ export default function OrderPage({
     setJustSent(false);
     setSendError(null);
     if (justSentTimer.current) { clearTimeout(justSentTimer.current); justSentTimer.current = null; }
-    if (pendingDeleteTimer.current) {
-      clearTimeout(pendingDeleteTimer.current);
-      pendingDeleteTimer.current = null;
-      if (pendingDeleteRef.current) {
-        actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
-        pendingDeleteRef.current = null;
-      }
-    }
-    setPendingDelete(null);
-  }, [initialData.departments, initialData.order.id, initialData.order.sentAt, initialData.order.status]);
+    flushPendingDelete();
+    clearPendingDelete();
+  }, [clearPendingDelete, flushPendingDelete, initialData.departments, initialData.order.id, initialData.order.sentAt, initialData.order.status]);
 
   const isSent = orderStatus === "sent";
   // ── Live cutoff check ─────────────────────────────────────
@@ -288,178 +281,17 @@ export default function OrderPage({
   const isCutoffLocked = isPastCutoff && !isForceOpen && !isFutureDay;
   const isOrderLocked = isSent || isCutoffLocked;
 
+  const { pushState, handlePushToggle, getPushEndpoint } = usePushNotifications();
+
   // ── Real-time sync via SSE ────────────────────────────────
-  const [sseConnected, setSseConnected] = useState(false);
-
-  // ── Push notifikace ───────────────────────────────────────
-  const [pushState, setPushState] = useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
-    if (Notification.permission === "denied") return "denied";
-    return "unsubscribed";
+  const { sseConnected, hasEverConnected, doRefresh } = useOrderSync({
+    isPending,
+    isFutureDay,
+    selectedDate,
+    setDepartments,
+    setOrderStatus,
+    setSentAt,
   });
-
-  useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (Notification.permission === "denied") return;
-    let cancelled = false;
-    navigator.serviceWorker.ready.then(async (reg) => {
-      const existing = await reg.pushManager.getSubscription();
-      if (cancelled) return;
-      setPushState(existing ? "subscribed" : "unsubscribed");
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  const handlePushToggle = useCallback(async () => {
-    if (pushState === "unsupported" || pushState === "denied") return;
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      if (pushState === "subscribed") {
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
-          await sub.unsubscribe();
-        }
-        setPushState("unsubscribed");
-        return;
-      }
-      const { publicKey } = await fetch("/api/push").then((r) => r.json());
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: publicKey });
-      const res = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
-      if (!res.ok) { await sub.unsubscribe(); return; }
-      setPushState("subscribed");
-    } catch {
-      // Uživatel odmítl oprávnění nebo selhal server — nic nezměníme
-      if (Notification.permission === "denied") setPushState("denied");
-    }
-  }, [pushState]);
-  const [hasEverConnected, setHasEverConnected] = useState(false);
-  const isPendingRef = useRef(isPending);
-  useEffect(() => { isPendingRef.current = isPending; }, [isPending]);
-  const isFutureDayRef = useRef(isFutureDay);
-  useEffect(() => { isFutureDayRef.current = isFutureDay; }, [isFutureDay]);
-  const selectedDateRef = useRef(selectedDate);
-  const refreshAbortRef = useRef<AbortController | null>(null);
-  useEffect(() => {
-    // Cancel any stale refresh for the previous date
-    refreshAbortRef.current?.abort();
-    selectedDateRef.current = selectedDate;
-  }, [selectedDate]);
-
-  useEffect(() => {
-    if (!availableDates || !showDayPicker) return;
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if ((e.target as HTMLElement).isContentEditable) return;
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const idx = availableDates.indexOf(selectedDate ?? "");
-      const next = e.key === "ArrowLeft" ? idx - 1 : idx + 1;
-      if (next >= 0 && next < availableDates.length) {
-        e.preventDefault();
-        const nextDate = availableDates[next];
-        setPendingDate(nextDate);
-        startTransition(() => { router.push(`/?date=${nextDate}`); });
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [availableDates, selectedDate, showDayPicker, startTransition, router]);
-
-  const tabNotifCount = useRef(0);
-  const originalTitle = useRef<string>("");
-
-  const doRefresh = useCallback(() => {
-    if (isPendingRef.current) return;
-    if (isFutureDayRef.current) return;
-    // Cancel any in-flight refresh for a previous date
-    refreshAbortRef.current?.abort();
-    const ac = new AbortController();
-    refreshAbortRef.current = ac;
-    const requestedDate = selectedDateRef.current;
-    const params = new URLSearchParams();
-    if (requestedDate) params.set("date", requestedDate);
-    const refreshUrl = params.size > 0 ? `/api/order-refresh?${params.toString()}` : "/api/order-refresh";
-    fetch(refreshUrl, { signal: ac.signal })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: { departments: DepartmentData[]; totalPrice: number; status: string; sentAt: string | null } | null) => {
-        if (!data) return;
-        // Discard response if the user navigated to a different day while this was in flight
-        if (requestedDate !== selectedDateRef.current) return;
-        setDepartments(data.departments);
-        setOrderStatus(data.status as "draft" | "sent");
-        if (data.sentAt) setSentAt(data.sentAt);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    originalTitle.current = document.title;
-    const resetTitle = () => {
-      if (tabNotifCount.current > 0) {
-        tabNotifCount.current = 0;
-        document.title = originalTitle.current;
-        doRefresh();
-      }
-    };
-    const onVisibility = () => { if (!document.hidden) resetTitle(); };
-    window.addEventListener("focus", resetTitle);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.removeEventListener("focus", resetTitle);
-      document.removeEventListener("visibilitychange", onVisibility);
-      document.title = originalTitle.current;
-    };
-  }, [doRefresh]);
-
-  useEffect(() => {
-    let es: EventSource | null = null;
-    let reconnectDelay = 1000;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let unmounted = false;
-
-    function connect() {
-      es = new EventSource("/api/sse");
-      es.addEventListener("open", () => {
-        reconnectDelay = 1000;
-        setSseConnected(true);
-        setHasEverConnected(true);
-      });
-      es.addEventListener("error", () => {
-        setSseConnected(false);
-        es?.close();
-        es = null;
-        if (unmounted) return;
-        reconnectTimer = setTimeout(() => {
-          reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
-          connect();
-        }, reconnectDelay);
-      });
-      es.addEventListener("change", () => {
-        setSseConnected(true);
-        if (document.hidden) {
-          tabNotifCount.current += 1;
-          document.title = `(${tabNotifCount.current}) Změna v objednávce`;
-          return;
-        }
-        doRefresh();
-      });
-    }
-
-    connect();
-    return () => {
-      unmounted = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      es?.close();
-    };
-  }, [doRefresh]);
-
-  const getPushEndpoint = useCallback(async (): Promise<string | undefined> => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return undefined;
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    return sub?.endpoint ?? undefined;
-  }, []);
 
   const handleAddRow = useCallback(
     async (department: Department): Promise<number> => {
@@ -568,53 +400,6 @@ export default function OrderPage({
     }
   }, [unlockPin]);
 
-  const commitDelete = useCallback((rowId: number) => {
-    actionDeleteRow(rowId).catch(() => {});
-    setPendingDelete(null);
-    pendingDeleteRef.current = null;
-    pendingDeleteTimer.current = null;
-  }, []);
-
-  const handleDeleteRow = useCallback((rowId: number) => {
-    if (pendingDeleteTimer.current && pendingDeleteRef.current) {
-      clearTimeout(pendingDeleteTimer.current);
-      commitDelete(pendingDeleteRef.current.rowId);
-    }
-
-    // Find and capture row data before removing from UI
-    const dept = departmentsRef.current.find((d) => d.rows.some((r) => r.id === rowId));
-    const rowData = dept?.rows.find((r) => r.id === rowId);
-
-    // Optimistic remove
-    setDepartments((prev) =>
-      recalcDepartments(prev.map((d) => ({ ...d, rows: d.rows.filter((r) => r.id !== rowId) })))
-    );
-
-    if (!rowData || !dept) {
-      actionDeleteRow(rowId).catch(() => {});
-      return;
-    }
-
-    const info: PendingDelete = { rowId, rowData, deptName: dept.name };
-    pendingDeleteRef.current = info;
-    setPendingDelete(info);
-    pendingDeleteTimer.current = setTimeout(() => commitDelete(rowId), 5000);
-  }, [commitDelete]);
-
-  const handleUndoDelete = useCallback(() => {
-    if (!pendingDeleteTimer.current || !pendingDeleteRef.current) return;
-    clearTimeout(pendingDeleteTimer.current);
-    pendingDeleteTimer.current = null;
-    const { deptName, rowData } = pendingDeleteRef.current;
-    pendingDeleteRef.current = null;
-    setDepartments((prev) =>
-      recalcDepartments(
-        prev.map((d) => d.name === deptName ? { ...d, rows: [...d.rows, rowData] } : d)
-      )
-    );
-    setPendingDelete(null);
-  }, []);
-
   const handleSend = () => {
     if (isSent) return;
     setSendError(null);
@@ -695,16 +480,9 @@ export default function OrderPage({
   useEffect(() => {
     return () => {
       if (justSentTimer.current) clearTimeout(justSentTimer.current);
-      if (pendingDeleteTimer.current) {
-        clearTimeout(pendingDeleteTimer.current);
-        pendingDeleteTimer.current = null;
-        if (pendingDeleteRef.current) {
-          actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
-          pendingDeleteRef.current = null;
-        }
-      }
+      flushPendingDelete();
     };
-  }, []);
+  }, [flushPendingDelete]);
 
   const showOfflineBanner = hasEverConnected && !sseConnected;
 
@@ -987,10 +765,7 @@ export default function OrderPage({
                           <button
                             className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap text-stone-600 transition-all duration-200 hover:text-stone-800 hover:bg-white/60 active:scale-[0.96]"
                             key={`gap-${item.from}`}
-                            onClick={() => {
-                              setPendingDate(todayDate!);
-                              startTransition(() => { router.push(`/?date=${todayDate}`); });
-                            }}
+                            onClick={() => goToDate(todayDate!)}
                             title="Zpět na dnešek — v tyto dny se nevaří"
                             type="button"
                           >
@@ -1021,7 +796,7 @@ export default function OrderPage({
                         className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                           isActive ? "" : "text-stone-600 hover:text-stone-800 hover:bg-white/60"
                         }`}
-                        onClick={() => { if (isActive) return; setPendingDate(date); startTransition(() => { router.push(`/?date=${date}`); }); }}
+                        onClick={() => { if (isActive) return; goToDate(date); }}
                         style={isActive ? {
                           background: "linear-gradient(135deg,#F59E0B,#EA580C)",
                           color: "white",
