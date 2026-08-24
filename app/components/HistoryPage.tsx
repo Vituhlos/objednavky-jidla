@@ -4,38 +4,34 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
-import MIcon from "./MIcon";
+import { HistoryRecords } from "./history/history-records";
 import {
   countSentHistoryRecords,
   countVisibleHistoryRecords,
   filterHistoryRecords,
-  formatHistoryDate,
-  formatHistorySentAt,
   toLunchHistoryRecords,
   toPizzaHistoryRecords,
 } from "./history/history-utils";
 
-function StatusBadge({ status }: { status: string }) {
-  const sent = status === "sent";
+/** Přepínač „skrýt prázdné koncepty“ — na desktopu i na mobilu stejný. */
+function HideEmptyToggle({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-      style={sent
-        ? { background: "rgba(21,128,61,0.12)", color: "#15803d" }
-        : { background: "rgba(26,18,8,0.07)", color: "#7a6552" }}
-    >
-      {sent ? "Odesláno" : "Koncept"}
-    </span>
-  );
-}
-
-function HistoryTable({ rows }: { rows: React.ReactNode[][] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-[12.5px]">
-        <tbody>{rows}</tbody>
-      </table>
-    </div>
+    <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer select-none">
+      <div className="relative shrink-0">
+        <input checked={checked} className="peer sr-only" onChange={(e) => onChange(e.target.checked)} type="checkbox" />
+        <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
+        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+      </div>
+      <span className="text-[11px] md:text-[12px] text-stone-600">{label}</span>
+    </label>
   );
 }
 
@@ -51,8 +47,6 @@ export default function HistoryPage({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [hideEmpty, setHideEmpty] = useState(true);
-  // jen pro rozlišení prázdného stavu "nic nenalezeno" od "zatím nic není"
-  const q = search.trim();
 
   const lunchRecords = toLunchHistoryRecords(orders);
   const pizzaRecords = toPizzaHistoryRecords(pizzaOrders);
@@ -65,6 +59,8 @@ export default function HistoryPage({
   const sentCount = countSentHistoryRecords(lunchRecords);
   const pizzaSentCount = countSentHistoryRecords(pizzaRecords);
 
+  const openRecord = (href: string) => router.push(href);
+
   return (
     <div className="k-shell">
 
@@ -75,14 +71,7 @@ export default function HistoryPage({
           <strong className="text-stone-700">{sentCount}</strong> obědů
           {pizzaEnabled && <> · <strong className="text-stone-700">{pizzaSentCount}</strong> pizz</>}
         </span>
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <div className="relative shrink-0">
-            <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
-            <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-            <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
-          </div>
-          <span className="text-[12px] text-stone-600">Skrýt prázdné koncepty</span>
-        </label>
+        <HideEmptyToggle checked={hideEmpty} label="Skrýt prázdné koncepty" onChange={setHideEmpty} />
         <input
           className="modal-input !py-1.5 !text-[12px] w-56"
           onChange={(e) => setSearch(e.target.value)}
@@ -96,14 +85,7 @@ export default function HistoryPage({
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none">
-            <div className="relative shrink-0">
-              <input checked={hideEmpty} className="peer sr-only" onChange={(e) => setHideEmpty(e.target.checked)} type="checkbox" />
-              <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
-              <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
-            </div>
-            <span className="text-[11px] text-stone-600">Skrýt prázdné</span>
-          </label>
+          <HideEmptyToggle checked={hideEmpty} label="Skrýt prázdné" onChange={setHideEmpty} />
         </div>
         <div className="px-4 pb-2.5">
           <input
@@ -117,121 +99,36 @@ export default function HistoryPage({
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-      <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
-        {/* LIMA orders */}
-        <section className="glass rounded-3xl overflow-hidden">
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
-            <MIcon name="restaurant_menu" size={17} fill style={{ color: "#3B82F6" }} />
-            <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Obědy LIMA</span>
-            <span className="text-[11px] text-stone-500">{visibleOrdersCount} záznamů · {sentCount} odesláno</span>
-          </div>
-          {filteredOrders.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state__icon">
-                <MIcon name="history" size={22} style={{ color: "#94a3b8" }} />
-              </div>
-              <p className="empty-state__title">{q ? "Žádné výsledky" : "Zatím žádné objednávky"}</p>
-              {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden xl:table-cell">Doplňkový e-mail</th>
-                    <th className="w-8 px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => {
-                    const isDraft = order.status !== "sent";
-                    return (
-                      <tr
-                        key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(order.href)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(order.href)}
-                        role="link"
-                        tabIndex={0}
-                      >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatHistoryDate(order.date)}</td>
-                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatHistorySentAt(order.sentAt)}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
-                        <td className="px-3 py-3 text-stone-400">
-                          <MIcon name="chevron_right" size={16} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
+          <HistoryRecords
+            accent="rgba(59,130,246,0.07)"
+            emptyTitle="Zatím žádné objednávky"
+            icon="restaurant_menu"
+            iconColor="#3B82F6"
+            label="Obědy LIMA"
+            onOpen={openRecord}
+            query={search}
+            records={filteredOrders}
+            sentCount={sentCount}
+            showExtraEmail
+            visibleCount={visibleOrdersCount}
+          />
 
-        {/* Pizza orders */}
-        {pizzaEnabled && (
-        <section className="glass rounded-3xl overflow-hidden">
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
-            <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
-            <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Pizza</span>
-            <span className="text-[11px] text-stone-500">{visiblePizzaCount} záznamů · {pizzaSentCount} odesláno</span>
-          </div>
-          {filteredPizza.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state__icon">
-                <MIcon name="local_pizza" size={22} style={{ color: "#94a3b8" }} />
-              </div>
-              <p className="empty-state__title">{q ? "Žádné výsledky" : "Zatím žádné pizzové objednávky"}</p>
-              {q && <p className="empty-state__sub">Zkuste jiný hledaný výraz</p>}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b border-white/40" style={{ background: "rgba(255,255,255,0.4)" }}>
-                    <th className="text-left px-4 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide">Stav</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Odesláno</th>
-                    <th className="text-left px-3 py-2 font-display font-semibold text-stone-600 text-[11px] uppercase tracking-wide hidden sm:table-cell">Řádků</th>
-                    <th className="w-8 px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPizza.map((order) => {
-                    const isDraft = order.status !== "sent";
-                    return (
-                      <tr
-                        key={order.id}
-                        className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(order.href)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(order.href)}
-                        role="link"
-                        tabIndex={0}
-                      >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatHistoryDate(order.date)}</td>
-                        <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatHistorySentAt(order.sentAt)}</td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
-                        <td className="px-3 py-3 text-stone-400">
-                          <MIcon name="chevron_right" size={16} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {pizzaEnabled && (
+            <HistoryRecords
+              accent="rgba(234,88,12,0.07)"
+              emptyTitle="Zatím žádné pizzové objednávky"
+              icon="local_pizza"
+              iconColor="#EA580C"
+              label="Pizza"
+              onOpen={openRecord}
+              query={search}
+              records={filteredPizza}
+              sentCount={pizzaSentCount}
+              visibleCount={visiblePizzaCount}
+            />
           )}
-        </section>
-        )}
-      </div>
+        </div>
       </main>
     </div>
   );
