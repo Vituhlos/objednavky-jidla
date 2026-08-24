@@ -12,6 +12,10 @@ import { useDayNavigation } from "./order/useDayNavigation";
 import { useOrderSync } from "./order/useOrderSync";
 import { useCutoff } from "./order/useCutoff";
 import { useCutoffUnlock } from "./order/useCutoffUnlock";
+import { DayPicker } from "./order/DayPicker";
+import { DayStatusBar } from "./order/DayStatusBar";
+import { HelpModal } from "./order/HelpModal";
+import { OrderHeader } from "./order/OrderHeader";
 import {
   addDays,
   buildPickerItems,
@@ -43,105 +47,6 @@ import {
   actionUnlockCutoff,
   actionDismissAutoSendError,
 } from "@/app/actions";
-
-// ── Help modal ────────────────────────────────────────────
-
-const HELP_STEPS = [
-  { num: "①", title: "Přidej se", body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.', icon: "groups" },
-  { num: "②", title: "Vyber jídlo", body: "Zvol polévku a hlavní jídlo z dnešního menu. Cena se spočítá automaticky.", icon: "restaurant_menu" },
-  { num: "③", title: "Hotovo — objednávka se odešle sama", body: "V čas uzávěrky (vidíš ho v horní liště) se objednávka automaticky odešle do LIMA. Nic víc dělat nemusíš.", icon: "check_circle" },
-] as const;
-
-const HELP_ADVANCED = [
-  { title: "Dvě různé polévky nebo jídla", body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.', icon: "add" },
-  { title: "Víc porcí stejného jídla", body: "Nastav počet porcí přímo u daného jídla.", icon: "receipt_long" },
-  { title: "Přílohy a omáčky", body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.", icon: "lunch_dining" },
-  { title: "Pizza", body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.", icon: "local_pizza" },
-  { title: "Přepínání dnů klávesnicí", body: "Šipky ← → přepínají mezi dostupnými dny v týdnu.", icon: "keyboard" },
-] as const;
-
-function HelpModal({ onClose }: { onClose: () => void }) {
-  const [advanced, setAdvanced] = useState(false);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    // iOS Safari: overflow:hidden on body doesn't prevent scroll — use position:fixed instead
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.removeEventListener("keydown", h);
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, [onClose]);
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="help-modal-title"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 480 }}
-      >
-        <div className="modal-sheet__header">
-          <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
-          <button
-            aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
-            onClick={onClose}
-            type="button"
-          >×</button>
-        </div>
-        <div className="modal-sheet__body space-y-3">
-          {HELP_STEPS.map((s) => (
-            <div key={s.num} className="flex gap-3 p-3 rounded-2xl" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <div
-                className="w-9 h-9 rounded-xl shrink-0 inline-flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
-              >
-                <MIcon name={s.icon} size={18} fill className="text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-display font-bold text-[13px] text-stone-900 leading-snug">{s.title}</p>
-                <p className="text-[12.5px] text-stone-600 leading-snug mt-0.5">{s.body}</p>
-              </div>
-            </div>
-          ))}
-
-          <button
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl glass-btn text-stone-600 text-[12.5px] font-semibold"
-            onClick={() => setAdvanced((v) => !v)}
-            type="button"
-          >
-            <span>Pokročilé možnosti</span>
-            <MIcon name={advanced ? "expand_less" : "expand_more"} size={18} />
-          </button>
-
-          {advanced && (
-            <div className="space-y-2">
-              {HELP_ADVANCED.map((item) => (
-                <div key={item.title} className="flex gap-3 px-3 py-2.5 rounded-2xl glass-soft">
-                  <MIcon name={item.icon} size={18} fill style={{ color: "#94a3b8", flexShrink: 0, marginTop: 1 }} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[12.5px] text-stone-800 leading-snug">{item.title}</p>
-                    <p className="text-[12px] text-stone-500 leading-snug mt-0.5">{item.body}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Component ─────────────────────────────────────────────
 
@@ -517,260 +422,43 @@ export default function OrderPage({
         </div>
       )}
 
-      {/* ── Desktop info strip ── */}
-      {/* min-h: the bar used to shrink by 7px whenever "Odeslat" was absent (future days,
-          already sent, auto-send on) — it is the tallest child, so the row collapsed
-          with it. Reserving its height keeps the header still while switching days. */}
-      <div className="hidden md:flex px-5 py-2.5 min-h-[60px] border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
-        <span
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
-          {isFutureDay && !isSent && futureDayPhrase && (
-            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
-              <MIcon name="schedule" size={13} /> Uzávěrka {futureDayPhrase} v {cutoffTime} · odešle se automaticky
-            </span>
-          )}
-          {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-            <span className={`inline-flex items-center gap-1 font-medium ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-              <MIcon name="schedule" size={13} /> Uzávěrka {countdown} ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {!isFutureDay && !isSent && isPastCutoff && !isForceOpen && (
-            <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-              <MIcon name="schedule" size={13} /> Po uzávěrce ({cutoffTime}){autoSendEnabled ? " · odešle se automaticky" : ""}
-            </span>
-          )}
-          {!isFutureDay && !isSent && isForceOpen && (
-            <span className="inline-flex items-center gap-1 text-green-700 font-medium">
-              <MIcon name="lock_open" size={13} /> Objednávání odemčeno{autoSendEnabled ? ` · odešle se v ${autoSendTime}` : ""}
-            </span>
-          )}
-          {isSent && sentAt && (
-            <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-              <MIcon name="check_circle" size={13} fill /> Odesláno v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          {activeOrderCount > 0 && (
-            <span className="text-stone-400">
-              {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
-            </span>
-          )}
-        </div>
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              disabled={isPending}
-              onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-              type="button"
-            >
-              {isPending ? "Odesílám…" : "Odeslat"}
-            </button>
-          </div>
-        )}
-        {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
-        <button
-          aria-label="Nápověda"
-          className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={16} />
-        </button>
-      </div>
-
-      {/* ── Mobile info strip ── */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5 min-h-[60px] flex items-center gap-2.5">
-        <MIcon name="calendar_today" size={13} style={{ color: "#D97706" }} />
-        <span className="text-[12.5px] font-medium text-stone-700 truncate">{dayStr}</span>
-        {activeOrderCount > 0 && (
-          <span className="text-[11px] text-stone-500 shrink-0">
-            {activeOrderCount} · {totalPrice} Kč
-          </span>
-        )}
-        <span
-          aria-label={sseConnected ? "Živé aktualizace aktivní" : "Připojování k živým aktualizacím…"}
-          aria-live="polite"
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-          role="img"
-          title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
-        />
-        {isFutureDay && !isSent && futureDayPhrase && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">
-            <MIcon name="schedule" size={12} /> {futureDayPhrase} {cutoffTime}
-          </span>
-        )}
-        {!isFutureDay && !isSent && !isPastCutoff && countdown && (
-          <span className={`inline-flex items-center gap-1 text-[11.5px] font-medium shrink-0 ${countdownMins !== null && countdownMins <= 10 ? "text-red-500" : countdownMins !== null && countdownMins <= 30 ? "text-orange-500" : "text-stone-500"}`}>
-            <MIcon name="schedule" size={12} /> {countdown}{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {!isFutureDay && !isSent && isPastCutoff && !isForceOpen && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-orange-600 shrink-0">
-            <MIcon name="schedule" size={12} /> Po uzávěrce{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {!isFutureDay && !isSent && isForceOpen && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-medium shrink-0">
-            <MIcon name="lock_open" size={12} /> Odemčeno{autoSendEnabled ? " · auto" : ""}
-          </span>
-        )}
-        {isSent && (
-          <span className="inline-flex items-center gap-1 text-[11.5px] text-green-700 font-semibold shrink-0">
-            <MIcon name="check_circle" size={12} fill /> Odesláno
-          </span>
-        )}
-        {pushState !== "unsupported" && pushState !== "denied" && (
-          <button
-            onClick={handlePushToggle}
-            title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
-            className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
-            type="button"
-          >
-            <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
-          </button>
-        )}
-        {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
-          <button
-            className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
-            disabled={isPending}
-            onClick={() => { if (activeOrderCount === 0) { setSendError("Objednávka je prázdná — nikdo nic neobjednal."); return; } setSendError(null); setShowSendConfirm(true); }}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
-            type="button"
-          >
-            {isPending ? "Odesílám…" : "Odeslat"}
-          </button>
-        )}
-        {isFutureDay && !isSent && !noMenu && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-stone-500 shrink-0">
-            <MIcon name="schedule" size={12} />
-            Auto
-          </span>
-        )}
-        <button
-          aria-label="Nápověda"
-          className="ml-auto w-9 h-9 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
-          onClick={() => setShowHelp(true)}
-          type="button"
-        >
-          <MIcon name="info" size={17} />
-        </button>
-      </div>
-      {sendError && (
-        <div role="alert" className="md:hidden px-4 py-2 flex items-center gap-2 text-[12px] text-red-600 border-b border-red-100/80" style={{ background: "rgba(220,38,38,0.05)" }}>
-          <MIcon name="warning" size={13} style={{ flexShrink: 0 }} />
-          {sendError}
-        </div>
-      )}
+      <OrderHeader
+        activeOrderCount={activeOrderCount}
+        autoSendEnabled={autoSendEnabled}
+        autoSendTime={autoSendTime}
+        countdown={countdown}
+        countdownMins={countdownMins}
+        cutoffTime={cutoffTime}
+        dayStr={dayStr}
+        futureDayPhrase={futureDayPhrase}
+        isForceOpen={isForceOpen}
+        isFutureDay={isFutureDay}
+        isPastCutoff={isPastCutoff}
+        isPending={isPending}
+        isSent={isSent}
+        noMenu={noMenu}
+        onEmptyOrder={() => setSendError("Objednávka je prázdná — nikdo nic neobjednal.")}
+        onHelp={() => setShowHelp(true)}
+        onPushToggle={handlePushToggle}
+        onSend={() => { setSendError(null); setShowSendConfirm(true); }}
+        pushState={pushState}
+        sendError={sendError}
+        sentAt={sentAt}
+        sseConnected={sseConnected}
+        totalPrice={totalPrice}
+      />
 
       {/* ── Scrollable main content ── */}
       <main className="flex-1 overflow-y-auto scroll-area p-4">
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
-            <div className="relative -mx-4">
-              <div className="overflow-x-auto no-scrollbar px-4">
-                <div
-                  className="flex p-1 rounded-2xl gap-0.5"
-                  style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
-                >
-                  {pickerItems.map((item) => {
-                    if (item.kind === "gap") {
-                      const label = `zavřeno ${formatGapLabel(item.from, item.to)}`;
-                      // The gap swallowed today's chip, so it inherits its two jobs:
-                      // showing where you are, and getting you back. Amber fill rather
-                      // than the orange gradient — this IS the current position, but
-                      // the gradient means "actionable day" everywhere else in the strip.
-                      const isActive = !!selectedDate && selectedDate >= item.from && selectedDate <= item.to;
-                      const holdsToday = !!todayDate && todayDate >= item.from && todayDate <= item.to;
-                      // Same emoji the menu screen puts on its week tabs — a closure
-                      // should be recognisable at a glance from either screen. Manual
-                      // one-off closed days carry no icon of their own, so they borrow
-                      // the closure default rather than switching to a Material glyph:
-                      // one slot, one drawing voice.
-                      const mark = (
-                        <span className="emoji text-[13px] leading-none">
-                          {item.icon ?? DEFAULT_CLOSURE_ICON}
-                        </span>
-                      );
-
-                      // Deliberately NOT a disabled button when active. `disabled`
-                      // announces "unavailable" and drops the element out of the tab
-                      // order — but this marker means "you are here", which is the
-                      // opposite claim. Non-interactive markup states position; the
-                      // button exists only when there is somewhere to go.
-                      if (isActive) {
-                        return (
-                          <span
-                            aria-current="date"
-                            className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap select-none"
-                            key={`gap-${item.from}`}
-                            style={{ background: "rgba(245,158,11,0.16)", color: "#92400e" }}
-                            title="V tyto dny se v LIMA nevaří"
-                          >
-                            {mark}
-                            {label}
-                          </span>
-                        );
-                      }
-
-                      if (holdsToday) {
-                        return (
-                          <button
-                            className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap text-stone-600 transition-all duration-200 hover:text-stone-800 hover:bg-white/60 active:scale-[0.96]"
-                            key={`gap-${item.from}`}
-                            onClick={() => goToDate(todayDate!)}
-                            title="Zpět na dnešek — v tyto dny se nevaří"
-                            type="button"
-                          >
-                            {mark}
-                            {label}
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <span
-                          className="flex-shrink-0 self-center px-3 inline-flex items-center gap-1.5 text-[11.5px] text-stone-500 whitespace-nowrap select-none"
-                          key={`gap-${item.from}`}
-                          title="V tyto dny se v LIMA nevaří"
-                        >
-                          {mark}
-                          {label}
-                        </span>
-                      );
-                    }
-                    // Day chips are orderable days only — closed ones live in the gaps.
-                    const date = item.date;
-                    const isActive = date === selectedDate;
-                    return (
-                      <button
-                        aria-current={isActive ? "date" : undefined}
-                        key={date}
-                        className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                          isActive ? "" : "text-stone-600 hover:text-stone-800 hover:bg-white/60"
-                        }`}
-                        onClick={() => { if (isActive) return; goToDate(date); }}
-                        style={isActive ? {
-                          background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                          color: "white",
-                          boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                        } : {}}
-                        type="button"
-                      >
-                        {getDayLabel(date, todayDate!)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none" aria-hidden
-                style={{ background: "linear-gradient(to right, transparent, var(--bg))" }} />
-            </div>
+            <DayPicker
+              onSelect={goToDate}
+              pickerItems={pickerItems}
+              selectedDate={selectedDate}
+              todayDate={todayDate}
+            />
           )}
 
 
@@ -861,72 +549,20 @@ export default function OrderPage({
               </div>
 
               {/* Bottom status bar */}
-              <div
-                className="glass rounded-2xl px-4 py-3 flex items-center gap-3 mx-auto w-fit max-w-full"
-                style={
-                  isSent
-                    ? { borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.07)" }
-                    : isCutoffLocked
-                    ? { borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.06)" }
-                    : {}
-                }
-              >
-                <div
-                  className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"
-                  style={{ background: isSent ? "rgba(34,197,94,0.15)" : isCutoffLocked ? "rgba(245,158,11,0.15)" : "rgba(100,116,139,0.1)" }}
-                >
-                  <MIcon
-                    name={isSent ? "check_circle" : isCutoffLocked ? "lock" : "lock_open"}
-                    size={18}
-                    fill
-                    style={{ color: isSent ? "#16a34a" : isCutoffLocked ? "#D97706" : "#94a3b8" }}
-                  />
-                </div>
-                <div className="text-[12.5px] text-stone-700 leading-snug">
-                  {isSent ? (
-                    <>
-                      <strong className="text-green-700">Objednávka odeslána</strong>
-                      {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
-                    </>
-                  ) : isCutoffLocked ? (
-                    <>
-                      <strong className="text-amber-700">Objednávky uzavřeny</strong>
-                      <span className="text-stone-500"> · Uzávěrka proběhla v {cutoffTime}.</span>
-                    </>
-                  ) : isForceOpen ? (
-                    <>
-                      <strong className="text-green-700">Objednávání odemčeno</strong>
-                      <span className="text-stone-500">
-                        {` · Uzávěrka v ${cutoffTime} dnes už neplatí.`}
-                        {autoSendEnabled ? ` Objednávka se odešle v ${autoSendTime}.` : ""}
-                      </span>
-                    </>
-                  ) : isFutureDay ? (
-                    <>
-                      <strong>Objednávka dopředu.</strong>
-                      <span className="text-stone-500"> Odešle se automaticky v den samotný v {cutoffTime}.</span>
-                    </>
-                  ) : (
-                    <>
-                      <strong>Uzávěrka v {cutoffTime}.</strong>
-                      <span className="text-stone-500"> Objednávky se přijímají do {cutoffTime}.</span>
-                    </>
-                  )}
-                </div>
-                {isCutoffLocked && (
-                  <button
-                    className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-amber-700"
-                    onClick={openUnlock}
-                    type="button"
-                  >
-                    <MIcon name="lock_open" size={14} /> Odemknout
-                  </button>
-                )}
-                {!isOrderLocked && totalPrice > 0 && (
-                  <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
-                )}
-              </div>
+              <DayStatusBar
+                autoSendEnabled={autoSendEnabled}
+                autoSendTime={autoSendTime}
+                cutoffTime={cutoffTime}
+                futureDayPhrase={futureDayPhrase}
+                isCutoffLocked={isCutoffLocked}
+                isForceOpen={isForceOpen}
+                isFutureDay={isFutureDay}
+                isOrderLocked={isOrderLocked}
+                isSent={isSent}
+                onUnlock={openUnlock}
+                sentAt={sentAt}
+                totalPrice={totalPrice}
+              />
 
               {upcomingClosure && (
                 <div
