@@ -5,20 +5,15 @@ import { useRouter } from "next/navigation";
 import type { OrderSummary } from "@/lib/orders";
 import type { PizzaOrderSummary } from "@/lib/pizza";
 import MIcon from "./MIcon";
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
-}
-
-function formatSentAt(iso: string | null): string {
-  if (!iso) return "–";
-  return new Date(iso).toLocaleString("cs-CZ", {
-    timeZone: "Europe/Prague",
-    day: "numeric", month: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+import {
+  countSentHistoryRecords,
+  countVisibleHistoryRecords,
+  filterHistoryRecords,
+  formatHistoryDate,
+  formatHistorySentAt,
+  toLunchHistoryRecords,
+  toPizzaHistoryRecords,
+} from "./history/history-utils";
 
 function StatusBadge({ status }: { status: string }) {
   const sent = status === "sent";
@@ -56,20 +51,19 @@ export default function HistoryPage({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [hideEmpty, setHideEmpty] = useState(true);
-  const q = search.trim().toLowerCase();
+  // jen pro rozlišení prázdného stavu "nic nenalezeno" od "zatím nic není"
+  const q = search.trim();
 
-  const visibleOrders = hideEmpty ? orders.filter((o) => o.status === "sent" || o.rowCount > 0) : orders;
-  const visiblePizza = hideEmpty ? pizzaOrders.filter((o) => o.status === "sent" || o.rowCount > 0) : pizzaOrders;
+  const lunchRecords = toLunchHistoryRecords(orders);
+  const pizzaRecords = toPizzaHistoryRecords(pizzaOrders);
 
-  const filteredOrders = q
-    ? visibleOrders.filter((o) => formatDate(o.date).includes(q) || (o.extraEmail ?? "").toLowerCase().includes(q))
-    : visibleOrders;
-  const filteredPizza = q
-    ? visiblePizza.filter((o) => formatDate(o.date).includes(q))
-    : visiblePizza;
+  const filteredOrders = filterHistoryRecords(lunchRecords, search, hideEmpty);
+  const filteredPizza = filterHistoryRecords(pizzaRecords, search, hideEmpty);
 
-  const sentCount = orders.filter((o) => o.status === "sent").length;
-  const pizzaSentCount = pizzaOrders.filter((o) => o.status === "sent").length;
+  const visibleOrdersCount = countVisibleHistoryRecords(lunchRecords, hideEmpty);
+  const visiblePizzaCount = countVisibleHistoryRecords(pizzaRecords, hideEmpty);
+  const sentCount = countSentHistoryRecords(lunchRecords);
+  const pizzaSentCount = countSentHistoryRecords(pizzaRecords);
 
   return (
     <div className="k-shell">
@@ -129,7 +123,7 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(59,130,246,0.07)" }}>
             <MIcon name="restaurant_menu" size={17} fill style={{ color: "#3B82F6" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Obědy LIMA</span>
-            <span className="text-[11px] text-stone-500">{visibleOrders.length} záznamů · {sentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visibleOrdersCount} záznamů · {sentCount} odesláno</span>
           </div>
           {filteredOrders.length === 0 ? (
             <div className="empty-state">
@@ -159,14 +153,14 @@ export default function HistoryPage({
                       <tr
                         key={order.id}
                         className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(`/historie/${order.id}`)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/${order.id}`)}
+                        onClick={() => router.push(order.href)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(order.href)}
                         role="link"
                         tabIndex={0}
                       >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatHistoryDate(order.date)}</td>
                         <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatHistorySentAt(order.sentAt)}</td>
                         <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
                         <td className="px-3 py-3 text-stone-500 hidden xl:table-cell">{order.extraEmail ?? "–"}</td>
                         <td className="px-3 py-3 text-stone-400">
@@ -187,7 +181,7 @@ export default function HistoryPage({
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(234,88,12,0.07)" }}>
             <MIcon name="local_pizza" size={17} fill style={{ color: "#EA580C" }} />
             <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Pizza</span>
-            <span className="text-[11px] text-stone-500">{visiblePizza.length} záznamů · {pizzaSentCount} odesláno</span>
+            <span className="text-[11px] text-stone-500">{visiblePizzaCount} záznamů · {pizzaSentCount} odesláno</span>
           </div>
           {filteredPizza.length === 0 ? (
             <div className="empty-state">
@@ -216,14 +210,14 @@ export default function HistoryPage({
                       <tr
                         key={order.id}
                         className={`border-b border-white/30 last:border-0 hover:bg-white/60 active:bg-white/80 transition cursor-pointer select-none ${isDraft ? "opacity-60" : ""}`}
-                        onClick={() => router.push(`/historie/pizza/${order.id}`)}
-                        onKeyDown={(e) => e.key === "Enter" && router.push(`/historie/pizza/${order.id}`)}
+                        onClick={() => router.push(order.href)}
+                        onKeyDown={(e) => e.key === "Enter" && router.push(order.href)}
                         role="link"
                         tabIndex={0}
                       >
-                        <td className="px-4 py-3 font-semibold text-stone-800">{formatDate(order.date)}</td>
+                        <td className="px-4 py-3 font-semibold text-stone-800">{formatHistoryDate(order.date)}</td>
                         <td className="px-3 py-3"><StatusBadge status={order.status} /></td>
-                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatSentAt(order.sentAt)}</td>
+                        <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{formatHistorySentAt(order.sentAt)}</td>
                         <td className="px-3 py-3 text-stone-500 hidden sm:table-cell">{order.rowCount}</td>
                         <td className="px-3 py-3 text-stone-400">
                           <MIcon name="chevron_right" size={16} />
