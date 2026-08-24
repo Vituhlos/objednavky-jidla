@@ -19,6 +19,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Changed
 
+- Interně: Nastavení má konstanty a pomocné funkce v `app/components/settings/`. Ukládání se řídí tabulkou polí místo ručního výčtu 41 hodnot, takže nově přidané nastavení nejde zapomenout zapojit. Chování zůstává beze změny, přibylo 12 testů — jeden z nich hlídá, že každé pole patří právě do jedné kategorie.
 - Interně: přehled historie má filtrování, počty a formátování v `app/components/history/history-utils.ts`. Obědy i pizza se popisují jedním tvarem záznamu, takže filtr „skrýt prázdné koncepty", hledání i odkaz na detail existují jednou místo dvakrát. Chování zůstává beze změny, přibylo 6 testů.
 - Interně: detail historické objednávky má logiku v `app/components/order-detail/order-detail-utils.ts` a společné formátování v `lib/format.ts`. `getInitials` a skloňování počtu objednávek byly do té doby ve dvou komponentách zvlášť, pravidlo pro zobrazení řádku dokonce dvakrát v jednom souboru. Chování zůstává beze změny, přibylo 18 testů.
 - Interně: z `OrderPage.tsx` se vydělilo šest hooků do `app/components/order/` — `useOrderSync` (živá synchronizace přes SSE), `useDayNavigation` (přepínání dnů páskem i šipkami), `useRowDeletion` (mazání s pětivteřinovým oknem na vrácení) a `usePushNotifications`, `useCutoff` (uzávěrka a odpočet) a `useCutoffUnlock` (odemčení na PIN). Komponenta klesla z 1 466 na 1 076 řádků. Chování zůstává beze změny; ověřeno proklikáním přidání, mazání i přepínání dnů.

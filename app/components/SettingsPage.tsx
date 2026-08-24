@@ -36,112 +36,24 @@ import { EmojiPicker } from "./EmojiPicker";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { RELEASE_NOTES } from "@/lib/release-notes";
 import { getAppVersionInfo } from "@/lib/version";
+import {
+  ACCENT_COLORS,
+  ACCENT_OPTIONS,
+  ACTION_LABELS,
+  CHANNEL_LABELS,
+  DAY_OPTIONS,
+  RELEASE_SECTION_LABELS,
+} from "./settings/constants";
+import {
+  formatBuildDate,
+  formatClosureRange,
+  formatTimestamp,
+  getNextAutoSend,
+  getSettingsUpdates,
+  validateClosureRange,
+} from "./settings/settings-utils";
 import { ConfirmModal } from "./ConfirmModal";
 import MIcon from "./MIcon";
-
-const ACCENT_OPTIONS = [
-  { value: "blue",   label: "Modrá" },
-  { value: "rust",   label: "Rezavá" },
-  { value: "green",  label: "Zelená" },
-  { value: "amber",  label: "Jantarová" },
-  { value: "navy",   label: "Námořnická" },
-  { value: "orange", label: "Oranžová" },
-  { value: "red",    label: "Červená" },
-];
-
-const ACCENT_COLORS: Record<string, string> = {
-  blue: "#3B82F6", rust: "#C2654D", green: "#4F8A53",
-  amber: "#F59E0B", navy: "#1e40af", orange: "#EA580C", red: "#dc2626",
-};
-
-const DAY_OPTIONS = [
-  { code: "Po", label: "Po" },
-  { code: "Út", label: "Út" },
-  { code: "St", label: "St" },
-  { code: "Čt", label: "Čt" },
-  { code: "Pá", label: "Pá" },
-];
-
-const ACTION_LABELS: Record<string, string> = {
-  row_add: "Přidání řádku",
-  row_update: "Úprava řádku",
-  row_delete: "Smazání řádku",
-  order_send: "Odeslání objednávky",
-  order_reopen: "Znovuotevření",
-  order_clear: "Vymazání objednávky",
-  auto_send: "Auto-odeslání",
-  menu_reminder: "Upozornění na chybějící menu",
-};
-
-function getNextAutoSend(enabled: string, time: string, daysStr: string): string {
-  if (enabled !== "true") return "Vypnuto";
-  const days = daysStr.split(",").map((d) => d.trim()).filter(Boolean);
-  if (days.length === 0 || !time) return "Nenastaveno";
-  const JS_TO_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" };
-  const DAY_NAMES: Record<string, string> = { Po: "pondělí", "Út": "úterý", St: "středu", "Čt": "čtvrtek", "Pá": "pátek" };
-  try {
-    const p = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Prague" }));
-    const curDay = p.getDay();
-    const curTime = `${String(p.getHours()).padStart(2, "0")}:${String(p.getMinutes()).padStart(2, "0")}`;
-    for (let offset = 0; offset < 7; offset++) {
-      const jsDay = (curDay + offset) % 7;
-      const code = JS_TO_CODE[jsDay];
-      if (!code || !days.includes(code)) continue;
-      if (offset === 0 && curTime >= time) continue;
-      const label = offset === 0 ? "Dnes" : offset === 1 ? "Zítra" : `V ${DAY_NAMES[code] ?? code}`;
-      return `${label} v ${time}`;
-    }
-  } catch { /* ignore */ }
-  return `Příštích ${days[0]} v ${time}`;
-}
-
-function formatTs(ts: string): string {
-  if (!ts) return "—";
-  const normalized =
-    ts.includes("T") && (ts.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(ts))
-      ? ts
-      : ts.replace(" ", "T") + "Z";
-  const d = new Date(normalized);
-  if (isNaN(d.getTime())) return ts;
-  return d.toLocaleString("cs-CZ", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-// "2026-08-03" + "2026-08-07" → "3. 8. – 7. 8. 2026"
-// N5: the range used to be corrected silently on the server (a reversed range was
-// just swapped) and overlaps were never checked at all — two closures over the same
-// day make getClosureForDate() pick whichever came first, which is a coin toss.
-function validateClosureRange(
-  from: string,
-  to: string,
-  existing: Closure[],
-  todayISO: string
-): { error?: string; warning?: string } {
-  if (!from || !to) return {};
-  if (from > to) return { error: "Datum „Do“ je dřív než „Od“ — prohoďte je." };
-
-  const clash = existing.find((c) => from <= c.endDate && to >= c.startDate);
-  if (clash) {
-    return {
-      error: `Překrývá se s „${clash.label || "Dovolená"}“ (${formatClosureRange(clash.startDate, clash.endDate)}).`,
-    };
-  }
-
-  if (to < todayISO) return { warning: "Termín je celý v minulosti — na provoz už nemá vliv." };
-  return {};
-}
-
-function formatClosureRange(startDate: string, endDate: string): string {
-  const [sy, sm, sd] = startDate.split("-").map(Number);
-  const [ey, em, ed] = endDate.split("-").map(Number);
-  if (startDate === endDate) return `${sd}. ${sm}. ${sy}`;
-  if (sy === ey) return `${sd}. ${sm}. – ${ed}. ${em}. ${ey}`;
-  return `${sd}. ${sm}. ${sy} – ${ed}. ${em}. ${ey}`;
-}
-
-// ── Section card ──────────────────────────────────────────────────────────────
 
 function Section({ title, icon, children, helpContent, action }: { title: string; icon?: string; children: React.ReactNode; helpContent?: React.ReactNode; action?: React.ReactNode }) {
   const [showHelp, setShowHelp] = useState(false);
@@ -329,36 +241,6 @@ const TABS: { id: Tab; label: string; icon: string; hint: string }[] = [
 ];
 
 const VERSION_INFO = getAppVersionInfo();
-
-const CHANNEL_LABELS: Record<string, string> = {
-  stable: "Stabilní",
-  beta: "Beta",
-  dev: "Vývoj",
-};
-
-const RELEASE_SECTION_LABELS: Record<string, string> = {
-  Added: "Přidáno",
-  Changed: "Změněno",
-  Deprecated: "Zastaralé",
-  Removed: "Odstraněno",
-  Fixed: "Opraveno",
-  Security: "Bezpečnost",
-  "Migration notes": "Migrační poznámky",
-  "Known issues": "Známá omezení",
-};
-
-function formatBuildDate(value: string): string {
-  if (!value) return "Lokální vývoj";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  return d.toLocaleString("cs-CZ", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function VersionMeta({
   label,
@@ -695,61 +577,7 @@ export default function SettingsPage({
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const autoSendDays = DAY_OPTIONS
-      .filter((d) => fd.get(`autoSendDay_${d.code}`) === "on")
-      .map((d) => d.code)
-      .join(",");
-    const updates: Partial<AppSettings> = {
-      smtpHost: fd.get("smtpHost") as string,
-      smtpPort: fd.get("smtpPort") as string,
-      smtpUser: fd.get("smtpUser") as string,
-      smtpPass: fd.get("smtpPass") as string,
-      smtpFrom: fd.get("smtpFrom") as string,
-      smtpSecure: fd.get("smtpSecure") === "on" ? "true" : "false",
-      orderEmailTo: fd.get("orderEmailTo") as string,
-      orderExtraEmail: fd.get("orderExtraEmail") as string,
-      smtpReplyTo: fd.get("smtpReplyTo") as string,
-      reminderEmailTo: fd.get("reminderEmailTo") as string,
-      cutoffTime: fd.get("cutoffTime") as string,
-      defaultSoupPrice: fd.get("defaultSoupPrice") as string,
-      defaultMealPrice: fd.get("defaultMealPrice") as string,
-      priceRoll: fd.get("priceRoll") as string,
-      priceBreadDumpling: fd.get("priceBreadDumpling") as string,
-      pricePotatoDumpling: fd.get("pricePotatoDumpling") as string,
-      priceKetchup: fd.get("priceKetchup") as string,
-      priceTatarka: fd.get("priceTatarka") as string,
-      priceBbq: fd.get("priceBbq") as string,
-      autoSendEnabled: fd.get("autoSendEnabled") === "on" ? "true" : "false",
-      autoSendTime: fd.get("autoSendTime") as string,
-      autoSendDays,
-      autoSendMinOrders: fd.get("autoSendMinOrders") as string,
-      autoSendFailureEmail: fd.get("autoSendFailureEmail") as string,
-      imapEnabled: fd.get("imapEnabled") === "on" ? "true" : "false",
-      imapHost: fd.get("imapHost") as string,
-      imapPort: fd.get("imapPort") as string,
-      imapUser: fd.get("imapUser") as string,
-      imapPass: fd.get("imapPass") as string,
-      imapSender: fd.get("imapSender") as string,
-      imapCheckTime: fd.get("imapCheckTime") as string,
-      imapCheckDays: DAY_OPTIONS
-        .filter((d) => fd.get(`imapCheckDay_${d.code}`) === "on")
-        .map((d) => d.code)
-        .join(","),
-      pushReminderMinutes: fd.get("pushReminderMinutes") as string,
-      telegramEnabled: fd.get("telegramEnabled") === "on" ? "true" : "false",
-      telegramBotToken: fd.get("telegramBotToken") as string,
-      telegramMorningMenuTime: fd.get("telegramMorningMenuTime") as string,
-      telegramAppUrl: fd.get("telegramAppUrl") as string,
-      pizzaEnabled: fd.get("pizzaEnabled") === "on" ? "true" : "false",
-      pizzaCutoffEnabled: fd.get("pizzaCutoffEnabled") === "on" ? "true" : "false",
-      pizzaCutoffTime: fd.get("pizzaCutoffTime") as string,
-      pizzaCutoffDays: DAY_OPTIONS
-        .filter((d) => fd.get(`pizzaCutoffDay_${d.code}`) === "on")
-        .map((d) => d.code)
-        .join(","),
-    };
-    const newPin = (fd.get("newPin") as string).trim();
-    if (newPin) updates.settingsPin = newPin;
+    const updates = getSettingsUpdates(fd);
 
     setSaveStatus("idle");
     startTransition(async () => {
@@ -1952,7 +1780,7 @@ export default function SettingsPage({
                           <tbody>
                             {filtered.map((entry) => (
                               <tr key={entry.id} className="border-b border-white/30 last:border-0 hover:bg-white/20 transition">
-                                <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTs(entry.ts)}</td>
+                                <td className="px-4 py-2 text-stone-500 font-mono text-[11px]">{formatTimestamp(entry.ts)}</td>
                                 <td className="px-3 py-2 font-medium text-stone-700">{ACTION_LABELS[entry.action] ?? entry.action}</td>
                                 <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.department ?? "—"}</td>
                                 <td className="px-3 py-2 text-stone-500 hidden sm:table-cell">{entry.personName ?? "—"}</td>
