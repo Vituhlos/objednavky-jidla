@@ -6,9 +6,25 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-08-25
+
+### Security
+
+- **Stažení celé databáze bylo veřejné.** `GET /api/backup` vracel všechny objednávky, jména lidí, jídelníčky, oddělení i nastavení komukoli, kdo znal adresu — chránil ho jen limit 5 požadavků za hodinu na IP. Aplikace je přitom vystavená na veřejnou adresu, takže „chrání nás firemní síť“ nikdy neplatilo. Nově vyžaduje PIN z Nastavení.
+- **Zápis do databáze byl veřejný a zcela bez ochrany.** `POST /api/restore` neměl ani rate limit. Přidávat cizí objednávky, jídelníčky a oddělení mohl kdokoli. PIN v nastavení přepsat nešlo, protože obnova používá `INSERT OR IGNORE`. Nově vyžaduje PIN.
+- **Záloha vydávala přístupové údaje k botovi.** Filtr citlivých klíčů vynechával `telegramBotToken` a `telegramWebhookSecret`. Se získaným tokenem šlo bota převzít — číst zprávy odběratelů i psát jim. Oba klíče se nově filtrují. **Doporučené opatření: token u @BotFather zrotovat**, protože žádná oprava kódu zpětně nezneplatní token, který už mohl uniknout.
+- `POST /api/smtp-test` navazoval odchozí spojení podle těla požadavku bez ověření. Nově vyžaduje PIN.
+- Neúspěšné pokusy o PIN u API se počítají zvlášť: po deseti chybách z jedné IP se brána zavře na 15 minut i pro správný PIN. Povedené pokusy se nepočítají, aby si běžné používání samo nezamklo Nastavení.
+- Záloha se stahuje přes `fetch` a blob místo prostého odkazu — PIN putuje v hlavičce a nekončí v historii prohlížeče ani v logu proxy.
+
+### Known issues
+
+- **Objednávková stránka zůstává veřejná.** Kdokoli s adresou vidí, kdo si co objednal, a může objednávky měnit; totéž platí pro `/api/order-refresh` a `/api/sse`. PINem to zalepit nejde — vyřeší to až účty a přihlašování, které se připravují samostatně.
+
 ### Added
 
 - CI spouští `npm run lint` a `npm test` a publikace Docker image na nich závisí. Do té doby byla jedinou kontrolou mezi commitem a tagem `stable` jen úspěšná kompilace uvnitř Dockerfilu, která chytí chyby typů, ale ne rozbité chování. Testy běží i u pull requestů.
+- `tools/api-auth.test.mjs` — šest testů brány chráněných rout. Hlídají mimo jiné to, že třicet povedených volání za sebou zámek nespustí a že se zámek počítá na IP, ne globálně.
 
 ## [1.3.2] - 2026-08-24
 
