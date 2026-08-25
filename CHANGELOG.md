@@ -6,8 +6,12 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-08-24
+
 ### Fixed
 
+- V záhlaví objednávky svítilo datum dneška i po přepnutí na jiný den. Nejčastěji to nastalo samo od sebe: po uzávěrce appka přeskočí na zítřek, čip v pásku dnů říkal „Zítra“, ale nadpis pořád „Pondělí 24. 8.“ — člověk pak upravoval jiný den, než si myslel. Nově se datum odvozuje z vybraného dne. Spolu s tím se opravilo, že „úterý“ a „čtvrtek“ zůstávaly s malým písmenem, protože převod prvního znaku uměl jen ASCII.
+- „Přidat“ v jídelníčku zapisovalo položku do databáze hned a teprve pak otevřelo dialog. Zavření bez vyplnění tak v jídelníčku nechalo řádek bez názvu — počítal se do souhrnu dne a přes SSE se rozeslal ostatním. Nově se položka zakládá až uložením; dialog rozepsané položky nenabízí mazání a bez názvu nejde uložit.
 - Když se objednávka po uzávěrce znovu otevřela, uzávěrka se ten den už nikdy nezapnula — příznak odemčení nesl jen datum, takže přenastavení času uzávěrky nemělo kam zabrat. Nově se pamatuje i čas odemčení a platí pravidlo „odemčení promíjí jen tu uzávěrku, která už proběhla". Odemčeno v 8:05 a uzávěrka přesunutá na 8:10 tedy v 8:10 zase zamkne; odemčení předtím platné uzávěrky se nemění.
 - Po odemčení appka dál hlásila „Po uzávěrce (08:00)" a v panelu „Objednávky uzavřeny", i když objednávat šlo. Nově ukazuje „Objednávání odemčeno" s tím, kdy se objednávka odešle.
 - Odpočet do uzávěrky v záhlaví se po přepnutí z budoucího dne zpět na dnešek aktualizoval až s dalším tikem hodin, tedy až půl minuty ukazoval nesprávnou hodnotu. Nově se přepočítá okamžitě.
@@ -19,12 +23,23 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Changed
 
+- Interně: dokončen rozpad velkých komponent do doménových složek — `SettingsPage` 2147 → 358 řádků, `MenuPage` 1159 → 265, `DepartmentPanel` 867 → 173, `OrderPage` 1076 → 712, `HistoryPage` 238 → 135 a `OrderDetailPage` 245 → 154. Vzniklo 43 souborů v `app/components/menu/`, `settings/`, `order/`, `history/` a `order-detail/`; cesty i názvy se kryjí s větví `feat/heroui-migration`, aby se obě verze daly sloučit bez konfliktů. Sekce nastavení si nově drží vlastní stav i `useTransition`, takže test SMTP, kontrola schránky a testovací push na sobě nezávisí. Chování zůstává beze změny; ověřeno proklikáním jídelníčku, objednávky, historie i všech šesti záložek nastavení včetně ukládání formuláře ze zavřené záložky.
+- Interně: z objednávkové obrazovky zmizel příznak `isReadOnly`, který byl natvrdo `false`, takže podmínka `!isReadOnly && editMode` byla vždy jen `editMode`.
 - Interně: Nastavení má konstanty a pomocné funkce v `app/components/settings/`. Ukládání se řídí tabulkou polí místo ručního výčtu 41 hodnot, takže nově přidané nastavení nejde zapomenout zapojit. Chování zůstává beze změny, přibylo 12 testů — jeden z nich hlídá, že každé pole patří právě do jedné kategorie.
 - Interně: přehled historie má filtrování, počty a formátování v `app/components/history/history-utils.ts`. Obědy i pizza se popisují jedním tvarem záznamu, takže filtr „skrýt prázdné koncepty", hledání i odkaz na detail existují jednou místo dvakrát. Chování zůstává beze změny, přibylo 6 testů.
 - Interně: detail historické objednávky má logiku v `app/components/order-detail/order-detail-utils.ts` a společné formátování v `lib/format.ts`. `getInitials` a skloňování počtu objednávek byly do té doby ve dvou komponentách zvlášť, pravidlo pro zobrazení řádku dokonce dvakrát v jednom souboru. Chování zůstává beze změny, přibylo 18 testů.
 - Interně: z `OrderPage.tsx` se vydělilo šest hooků do `app/components/order/` — `useOrderSync` (živá synchronizace přes SSE), `useDayNavigation` (přepínání dnů páskem i šipkami), `useRowDeletion` (mazání s pětivteřinovým oknem na vrácení) a `usePushNotifications`, `useCutoff` (uzávěrka a odpočet) a `useCutoffUnlock` (odemčení na PIN). Komponenta klesla z 1 466 na 1 076 řádků. Chování zůstává beze změny; ověřeno proklikáním přidání, mazání i přepínání dnů.
 - Interně: pomocné funkce objednávkové obrazovky (práce s daty, sestavení přepínače dnů, přepočet oddělení) se přesunuly z `OrderPage.tsx` do `app/components/order/order-utils.ts`. Těla funkcí jsou beze změny — jde o přesun, ne přepis. `OrderPage.tsx` je o 124 řádků kratší a na funkce nově dosáhne 36 testů. Umístění i názvy odpovídají větvi `feat/heroui-migration`, aby se obě verze strukturálně sbíhaly.
 - Interně: `sendOrder()` a `resendOrderEmail()` sdílí přípravu e-mailu a jeho odeslání s archivací. Dřív obě funkce opakovaly stejných dvanáct kroků, což byl důvod, proč jedné z nich chyběl zápis do archivu. Chování obou zůstává beze změny.
+
+### Migration notes
+
+- Žádné ruční kroky. Databáze, env proměnné, Docker konfigurace, volume ani formát záloh se nemění — změny se týkají výhradně `app/components/`, soubory `lib/`, `app/api/`, `app/actions.ts` a `Dockerfile` zůstávají beze změny.
+- Rollback: nasadit zpět tag `1.3.1`. Databáze je zpětně kompatibilní, není co migrovat.
+
+### Known issues
+
+- Testovací tlačítka v Nastavení (test SMTP, testovací push, testovací zpráva Telegramu) a obnova ze zálohy nebyly při ověřování této verze spuštěné, protože posílají ven nebo zapisují do dat. Kód pod nimi se v této verzi nemění.
 
 ## [1.3.1] - 2026-08-21
 
