@@ -12,6 +12,73 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.3.4",
+    date: "2026-08-25",
+    title: "Novinky se zase ukazují",
+    sections: [
+      {
+        title: "Fixed",
+        items: [
+          "Okno „Co je nového“ ukazovalo naposledy verzi 1.3.1, přestože aplikace běžela na 1.3.3. Novinky se totiž píšou zvlášť od technického seznamu změn a při vydání se na ně zapomnělo. Chybějící verze 1.3.2 a 1.3.3 jsou doplněné.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Vydání nově neprojde, pokud k němu novinky chybí — hlídá to automatický test. Stejná chyba se tak nemůže zopakovat.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "1.3.3",
+    date: "2026-08-25",
+    title: "Zabezpečení zálohy a obnovy",
+    sections: [
+      {
+        title: "Security",
+        items: [
+          "Stažení zálohy, obnova dat a test SMTP byly dostupné komukoli, kdo znal adresu aplikace — a to i bez otevření Nastavení. Aplikace je přitom na veřejné adrese. Nově všechny tři vyžadují PIN.",
+          "Záloha navíc obsahovala přístupový token Telegram bota. S ním by šlo bota převzít a psát jeho jménem. Token se nově do zálohy nedostane.",
+          "Po deseti chybných PINech za sebou se přístup k těmto funkcím na čtvrt hodiny zavře, aby se PIN nedal uhodnout zkoušením.",
+        ],
+      },
+      {
+        title: "Migration notes",
+        items: [
+          "Doporučené opatření: nechte si u @BotFather vygenerovat nový token bota a vložte ho v Nastavení → Napojení. Ten dosavadní mohl uniknout a oprava ho zpětně nezneplatní.",
+        ],
+      },
+      {
+        title: "Known issues",
+        items: [
+          "Samotná objednávková stránka zůstává veřejná — kdo zná adresu, vidí objednávky a může je měnit. Řeší se přihlašováním, které se připravuje.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "1.3.2",
+    date: "2026-08-24",
+    title: "Datum v záhlaví a přidávání jídel",
+    sections: [
+      {
+        title: "Fixed",
+        items: [
+          "V záhlaví objednávky svítilo datum dneška i po přepnutí na jiný den. Nejčastěji to nastalo samo: po uzávěrce aplikace přeskočí na zítřek, přepínač dnů ukazoval „Zítra“, ale nadpis pořád dnešní datum — a člověk pak upravoval jiný den, než si myslel.",
+          "Dny „úterý“ a „čtvrtek“ se v záhlaví psaly s malým písmenem, ostatní s velkým.",
+          "Tlačítko „Přidat“ v Jídelníčku založilo prázdnou položku hned při kliknutí. Když jste okno zavřeli bez vyplnění, zůstal v jídelníčku řádek bez názvu, který se počítal do souhrnu dne. Nově se položka uloží až tlačítkem „Přidat“ v dialogu a bez názvu ji uložit nejde.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Vnitřní úklid: velké obrazovky se rozdělily na menší části. Na ovládání se nic nemění, ale další úpravy budou rychlejší a bezpečnější.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.1",
     date: "2026-08-21",
     title: "Oprava objednávkového PDF",

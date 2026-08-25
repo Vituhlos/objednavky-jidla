@@ -91,17 +91,20 @@ Před vydáním:
 2. Rozhodnout bump: `PATCH`, `MINOR`, `MAJOR`, případně prerelease.
 3. Aktualizovat `package.json` a `package-lock.json`.
 4. Aktualizovat `CHANGELOG.md`.
-5. Spustit dostupné ověření:
+5. Aktualizovat `lib/release-notes.ts` — novinky zobrazované v aplikaci. Píšou se
+   zvlášť a jinými slovy než changelog: ten je technický, novinky jsou pro člověka,
+   který appku používá. Bez záznamu k vydávané verzi neprojdou testy.
+6. Spustit dostupné ověření:
    - `npm run build`
    - `npm run lint`, pokud je v daném okamžiku užitečný; repo může mít historické warningy.
-6. Vytvořit commit s release změnami.
-7. Vytvořit anotovaný git tag ve tvaru `vX.Y.Z`, například:
+7. Vytvořit commit s release změnami.
+8. Vytvořit anotovaný git tag ve tvaru `vX.Y.Z`, například:
 
 ```bash
 git tag -a v1.1.0 -m "Release v1.1.0"
 ```
 
-8. Pushnout commit a tag:
+9. Pushnout commit a tag:
 
 ```bash
 git push origin main

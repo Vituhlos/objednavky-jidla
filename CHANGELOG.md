@@ -6,6 +6,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-08-25
+
+### Fixed
+
+- Okno „Co je nového“ v Nastavení ukazovalo naposledy verzi 1.3.1, přestože aplikace běžela na 1.3.3. Novinky v aplikaci žijí v `lib/release-notes.ts` a píšou se ručně, zvlášť od `CHANGELOG.md` — ten je technický, novinky jsou pro lidi. Při vydání 1.3.2 a 1.3.3 se na ně zapomnělo; obě verze jsou doplněné.
+
+### Added
+
+- `lib/release-notes.test.ts` — pět testů, které z novinek dělají podmínku vydání. Klíčový je ten, který porovnává první záznam s verzí v `package.json`: bez novinek k aktuální verzi neprojde CI, takže se stejná chyba nemůže zopakovat. Ostatní hlídají prázdné sekce, duplicitní nadpisy a tvar data.
+
 ## [1.3.3] - 2026-08-25
 
 ### Security
