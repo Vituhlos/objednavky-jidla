@@ -15,7 +15,14 @@ env:
   IMAGE_NAME: vituhlos/objednavky-jidla
 
 jobs:
+  # Brána před publikací: dokud neprojdou testy a lint, image se nepostaví.
+  # Bez toho byl jedinou kontrolou `next build` uvnitř Dockerfilu, který chytí
+  # chyby typů, ale ne rozbité chování.
+  test:
+    uses: ./.github/workflows/test.yml
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

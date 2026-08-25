@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- CI spouští `npm run lint` a `npm test` a publikace Docker image na nich závisí. Do té doby byla jedinou kontrolou mezi commitem a tagem `stable` jen úspěšná kompilace uvnitř Dockerfilu, která chytí chyby typů, ale ne rozbité chování. Testy běží i u pull requestů.
+
 ## [1.3.2] - 2026-08-24
 
 ### Fixed
