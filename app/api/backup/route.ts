@@ -1,14 +1,27 @@
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp, requireSettingsPin } from "@/lib/api-auth";
 import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SENSITIVE_KEYS = new Set(["smtpPass", "imapPass", "settingsPin", "vapidPrivateKey"]);
+// Cokoli, čím se dá někam přihlásit nebo se za appku vydávat. Token bota
+// a webhookový secret tu dřív chyběly — se získaným tokenem jde bota převzít.
+const SENSITIVE_KEYS = new Set([
+  "smtpPass",
+  "imapPass",
+  "settingsPin",
+  "vapidPrivateKey",
+  "telegramBotToken",
+  "telegramWebhookSecret",
+]);
 
 export function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  const denied = requireSettingsPin(req);
+  if (denied) return denied;
+
+  const ip = getClientIp(req);
   if (!checkRateLimit(`backup:${ip}`, 5, 3600_000)) {
     return new Response("Příliš mnoho požadavků. Zkuste to za hodinu.", { status: 429 });
   }

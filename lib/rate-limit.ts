@@ -10,6 +10,20 @@ export function getRateLimitReset(key: string): number | null {
   return row.reset_at;
 }
 
+/**
+ * Je limit pro `key` už vyčerpaný? Na rozdíl od `checkRateLimit` nic neodečítá.
+ *
+ * Používá se tam, kde se počítají jen neúspěchy — kdyby se kredit ubíral
+ * i za povedený pokus, vyčerpalo by ho běžné používání.
+ */
+export function isRateLimited(key: string, max: number): boolean {
+  const row = getDb()
+    .prepare("SELECT count, reset_at FROM rate_limits WHERE key = ?")
+    .get(key) as { count: number; reset_at: number } | undefined;
+  if (!row || row.reset_at <= Date.now()) return false;
+  return row.count >= max;
+}
+
 export function checkRateLimit(key: string, max: number, windowMs: number): boolean {
   const db = getDb();
   const now = Date.now();

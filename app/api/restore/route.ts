@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
+import { requireSettingsPin } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ function remapId(oldId: number | null | undefined, map: Map<number, number>): nu
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const denied = requireSettingsPin(req);
+  if (denied) return denied;
+
   try {
     const { backup, restoreSettings } = await req.json() as { backup: BackupFile; restoreSettings: boolean };
     const db = getDb();

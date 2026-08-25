@@ -1,12 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { testSmtpConnection, testSmtpConnectionWith } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireSettingsPin } from "@/lib/api-auth";
 
 function getIp(req: NextRequest) {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
 }
 
 export async function GET(req: NextRequest) {
+  const denied = requireSettingsPin(req);
+  if (denied) return denied;
+
   if (!checkRateLimit(`smtp-test:${getIp(req)}`, 5, 60 * 1000)) {
     return NextResponse.json({ ok: false, error: "Příliš mnoho požadavků. Počkejte chvíli." }, { status: 429 });
   }
@@ -19,6 +23,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireSettingsPin(req);
+  if (denied) return denied;
+
   if (!checkRateLimit(`smtp-test:${getIp(req)}`, 5, 60 * 1000)) {
     return NextResponse.json({ ok: false, error: "Příliš mnoho požadavků. Počkejte chvíli." }, { status: 429 });
   }

@@ -14,7 +14,14 @@ import { SettingsSection } from "./SettingsPrimitives";
  * Nastavení se obnovuje zvlášť a jen na požádání — je to jediná část zálohy,
  * která umí přepsat funkční konfiguraci appky.
  */
-export function BackupSection({ isActive }: { isActive: boolean }) {
+export function BackupSection({
+  getPin,
+  isActive,
+}: {
+  getPin: () => string;
+  isActive: boolean;
+}) {
+  const [downloadError, setDownloadError] = useState("");
   const [isPending, startTransition] = useTransition();
   type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
   const [restoreFile, setRestoreFile] = useState<Record<string, unknown> | null>(null);
@@ -53,7 +60,7 @@ export function BackupSection({ isActive }: { isActive: boolean }) {
       try {
         const res = await fetch("/api/restore", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-settings-pin": getPin() },
           body: JSON.stringify({ backup: restoreFile, restoreSettings: restoreIncludeSettings }),
         });
         const json = await res.json() as { ok: boolean; result?: RestoreResult; error?: string };
@@ -87,6 +94,30 @@ export function BackupSection({ isActive }: { isActive: boolean }) {
     ? ((restoreFile as Record<string, unknown>).departments as unknown[]).length : 0;
   const backupHasSettings = typeof (restoreFile as Record<string, unknown> | null)?.settings === "object";
 
+  /**
+   * Záloha se stahuje fetchem, ne prostým odkazem — PIN se posílá v hlavičce
+   * a do adresy nepatří, aby nekončil v historii prohlížeče ani v logu proxy.
+   */
+  const handleDownload = async () => {
+    setDownloadError("");
+    try {
+      const res = await fetch("/api/backup", { headers: { "x-settings-pin": getPin() } });
+      if (!res.ok) {
+        setDownloadError(res.status === 401 ? "Neplatný PIN — odemkni Nastavení znovu." : await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `objednavky-zaloha-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError("Zálohu se nepodařilo stáhnout.");
+    }
+  };
+
   if (!isActive) return null;
 
   return (
@@ -94,13 +125,14 @@ export function BackupSection({ isActive }: { isActive: boolean }) {
       <p className="text-[12.5px] text-stone-500">
         Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
       </p>
-      <a
+      <button
         className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
-        download
-        href="/api/backup"
+        onClick={handleDownload}
+        type="button"
       >
         <MIcon name="download" size={14} /> Stáhnout zálohu
-      </a>
+      </button>
+      {downloadError && <p className="text-[12px] text-red-500">{downloadError}</p>}
 
       <div className="border-t border-white/40 pt-3 flex flex-col gap-3">
         <p className="text-[12px] font-semibold text-stone-700">Obnova ze zálohy</p>
