@@ -47,6 +47,13 @@ import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
 import { broadcast } from "@/lib/sse-broadcast";
 import {
+  getPeople,
+  mergePeople,
+  renamePerson,
+  setPersonActive,
+  type Person,
+} from "@/lib/people";
+import {
   getDepartments,
   addDepartment,
   updateDepartment,
@@ -423,3 +430,26 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
   return setTelegramCommands();
 }
 
+
+// ── Strávníci ────────────────────────────────────────────────────────────────
+// Zatím bez kontroly oprávnění — přijde s účty ve fázi 3, kdy se zapisující
+// akce zavřou za přihlášení.
+
+export async function actionGetPeople(): Promise<Person[]> {
+  return getPeople();
+}
+
+export async function actionRenamePerson(id: number, name: string): Promise<void> {
+  renamePerson(id, name);
+  broadcast();
+}
+
+export async function actionMergePeople(sourceId: number, targetId: number): Promise<void> {
+  mergePeople(sourceId, targetId);
+  broadcast();
+}
+
+export async function actionSetPersonActive(id: number, active: boolean): Promise<void> {
+  setPersonActive(id, active);
+  broadcast();
+}

@@ -45,6 +45,7 @@ import type {
 } from "./types";
 import { getDepartments, getDepartmentsByNames } from "./departments";
 import { logAudit } from "./audit";
+import { findOrCreatePerson } from "./people";
 import { isDepartmentSubmitted } from "./order-utils";
 
 function mapOrder(row: Record<string, unknown>): Order {
@@ -350,6 +351,18 @@ export function updateOrderRow(
   const { soupPrice, mealPrice, ep } = readDefaultPrices();
 
   return db.transaction(() => {
+    // Jméno v řádku je otisk; `person_id` je vazba na strávníka. Zapisují se
+    // spolu, aby řádek vždycky věděl, ke komu patří.
+    if (updates.personName !== undefined) {
+      const current = db
+        .prepare("SELECT department FROM order_rows WHERE id = ?")
+        .get(rowId) as { department: string } | undefined;
+      if (current) {
+        const personId = findOrCreatePerson(updates.personName, current.department);
+        db.prepare("UPDATE order_rows SET person_id = ? WHERE id = ?").run(personId, rowId);
+      }
+    }
+
     const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
     if (entries.length > 0) {
       const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");

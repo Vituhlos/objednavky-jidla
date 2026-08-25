@@ -192,14 +192,92 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
   try { db.exec("ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''"); } catch {}
 
+  // ── Strávníci ──────────────────────────────────────────────────────────────
+  //
+  // Do téhle chvíle byl člověk jen text v řádku objednávky, jiný pro každý den.
+  // `people` z něj dělá stálou entitu, na kterou jde navázat historii, účet
+  // nebo telefonní číslo.
+  //
+  // Jméno **není** jedinečné. Dva kolegové se můžou jmenovat stejně a systém
+  // je nikdy nesmí spojit — sloučení je vždy vědomý krok správce.
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS people (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      name               TEXT    NOT NULL,
+      department_id      INTEGER REFERENCES departments(id),
+      guest_of_person_id INTEGER REFERENCES people(id),
+      active             INTEGER NOT NULL DEFAULT 1,
+      created_at         TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+
+  // `person_name` v řádku zůstává jako otisk jména v době objednávky. Bez něj
+  // by přejmenování nebo smazání strávníka přepsalo loňské objednávky.
+  try { db.exec("ALTER TABLE order_rows ADD COLUMN person_id INTEGER REFERENCES people(id)"); } catch {}
+
   // Performance indexes
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_rows_order_id ON order_rows(order_id);
     CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date);
     CREATE INDEX IF NOT EXISTS idx_menu_items_day_week ON menu_items(week_start, day);
     CREATE INDEX IF NOT EXISTS idx_audit_log_ts ON audit_log(ts DESC);
+    CREATE INDEX IF NOT EXISTS idx_order_rows_person_id ON order_rows(person_id);
+    CREATE INDEX IF NOT EXISTS idx_people_name ON people(name);
   `);
+
+  backfillPeople(db);
 
   // Add department column to pizza_order_rows (idempotent)
   try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
+}
+
+/**
+ * Založí strávníky z historických jmen a napojí na ně existující řádky.
+ *
+ * Běží při každém startu, ale zabere jen na řádcích, které ještě `person_id`
+ * nemají — takže je bezpečné ji pustit opakovaně.
+ *
+ * **Klíčem je dvojice (jméno, oddělení), ne samotné jméno.** „Petr Novák“
+ * v Konstrukci a „Petr Novák“ v Dílně vzniknou jako dva strávníci. U jednoho
+ * člověka, který mezi odděleními přešel, je to duplicita — tu správce sloučí.
+ * Opačná volba by ale spojila dva různé lidi, a to je chyba, kterou už nikdo
+ * nerozplete. Rozdělené jde spojit, spojené ne.
+ */
+export function backfillPeople(db: import("better-sqlite3").Database): void {
+  const pending = db
+    .prepare("SELECT COUNT(*) AS n FROM order_rows WHERE person_id IS NULL AND TRIM(person_name) <> ''")
+    .get() as { n: number };
+  if (pending.n === 0) return;
+
+  const pairs = db
+    .prepare(`
+      SELECT TRIM(person_name) AS name, department
+      FROM order_rows
+      WHERE person_id IS NULL AND TRIM(person_name) <> ''
+      GROUP BY TRIM(person_name), department
+    `)
+    .all() as { name: string; department: string }[];
+
+  const findDept = db.prepare("SELECT id FROM departments WHERE name = ?");
+  const findPerson = db.prepare(
+    "SELECT id FROM people WHERE name = ? AND (department_id IS ? OR department_id = ?)"
+  );
+  const insertPerson = db.prepare("INSERT INTO people (name, department_id) VALUES (?, ?)");
+  const linkRows = db.prepare(
+    "UPDATE order_rows SET person_id = ? WHERE person_id IS NULL AND TRIM(person_name) = ? AND department = ?"
+  );
+
+  db.transaction(() => {
+    for (const { name, department } of pairs) {
+      // Oddělení mohlo být mezitím smazané nebo přejmenované — pak zůstane null
+      // a správce strávníka zařadí ručně.
+      const dept = findDept.get(department) as { id: number } | undefined;
+      const deptId = dept?.id ?? null;
+
+      const existing = findPerson.get(name, deptId, deptId) as { id: number } | undefined;
+      const personId = existing?.id ?? Number(insertPerson.run(name, deptId).lastInsertRowid);
+
+      linkRows.run(personId, name, department);
+    }
+  })();
 }

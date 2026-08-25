@@ -9,6 +9,11 @@ export type AuditAction =
   | "order_clear"
   | "auto_send"
   | "menu_reminder"
+  | "person_rename"
+  | "person_merge"
+  | "person_activate"
+  | "person_deactivate"
+  | "person_delete"
   | "menu_imap_import";
 
 export interface AuditEntry {

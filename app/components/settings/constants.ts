@@ -42,6 +42,11 @@ export const ACTION_LABELS: Record<string, string> = {
   order_clear: "Vymazání objednávky",
   auto_send: "Auto-odeslání",
   menu_reminder: "Upozornění na chybějící menu",
+  person_rename: "Přejmenování strávníka",
+  person_merge: "Sloučení strávníků",
+  person_activate: "Aktivace strávníka",
+  person_deactivate: "Deaktivace strávníka",
+  person_delete: "Smazání strávníka",
 };
 
 export const CHANNEL_LABELS: Record<string, string> = {

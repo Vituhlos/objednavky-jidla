@@ -20,6 +20,7 @@ import { AuditLogSection } from "./settings/AuditLogSection";
 import { BackupSection } from "./settings/BackupSection";
 import { ClosuresSection } from "./settings/ClosuresSection";
 import { DepartmentsSection } from "./settings/DepartmentsSection";
+import { PeopleSection } from "./settings/PeopleSection";
 import { PinGate } from "./settings/PinGate";
 import { TelegramBotCard, TelegramSection, useTelegramStatus } from "./settings/TelegramSection";
 import { TelegramSubscribersSection } from "./settings/TelegramSubscribersSection";
@@ -243,6 +244,8 @@ export default function SettingsPage({
             <ClosuresSection isActive={activeTab === "provoz"} />
 
             <DepartmentsSection initialDepartments={initialDepts} isActive={activeTab === "lide"} />
+
+            <PeopleSection isActive={activeTab === "lide"} />
 
             {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
             <form
