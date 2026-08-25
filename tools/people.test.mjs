@@ -200,3 +200,71 @@ test("migrace napojí historické řádky a je opakovatelná", async () => {
   backfillPeople(mdb);
   assert.equal(mdb.prepare("SELECT COUNT(*) n FROM people").get().n, 3, "opakovaný běh nic nepřidá");
 });
+
+test("varianty téhož jména ve stejném oddělení se nabídnou jako jistota", () => {
+  people.findOrCreatePerson("Zdeněk Říha", "Konstrukce");
+  people.findOrCreatePerson("Zdenek Riha", "Konstrukce"); // bez háčků
+
+  const group = people
+    .findDuplicateGroups()
+    .find((g) => g.people.some((p) => p.name === "Zdenek Riha"));
+
+  assert.ok(group, "skupina musí existovat");
+  assert.equal(group.kind, "same-department");
+  assert.equal(group.people.length, 2);
+});
+
+test("stejné jméno ve dvou odděleních se nikdy nevydává za jistotu", () => {
+  people.findOrCreatePerson("Alena Šimková", "Konstrukce");
+  people.findOrCreatePerson("Alena Šimková", "Dílna");
+
+  const groups = people
+    .findDuplicateGroups()
+    .filter((g) => g.people.some((p) => p.name === "Alena Šimková"));
+
+  assert.equal(groups.length, 1, "jediná skupina, a to ta slabší");
+  assert.equal(groups[0].kind, "cross-department");
+  assert.deepEqual(
+    groups[0].people.map((p) => p.departmentName).sort(),
+    ["Dílna", "Konstrukce"],
+    "zastoupena jsou obě oddělení"
+  );
+});
+
+// Jádro věci: slepit dva různé lidi je nevratné, nechat jednoho rozděleného ne.
+// Do skupiny, kterou appka nabízí ke sloučení, proto nesmí spadnout dvě oddělení.
+test("do jisté skupiny se nikdy nedostanou lidé z různých oddělení", () => {
+  for (const group of people.findDuplicateGroups()) {
+    if (group.kind !== "same-department") continue;
+    const depts = new Set(group.people.map((p) => p.departmentId));
+    assert.equal(depts.size, 1, `„${group.label}“ míchá oddělení dohromady`);
+  }
+});
+
+test("napříč odděleními zastupuje oddělení ten s nejdelší historií", () => {
+  people.findOrCreatePerson("Ivan Král", "Konstrukce");
+  const busy = people.findOrCreatePerson("Ivan Kral", "Konstrukce");
+  people.findOrCreatePerson("Ivan Král", "Dílna");
+
+  const rowId = addRow(orderId, "Konstrukce", "Ivan Kral");
+  db.prepare("UPDATE order_rows SET person_id = ? WHERE id = ?").run(busy, rowId);
+
+  const cross = people
+    .findDuplicateGroups()
+    .find((g) => g.kind === "cross-department" && g.people.some((p) => p.name.startsWith("Ivan")));
+
+  assert.ok(cross, "skupina přes oddělení musí existovat");
+  const konstrukce = cross.people.find((p) => p.departmentName === "Konstrukce");
+  assert.equal(konstrukce.id, busy, "zastupuje ten, kdo má objednávku");
+});
+
+test("různá jména se do jedné skupiny nedostanou", () => {
+  for (const group of people.findDuplicateGroups()) {
+    const normalized = new Set(
+      group.people.map((p) =>
+        p.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim()
+      )
+    );
+    assert.equal(normalized.size, 1, `skupina musí mít jeden normalizovaný tvar: ${[...normalized]}`);
+  }
+});

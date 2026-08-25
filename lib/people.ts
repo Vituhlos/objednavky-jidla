@@ -68,6 +68,86 @@ export function findMergeCandidates(name: string, excludePersonId?: number): Per
   );
 }
 
+export interface DuplicateGroup {
+  /** Jméno, pod kterým se skupina zobrazí. */
+  label: string;
+  /**
+   * `same-department` — stejné jméno i oddělení. Migrace i `findOrCreatePerson`
+   * klíčují právě na tuhle dvojici, takže dva záznamy znamenají dva různé
+   * **zápisy téhož člověka**: překlep, chybějící háček, mezera navíc.
+   *
+   * `cross-department` — totéž jméno ve víc odděleních. Tohle appka rozhodnout
+   * neumí: buď někdo přešel jinam, nebo jsou to dva různí lidé. Jen upozorní.
+   */
+  kind: "same-department" | "cross-department";
+  people: Person[];
+}
+
+// NFD rozloží „á“ na „a“ + háček; rozsah U+0300–U+036F je pak smaže.
+const normalizeName = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Najde strávníky, kteří můžou být týž člověk zapsaný dvakrát.
+ *
+ * Vzniká to samo: kdo objednává z mobilu, občas vynechá háčky. Při dvaceti
+ * lidech se to najde okem, při pětasedmdesáti ne — proto to hledá appka.
+ *
+ * **Odděluje ale dvě různě silné stopy.** Shoda jména i oddělení je skoro
+ * jistota. Shoda jen jména napříč odděleními jistota není — a slepit dohromady
+ * dva různé lidi je horší chyba než nechat jednoho člověka rozděleného, protože
+ * rozdělené jde spojit, spojené ne. Proto se to druhé nikdy nenabízí jako návrh,
+ * jen jako otázka pro člověka.
+ */
+export function findDuplicateGroups(): DuplicateGroup[] {
+  const byName = new Map<string, Person[]>();
+  for (const person of getPeople()) {
+    const key = normalizeName(person.name);
+    if (!key) continue;
+    const list = byName.get(key);
+    if (list) list.push(person);
+    else byName.set(key, [person]);
+  }
+
+  const groups: DuplicateGroup[] = [];
+  for (const sameName of byName.values()) {
+    if (sameName.length < 2) continue;
+
+    const byDept = new Map<number | null, Person[]>();
+    for (const person of sameName) {
+      const list = byDept.get(person.departmentId);
+      if (list) list.push(person);
+      else byDept.set(person.departmentId, [person]);
+    }
+
+    for (const cluster of byDept.values()) {
+      if (cluster.length > 1) {
+        groups.push({ label: cluster[0].name, kind: "same-department", people: cluster });
+      }
+    }
+
+    // Napříč odděleními stačí jeden zástupce za oddělení — ten s nejdelší
+    // historií. Ostatní varianty téhož jména už řeší skupina výše.
+    if (byDept.size > 1) {
+      const representatives = [...byDept.values()].map((cluster) =>
+        cluster.reduce((best, p) => (p.orderCount > best.orderCount ? p : best))
+      );
+      groups.push({
+        label: representatives[0].name,
+        kind: "cross-department",
+        people: representatives,
+      });
+    }
+  }
+
+  // Jistoty nahoru — s nimi se dá rovnou něco udělat.
+  return groups.sort(
+    (a, b) =>
+      (a.kind === b.kind ? 0 : a.kind === "same-department" ? -1 : 1) ||
+      a.label.localeCompare(b.label, "cs")
+  );
+}
+
 /**
  * Má strávník navázaný účet?
  *

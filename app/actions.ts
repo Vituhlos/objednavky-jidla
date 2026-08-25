@@ -47,10 +47,12 @@ import type { ImapCheckResult } from "@/lib/imap";
 import { sendPushToAll, getAllSubscriptions } from "@/lib/push";
 import { broadcast } from "@/lib/sse-broadcast";
 import {
+  findDuplicateGroups,
   getPeople,
   mergePeople,
   renamePerson,
   setPersonActive,
+  type DuplicateGroup,
   type Person,
 } from "@/lib/people";
 import {
@@ -437,6 +439,10 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 
 export async function actionGetPeople(): Promise<Person[]> {
   return getPeople();
+}
+
+export async function actionGetDuplicatePeople(): Promise<DuplicateGroup[]> {
+  return findDuplicateGroups();
 }
 
 export async function actionRenamePerson(id: number, name: string): Promise<void> {

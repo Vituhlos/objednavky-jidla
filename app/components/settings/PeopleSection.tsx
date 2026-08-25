@@ -2,15 +2,92 @@
 
 import { useEffect, useState, useTransition } from "react";
 import {
+  actionGetDuplicatePeople,
   actionGetPeople,
   actionMergePeople,
   actionRenamePerson,
   actionSetPersonActive,
 } from "@/app/actions";
-import type { Person } from "@/lib/people";
+import type { DuplicateGroup, Person } from "@/lib/people";
 import { ConfirmModal } from "../ConfirmModal";
 import MIcon from "../MIcon";
 import { SettingsField, SettingsSection } from "./SettingsPrimitives";
+
+interface Tone {
+  bg: string;
+  border: string;
+  accent: string;
+}
+
+/** Jistota — dá se rovnou sloučit. */
+const TONE_LIKELY: Tone = {
+  bg: "rgba(245,158,11,0.07)",
+  border: "rgba(245,158,11,0.18)",
+  accent: "#D97706",
+};
+
+/** Otázka pro člověka — appka nic netvrdí, proto barva jen šeptá. */
+const TONE_UNSURE: Tone = {
+  bg: "rgba(100,116,139,0.06)",
+  border: "rgba(100,116,139,0.16)",
+  accent: "#64748B",
+};
+
+function DuplicatePanel({
+  groups,
+  hint,
+  icon,
+  onPick,
+  title,
+  tone,
+}: {
+  groups: DuplicateGroup[];
+  hint: string;
+  icon: string;
+  onPick: (person: Person) => void;
+  title: string;
+  tone: Tone;
+}) {
+  if (groups.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-2xl p-3 flex flex-col gap-2"
+      style={{ background: tone.bg, border: `1px solid ${tone.border}` }}
+    >
+      <div className="flex items-center gap-2">
+        <MIcon name={icon} size={15} style={{ color: tone.accent }} />
+        <span className="text-[12.5px] font-semibold text-stone-800">
+          {title} ({groups.length})
+        </span>
+      </div>
+      <p className="text-[12px] text-stone-600">{hint}</p>
+      {groups.map((group) => (
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          key={`${group.kind}-${group.people.map((p) => p.id).join("-")}`}
+        >
+          {group.people.map((person, i) => (
+            <span className="inline-flex items-center gap-1.5" key={person.id}>
+              {i > 0 && <span className="text-stone-400 text-[11px]">·</span>}
+              <button
+                className="text-[12px] font-medium px-2 py-1 rounded-lg glass-btn text-stone-700"
+                onClick={() => onPick(person)}
+                title={`Sloučit „${person.name}“ pod jiného strávníka`}
+                type="button"
+              >
+                {person.name}
+                <span className="text-stone-400 ml-1">
+                  {person.departmentName ?? "bez oddělení"} · {person.orderCount}×
+                </span>
+              </button>
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Správa strávníků — lidí, na které se věší objednávky.
@@ -25,6 +102,8 @@ import { SettingsField, SettingsSection } from "./SettingsPrimitives";
  */
 export function PeopleSection({ isActive }: { isActive: boolean }) {
   const [people, setPeople] = useState<Person[]>([]);
+  const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
+  const [query, setQuery] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -36,12 +115,15 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
 
   useEffect(() => {
     if (loaded) return;
-    actionGetPeople()
-      .then((list) => { setPeople(list); setLoaded(true); })
+    Promise.all([actionGetPeople(), actionGetDuplicatePeople()])
+      .then(([list, groups]) => { setPeople(list); setDuplicates(groups); setLoaded(true); })
       .catch(() => setError("Strávníky se nepodařilo načíst."));
   }, [loaded]);
 
-  const reload = () => actionGetPeople().then(setPeople).catch(() => {});
+  const reload = () =>
+    Promise.all([actionGetPeople(), actionGetDuplicatePeople()])
+      .then(([list, groups]) => { setPeople(list); setDuplicates(groups); })
+      .catch(() => {});
 
   const handleRename = (id: number) => {
     setError(null);
@@ -87,7 +169,19 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
 
   if (!isActive) return null;
 
+  const pickForMerge = (person: Person) => {
+    setMergeSource(person);
+    setMergeTargetId("");
+  };
+
   const mergeTarget = people.find((p) => p.id === Number(mergeTargetId)) ?? null;
+
+  const normalized = query.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  const visible = normalized
+    ? people.filter((p) =>
+        p.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().includes(normalized)
+      )
+    : people;
 
   return (
     <SettingsSection icon="badge" title={`Strávníci${people.length > 0 ? ` (${people.length})` : ""}`}>
@@ -98,13 +192,44 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
 
       {error && <p className="text-[12px] text-red-500">{error}</p>}
 
+      <DuplicatePanel
+        groups={duplicates.filter((g) => g.kind === "same-department")}
+        hint="Stejné jméno i oddělení, liší se jen zápisem — chybí háček nebo přebývá mezera. Klikni na tu variantu, která má zmizet, a slouč ji pod správnou."
+        icon="join_inner"
+        onPick={pickForMerge}
+        title="Nejspíš týž člověk"
+        tone={TONE_LIKELY}
+      />
+
+      <DuplicatePanel
+        groups={duplicates.filter((g) => g.kind === "cross-department")}
+        hint="Tohle appka rozhodnout neumí — buď někdo přešel na jiné oddělení, nebo jsou to dva různí lidé se stejným jménem. Slučuj jen tehdy, když to víš jistě."
+        icon="alt_route"
+        onPick={pickForMerge}
+        title="Jméno ve víc odděleních"
+        tone={TONE_UNSURE}
+      />
+
+      {people.length > 8 && (
+        <input
+          className="modal-input"
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Hledat strávníka…"
+          type="search"
+          value={query}
+        />
+      )}
+
       {!loaded ? (
         <p className="text-[12.5px] text-stone-400">Načítám…</p>
       ) : people.length === 0 ? (
         <p className="text-[12.5px] text-stone-400">Zatím nikdo — strávníci vzniknou s první objednávkou.</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {people.map((person) => (
+          {visible.length === 0 && (
+            <p className="text-[12.5px] text-stone-400">Nikdo neodpovídá hledání.</p>
+          )}
+          {visible.map((person) => (
             <div
               className={`glass-soft rounded-2xl px-3 py-2.5 flex items-center gap-3 ${person.active ? "" : "opacity-55"}`}
               key={person.id}
