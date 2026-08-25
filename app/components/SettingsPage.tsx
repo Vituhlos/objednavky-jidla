@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, memo } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback, memo } from "react";
 import type { AppSettings } from "@/lib/settings";
 import type { DepartmentInfo } from "@/lib/departments";
 import type { AuditEntry } from "@/lib/audit";
@@ -97,6 +97,9 @@ export default function SettingsPage({
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const confirmedPinRef = useRef("");
+  // Chráněné API routy chtějí PIN v hlavičce. Předává se jako funkce, ne
+  // hodnota — ref se plní až při odemčení a getter tak nemůže zestárnout.
+  const getPin = useCallback(() => confirmedPinRef.current, []);
 
   const telegram = useTelegramStatus(
     settings,
@@ -267,7 +270,7 @@ export default function SettingsPage({
               {/* E-mail & IMAP tab */}
               <div className="flex flex-col gap-4" data-cat="napojeni" style={{ display: activeTab === "napojeni" ? "flex" : "none" }}>
 
-                <SmtpSection settings={settings} />
+                <SmtpSection getPin={getPin} settings={settings} />
 
                 <MenuImportSection settings={settings} />
 
@@ -298,7 +301,7 @@ export default function SettingsPage({
 
             {/* ── Systém — non-form sections ── */}
             <AboutSection isActive={activeTab === "system"} />
-            <BackupSection isActive={activeTab === "system"} />
+            <BackupSection getPin={getPin} isActive={activeTab === "system"} />
             <AuditLogSection entries={initialAuditLog} isActive={activeTab === "system"} />
 
             <TelegramSubscribersSection

@@ -17,7 +17,7 @@ import {
  * projevil až po uložení. Formulář se hledá přes `closest("form")` od tlačítka,
  * takže sekce nepotřebuje znát ref na rodiče.
  */
-export function SmtpSection({ settings }: { settings: AppSettings }) {
+export function SmtpSection({ getPin, settings }: { getPin: () => string; settings: AppSettings }) {
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -39,7 +39,7 @@ export function SmtpSection({ settings }: { settings: AppSettings }) {
       try {
         const res = await fetch("/api/smtp-test", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-settings-pin": getPin() },
           body: JSON.stringify(config),
         });
         const json = await res.json() as { ok: boolean; error?: string };
