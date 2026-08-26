@@ -12,11 +12,19 @@ import type { RowUpdates } from "./types";
 import { useMounted } from "./use-media";
 
 export function OrderEditModal({
-  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, existingNames, onSave, onClose, onDelete,
+  row, soups, meals, isNew, defaultSoupPrice, defaultMealPrice, ep, existingNames, orderableNames = null, onSave, onClose, onDelete,
 }: {
   row: OrderRowEnriched; soups: import("@/lib/types").MenuItem[]; meals: import("@/lib/types").MenuItem[];
   isNew: boolean; defaultSoupPrice?: number; defaultMealPrice?: number; ep: ExtrasPrices;
   existingNames: string[];
+  /**
+   * Jména, za která smí přihlášený objednávat.
+   *
+   * `null` = volný text (správce, nebo režim bez účtů). Pole = výběr. Server
+   * porovnává přesnou shodu, takže psané jméno by rozbil chybějící háček —
+   * a člověk by nevěděl proč.
+   */
+  orderableNames?: string[] | null;
   onSave: (u: RowUpdates) => void; onClose: () => void; onDelete: () => void;
 }) {
   const [firstName, setFirstName] = useState(() => {
@@ -27,7 +35,17 @@ export function OrderEditModal({
     if (row.personName) return row.personName.trim().split(/\s+/).slice(1).join(" ");
     try { return localStorage.getItem("lastLastName") ?? ""; } catch { return ""; }
   });
-  const personName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+  // Při výběru se jméno drží celé v jednom stavu — rozdělovat vybranou hodnotu
+  // na křestní a příjmení a zase ji skládat by ji mohlo cestou změnit.
+  const [pickedName, setPickedName] = useState(() => {
+    const zapsane = row.personName?.trim() ?? "";
+    if (!orderableNames) return zapsane;
+    if (zapsane && orderableNames.includes(zapsane)) return zapsane;
+    return orderableNames.length === 1 ? orderableNames[0] : "";
+  });
+  const personName = orderableNames
+    ? pickedName
+    : [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
   const [soupIds, setSoupIds] = useState<(number | null)[]>(
     row.soupItemId2 != null ? [row.soupItemId, row.soupItemId2] : [row.soupItemId]
   );
@@ -107,16 +125,24 @@ export function OrderEditModal({
     personName.trim() !== "" &&
     normalizeName(personName) !== normalizeName(row.personName) &&
     existingNames.some((n) => normalizeName(n) === normalizeName(personName));
-  const showMealTip = /\d/.test(lastName) || /\d/.test(firstName);
+  const showMealTip = !orderableNames && (/\d/.test(lastName) || /\d/.test(firstName));
 
   const handleSave = () => {
-    if (!firstName.trim()) {
-      setValidationError("Zadejte křestní jméno.");
-      return;
-    }
-    if (!lastName.trim()) {
-      setValidationError("Zadejte příjmení.");
-      return;
+    // Ve výběru žádné křestní a příjmení nejsou — kontroluje se celé jméno.
+    if (orderableNames) {
+      if (!personName.trim()) {
+        setValidationError("Vyberte, pro koho objednáváte.");
+        return;
+      }
+    } else {
+      if (!firstName.trim()) {
+        setValidationError("Zadejte křestní jméno.");
+        return;
+      }
+      if (!lastName.trim()) {
+        setValidationError("Zadejte příjmení.");
+        return;
+      }
     }
     if (!hasFood) {
       setValidationError("Vyberte alespoň jedno jídlo nebo přílohu.");
@@ -131,7 +157,11 @@ export function OrderEditModal({
   };
 
   const doSave = () => {
-    try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
+    // Jméno do paměti prohlížeče si ukládá jen volný zápis — ve výběru ho appka
+    // zná z účtu a předvyplněná hodnota by jen překážela.
+    if (!orderableNames) {
+      try { localStorage.setItem("lastFirstName", firstName.trim()); localStorage.setItem("lastLastName", lastName.trim()); } catch { /* */ }
+    }
     const firstMeal = mealEntries[0] ?? { itemId: null, count: 1 };
     const extraMeals: MealEntry[] = mealEntries
       .slice(1)
@@ -176,6 +206,31 @@ export function OrderEditModal({
         </div>
         <div className="modal-sheet__body">
           <div className="modal-field">
+            {orderableNames ? (
+              orderableNames.length <= 1 ? (
+                <>
+                  <span className="modal-label">Objednávka pro</span>
+                  <p className="text-[13px] font-semibold text-stone-800">
+                    {orderableNames[0] ?? "—"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="modal-label" htmlFor="modal-person">Objednávka pro</label>
+                  <select
+                    className="k-select"
+                    id="modal-person"
+                    onChange={(e) => { setPickedName(e.target.value); setValidationError(null); }}
+                    value={pickedName}
+                  >
+                    <option value="">— vyberte —</option>
+                    {orderableNames.map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </>
+              )
+            ) : (
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <div style={{ flex: 1 }}>
                 <label className="modal-label" htmlFor="modal-firstname">Jméno</label>
@@ -209,6 +264,7 @@ export function OrderEditModal({
                 )}
               </div>
             </div>
+            )}
             {isDuplicateName && (
               <div className="mt-1 px-3 py-2 rounded-xl text-[12px] text-amber-700 font-medium flex items-center gap-1.5"
                 style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>

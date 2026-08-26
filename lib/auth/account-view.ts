@@ -25,6 +25,13 @@ export interface AccountView {
    * žádné.
    */
   isGuest: boolean;
+  /**
+   * Jména strávníků, za které smí účet objednávat — sebe a své hosty (R8).
+   *
+   * UI z toho dělá výběr místo volného textu. Server porovnává přesnou shodu, takže
+   * kdyby si člověk jméno psal, stačil by chybějící háček a zápis by neprošel.
+   */
+  orderableNames: string[];
 }
 
 export async function getAccountView(): Promise<AccountView | null> {
@@ -41,5 +48,8 @@ export async function getAccountView(): Promise<AccountView | null> {
     emailVerified: user.emailVerified,
     personCount: user.personIds.length,
     isGuest: user.personIds.some((id) => getPerson(id)?.guestOfPersonId != null),
+    orderableNames: user.personIds
+      .map((id) => getPerson(id)?.name)
+      .filter((n): n is string => !!n),
   };
 }

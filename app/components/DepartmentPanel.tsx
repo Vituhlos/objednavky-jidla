@@ -19,6 +19,8 @@ interface Props {
   isSent: boolean;
   /** Proč je zamčeno. Nevyplněno = objednávka už odešla. */
   lockNote?: React.ReactNode;
+  /** `null` = volný text, pole = výběr z vlastních strávníků. */
+  orderableNames?: string[] | null;
   existingNames?: string[];
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
@@ -32,7 +34,7 @@ interface Props {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, lockNote, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, lockNote, orderableNames = null, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -158,6 +160,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, lockNote, existingNa
           onClose={() => setModalState(null)}
           onDelete={() => { onDeleteRow(modalState!.rowId); setModalState(null); }}
           onSave={(updates) => { onUpdateRow(modalState!.rowId, updates); setModalState(null); }}
+          orderableNames={orderableNames}
           row={modalRow}
           soups={soups}
         />

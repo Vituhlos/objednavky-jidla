@@ -54,6 +54,7 @@ export default function OrderPage({
   initialData,
   canEdit = true,
   canManage = true,
+  orderableNames = null,
   cutoffTime = "08:00",
   menuEmpty = false,
   defaultSoupPrice = 30,
@@ -79,6 +80,14 @@ export default function OrderPage({
   canEdit?: boolean;
   /** Správcovské úkony — odeslání objednávky, otevření dne. */
   canManage?: boolean;
+  /**
+   * Jména, za která smí přihlášený objednávat.
+   *
+   * `null` znamená volný text — správce zapisuje kohokoli, protože opravuje
+   * i cizí objednávky. Pole znamená výběr: server porovnává přesnou shodu,
+   * takže psané jméno by rozbil chybějící háček.
+   */
+  orderableNames?: string[] | null;
   cutoffTime?: string;
   menuEmpty?: boolean;
   defaultSoupPrice?: number;
@@ -563,6 +572,7 @@ export default function OrderPage({
                     key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
+                    orderableNames={orderableNames}
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
                     soups={allSoups}

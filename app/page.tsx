@@ -65,6 +65,10 @@ export default async function HomePage({
   const canEdit = !accountsEnabled() || account !== null;
   const canManage = !accountsEnabled() || account?.role === "admin";
 
+  // `null` = jméno se smí napsat volně (správce nebo předúčtový režim).
+  // Pole = musí se vybrat z něj.
+  const orderableNames = canManage ? null : (account?.orderableNames ?? []);
+
   const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
   const holidayName = getHolidayName(selectedDate);
@@ -77,6 +81,7 @@ export default async function HomePage({
       availableDates={allDates}
       canEdit={canEdit}
       canManage={canManage}
+      orderableNames={orderableNames}
       closedDates={closedDates}
       activeClosure={selectedClosure ? withOrderableBounds(selectedClosure) : null}
       closureRanges={getClosures().map((c) => ({ startDate: c.startDate, endDate: c.endDate, icon: c.icon }))}
