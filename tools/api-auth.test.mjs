@@ -52,6 +52,15 @@ test("klient Nastavení po step-upu nikde nedrží ani nepředává raw PIN", ()
   assert.match(gate, /onUnlock: \(\) => void/);
 });
 
+test("veřejná registrace nenabízí ani neposílá převzetí historie", () => {
+  const source = read("app/components/account/RegisterForm.tsx");
+  assert.doesNotMatch(source, /ClaimCandidate|claimPersonId|Nejste to náhodou vy/);
+  assert.match(
+    source,
+    /actionRegister\(\s*email,\s*name,\s*password,\s*departmentId \? Number\(departmentId\) : null\s*\)/
+  );
+});
+
 test("API guard běží před čtením těla, databáze a externím spojením", () => {
   const cases = [
     ["app/api/backup/route.ts", "getDb()"],

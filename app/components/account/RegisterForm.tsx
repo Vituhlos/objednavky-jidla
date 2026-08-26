@@ -2,8 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { actionRegister, type ClaimCandidate } from "@/app/actions-auth";
-import { formatCzechDate, pluralizeOrders } from "@/lib/format";
+import { actionRegister } from "@/app/actions-auth";
 import MIcon from "../MIcon";
 
 const MIN_HESLO = 12;
@@ -11,10 +10,8 @@ const MIN_HESLO = 12;
 /**
  * Registrace heslem.
  *
- * Dvoukrokovost není v návrhu formuláře, ale v datech: když stejné jméno už
- * v historii objednávek je, appka se nejdřív zeptá, jestli jde o téhož člověka.
- * Rozhodnout to neumí ani systém, ani správce — ví to jen ten, kdo se
- * registruje (R3, R4).
+ * Veřejná registrace vždy zakládá nového strávníka. Shodné jméno není důkaz
+ * identity; případné sloučení dřívější historie proto smí udělat až správce.
  */
 export function RegisterForm({
   departments,
@@ -26,21 +23,19 @@ export function RegisterForm({
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [departmentId, setDepartmentId] = useState<string>("");
-  const [claim, setClaim] = useState<ClaimCandidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const errorId = useId();
   const hintId = useId();
 
-  const odeslat = (claimPersonId?: number) => {
+  const odeslat = () => {
     setError(null);
     startTransition(async () => {
       const res = await actionRegister(
         email,
         name,
         password,
-        departmentId ? Number(departmentId) : null,
-        claimPersonId ?? (claim ? 0 : undefined)
+        departmentId ? Number(departmentId) : null
       );
       if ("ok" in res && res.ok) {
         router.replace("/");
@@ -48,7 +43,10 @@ export function RegisterForm({
         return;
       }
       if ("claim" in res) {
-        setClaim(res.claim);
+        // Kompatibilita se starším serverem nesmí znovu otevřít veřejné
+        // přivlastnění historie. Uživatel nedostane veřejná interní ID.
+        setPassword("");
+        setError("Účet se nepodařilo založit. Obraťte se na správce.");
         return;
       }
       setPassword("");
@@ -62,64 +60,6 @@ export function RegisterForm({
     odeslat();
   };
 
-  // ── Krok 2: nejsi to náhodou ty? ──────────────────────────────────────────
-  if (claim) {
-    return (
-      <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
-        <div className="flex flex-col gap-4 p-8">
-          <div className="text-center">
-            <span aria-hidden="true" className="text-[34px] leading-none">
-              🤔
-            </span>
-            <p className="font-display font-bold text-[17px] text-stone-900 mt-2">
-              Nejste to náhodou vy?
-            </p>
-            <p className="text-[12.5px] text-stone-500 mt-1">
-              Pod tímhle jménem už objednávky v historii jsou. Když je převezmete,
-              zůstanou vám i součty za minulé měsíce.
-            </p>
-          </div>
-
-          <ul className="flex flex-col gap-2">
-            {claim.map((k) => (
-              <li key={k.id}>
-                <button
-                  className="glass-soft rounded-2xl px-3 py-2.5 w-full text-left hover:bg-white/60 transition disabled:opacity-50"
-                  disabled={isPending}
-                  onClick={() => odeslat(k.id)}
-                  type="button"
-                >
-                  <span className="block text-[13px] font-semibold text-stone-800">{k.name}</span>
-                  <span className="block text-[11px] text-stone-500">
-                    {k.department ?? "bez oddělení"}
-                    {k.orderCount > 0 && <> · {k.orderCount} {pluralizeOrders(k.orderCount)}</>}
-                    {k.lastOrderDate && <> · naposledy {formatCzechDate(k.lastOrderDate)}</>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          {error && (
-            <p className="text-[12px] text-red-500 text-center" id={errorId} role="alert">
-              {error}
-            </p>
-          )}
-
-          <button
-            className="modal-btn modal-btn--secondary w-full"
-            disabled={isPending}
-            onClick={() => odeslat(0)}
-            type="button"
-          >
-            {isPending ? "Zakládám…" : "Ne, jsem někdo jiný"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Krok 1: údaje ─────────────────────────────────────────────────────────
   return (
     <div className="glass rounded-3xl overflow-hidden max-w-sm mx-auto mt-8">
       <div className="flex flex-col items-center gap-4 p-8">
@@ -151,7 +91,9 @@ export function RegisterForm({
               type="text"
               value={name}
             />
-            <p className="text-[11px] text-stone-400">Takhle se objevíte v objednávce i v PDF pro LIMA.</p>
+            <p className="text-[11px] text-stone-400">
+              Takhle se objevíte v objednávce i v PDF pro LIMA. Dřívější historii může případně sloučit správce.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">
