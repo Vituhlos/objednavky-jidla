@@ -82,7 +82,21 @@ jediná skupina akcí, která z něj umí vystoupit, takže musí být výjimkou
 **Co prověřit:** je výčet úplný? Existuje jiná akce, která umí změnit roli
 nebo založit správce a je zajištěná jen `guardAdmin()`?
 
-### 6. Rozpočet pokusů u registrace
+### 6. Jméno v řádku je pro nesprávce výběr
+
+Nesprávce nevyplňuje křestní a příjmení, ale vybírá z `AccountView.orderableNames`.
+Při jediném jménu se jen vypíše.
+
+**Proč:** server porovnává přesnou shodu (viz bod 3). Dokud bylo pole volný
+text, stačil chybějící háček a zápis skončil odmítnutím, kterému by člověk
+nerozuměl — vlastní jméno by musel trefit znak po znaku.
+
+**Co prověřit:** `orderableNames` obsahuje jména všech `session.personIds`.
+Aktivní host má vlastní účet, takže se v seznamu hostitele **neobjeví** —
+objednává si sám. Pasivní host (člověk bez účtu, za kterého objednává někdo
+jiný) zatím nejde založit — viz známá omezení.
+
+### 7. Rozpočet pokusů u registrace
 
 15 registrací za hodinu na IP, odečítá se **až skutečně založený účet**.
 
@@ -148,6 +162,10 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | `c504eda` | založení tohohle protokolu |
 | `7902ac7` | pozvánky hostů a registrace z odkazu (R19, R20) |
 | `105232a` | správa účtů v nastavení |
+| `d4bdb5a` | doplnění tohohle protokolu |
+| `c2878f1` | propojení Google účtu potvrzením hesla (R6) + stavy z callbacku |
+| `acb0703` | jméno v řádku jako výběr |
+| `7574dd3` | X-Robots-Tag noindex a robots.txt |
 
 ### Klasifikace server actions
 
@@ -177,10 +195,14 @@ skutečně selhal a jmenoval ji.
    proto „odhlásit ostatní zařízení".
 3. **Nepřihlášený vidí jména kolegů** — to je záměr (R1), ne opomenutí.
    Hlavička `X-Robots-Tag: noindex` zatím nasazená není.
-4. **Google přihlášení není hotové.** Tlačítko se ukazuje, když je Google
-   nastavený, a míří na hotový route handler. Chybí obrazovka pro stav
-   `auth=google-link-required` (potvrzení heslem při propojování) a registrace
-   hosta přes Google.
+4. **Google tok nebyl vyzkoušený naostro** — chybí `GOOGLE_CLIENT_ID`
+   a `GOOGLE_CLIENT_SECRET`. Obrazovky i směrování stavů hotové a ověřené
+   ručním vyvoláním `?auth=…`, samotný průchod přes Google ne.
+   **Registrace hosta přes Google chybí** — backend variantu
+   `{ provider: "google", profileCookie }` umí, UI ji zatím nenabízí.
+6. **Pasivního hosta nejde založit.** Člověk bez účtu, za kterého objednává
+   někdo jiný, existuje ve schématu (`guest_of_person_id`), ale UI ho vytvořit
+   neumí. Týká se to např. manželky, která appku nikdy neotevře.
 5. **Sekce Účty nebyla vizuálně proklikaná** — Nastavení jsou za PINem, který
    nezadávám. Chování pod ní ověřeno přímo (ochrana posledního správce drží
    ve všech třech směrech), vzhled ne.
@@ -200,6 +222,18 @@ správce). Chyby, které našlo až spuštění:
 - „1 objednávek" místo „1 objednávka" a datum `2026-03-04` místo `4. 3. 2026`
 
 Žádnou z nich by testy nenašly. Proto se každý krok proklikává.
+
+### Bezpečnostní a přístupnostní průchod
+
+- `npm audit`: **0 zranitelností**
+- `X-Robots-Tag: noindex, nofollow` na všech cestách + `robots.txt` — ověřeno
+  proti běžícímu serveru
+- všechna pole nových formulářů mají svázaný `<label>` a správný
+  `autocomplete`; chyby jsou v `role="alert"`
+- na každé obrazovce je v přístupnostním stromu právě jeden `h1` (druhý má
+  rodiče `display: none` — desktopová a mobilní hlavička)
+- žádný token, otisk ani obsah cookie se nedostává do klientských props;
+  `AccountView` vědomě neobsahuje ani `userId`
 
 ### Rozložení
 
