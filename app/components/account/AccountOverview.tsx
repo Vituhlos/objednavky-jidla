@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { actionLogout } from "@/app/actions-auth";
 import type { AccountView } from "@/lib/auth/account-view";
 import { ChangePasswordForm } from "./PasswordForms";
+import { SessionList } from "./SessionList";
 import MIcon from "../MIcon";
 
 function Radek({ label, children }: { label: string; children: React.ReactNode }) {
@@ -70,6 +71,8 @@ export function AccountOverview({ account }: { account: AccountView }) {
         <p className="font-display font-bold text-[14px] text-stone-900">Heslo</p>
         <ChangePasswordForm />
       </div>
+
+      <SessionList />
 
       <button
         className="modal-btn modal-btn--secondary w-full flex items-center justify-center gap-2"

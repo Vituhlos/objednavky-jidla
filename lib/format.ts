@@ -34,3 +34,23 @@ export function formatCzechDate(iso: string): string {
     ? iso
     : d.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
 }
+
+/**
+ * Časové razítko z databáze v české podobě.
+ *
+ * Auth vrstva ukládá hotové ISO-8601 v UTC (`2026-08-26T08:31:59.761Z`),
+ * starší tabulky `YYYY-MM-DD HH:MM:SS` bez zóny. Druhý tvar je taky UTC, jen
+ * to o sobě neříká — bez doplnění by se zobrazil posunutý o dvě hodiny.
+ */
+export function formatCzechDateTime(value: string): string {
+  const normalized = /[TZ]/.test(value) ? value : `${value.replace(" ", "T")}Z`;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime())
+    ? value
+    : d.toLocaleString("cs-CZ", {
+        day: "numeric",
+        month: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}

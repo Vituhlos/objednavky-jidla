@@ -8,6 +8,8 @@ import { requireSession } from "@/lib/auth/guards";
 import {
   createSession,
   getSessionCookieOptions,
+  listSessions,
+  revokeAllSessions,
   revokeSession,
   SESSION_COOKIE,
 } from "@/lib/auth/sessions";
@@ -326,4 +328,79 @@ export async function actionChangePassword(
 
   changePassword(session.userId, newPassword, session.sessionId);
   return { ok: true };
+}
+
+// ── Sezení ───────────────────────────────────────────────────────────────────
+
+export interface SessionView {
+  id: number;
+  /** Je to zařízení, na kterém se člověk právě dívá? */
+  current: boolean;
+  device: string;
+  createdAt: string;
+  lastSeenAt: string;
+  persistent: boolean;
+}
+
+/**
+ * Přihlášená zařízení.
+ *
+ * Tokeny ani jejich otisky sem nepatří a `listSessions` je ani nevrací —
+ * do klienta jde jen to, podle čeho člověk pozná svůj mobil.
+ */
+export async function actionListSessions(): Promise<SessionView[]> {
+  const session = await requireSession();
+  return listSessions(session.userId).map((s) => ({
+    id: s.id,
+    current: s.id === session.sessionId,
+    device: describeDevice(s.userAgent),
+    createdAt: s.createdAt,
+    lastSeenAt: s.lastSeenAt,
+    persistent: s.persistent,
+  }));
+}
+
+/** Odhlásí všechna ostatní zařízení. To, na kterém se člověk dívá, zůstane. */
+export async function actionRevokeOtherSessions(): Promise<{ ok: true; count: number }> {
+  const session = await requireSession();
+  const before = listSessions(session.userId).length;
+  revokeAllSessions(session.userId, session.sessionId);
+  return { ok: true, count: Math.max(0, before - 1) };
+}
+
+/**
+ * Z hlavičky prohlížeče udělá něco, co člověk pozná.
+ *
+ * Záměrně hrubé: přesná verze prohlížeče nikomu nepomůže rozhodnout, jestli
+ * tohle přihlášení zná, a plná hlavička by v seznamu jen překážela.
+ */
+function describeDevice(userAgent: string | null): string {
+  if (!userAgent) return "Neznámé zařízení";
+  const ua = userAgent.toLowerCase();
+
+  const system = ua.includes("iphone")
+    ? "iPhone"
+    : ua.includes("ipad")
+      ? "iPad"
+      : ua.includes("android")
+        ? "Android"
+        : ua.includes("windows")
+          ? "Windows"
+          : ua.includes("mac os") || ua.includes("macintosh")
+            ? "Mac"
+            : ua.includes("linux")
+              ? "Linux"
+              : "Neznámý systém";
+
+  const browser = ua.includes("edg/")
+    ? "Edge"
+    : ua.includes("chrome/") && !ua.includes("chromium")
+      ? "Chrome"
+      : ua.includes("firefox/")
+        ? "Firefox"
+        : ua.includes("safari/")
+          ? "Safari"
+          : null;
+
+  return browser ? `${system} · ${browser}` : system;
 }
