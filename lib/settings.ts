@@ -115,6 +115,17 @@ const KEY_MAP: Record<keyof AppSettings, string> = {
   orderForceOpenAt: "order_force_open_date",
 };
 
+export const SECRET_MASK = "••••••••";
+
+const CLIENT_SECRET_FIELDS = new Set<keyof AppSettings>([
+  "smtpPass",
+  "imapPass",
+  "vapidPrivateKey",
+  "telegramBotToken",
+  "googleClientSecret",
+  "telegramWebhookSecret",
+]);
+
 function envDefaults(): AppSettings {
   return {
     smtpHost: process.env.SMTP_HOST ?? "",
@@ -195,6 +206,27 @@ export function getSettings(): AppSettings {
     if (stored !== undefined) result[field] = stored;
   }
   return result;
+}
+
+export function getSettingsForClient(): AppSettings {
+  const result = getSettings();
+  for (const field of CLIENT_SECRET_FIELDS) {
+    result[field] = result[field] ? SECRET_MASK : "";
+  }
+  result.settingsPin = "";
+  return result;
+}
+
+export function sanitizeClientSettingsUpdates(
+  updates: Partial<AppSettings>
+): Partial<AppSettings> {
+  const sanitized: Partial<AppSettings> = {};
+  for (const [field, value] of Object.entries(updates) as [keyof AppSettings, unknown][]) {
+    if (!KEY_MAP[field] || typeof value !== "string") continue;
+    if (CLIENT_SECRET_FIELDS.has(field) && (!value || value === SECRET_MASK)) continue;
+    sanitized[field] = value;
+  }
+  return sanitized;
 }
 
 export function saveSettings(updates: Partial<AppSettings>): void {

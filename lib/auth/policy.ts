@@ -3,7 +3,6 @@ import { getPerson } from "../people";
 import { AuthError } from "./errors";
 import { assertCanEditRow } from "./guards";
 import type { SessionInfo } from "./sessions";
-import { listUsers } from "./users";
 
 /**
  * Pravidla, která stojí nad guardy z `guards.ts`.
@@ -13,21 +12,10 @@ import { listUsers } from "./users";
  * a že jméno v řádku není volný text, ale volba mezi vlastními strávníky.
  */
 
-/**
- * Dokud v databázi není žádný aktivní správce, běží aplikace v předúčtovém
- * režimu a zápisy se nezamykají.
- *
- * Bez téhle výjimky by nasazení bez nastavených `ADMIN_EMAIL` a `ADMIN_PASSWORD`
- * zamklo objednávky i Nastavení a dovnitř by se nedostal nikdo. Zadní vrátka to
- * nejsou: jakmile první správce vznikne, výjimka zmizí a vrátit se nemůže —
- * posledního aktivního správce nejde zablokovat, degradovat ani smazat.
- */
-let enabledCache = false;
-
 export function accountsEnabled(): boolean {
-  if (enabledCache) return true; // přechod je jednosměrný, stačí zjistit jednou
-  enabledCache = listUsers().some((u) => u.role === "admin" && u.status === "active");
-  return enabledCache;
+  // Rozhraní si ponechává starý přepínač, server ale po nasazení účtů nesmí
+  // při chybě bootstrapu přejít do veřejného zapisovacího režimu.
+  return true;
 }
 
 /** Typ z klienta není kontrola — id ověř za běhu, než se podle něj rozhodne. */

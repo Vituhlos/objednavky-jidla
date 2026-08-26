@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getDb } from "../db";
 import { AuthError } from "./errors";
+import { PIN_COOKIE, verifyPinProof } from "./pin-gate";
 import {
   isBlockedSessionToken,
   readSession,
@@ -36,6 +37,18 @@ export async function requireAdmin(): Promise<SessionInfo> {
   const session = await requireSession();
   if (session.role !== "admin") {
     throw new AuthError("JEN_SPRAVCE", "Tuto akci může provést jen správce.");
+  }
+  return session;
+}
+
+export async function requireAdminWithPin(): Promise<SessionInfo> {
+  const session = await requireAdmin();
+  const store = await cookies();
+  if (!verifyPinProof(store.get(PIN_COOKIE)?.value, session)) {
+    throw new AuthError(
+      "VYZADOVAN_PIN",
+      "Pro tuto citlivou akci znovu potvrďte správcovský PIN."
+    );
   }
   return session;
 }

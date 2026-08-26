@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
@@ -27,7 +26,12 @@ import {
   replacePizzaItems,
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
-import { saveSettings, checkPin, getSettings } from "@/lib/settings";
+import {
+  checkPin,
+  getSettings,
+  sanitizeClientSettingsUpdates,
+  saveSettings,
+} from "@/lib/settings";
 import { getClosures, addClosure, updateClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
 import { getPragueNow, getPragueISODate } from "@/lib/time";
 import { forceOpenStamp, isOrderingLocked } from "@/lib/cutoff";
@@ -55,14 +59,12 @@ import {
   type DuplicateGroup,
   type Person,
 } from "@/lib/people";
-import { getSession, requireAdmin, requireSession } from "@/lib/auth/guards";
+import { requireAdmin, requireAdminWithPin, requireSession } from "@/lib/auth/guards";
 import {
-  jePinDokladPlatny,
   PIN_COOKIE,
+  issuePinProof,
   pinCookieOptions,
-  vystavPinDoklad,
 } from "@/lib/auth/pin-gate";
-import { logAudit } from "@/lib/audit";
 import { cookies } from "next/headers";
 import {
   deleteUser,
@@ -73,12 +75,7 @@ import {
   type AuthUser,
 } from "@/lib/auth/users";
 import { createResetLinkForUser } from "@/lib/auth/mail";
-import {
-  accountsEnabled,
-  assertId,
-  assertMayEditRow,
-  assertNameIsOwn,
-} from "@/lib/auth/policy";
+import { assertId, assertMayEditRow, assertNameIsOwn } from "@/lib/auth/policy";
 import type { SessionInfo } from "@/lib/auth/sessions";
 import {
   getDepartments,
@@ -99,20 +96,16 @@ function isCutoffActive(): boolean {
 // schováním tlačítka a ne v proxy/middleware, které jde obejít.
 // Pravidla samotná jsou v lib/auth/policy.ts, aby se dala testovat bez Nextu.
 
-/**
- * Vyžádá správce. Propustí i toho, kdo právě zadal PIN, a režim bez účtů.
- *
- * PIN je vědomě ponechaný jako zadní vrátka — viz lib/auth/pin-gate.ts.
- */
 async function guardAdmin(): Promise<void> {
-  if (!accountsEnabled()) return;
-  if (jePinDokladPlatny((await cookies()).get(PIN_COOKIE)?.value)) return;
   await requireAdmin();
 }
 
-/** Vyžádá přihlášení. V představu bez účtů vrátí `null`. */
-async function guardSession(): Promise<SessionInfo | null> {
-  return accountsEnabled() ? requireSession() : null;
+async function guardSettings(): Promise<void> {
+  await requireAdminWithPin();
+}
+
+async function guardSession(): Promise<SessionInfo> {
+  return requireSession();
 }
 
 export async function actionAddRow(
@@ -337,7 +330,7 @@ export async function actionAddClosure(
   note = "",
   icon = ""
 ): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
-  await guardAdmin();
+  await guardSettings();
   const problem = validateClosure(startDate, endDate);
   if (problem) return { ok: false, error: problem };
 
@@ -357,7 +350,7 @@ export async function actionUpdateClosure(
   note = "",
   icon = ""
 ): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
-  await guardAdmin();
+  await guardSettings();
   const problem = validateClosure(startDate, endDate, id);
   if (problem) return { ok: false, error: problem };
 
@@ -370,7 +363,7 @@ export async function actionUpdateClosure(
 }
 
 export async function actionDeleteClosure(id: number): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   deleteClosure(id);
   revalidatePath("/");
   revalidatePath("/jidelnicek");
@@ -392,7 +385,7 @@ export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
 export async function actionAddDepartment(data: {
   name: string; label: string; emailLabel: string; accent: string;
 }): Promise<DepartmentInfo> {
-  await guardAdmin();
+  await guardSettings();
   const dept = addDepartment(data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -403,7 +396,7 @@ export async function actionUpdateDepartment(
   id: number,
   data: Partial<{ label: string; emailLabel: string; accent: string }>
 ): Promise<DepartmentInfo> {
-  await guardAdmin();
+  await guardSettings();
   const dept = updateDepartment(id, data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -411,14 +404,14 @@ export async function actionUpdateDepartment(
 }
 
 export async function actionDeleteDepartment(id: number): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   deleteDepartment(id);
   revalidatePath("/");
   revalidatePath("/nastaveni");
 }
 
 export async function actionReorderDepartments(orderedIds: number[]): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   reorderDepartments(orderedIds);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -429,38 +422,35 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  const key = `pin:${ip}`;
+  const session = await requireAdmin();
+  const key = `pin:${session.userId}:${session.sessionId}`;
   if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
     return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
   }
   if (!checkPin(pin)) return { ok: false };
 
   const store = await cookies();
-  store.set(PIN_COOKIE, vystavPinDoklad(), pinCookieOptions());
-
-  // Vstup do Nastavení mimo správcovský účet má být vidět — jsou to zadní vrátka.
-  const session = await getSession();
-  if (accountsEnabled() && session?.role !== "admin") {
-    logAudit({ action: "settings_pin_bypass", details: "Nastavení otevřena PINem bez správcovského účtu" });
-  }
+  store.set(PIN_COOKIE, issuePinProof(session), pinCookieOptions());
+  revalidatePath("/nastaveni");
   return { ok: true };
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
-  saveSettings(updates);
+  const sanitized = sanitizeClientSettingsUpdates(updates);
+  saveSettings(sanitized);
+  if (sanitized.settingsPin) (await cookies()).delete(PIN_COOKIE);
   revalidatePath("/nastaveni");
 }
 
 export async function actionCheckImap(): Promise<ImapCheckResult> {
-  await guardAdmin();
+  await guardSettings();
   return checkImapForMenu();
 }
 
 export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
-  await guardAdmin();
+  await guardSettings();
   const subs = getAllSubscriptions();
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
@@ -474,16 +464,25 @@ export async function actionDismissAutoSendError(): Promise<void> {
 }
 
 export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
-  await guardAdmin();
-  const hdrs = await headers();
-  const host = hdrs.get("host") ?? "";
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
+  await guardSettings();
+  const configured = process.env.APP_URL?.trim() || getSettings().telegramAppUrl.trim();
+  if (!configured) throw new Error("Pro webhook nastavte veřejnou adresu aplikace.");
+
+  let base: URL;
+  try {
+    base = new URL(configured);
+  } catch {
+    throw new Error("Veřejná adresa aplikace není platná.");
+  }
+  if (base.protocol !== "https:" && process.env.NODE_ENV === "production") {
+    throw new Error("Veřejná adresa aplikace musí používat HTTPS.");
+  }
+  const webhookUrl = new URL("/api/telegram/webhook", base).href;
   return setTelegramWebhook(webhookUrl);
 }
 
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
-  await guardAdmin();
+  await guardSettings();
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
   if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
@@ -496,18 +495,18 @@ export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: nu
 }
 
 export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
-  await guardAdmin();
+  await guardSettings();
   return getTelegramSubscriptions();
 }
 
 export async function actionRemoveTelegramSubscription(chatId: string): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   removeTelegramSubscription(chatId);
   revalidatePath("/nastaveni");
 }
 
 export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   setTelegramAdmin(chatId, isAdmin);
   revalidatePath("/nastaveni");
 }
@@ -518,7 +517,7 @@ export async function actionGetTelegramBotInfo(): Promise<{
   username?: string;
   error?: string;
 }> {
-  await guardAdmin();
+  await guardSettings();
   return getTelegramBotInfo();
 }
 
@@ -527,12 +526,12 @@ export async function actionGetTelegramWebhookStatus(): Promise<{
   hasWebhook: boolean;
   url?: string;
 }> {
-  await guardAdmin();
+  await guardSettings();
   return getTelegramWebhookStatus();
 }
 
 export async function actionSetTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
-  await guardAdmin();
+  await guardSettings();
   return setTelegramCommands();
 }
 
@@ -542,42 +541,40 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 // akce zavřou za přihlášení.
 
 export async function actionGetPeople(): Promise<Person[]> {
-  await guardAdmin();
+  await guardSettings();
   return getPeople();
 }
 
 export async function actionGetDuplicatePeople(): Promise<DuplicateGroup[]> {
-  await guardAdmin();
+  await guardSettings();
   return findDuplicateGroups();
 }
 
 export async function actionRenamePerson(id: number, name: string): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   renamePerson(id, name);
   broadcast();
 }
 
 export async function actionMergePeople(sourceId: number, targetId: number): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   mergePeople(sourceId, targetId);
   broadcast();
 }
 
 export async function actionSetPersonActive(id: number, active: boolean): Promise<void> {
-  await guardAdmin();
+  await guardSettings();
   setPersonActive(id, active);
   broadcast();
 }
 
 // ── Účty (administrace) ──────────────────────────────────────────────────────
 //
-// Tyhle akce se drží `requireAdmin()`, ne `guardAdmin()` — vědomě obcházejí
-// předúčtový režim. Kdyby v něm platily, mohl by se v databázi bez správce
-// kdokoli povýšit na správce a z toho režimu tím natrvalo vystoupit. Dokud
-// správce není, nemá se tu co spravovat: první vzniká z ADMIN_EMAIL při migraci.
+// Správa cizích účtů vyžaduje čerstvé potvrzení PINem. Samotné dlouhé sezení
+// správce nestačí, protože odemčený počítač nesmí umožnit změnu rolí ani hesel.
 
 export async function actionListUsers(): Promise<AuthUser[]> {
-  await requireAdmin();
+  await requireAdminWithPin();
   return listUsers();
 }
 
@@ -585,7 +582,7 @@ export async function actionSetUserStatus(
   id: number,
   status: "active" | "blocked"
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requireAdminWithPin();
   assertId(id, "číslo účtu");
   if (status !== "active" && status !== "blocked") return { ok: false, error: "Neplatný stav." };
 
@@ -602,7 +599,7 @@ export async function actionSetUserRole(
   id: number,
   role: "admin" | "user"
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requireAdminWithPin();
   assertId(id, "číslo účtu");
   if (role !== "admin" && role !== "user") return { ok: false, error: "Neplatná role." };
 
@@ -617,7 +614,7 @@ export async function actionSetUserRole(
 export async function actionDeleteUser(
   id: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requireAdminWithPin();
   assertId(id, "číslo účtu");
 
   try {
@@ -637,7 +634,7 @@ export async function actionDeleteUser(
 export async function actionCreateResetLink(
   id: number
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requireAdminWithPin();
   assertId(id, "číslo účtu");
 
   try {
@@ -649,6 +646,6 @@ export async function actionCreateResetLink(
 
 /** Používá první správce pořád heslo z proměnné prostředí? */
 export async function actionBootstrapPasswordUnchanged(): Promise<boolean> {
-  await requireAdmin();
+  await requireAdminWithPin();
   return isBootstrapPasswordUnchanged();
 }

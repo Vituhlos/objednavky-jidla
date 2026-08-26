@@ -4,11 +4,15 @@ import { parseMenuText } from "@/lib/parse-menu";
 import { checkRateLimit } from "@/lib/rate-limit";
 import path from "path";
 import fs from "fs";
+import { getClientIp, requireApiAdmin } from "@/lib/api-auth";
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  const denied = await requireApiAdmin();
+  if (denied) return denied;
+
+  const ip = getClientIp(request);
   if (!checkRateLimit(`pdf-import:${ip}`, 10, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Příliš mnoho nahraných souborů. Zkuste to za hodinu." }, { status: 429 });
   }

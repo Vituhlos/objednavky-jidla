@@ -1,17 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { testSmtpConnection, testSmtpConnectionWith } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { requireSettingsPin } from "@/lib/api-auth";
-
-function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-}
+import { getClientIp, requireSettingsAccess } from "@/lib/api-auth";
+import { getSettings, SECRET_MASK } from "@/lib/settings";
 
 export async function GET(req: NextRequest) {
-  const denied = requireSettingsPin(req);
+  const denied = await requireSettingsAccess();
   if (denied) return denied;
 
-  if (!checkRateLimit(`smtp-test:${getIp(req)}`, 5, 60 * 1000)) {
+  if (!checkRateLimit(`smtp-test:${getClientIp(req)}`, 5, 60 * 1000)) {
     return NextResponse.json({ ok: false, error: "Příliš mnoho požadavků. Počkejte chvíli." }, { status: 429 });
   }
   try {
@@ -23,14 +20,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireSettingsPin(req);
+  const denied = await requireSettingsAccess();
   if (denied) return denied;
 
-  if (!checkRateLimit(`smtp-test:${getIp(req)}`, 5, 60 * 1000)) {
+  if (!checkRateLimit(`smtp-test:${getClientIp(req)}`, 5, 60 * 1000)) {
     return NextResponse.json({ ok: false, error: "Příliš mnoho požadavků. Počkejte chvíli." }, { status: 429 });
   }
   try {
     const body = await req.json() as { host: string; port: string; user: string; pass: string; secure: string };
+    if (body.pass === SECRET_MASK) body.pass = getSettings().smtpPass;
     await testSmtpConnectionWith(body);
     return NextResponse.json({ ok: true });
   } catch (err) {

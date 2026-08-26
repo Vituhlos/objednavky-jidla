@@ -48,20 +48,21 @@ const PUBLIC_ACTIONS = new Set([
   // člověk přihlašuje. Obranou je heslo (R6), podepsaná cookie s profilem
   // a limit pokusů na IP.
   "actionConfirmGoogleLink",
-  // Sama je tou branou: ověří PIN a vydá krátkodobý doklad, který guardAdmin
-  // uznává. PIN zůstává zadními vrátky do Nastavení — vědomá odchylka od R12,
-  // aby šlo appku odemknout, kdyby se přihlašování rozbilo.
-  "actionCheckPin",
 ]);
 
 /**
  * Co se počítá za kontrolu oprávnění.
  *
- * guardAdmin a guardSession jsou obaly, které navíc pouštějí představ bez účtů.
- * requireSession a requireAdmin jsou též kontroly — akce, která dává smysl jen
- * přihlášenému, si je volá přímo.
+ * Obaly drží konkrétní hranice: session, správce a správce s PIN step-upem.
  */
-const GUARDS = ["guardAdmin()", "guardSession()", "requireSession()", "requireAdmin()"];
+const GUARDS = [
+  "guardAdmin()",
+  "guardSettings()",
+  "guardSession()",
+  "requireSession()",
+  "requireAdmin()",
+  "requireAdminWithPin()",
+];
 
 /**
  * V souboru s „use server“ je **každá** exportovaná async funkce server action,
@@ -113,7 +114,6 @@ const LOGIN_ACTIONS = new Set([
   // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
   "actionRegisterGuest",
   "actionConfirmGoogleLink",
-  "actionCheckPin",
 ]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
@@ -127,16 +127,21 @@ test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
   }
 });
 
-test("PIN brána omezuje počet pokusů a vydává jen krátkodobý doklad", () => {
+test("PIN brána nejdřív vyžádá správce a vydá session-bound doklad", () => {
   const telo = ACTIONS.find((a) => a.name === "actionCheckPin")?.body;
   assert.ok(telo, "actionCheckPin musí existovat");
+  assert.ok(
+    telo.indexOf("requireAdmin()") < telo.indexOf("checkRateLimit("),
+    "PIN se nesmí ověřovat před správcovskou session"
+  );
   assert.match(telo, /checkRateLimit\(/, "bez limitu by šel PIN hádat");
-  assert.match(telo, /vystavPinDoklad\(\)/, "úspěch musí vydat doklad");
-  assert.match(telo, /settings_pin_bypass/, "vstup mimo správce se musí zapsat do auditu");
+  assert.match(telo, /issuePinProof\(session\)/, "doklad musí být vázaný na session");
 
   const brana = fs.readFileSync("lib/auth/pin-gate.ts", "utf8");
   assert.match(brana, /httpOnly: true/, "doklad nesmí být čitelný z JavaScriptu");
+  assert.match(brana, /sameSite: "strict"/, "step-up cookie nesmí odcházet v cross-site požadavku");
   assert.match(brana, /timingSafeEqual/, "podpis se porovnává konstantním časem");
+  assert.doesNotMatch(brana, /pin:\$\{getSettings\(\)\.settingsPin\}/, "PIN nesmí být HMAC klíč");
 });
 
 test("přihlašovací akce omezují počet pokusů", () => {
@@ -287,81 +292,97 @@ test("id se ověřuje za běhu, ne typem", () => {
   assert.equal(policy.assertId(7, "číslo řádku"), 7);
 });
 
-// ── Přechod na účty ─────────────────────────────────────────────────────────
-// Testuje se v samostatném procesu: accountsEnabled() si výsledek pamatuje,
-// protože zpátky se přejít nedá.
+test("chybějící správce nikdy neotevře předúčtový zapisovací režim", () => {
+  assert.equal(policy.accountsEnabled(), true);
+});
 
-test("dokud není správce, zápisy se nezamykají", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "policy-boot-"));
-  process.env.DB_PATH = path.join(dir, "boot.db");
+test("PIN kontrola není veřejná akce", () => {
+  assert.equal(PUBLIC_ACTIONS.has("actionCheckPin"), false);
+});
 
-  const lib2 = loadLib();
-  const { getDb: openDb } = await lib2("db");
-  const { migrateAuth: migrate } = await lib2("auth/schema");
-  const users2 = await lib2("auth/users");
-  const policy2 = await lib2("auth/policy");
-  const bootDb = openDb();
-  migrate(bootDb);
-
-  assert.equal(policy2.accountsEnabled(), false, "bez správce běží předúčtový režim");
-
-  users2.createUserWithPassword({
-    email: "bezny@example.cz",
-    name: "Běžný Uživatel",
-    password: "dostatecne-dlouhe-heslo",
-    departmentId: 1,
-  });
-  assert.equal(policy2.accountsEnabled(), false, "běžný účet režim nepřepne");
-
-  const admin = users2.createUserWithPassword({
-    email: "spravce@example.cz",
-    name: "Správce Kantýny",
-    password: "dostatecne-dlouhe-heslo",
-    departmentId: 1,
-  });
-  users2.setUserRole(admin.userId, "admin");
-
-  assert.equal(policy2.accountsEnabled(), true, "první správce zamkne zápisy");
+test("server Nastavení vyžádá správce a neposílá celý settings objekt", () => {
+  const source = fs.readFileSync("app/nastaveni/page.tsx", "utf8");
+  assert.ok(source.indexOf("await requireAdmin()") < source.indexOf("getSettingsForClient()"));
+  assert.doesNotMatch(source, /\bgetSettings\(\)/);
 });
 
 // ── Doklad o PINu ───────────────────────────────────────────────────────────
-// Zadní vrátka do Nastavení bez správcovského účtu. Vědomá odchylka od R12,
-// takže o to víc záleží, aby se nedal podvrhnout.
 
 const pinGate = await lib("auth/pin-gate");
 const settings = await lib("settings");
+const proofSession = { sessionId: 10, userId: owner.userId, role: "admin", personIds: [owner.personId] };
+const proofNow = Date.now();
 
-test("čerstvý doklad projde, podvržený ne", () => {
-  const doklad = pinGate.vystavPinDoklad();
-  assert.equal(pinGate.jePinDokladPlatny(doklad), true);
+test("DTO Nastavení nikdy neobsahuje uložená tajemství", () => {
+  const secret = "canary-secret-that-must-not-reach-rsc";
+  settings.saveSettings({
+    smtpPass: secret,
+    imapPass: secret,
+    vapidPrivateKey: secret,
+    telegramBotToken: secret,
+    googleClientSecret: secret,
+    telegramWebhookSecret: secret,
+  });
 
-  const [platiDo, podpis] = doklad.split(".");
+  const dto = settings.getSettingsForClient();
+  assert.doesNotMatch(JSON.stringify(dto), new RegExp(secret));
+  assert.equal(dto.settingsPin, "");
+  assert.equal(dto.smtpPass, settings.SECRET_MASK);
+
+  const sanitized = settings.sanitizeClientSettingsUpdates({
+    smtpPass: settings.SECRET_MASK,
+    imapPass: "",
+    smtpHost: "smtp.example.cz",
+  });
+  assert.deepEqual(sanitized, { smtpHost: "smtp.example.cz" });
+});
+
+test("čerstvý doklad platí jen pro session, pro kterou vznikl", () => {
+  const doklad = pinGate.issuePinProof(proofSession, proofNow);
+  assert.equal(pinGate.verifyPinProof(doklad, proofSession, proofNow), true);
+  assert.equal(
+    pinGate.verifyPinProof(doklad, { ...proofSession, sessionId: 11 }, proofNow),
+    false
+  );
+
+  const [payload, podpis] = doklad.split(".");
   for (const podvrh of [
     undefined,
     "",
-    platiDo,
-    `${platiDo}.`,
-    `${platiDo}.${podpis}x`,
-    `${Number(platiDo) + 3_600_000}.${podpis}`, // prodloužená platnost, starý podpis
+    payload,
+    `${payload}.`,
+    `${payload}.${podpis}x`,
+    `${payload}x.${podpis}`,
     `nesmysl.${podpis}`,
   ]) {
-    assert.equal(pinGate.jePinDokladPlatny(podvrh), false, `prošlo: ${podvrh}`);
+    assert.equal(pinGate.verifyPinProof(podvrh, proofSession, proofNow), false, `prošlo: ${podvrh}`);
   }
 });
 
-test("prošlý doklad neprojde", () => {
-  const stary = `${Date.now() - 1000}.cokoli`;
-  assert.equal(pinGate.jePinDokladPlatny(stary), false);
+test("prošlý ani předem vystavený doklad neprojde", () => {
+  const doklad = pinGate.issuePinProof(proofSession, proofNow);
+  assert.equal(pinGate.verifyPinProof(doklad, proofSession, proofNow + 30 * 60 * 1000), false);
+
+  const futureProof = pinGate.issuePinProof(proofSession, proofNow + 2 * 60 * 1000);
+  assert.equal(pinGate.verifyPinProof(futureProof, proofSession, proofNow), false);
 });
 
 test("změna PINu zneplatní vydané doklady", () => {
-  // Bez vyhrazeného COOKIE_SIGNING_SECRET se podepisuje otiskem PINu, takže
-  // jeho změna staré doklady odřízne. To je vlastnost, ne vedlejší účinek.
-  delete process.env.COOKIE_SIGNING_SECRET;
   settings.saveSettings({ settingsPin: "1234" });
-  const doklad = pinGate.vystavPinDoklad();
-  assert.equal(pinGate.jePinDokladPlatny(doklad), true);
+  const doklad = pinGate.issuePinProof(proofSession, proofNow);
+  assert.equal(pinGate.verifyPinProof(doklad, proofSession, proofNow), true);
 
   settings.saveSettings({ settingsPin: "9876" });
-  assert.equal(pinGate.jePinDokladPlatny(doklad), false, "starý doklad musí přestat platit");
+  assert.equal(
+    pinGate.verifyPinProof(doklad, proofSession, proofNow),
+    false,
+    "starý doklad musí přestat platit"
+  );
+});
+
+test("bez samostatného silného secretu se doklad nevydá", () => {
+  const previous = process.env.COOKIE_SIGNING_SECRET;
+  delete process.env.COOKIE_SIGNING_SECRET;
+  assert.throws(() => pinGate.issuePinProof(proofSession), /alespoň 32 bajtů/);
+  process.env.COOKIE_SIGNING_SECRET = previous;
 });

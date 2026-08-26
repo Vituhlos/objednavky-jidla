@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getClientIp, requireSettingsPin } from "@/lib/api-auth";
+import { getClientIp, requireSettingsAccess } from "@/lib/api-auth";
 import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +18,8 @@ const SENSITIVE_KEYS = new Set([
   "telegramWebhookSecret",
 ]);
 
-export function GET(req: NextRequest) {
-  const denied = requireSettingsPin(req);
+export async function GET(req: NextRequest) {
+  const denied = await requireSettingsAccess();
   if (denied) return denied;
 
   const ip = getClientIp(req);

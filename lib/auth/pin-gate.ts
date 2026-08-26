@@ -1,70 +1,108 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getSettings } from "../settings";
-
-/**
- * Doklad o zadaném PINu — zadní vrátka do Nastavení bez správcovského účtu.
- *
- * **Vědomá odchylka od R12**, které chtělo PIN až jako druhý krok po přihlášení.
- * Důvod je provozní: kdyby se přihlašování rozbilo, je tohle jediná cesta zpět —
- * a bez Nastavení nejde spravit ani SMTP, přes které se obnovuje heslo. Bez
- * vrátek by šla appka zamknout tak, že by ji nešlo odemknout.
- *
- * Cena je reálná a nemá se zlehčovat: na veřejné adrese stačí uhodnout PIN
- * a člověk si stáhne zálohu celé databáze. Proto je doklad krátkodobý, vázaný
- * na PIN (změna PINu ho zneplatní) a jeho použití se zapisuje do auditu.
- *
- * Není to sezení: nenese uživatele, nedá se z něj zjistit, kdo to byl, a na nic
- * kromě Nastavení neplatí.
- */
+import type { SessionInfo } from "./sessions";
 
 export const PIN_COOKIE = "kantyna_pin";
 
-/** Půl hodiny — dost na proklikání nastavení, málo na zapomenutý mobil. */
-const PLATNOST_MS = 30 * 60 * 1000;
+const PROOF_TTL_MS = 30 * 60 * 1000;
+const CLOCK_SKEW_MS = 60 * 1000;
+const MAC_CONTEXT = "kantyna-pin-proof-v1\0";
+const MIN_SECRET_BYTES = 32;
 
-/**
- * Klíč k podpisu.
- *
- * Přednost má vyhrazený `COOKIE_SIGNING_SECRET`. Když nastavený není, použije
- * se uložený otisk PINu — ten je vždycky po ruce a má vedlejší užitečnou
- * vlastnost: změna PINu podpis zneplatní. Kdo má přístup k databázi, má stejně
- * všechno, takže se tím nic nového neodkrývá.
- */
-function podpisovyKlic(): string {
-  const secret = process.env.COOKIE_SIGNING_SECRET?.trim();
-  return secret && secret.length >= 32 ? secret : `pin:${getSettings().settingsPin}`;
+interface PinProofPayload {
+  version: 1;
+  sessionId: number;
+  userId: number;
+  issuedAt: number;
+  expiresAt: number;
 }
 
-function podepsat(payload: string): string {
-  return createHmac("sha256", podpisovyKlic()).update(payload).digest("base64url");
+function signingKey(): Buffer {
+  const key = Buffer.from(process.env.COOKIE_SIGNING_SECRET ?? "", "utf8");
+  if (key.length < MIN_SECRET_BYTES) {
+    throw new Error("COOKIE_SIGNING_SECRET musí mít alespoň 32 bajtů.");
+  }
+  return key;
 }
 
-export function vystavPinDoklad(): string {
-  const platiDo = String(Date.now() + PLATNOST_MS);
-  return `${platiDo}.${podepsat(platiDo)}`;
+function pinFingerprint(): Buffer {
+  return createHash("sha256").update(getSettings().settingsPin, "utf8").digest();
 }
 
-export function jePinDokladPlatny(value: string | undefined): boolean {
-  if (!value) return false;
+function signature(payload: string): Buffer {
+  return createHmac("sha256", signingKey())
+    .update(MAC_CONTEXT, "utf8")
+    .update(pinFingerprint())
+    .update(payload, "ascii")
+    .digest();
+}
 
-  const tecka = value.indexOf(".");
-  if (tecka <= 0) return false;
+function isPositiveSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0;
+}
 
-  const platiDo = value.slice(0, tecka);
-  const podpis = value.slice(tecka + 1);
-  if (!/^\d+$/.test(platiDo) || Number(platiDo) < Date.now()) return false;
+export function issuePinProof(session: SessionInfo, now = Date.now()): string {
+  const payload: PinProofPayload = {
+    version: 1,
+    sessionId: session.sessionId,
+    userId: session.userId,
+    issuedAt: now,
+    expiresAt: now + PROOF_TTL_MS,
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${encoded}.${signature(encoded).toString("base64url")}`;
+}
 
-  const ocekavany = Buffer.from(podepsat(platiDo));
-  const dorucen = Buffer.from(podpis);
-  return ocekavany.length === dorucen.length && timingSafeEqual(ocekavany, dorucen);
+export function verifyPinProof(
+  value: string | undefined,
+  session: SessionInfo,
+  now = Date.now()
+): boolean {
+  if (!value || value.length > 768) return false;
+
+  const parts = value.split(".");
+  if (parts.length !== 2 || !parts[0] || !/^[A-Za-z0-9_-]{43}$/.test(parts[1])) {
+    return false;
+  }
+
+  let received: Buffer;
+  let payload: PinProofPayload;
+  try {
+    received = Buffer.from(parts[1], "base64url");
+    payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as PinProofPayload;
+  } catch {
+    return false;
+  }
+
+  if (received.length !== 32) return false;
+  const expected = signature(parts[0]);
+  if (!timingSafeEqual(expected, received)) return false;
+
+  if (
+    payload.version !== 1 ||
+    !isPositiveSafeInteger(payload.sessionId) ||
+    !isPositiveSafeInteger(payload.userId) ||
+    !isPositiveSafeInteger(payload.issuedAt) ||
+    !isPositiveSafeInteger(payload.expiresAt) ||
+    payload.sessionId !== session.sessionId ||
+    payload.userId !== session.userId ||
+    payload.issuedAt > now + CLOCK_SKEW_MS ||
+    payload.expiresAt <= now ||
+    payload.expiresAt - payload.issuedAt !== PROOF_TTL_MS ||
+    payload.expiresAt > now + PROOF_TTL_MS + CLOCK_SKEW_MS
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function pinCookieOptions() {
   return {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "strict" as const,
     path: "/",
     secure: process.env.NODE_ENV === "production",
-    maxAge: PLATNOST_MS / 1000,
+    maxAge: PROOF_TTL_MS / 1000,
   };
 }
