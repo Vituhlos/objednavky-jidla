@@ -70,27 +70,30 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
         </div>
         <div className="text-center">
           <p className="font-display font-bold text-[17px] text-stone-900">Přístup chráněn PINem</p>
-          <p className="text-[12.5px] text-stone-500 mt-1">Zadejte PIN pro zobrazení nastavení</p>
+          <p className="text-[12.5px] text-stone-500 mt-1">Potvrďte správcovský PIN. Platnost je 30 minut.</p>
         </div>
         <form className="w-full flex flex-col gap-3" onSubmit={handlePinSubmit}>
+          <label className="sr-only" htmlFor="settings-pin">Správcovský PIN</label>
           <input
-            ref={pinInputRef}
-            className="modal-input text-center tracking-[0.5em] font-display font-bold"
-            inputMode="numeric"
-            maxLength={8}
+            aria-invalid={pinError ? true : undefined}
+            autoComplete="current-password"
+            className="modal-input text-center font-display font-bold"
+            disabled={isLocked || isPending}
+            id="settings-pin"
+            maxLength={128}
             onChange={(e) => setPin(e.target.value)}
-            pattern="[0-9]*"
-            placeholder="••••"
-            style={{ fontSize: "20px" }}
-            disabled={isLocked}
+            ref={pinInputRef}
+            style={{ fontSize: "18px" }}
             type="password"
             value={pin}
           />
           {pinError && !isLocked && (
-            <p className="text-[12px] text-red-500 text-center -mt-1">Nesprávný PIN. Zkuste to znovu.</p>
+            <p className="text-[12px] text-red-500 text-center -mt-1" role="alert">
+              Nesprávný PIN. Zkuste to znovu.
+            </p>
           )}
           {isLocked && (
-            <p className="text-[12px] text-amber-700 text-center -mt-1">
+            <p className="text-[12px] text-amber-700 text-center -mt-1" role="alert">
               Moc pokusů po sobě. Zkuste to znovu za <b className="tabular-nums">{lockLeft}</b>.
             </p>
           )}
