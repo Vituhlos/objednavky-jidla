@@ -690,6 +690,7 @@ export default function OrderPage({
               </p>
               <label className="modal-label" htmlFor="unlock-pin">Správcovský PIN</label>
               <input
+                aria-describedby={unlockError ? "unlock-pin-error" : undefined}
                 aria-invalid={unlockError ? true : undefined}
                 autoComplete="current-password"
                 autoFocus
@@ -703,7 +704,7 @@ export default function OrderPage({
                 value={unlockPin}
               />
               {unlockError && (
-                <p className="text-[12.5px] text-red-600 font-medium" role="alert">{unlockError}</p>
+                <p className="text-[12.5px] text-red-600 font-medium" id="unlock-pin-error" role="alert">{unlockError}</p>
               )}
             </div>
             <div className="modal-sheet__footer">
