@@ -14,6 +14,7 @@ import MIcon from "../MIcon";
  * říkat, a když spadne, nemá smysl kvůli tomu vyskakovat na celou šířku.
  */
 export function OrderHeader({
+  canManage = true,
   dayStr,
   sseConnected,
   isFutureDay,
@@ -38,6 +39,8 @@ export function OrderHeader({
   onEmptyOrder,
   onHelp,
 }: {
+  /** Odeslání objednávky je správcovský úkon. */
+  canManage?: boolean;
   dayStr: string;
   sseConnected: boolean;
   isFutureDay: boolean;
@@ -106,7 +109,7 @@ export function OrderHeader({
           </span>
         )}
       </div>
-      {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
+      {canManage && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
         <div className="flex items-center gap-2 shrink-0">
           <button
             className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
@@ -181,7 +184,7 @@ export function OrderHeader({
           <MIcon name={pushState === "subscribed" ? "notifications_active" : "notifications"} size={15} fill={pushState === "subscribed"} />
         </button>
       )}
-      {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
+      {canManage && !isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
         <button
           className="shrink-0 px-3.5 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
           disabled={isPending}

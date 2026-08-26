@@ -17,6 +17,8 @@ interface Props {
   soups: import("@/lib/types").MenuItem[];
   meals: import("@/lib/types").MenuItem[];
   isSent: boolean;
+  /** Proč je zamčeno. Nevyplněno = objednávka už odešla. */
+  lockNote?: React.ReactNode;
   existingNames?: string[];
   defaultSoupPrice?: number;
   defaultMealPrice?: number;
@@ -30,7 +32,7 @@ interface Props {
 
 // ── Main component ────────────────────────────────────────
 
-function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
+function DepartmentPanelInner({ data, soups, meals, isSent, lockNote, existingNames = [], defaultSoupPrice, defaultMealPrice, extrasPrices = EXTRAS_PRICES_DEFAULT, onAddRow, onUpdateRow, onDeleteRow }: Props) {
   const [modalState, setModalState] = useState<{ rowId: number; isNew: boolean } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -115,7 +117,9 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
                 <MIcon name="groups" size={22} style={{ color: "#94a3b8" }} />
               </div>
               <p className="empty-state__title">Nikdo zatím neobjednal</p>
-              <p className="empty-state__sub">Přidejte první osobu tlačítkem výše</p>
+              <p className="empty-state__sub">
+                {isSent ? (lockNote ?? "Objednávka už odešla") : "Přidejte první osobu tlačítkem výše"}
+              </p>
             </div>
           ) : (
             activeRows.map((row) => (
@@ -135,7 +139,9 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         {isSent && activeRows.length > 0 && (
           <div className="flex items-center gap-1.5 px-4 py-2 border-t border-white/30">
             <MIcon name="lock" size={12} style={{ color: "#94a3b8" }} />
-            <span className="text-[11px] text-stone-400">Odesláno — pouze pro čtení</span>
+            <span className="text-[11px] text-stone-400">
+              {lockNote ?? "Odesláno — pouze pro čtení"}
+            </span>
           </div>
         )}
       </section>

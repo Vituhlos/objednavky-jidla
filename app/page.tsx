@@ -5,6 +5,8 @@ import { getClosures, getClosureForDate, getUpcomingClosure } from "@/lib/closur
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
 import OrderPage from "@/app/components/OrderPage";
+import { getAccountView } from "@/lib/auth/account-view";
+import { accountsEnabled } from "@/lib/auth/policy";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const data = getOrderDataForDate(selectedDate);
   const s = getSettings();
 
+  // Dokud účty nikdo nezaložil, chová se appka jako dřív — jinak by upgrade
+  // zamkl objednávání všem najednou.
+  const account = await getAccountView();
+  const canEdit = !accountsEnabled() || account !== null;
+  const canManage = !accountsEnabled() || account?.role === "admin";
+
   const selectedWeekStart = getMondayISO(new Date(`${selectedDate}T12:00:00`));
   const menuEmpty = getMenuWeekLabel(selectedWeekStart) === null;
   const holidayName = getHolidayName(selectedDate);
@@ -42,6 +50,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <OrderPage
       availableDates={allDates}
+      canEdit={canEdit}
+      canManage={canManage}
       closedDates={closedDates}
       activeClosure={selectedClosure ? withOrderableBounds(selectedClosure) : null}
       closureRanges={getClosures().map((c) => ({ startDate: c.startDate, endDate: c.endDate, icon: c.icon }))}

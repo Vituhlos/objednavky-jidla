@@ -52,6 +52,8 @@ import {
 
 export default function OrderPage({
   initialData,
+  canEdit = true,
+  canManage = true,
   cutoffTime = "08:00",
   menuEmpty = false,
   defaultSoupPrice = 30,
@@ -73,6 +75,10 @@ export default function OrderPage({
   forceOpenAt = "",
 }: {
   initialData: OrderData;
+  /** Může přihlášený zapisovat? Nepřihlášený čte, ale nemění (R1). */
+  canEdit?: boolean;
+  /** Správcovské úkony — odeslání objednávky, otevření dne. */
+  canManage?: boolean;
   cutoffTime?: string;
   menuEmpty?: boolean;
   defaultSoupPrice?: number;
@@ -429,6 +435,7 @@ export default function OrderPage({
 
       <OrderHeader
         activeOrderCount={activeOrderCount}
+        canManage={canManage}
         autoSendEnabled={autoSendEnabled}
         autoSendTime={autoSendTime}
         countdown={countdown}
@@ -542,7 +549,17 @@ export default function OrderPage({
                     defaultSoupPrice={defaultSoupPrice}
                     existingNames={existingNames}
                     extrasPrices={extrasPrices}
-                    isSent={isOrderLocked}
+                    isSent={isOrderLocked || !canEdit}
+                    lockNote={
+                      !canEdit && !isOrderLocked ? (
+                        <>
+                          Objednávat můžete{" "}
+                          <a className="underline font-semibold" href="/ucet/prihlaseni">
+                            po přihlášení
+                          </a>
+                        </>
+                      ) : undefined
+                    }
                     key={dept.name}
                     meals={allMeals}
                     onAddRow={handleAddRow}
