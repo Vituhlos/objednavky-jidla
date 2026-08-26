@@ -14,6 +14,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Veřejné pro toho, kdo zná adresu, není totéž co veřejné pro Google.
+        // Čtení zůstává otevřené záměrně (R1), ale jména kolegů nemá nic
+        // indexovat. Hlavička platí i tam, kam robots.txt nedosáhne.
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
         // Emoji font slices and the generated emoji list never change in place —
         // a new build ships new files. Without this, Next serves everything under
         // public/ with max-age=0 and the browser re-validates them on every visit.
