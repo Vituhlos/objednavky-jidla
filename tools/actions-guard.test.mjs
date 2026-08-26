@@ -181,6 +181,8 @@ const { getDb } = await lib("db");
 const { migrateAuth } = await lib("auth/schema");
 const users = await lib("auth/users");
 const policy = await lib("auth/policy");
+const orders = await lib("orders");
+const pizza = await lib("pizza");
 const { AuthError } = await lib("auth/errors");
 const db = getDb();
 
@@ -249,9 +251,31 @@ test("neexistující řádek se odmítne vždy", async () => {
 });
 
 // Nový řádek vzniká prázdný. Kdyby ho pravidlo odmítalo, nešlo by objednat.
-test("dosud nepřivlastněný řádek smí vyplnit každý přihlášený", async () => {
-  await policy.assertMayEditRow(ownerSession, unclaimedRow);
-  await policy.assertMayEditRow(strangerSession, unclaimedRow);
+test("historický řádek bez vlastníka smí upravit jen správce", async () => {
+  await assert.rejects(() => policy.assertMayEditRow(ownerSession, unclaimedRow), AuthError);
+  await assert.rejects(() => policy.assertMayEditRow(strangerSession, unclaimedRow), AuthError);
+  await policy.assertMayEditRow(adminSession, unclaimedRow);
+});
+
+test("pizza řádek smí upravit jen jeho vlastník nebo správce", async () => {
+  const pizzaOrderId = Number(
+    db.prepare("INSERT INTO pizza_orders (date) VALUES (?)").run("2026-08-27").lastInsertRowid
+  );
+  const addPizzaRow = (personId) =>
+    Number(
+      db
+        .prepare("INSERT INTO pizza_order_rows (order_id, person_id) VALUES (?, ?)")
+        .run(pizzaOrderId, personId).lastInsertRowid
+    );
+
+  const ownPizzaRow = addPizzaRow(owner.personId);
+  const foreignPizzaRow = addPizzaRow(stranger.personId);
+  const unclaimedPizzaRow = addPizzaRow(null);
+
+  await policy.assertMayEditPizzaRow(ownerSession, ownPizzaRow);
+  await policy.assertMayEditPizzaRow(adminSession, foreignPizzaRow);
+  await assert.rejects(() => policy.assertMayEditPizzaRow(strangerSession, ownPizzaRow), AuthError);
+  await assert.rejects(() => policy.assertMayEditPizzaRow(ownerSession, unclaimedPizzaRow), AuthError);
 });
 
 test("uživatel zapíše jen jméno svého strávníka", async () => {
@@ -294,6 +318,68 @@ test("id se ověřuje za běhu, ne typem", () => {
 
 test("chybějící správce nikdy neotevře předúčtový zapisovací režim", () => {
   assert.equal(policy.accountsEnabled(), true);
+});
+
+test("jméno se převádí jen na přesné personId z vlastní session", () => {
+  const foreignDuplicate = Number(
+    db.prepare("INSERT INTO people (name, department_id) VALUES (?, ?)").run("Stejné Jméno", 1)
+      .lastInsertRowid
+  );
+  const ownDuplicate = Number(
+    db.prepare("INSERT INTO people (name, department_id) VALUES (?, ?)").run("Stejné Jméno", 1)
+      .lastInsertRowid
+  );
+  db.prepare("INSERT INTO user_people (user_id, person_id) VALUES (?, ?)").run(
+    owner.userId,
+    ownDuplicate
+  );
+
+  const resolved = policy.resolveOwnPerson(
+    { ...ownerSession, personIds: [...ownerSession.personIds, ownDuplicate] },
+    "Stejné Jméno"
+  );
+  assert.equal(resolved.personId, ownDuplicate);
+  assert.notEqual(resolved.personId, foreignDuplicate);
+
+  const row = orders.addOrderRow(orderId, "Konstrukce", owner.personId);
+  orders.updateOrderRow(row.id, { personName: resolved.name }, undefined, resolved.personId);
+  assert.equal(orders.getRowOwner(row.id).personId, ownDuplicate);
+});
+
+test("nový obědový i pizza řádek vznikne atomicky s vlastníkem", async () => {
+  const lunchRow = orders.addOrderRow(orderId, "Konstrukce", owner.personId);
+  assert.deepEqual(orders.getRowOwner(lunchRow.id), {
+    exists: true,
+    personId: owner.personId,
+  });
+  await assert.rejects(() => policy.assertMayEditRow(strangerSession, lunchRow.id), AuthError);
+
+  const pizzaOrderId = Number(
+    db.prepare("INSERT INTO pizza_orders (date) VALUES (?)").run("2026-08-28").lastInsertRowid
+  );
+  const pizzaRow = pizza.addPizzaRow(pizzaOrderId, owner.personId);
+  assert.deepEqual(pizza.getPizzaRowOwner(pizzaRow.id), {
+    exists: true,
+    personId: owner.personId,
+  });
+  await assert.rejects(
+    () => policy.assertMayEditPizzaRow(strangerSession, pizzaRow.id),
+    AuthError
+  );
+});
+
+test("row actions kontrolují vlastníka i stav objednávky před zápisem", () => {
+  for (const name of ["actionUpdateRow", "actionDeleteRow"]) {
+    const body = ACTIONS.find((action) => action.name === name)?.body ?? "";
+    assert.match(body, /assertMayEditRow\(/, `${name} nekontroluje vlastníka`);
+    assert.match(body, /assertDraftOrder\(/, `${name} nekontroluje stav objednávky`);
+  }
+  for (const name of ["actionUpdatePizzaRow", "actionDeletePizzaRow"]) {
+    const body = ACTIONS.find((action) => action.name === name)?.body ?? "";
+    assert.match(body, /assertMayEditPizzaRow\(/, `${name} nekontroluje vlastníka`);
+    assert.match(body, /assertDraftOrder\(/, `${name} nekontroluje stav objednávky`);
+    assert.match(body, /assertPizzaOrderingOpen\(/, `${name} nekontroluje uzávěrku`);
+  }
 });
 
 test("PIN kontrola není veřejná akce", () => {

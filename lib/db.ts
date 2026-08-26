@@ -231,6 +231,11 @@ function migrate(db: Database.Database): void {
 
   // Add department column to pizza_order_rows (idempotent)
   try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
+  try { db.exec("ALTER TABLE pizza_order_rows ADD COLUMN person_id INTEGER REFERENCES people(id)"); } catch {}
+  db.exec("CREATE INDEX IF NOT EXISTS idx_pizza_order_rows_person_id ON pizza_order_rows(person_id)");
+
+  // Historické pizza řádky nejdou bezpečně přiřadit jen podle textového jména.
+  // Nejednoznačné NULL proto zůstává upravitelné pouze správcem.
 }
 
 /**

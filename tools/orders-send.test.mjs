@@ -30,9 +30,11 @@ const {
   addOrderRow, updateOrderRow, sendOrder, resendOrderEmail, reopenOrder, reopenOrderAndUnlock,
 } = await lib("orders");
 const { getPragueISODate } = await lib("time");
+const { findOrCreatePerson } = await lib("people");
 
 let SOUP_ID;
 let MEAL_ID;
+let PERSON_ID;
 
 before(() => {
   saveSettings({
@@ -46,6 +48,7 @@ before(() => {
   });
 
   const db = getDb();
+  PERSON_ID = findOrCreatePerson("Testovací Strávník", "Konstrukce");
   const insert = db.prepare(
     "INSERT INTO menu_items (week_label, day, type, code, name, price) VALUES (?, ?, ?, ?, ?, ?)"
   );
@@ -60,7 +63,7 @@ after(async () => {
 /** Objednávka s jedním vyplněným řádkem. Každý test má svoje datum, ať se neruší. */
 function seedOrder(date, personName = "Josef Pech") {
   const { order } = getOrderDataForDate(date);
-  const row = addOrderRow(order.id, "Konstrukce");
+  const row = addOrderRow(order.id, "Konstrukce", PERSON_ID);
   updateOrderRow(row.id, { personName, soupItemId: SOUP_ID, mainItemId: MEAL_ID, rollCount: 1 });
   return order.id;
 }
@@ -152,7 +155,7 @@ test("resendOrderEmail aktualizuje archivované PDF podle aktuálních dat", asy
   await sendOrder(orderId);
   const before = archivedPdf(orderId);
 
-  const extra = addOrderRow(orderId, "Konstrukce");
+  const extra = addOrderRow(orderId, "Konstrukce", PERSON_ID);
   updateOrderRow(extra.id, { personName: "Pribyvsi Stravnik", mainItemId: MEAL_ID });
 
   await resendOrderEmail(orderId);
@@ -171,7 +174,7 @@ test("reopen a opětovné odeslání projde a přepíše archiv", async () => {
   reopenOrder(orderId);
   assert.equal(getOrderById(orderId).status, "draft");
 
-  const extra = addOrderRow(orderId, "Dílna");
+  const extra = addOrderRow(orderId, "Dílna", PERSON_ID);
   updateOrderRow(extra.id, { personName: "Dodatecny Radek", mainItemId: MEAL_ID });
 
   await sendOrder(orderId);

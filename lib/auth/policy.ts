@@ -1,4 +1,5 @@
 import { getRowOwner } from "../orders";
+import { getPizzaRowOwner } from "../pizza";
 import { getPerson } from "../people";
 import { AuthError } from "./errors";
 import { assertCanEditRow } from "./guards";
@@ -29,22 +30,50 @@ export function assertId(value: unknown, co: string): number {
 /**
  * Smí session zapsat do řádku?
  *
- * Vedle vlastníka a správce pouští i řádek, který ještě nikomu nepatří — ten si
- * smí přivlastnit kdokoli přihlášený, ale jen vlastním jménem (viz
- * `assertNameIsOwn`). Bez toho by nešlo objednat: nový řádek vzniká prázdný
- * a strávníka dostane až vyplněním jména, takže by ho `assertCanEditRow`
- * odmítl i tomu, kdo si ho právě založil.
- *
- * Neexistující řádek se odmítá vždy.
+ * Nové řádky dostanou vlastníka už při INSERTu. NULL je jen historický nebo
+ * poškozený stav a nesmí se stát závodem o to, kdo řádek převezme jako první.
  */
 export async function assertMayEditRow(session: SessionInfo, rowId: number): Promise<void> {
   if (session.role === "admin") return;
 
   const owner = getRowOwner(rowId);
   if (!owner.exists) throw new AuthError("CIZI_ZAZNAM", "Tento záznam nelze upravit.");
-  if (owner.personId === null) return;
+  if (owner.personId === null) {
+    throw new AuthError("CIZI_ZAZNAM", "Tento záznam může upravit jen správce.");
+  }
 
   await assertCanEditRow(session, rowId);
+}
+
+export async function assertMayEditPizzaRow(
+  session: SessionInfo,
+  rowId: number
+): Promise<void> {
+  if (session.role === "admin") return;
+
+  const owner = getPizzaRowOwner(rowId);
+  if (!owner.exists || owner.personId === null || !session.personIds.includes(owner.personId)) {
+    throw new AuthError("CIZI_ZAZNAM", "Tento záznam patří jinému strávníkovi.");
+  }
+}
+
+export function resolveOwnPerson(
+  session: SessionInfo,
+  personName: unknown
+): { personId: number; name: string } | null {
+  if (typeof personName !== "string") {
+    throw new AuthError("CIZI_ZAZNAM", "Neplatné jméno.");
+  }
+
+  const wanted = personName.trim();
+  if (!wanted) return null;
+
+  for (const personId of session.personIds) {
+    const person = getPerson(personId);
+    if (person?.name.trim() === wanted) return { personId, name: person.name };
+  }
+
+  throw new AuthError("CIZI_ZAZNAM", "Objednávat můžete jen za sebe a za své hosty.");
 }
 
 /**
@@ -59,15 +88,5 @@ export async function assertNameIsOwn(
   personName: unknown
 ): Promise<void> {
   if (session.role === "admin") return;
-  if (typeof personName !== "string") {
-    throw new AuthError("CIZI_ZAZNAM", "Neplatné jméno.");
-  }
-
-  const wanted = personName.trim();
-  if (!wanted) return; // vyprázdnit jméno smí každý, kdo na řádek dosáhne
-
-  const own = session.personIds.map((id) => getPerson(id)?.name.trim());
-  if (own.includes(wanted)) return;
-
-  throw new AuthError("CIZI_ZAZNAM", "Objednávat můžete jen za sebe a za své hosty.");
+  resolveOwnPerson(session, personName);
 }

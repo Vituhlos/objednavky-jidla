@@ -282,6 +282,7 @@ export function getOrderData(orderId: number): OrderData {
 export function addOrderRow(
   orderId: number,
   department: Department,
+  personId: number,
   pushEndpoint?: string,
 ): OrderRowEnriched {
   const db = getDb();
@@ -293,9 +294,9 @@ export function addOrderRow(
 
   const result = db
     .prepare(
-      "INSERT INTO order_rows (order_id, department, sort_order, push_endpoint) VALUES (?, ?, ?, ?)"
+      "INSERT INTO order_rows (order_id, department, sort_order, person_id, push_endpoint) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(orderId, department, m + 1, pushEndpoint ?? null);
+    .run(orderId, department, m + 1, personId, pushEndpoint ?? null);
 
   const row = db
     .prepare("SELECT * FROM order_rows WHERE id = ?")
@@ -324,6 +325,7 @@ export function updateOrderRow(
     note: string;
   }>,
   pushEndpoint?: string,
+  personIdOverride?: number | null,
 ): OrderRowEnriched {
   const db = getDb();
 
@@ -358,7 +360,10 @@ export function updateOrderRow(
         .prepare("SELECT department FROM order_rows WHERE id = ?")
         .get(rowId) as { department: string } | undefined;
       if (current) {
-        const personId = findOrCreatePerson(updates.personName, current.department);
+        const personId =
+          personIdOverride !== undefined
+            ? personIdOverride
+            : findOrCreatePerson(updates.personName, current.department);
         db.prepare("UPDATE order_rows SET person_id = ? WHERE id = ?").run(personId, rowId);
       }
     }

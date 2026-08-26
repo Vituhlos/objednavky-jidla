@@ -66,3 +66,23 @@ export function isCutoffLifted({ cutoffTime, forceOpenAt, now }: CutoffInput): b
 export function isOrderingLocked(input: CutoffInput): boolean {
   return isCutoffPassed(input) && !isCutoffLifted(input);
 }
+
+const DAY_CODE_TO_JS: Record<string, number> = { Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5 };
+
+export function isWeeklyCutoffLocked(input: {
+  enabled: boolean;
+  cutoffTime: string;
+  cutoffDays: string;
+  now: Date;
+}): boolean {
+  if (!input.enabled) return false;
+  const allowedDays = input.cutoffDays
+    .split(",")
+    .map((day) => DAY_CODE_TO_JS[day.trim()])
+    .filter((day): day is number => day !== undefined);
+  if (!allowedDays.includes(input.now.getDay())) return false;
+
+  const cutoff = minutesOfDay(input.cutoffTime);
+  if (cutoff === null) return false;
+  return input.now.getHours() * 60 + input.now.getMinutes() >= cutoff;
+}

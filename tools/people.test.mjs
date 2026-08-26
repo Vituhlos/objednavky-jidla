@@ -199,6 +199,12 @@ test("migrace napojí historické řádky a je opakovatelná", async () => {
   // Druhý běh nesmí nic zdvojit — migrace běží při každém startu.
   backfillPeople(mdb);
   assert.equal(mdb.prepare("SELECT COUNT(*) n FROM people").get().n, 3, "opakovaný běh nic nepřidá");
+
+  const lib3 = loadLib();
+  const { getDb: reopenDb } = await lib3("db");
+  const reopened = reopenDb();
+  const pizzaColumns = reopened.prepare("PRAGMA table_info(pizza_order_rows)").all();
+  assert.ok(pizzaColumns.some((column) => column.name === "person_id"));
 });
 
 test("varianty téhož jména ve stejném oddělení se nabídnou jako jistota", () => {

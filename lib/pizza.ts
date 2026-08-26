@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { computePizzaTotals } from "./pizza-utils";
 import { getPragueISODate } from "./time";
+import { findOrCreatePerson } from "./people";
 export { PIZZA_BOX_FEE, PIZZA_DELIVERY, computePizzaTotals } from "./pizza-utils";
 export type { PizzaTotals } from "./pizza-utils";
 
@@ -134,7 +135,7 @@ export function getTodayPizzaOrderData(): PizzaOrderData {
   };
 }
 
-export function addPizzaRow(orderId: number): PizzaOrderRow {
+export function addPizzaRow(orderId: number, personId: number): PizzaOrderRow {
   const db = getDb();
   const { m } = db
     .prepare(
@@ -143,9 +144,9 @@ export function addPizzaRow(orderId: number): PizzaOrderRow {
     .get(orderId) as { m: number };
   const result = db
     .prepare(
-      "INSERT INTO pizza_order_rows (order_id, sort_order) VALUES (?, ?)"
+      "INSERT INTO pizza_order_rows (order_id, sort_order, person_id) VALUES (?, ?, ?)"
     )
-    .run(orderId, m + 1);
+    .run(orderId, m + 1, personId);
   const row = db
     .prepare("SELECT * FROM pizza_order_rows WHERE id = ?")
     .get(result.lastInsertRowid) as Record<string, unknown>;
@@ -154,7 +155,8 @@ export function addPizzaRow(orderId: number): PizzaOrderRow {
 
 export function updatePizzaRow(
   rowId: number,
-  updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
+  updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>,
+  personIdOverride?: number | null
 ): PizzaOrderRow {
   const db = getDb();
   const fieldMap: Record<string, string> = {
@@ -163,23 +165,65 @@ export function updatePizzaRow(
     pizzaItemId: "pizza_item_id",
     count: "count",
   };
-  const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
-  if (entries.length > 0) {
-    const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");
-    const values = entries.map(([, v]) => v);
-    db.prepare(`UPDATE pizza_order_rows SET ${setClauses} WHERE id = ?`).run(
-      ...values,
-      rowId
-    );
-  }
-  const row = db
-    .prepare("SELECT * FROM pizza_order_rows WHERE id = ?")
-    .get(rowId) as Record<string, unknown>;
-  return enrichRow(row, getPizzaItems());
+  return db.transaction(() => {
+    if (updates.personName !== undefined) {
+      const current = db
+        .prepare("SELECT department FROM pizza_order_rows WHERE id = ?")
+        .get(rowId) as { department: string } | undefined;
+      if (current) {
+        const department = updates.department ?? current.department;
+        const personId =
+          personIdOverride !== undefined
+            ? personIdOverride
+            : findOrCreatePerson(updates.personName, department);
+        db.prepare("UPDATE pizza_order_rows SET person_id = ? WHERE id = ?").run(personId, rowId);
+      }
+    }
+
+    const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
+    if (entries.length > 0) {
+      const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(", ");
+      const values = entries.map(([, v]) => v);
+      db.prepare(`UPDATE pizza_order_rows SET ${setClauses} WHERE id = ?`).run(
+        ...values,
+        rowId
+      );
+    }
+    const row = db
+      .prepare("SELECT * FROM pizza_order_rows WHERE id = ?")
+      .get(rowId) as Record<string, unknown> | undefined;
+    if (!row) throw new Error(`Řádek pizza objednávky ${rowId} nenalezen.`);
+    return enrichRow(row, getPizzaItems());
+  })();
 }
 
 export function deletePizzaRow(rowId: number): void {
   getDb().prepare("DELETE FROM pizza_order_rows WHERE id = ?").run(rowId);
+}
+
+export function getPizzaRowOwner(
+  rowId: number
+): { exists: boolean; personId: number | null } {
+  const row = getDb()
+    .prepare("SELECT person_id AS personId FROM pizza_order_rows WHERE id = ?")
+    .get(rowId) as { personId: number | null } | undefined;
+  return row ? { exists: true, personId: row.personId } : { exists: false, personId: null };
+}
+
+export function getPizzaOrderById(orderId: number): PizzaOrder | null {
+  const row = getDb()
+    .prepare("SELECT * FROM pizza_orders WHERE id = ?")
+    .get(orderId) as Record<string, unknown> | undefined;
+  return row ? mapOrder(row) : null;
+}
+
+export function getPizzaOrderByRowId(rowId: number): PizzaOrder | null {
+  const row = getDb()
+    .prepare(
+      "SELECT o.* FROM pizza_orders o JOIN pizza_order_rows r ON r.order_id = o.id WHERE r.id = ?"
+    )
+    .get(rowId) as Record<string, unknown> | undefined;
+  return row ? mapOrder(row) : null;
 }
 
 export interface PizzaOrderSummary {

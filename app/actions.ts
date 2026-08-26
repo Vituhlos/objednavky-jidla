@@ -17,12 +17,16 @@ import {
   resendOrderEmail,
   getOrderById,
   getOrderByRowId,
+  getRowOwner,
 } from "@/lib/orders";
 import type { Department, OrderRowEnriched, MealEntry } from "@/lib/types";
 import {
   addPizzaRow,
   updatePizzaRow,
   deletePizzaRow,
+  getPizzaOrderById,
+  getPizzaOrderByRowId,
+  getPizzaRowOwner,
   replacePizzaItems,
 } from "@/lib/pizza";
 import type { PizzaOrderRow } from "@/lib/pizza";
@@ -34,7 +38,7 @@ import {
 } from "@/lib/settings";
 import { getClosures, addClosure, updateClosure, deleteClosure, validateClosure, type Closure } from "@/lib/closures";
 import { getPragueNow, getPragueISODate } from "@/lib/time";
-import { forceOpenStamp, isOrderingLocked } from "@/lib/cutoff";
+import { forceOpenStamp, isOrderingLocked, isWeeklyCutoffLocked } from "@/lib/cutoff";
 import type { AppSettings } from "@/lib/settings";
 import {
   setTelegramWebhook,
@@ -75,7 +79,12 @@ import {
   type AuthUser,
 } from "@/lib/auth/users";
 import { createResetLinkForUser } from "@/lib/auth/mail";
-import { assertId, assertMayEditRow, assertNameIsOwn } from "@/lib/auth/policy";
+import {
+  assertId,
+  assertMayEditPizzaRow,
+  assertMayEditRow,
+  resolveOwnPerson,
+} from "@/lib/auth/policy";
 import type { SessionInfo } from "@/lib/auth/sessions";
 import {
   getDepartments,
@@ -100,6 +109,29 @@ async function guardAdmin(): Promise<void> {
   await requireAdmin();
 }
 
+function assertDraftOrder<T extends { status: "draft" | "sent" }>(
+  order: T | null
+): asserts order is T {
+  if (!order || order.status !== "draft") {
+    throw new Error("Odeslanou nebo neexistující objednávku nelze měnit.");
+  }
+}
+
+function assertPizzaOrderingOpen(orderDate: string): void {
+  const settings = getSettings();
+  if (
+    orderDate === getPragueISODate() &&
+    isWeeklyCutoffLocked({
+      enabled: settings.pizzaCutoffEnabled === "true",
+      cutoffTime: settings.pizzaCutoffTime,
+      cutoffDays: settings.pizzaCutoffDays,
+      now: getPragueNow(),
+    })
+  ) {
+    throw new Error("Objednávky pizzy jsou po uzávěrce zavřené.");
+  }
+}
+
 async function guardSettings(): Promise<void> {
   await requireAdminWithPin();
 }
@@ -113,13 +145,15 @@ export async function actionAddRow(
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  await guardSession();
+  const session = await guardSession();
 
-  const order = getOrderById(assertId(orderId, "číslo objednávky"));
+  const validOrderId = assertId(orderId, "číslo objednávky");
+  const order = getOrderById(validOrderId);
+  assertDraftOrder(order);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
   }
-  const row = addOrderRow(orderId, department, pushEndpoint);
+  const row = addOrderRow(validOrderId, department, session.personIds[0], pushEndpoint);
   revalidatePath("/");
   broadcast();
   return row;
@@ -146,16 +180,26 @@ export async function actionUpdateRow(
 ): Promise<OrderRowEnriched> {
   assertId(rowId, "číslo řádku");
   const session = await guardSession();
-  if (session) {
-    await assertMayEditRow(session, rowId);
-    if (updates?.personName !== undefined) await assertNameIsOwn(session, updates.personName);
+  await assertMayEditRow(session, rowId);
+
+  let personIdOverride: number | null | undefined;
+  const safeUpdates = { ...updates };
+  if (session.role !== "admin" && updates?.personName !== undefined) {
+    const identity = resolveOwnPerson(session, updates.personName);
+    if (identity) {
+      personIdOverride = identity.personId;
+      safeUpdates.personName = identity.name;
+    } else {
+      personIdOverride = getRowOwner(rowId).personId;
+    }
   }
 
   const order = getOrderByRowId(rowId);
+  assertDraftOrder(order);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
   }
-  const row = updateOrderRow(rowId, updates, pushEndpoint);
+  const row = updateOrderRow(rowId, safeUpdates, pushEndpoint, personIdOverride);
   broadcast();
   return row;
 }
@@ -163,9 +207,10 @@ export async function actionUpdateRow(
 export async function actionDeleteRow(rowId: number): Promise<void> {
   assertId(rowId, "číslo řádku");
   const session = await guardSession();
-  if (session) await assertMayEditRow(session, rowId);
+  await assertMayEditRow(session, rowId);
 
   const order = getOrderByRowId(rowId);
+  assertDraftOrder(order);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
   }
@@ -248,8 +293,12 @@ export async function actionDeleteMenuItem(id: number): Promise<void> {
 }
 
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
-  await guardSession();
-  const row = addPizzaRow(orderId);
+  const session = await guardSession();
+  const validOrderId = assertId(orderId, "číslo pizza objednávky");
+  const order = getPizzaOrderById(validOrderId);
+  assertDraftOrder(order);
+  assertPizzaOrderingOpen(order.date);
+  const row = addPizzaRow(validOrderId, session.personIds[0]);
   revalidatePath("/pizza");
   return row;
 }
@@ -258,16 +307,39 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
-  await guardSession();
-  const row = updatePizzaRow(rowId, updates);
+  const validRowId = assertId(rowId, "číslo pizza řádku");
+  const session = await guardSession();
+  await assertMayEditPizzaRow(session, validRowId);
+  const order = getPizzaOrderByRowId(validRowId);
+  assertDraftOrder(order);
+  assertPizzaOrderingOpen(order.date);
+
+  let personIdOverride: number | null | undefined;
+  const safeUpdates = { ...updates };
+  if (session.role !== "admin" && updates?.personName !== undefined) {
+    const identity = resolveOwnPerson(session, updates.personName);
+    if (identity) {
+      personIdOverride = identity.personId;
+      safeUpdates.personName = identity.name;
+    } else {
+      personIdOverride = getPizzaRowOwner(validRowId).personId;
+    }
+  }
+
+  const row = updatePizzaRow(validRowId, safeUpdates, personIdOverride);
   revalidatePath("/pizza");
   broadcast();
   return row;
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
-  await guardSession();
-  deletePizzaRow(rowId);
+  const validRowId = assertId(rowId, "číslo pizza řádku");
+  const session = await guardSession();
+  await assertMayEditPizzaRow(session, validRowId);
+  const order = getPizzaOrderByRowId(validRowId);
+  assertDraftOrder(order);
+  assertPizzaOrderingOpen(order.date);
+  deletePizzaRow(validRowId);
   revalidatePath("/pizza");
 }
 
