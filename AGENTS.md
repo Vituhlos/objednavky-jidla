@@ -10,8 +10,8 @@ Kantýna je single-service Next.js 16 aplikace (App Router, React 19, TypeScript
 
 - **Dev server:** `npm run dev` — spustí na http://localhost:3000
 - **Build:** `npm run build`
-- **Lint:** `npm run lint` (ESLint, codebase má ~42 pre-existujících warningů/errorů)
-- **Testy:** žádný testovací framework není nastavený
+- **Lint:** `npm run lint` (ESLint) — prochází čistě, bez warningů
+- **Testy:** `npm test` spustí Vitest i `node:test` (`tools/*.test.mjs`)
 
 ### Důležité poznámky
 
