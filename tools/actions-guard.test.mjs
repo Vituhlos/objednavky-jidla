@@ -34,6 +34,9 @@ const PUBLIC_ACTIONS = new Set([
   // neprozradí, které e-maily tu účet mají.
   "actionLogin",
   "actionLogout",
+  // Registrace je z podstaty pro nepřihlášené (R2). Brání se limitem pokusů
+  // na IP a tím, že existenci účtu neprozradí.
+  "actionRegister",
 ]);
 
 function extractActions(source) {
@@ -73,7 +76,7 @@ test("každá neveřejná akce má guard", () => {
   );
 });
 
-const LOGIN_ACTIONS = new Set(["actionLogin", "actionLogout"]);
+const LOGIN_ACTIONS = new Set(["actionLogin", "actionLogout", "actionRegister"]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
   for (const name of PUBLIC_ACTIONS) {
@@ -93,8 +96,12 @@ test("přihlašovací akce omezují počet pokusů", () => {
 });
 
 test("přihlášení nerozlišuje neznámý e-mail od špatného hesla", () => {
-  const zdroj = fs.readFileSync("app/actions-auth.ts", "utf8");
-  const hlasky = [...zdroj.matchAll(/error: (BAD_CREDENTIALS|"[^"]+")/g)].map((m) => m[1]);
+  // Jen tělo actionLogin — věta o formátu hesla při registraci existenci
+  // účtu neprozrazuje a do téhle kontroly nepatří.
+  const telo = ACTIONS.find((a) => a.name === "actionLogin")?.body;
+  assert.ok(telo, "actionLogin musí existovat");
+
+  const hlasky = [...telo.matchAll(/error: (BAD_CREDENTIALS|"[^"]+")/g)].map((m) => m[1]);
   const konkretni = hlasky.filter((h) => h !== "BAD_CREDENTIALS" && /e-mail|heslo/i.test(h));
   assert.deepEqual(konkretni, [], `chybová hláška je příliš konkrétní: ${konkretni.join(", ")}`);
 });
