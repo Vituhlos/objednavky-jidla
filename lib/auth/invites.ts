@@ -1,6 +1,8 @@
 import { getDb } from "../db";
 import { logAudit } from "../audit";
 import { hashToken, newToken } from "./tokens";
+import { createUserFromGoogle, createUserWithPassword } from "./users";
+import { readPendingGoogleLink } from "./oauth";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_GUESTS = 3;
@@ -16,6 +18,20 @@ export interface InviteInfo {
   revokedAt: string | null;
   createdPersonId: number | null;
 }
+
+export type GuestRegistrationInput =
+  | {
+      provider: "password";
+      email: string;
+      name: string;
+      password: string;
+      departmentId: number | null;
+    }
+  | {
+      provider: "google";
+      profileCookie: string;
+      departmentId: number | null;
+    };
 
 interface InviteRow {
   id: number;
@@ -151,61 +167,124 @@ export function getInvite(token: string): InviteInfo | null {
   return row ?? null;
 }
 
-export function consumeInvite(token: string, createdPersonId: number): void {
+function validateGuestRegistration(input: GuestRegistrationInput): void {
+  if (!input || typeof input !== "object") {
+    throw new Error("Registraci hosta nelze dokončit.");
+  }
+  if ("claimPersonId" in input) {
+    throw new Error("Pozvánku nelze spojit s existujícím strávníkem.");
+  }
+  if (input.provider !== "password" && input.provider !== "google") {
+    throw new Error("Způsob registrace hosta není platný.");
+  }
+}
+
+function requireConsumableInvite(token: string): {
+  id: number;
+  inviterUserId: number;
+  inviterPersonId: number;
+} {
   if (!isTokenShapeValid(token)) throw new Error("Pozvánka není platná.");
-  requireId(createdPersonId, "Strávník");
 
   const db = getDb();
+  const invite = db
+    .prepare(`
+      SELECT id, inviter_user_id AS inviterUserId
+      FROM guest_invites
+      WHERE token_hash = ?
+        AND used_at IS NULL
+        AND revoked_at IS NULL
+        AND julianday(expires_at) > julianday('now')
+    `)
+    .get(hashToken(token)) as { id: number; inviterUserId: number } | undefined;
+  if (!invite) throw new Error("Pozvánka není platná.");
+
+  const inviterPersonId = rootInviterPersonId(invite.inviterUserId);
+  if (countActiveGuests(invite.inviterUserId) >= MAX_ACTIVE_GUESTS) {
+    throw new Error("Účet už má nejvyšší povolený počet tří aktivních hostů.");
+  }
+  return { ...invite, inviterPersonId };
+}
+
+export function registerGuestWithInvite(
+  token: string,
+  input: GuestRegistrationInput
+): { userId: number; personId: number } {
+  validateGuestRegistration(input);
+  const db = getDb();
   let inviterUserId = 0;
-  db.transaction(() => {
-    const invite = db
+
+  const created = db.transaction(() => {
+    const invite = requireConsumableInvite(token);
+    inviterUserId = invite.inviterUserId;
+
+    const googleProfile =
+      input.provider === "google" ? readPendingGoogleLink(input.profileCookie) : null;
+    if (input.provider === "google") {
+      if (!googleProfile) {
+        throw new Error("Ověřená identita Google vypršela nebo není platná.");
+      }
+      if (
+        db
+          .prepare("SELECT 1 FROM user_identities WHERE provider = 'google' AND subject = ?")
+          .get(googleProfile.subject)
+      ) {
+        throw new Error("Pozvánku lze použít jen pro nový účet.");
+      }
+    }
+
+    const account =
+      input.provider === "password"
+        ? createUserWithPassword({
+            email: input.email,
+            name: input.name,
+            password: input.password,
+            departmentId: input.departmentId,
+          })
+        : createUserFromGoogle({
+            email: googleProfile!.email,
+            name: googleProfile!.name,
+            subject: googleProfile!.subject,
+            departmentId: input.departmentId,
+          });
+
+    const person = db
       .prepare(`
-        SELECT id, inviter_user_id AS inviterUserId
-        FROM guest_invites
-        WHERE token_hash = ?
+        SELECT p.guest_of_person_id AS guestOfPersonId
+        FROM people p
+        JOIN user_people up ON up.person_id = p.id
+        WHERE p.id = ? AND up.user_id = ? AND p.active = 1
+      `)
+      .get(account.personId, account.userId) as
+      | { guestOfPersonId: number | null }
+      | undefined;
+    if (!person || person.guestOfPersonId !== null || account.personId === invite.inviterPersonId) {
+      throw new Error("Pozvánku nelze přiřadit tomuto účtu.");
+    }
+
+    db.prepare("UPDATE people SET guest_of_person_id = ? WHERE id = ?").run(
+      invite.inviterPersonId,
+      account.personId
+    );
+    const result = db
+      .prepare(`
+        UPDATE guest_invites
+        SET used_at = datetime('now'), created_person_id = ?
+        WHERE id = ?
           AND used_at IS NULL
           AND revoked_at IS NULL
           AND julianday(expires_at) > julianday('now')
       `)
-      .get(hashToken(token)) as { id: number; inviterUserId: number } | undefined;
-    if (!invite) throw new Error("Pozvánka není platná.");
-    inviterUserId = invite.inviterUserId;
-
-    const inviterPersonId = rootInviterPersonId(invite.inviterUserId);
-    if (countActiveGuests(invite.inviterUserId) >= MAX_ACTIVE_GUESTS) {
-      throw new Error("Účet už má nejvyšší povolený počet tří aktivních hostů.");
-    }
-    const person = db
-      .prepare(`
-        SELECT p.guest_of_person_id AS guestOfPersonId,
-               EXISTS(SELECT 1 FROM user_people up WHERE up.person_id = p.id) AS hasAccount
-        FROM people p
-        WHERE p.id = ? AND p.active = 1
-      `)
-      .get(createdPersonId) as { guestOfPersonId: number | null; hasAccount: number } | undefined;
-    if (!person || person.hasAccount !== 1) {
-      throw new Error("Pozvánku lze přiřadit jen novému aktivnímu účtu.");
-    }
-    if (createdPersonId === inviterPersonId || person.guestOfPersonId !== null) {
-      throw new Error("Pozvánku nelze přiřadit tomuto strávníkovi.");
-    }
-
-    db.prepare("UPDATE people SET guest_of_person_id = ? WHERE id = ?").run(
-      inviterPersonId,
-      createdPersonId
-    );
-    const result = db
-      .prepare(
-        "UPDATE guest_invites SET used_at = datetime('now'), created_person_id = ? WHERE id = ? AND used_at IS NULL AND revoked_at IS NULL"
-      )
-      .run(createdPersonId, invite.id);
+      .run(account.personId, invite.id);
     if (result.changes !== 1) throw new Error("Pozvánka není platná.");
+    return account;
   })();
 
   logAudit({
     action: "invite_use",
-    details: `pozvánka uživatele #${inviterUserId}, strávník #${createdPersonId}`,
+    details: `pozvánka uživatele #${inviterUserId}, strávník #${created.personId}`,
   });
+  return created;
 }
 
 export function revokeInvite(inviteId: number, actorUserId: number): void {

@@ -377,7 +377,12 @@ export async function completeGoogleLogin(currentUrl: URL, checks: {
 ```ts
 export function createInvite(inviterUserId: number): { token: string; expiresAt: string };
 export function getInvite(token: string): InviteInfo | null;   // jen platná
-export function consumeInvite(token: string, createdPersonId: number): void;
+export function registerGuestWithInvite(
+  token: string,
+  input:
+    | { provider: "password"; email: string; name: string; password: string; departmentId: number | null }
+    | { provider: "google"; profileCookie: string; departmentId: number | null }
+): { userId: number; personId: number };
 export function revokeInvite(inviteId: number, actorUserId: number): void;
 export function listInvites(inviterUserId: number): InviteInfo[];
 export function countActiveGuests(inviterUserId: number): number;
@@ -396,6 +401,8 @@ Pravidla, která `createInvite` vynutí (R19, R20):
   odmítni. Hloubka jedna, ať odpovědnost zůstane u živého člověka.
 - `getInvite` vrací `null` pro použitou, zrušenou i prošlou — volající nemá
   rozlišovat proč
+- založení účtu, strávníka, vazby hosta a spotřebování pozvánky je jedna
+  transakce přes `registerGuestWithInvite`; UI nikdy neposílá `personId`
 - odkaz **nepřihlašuje**, jen otevře registrační formulář. Odkaz, který rovnou
   přihlásí, je heslo poslané po WhatsAppu.
 
@@ -666,15 +673,22 @@ interface InviteInfo {
   createdAt: string; expiresAt: string; usedAt: string | null;
   revokedAt: string | null; createdPersonId: number | null;
 }
+type GuestRegistrationInput =
+  | { provider: "password"; email: string; name: string; password: string; departmentId: number | null }
+  | { provider: "google"; profileCookie: string; departmentId: number | null };
 ```
 
 - `createInvite(inviterUserId: number): { token: string; expiresAt: string }` —
   vytvoří sedmidenní odkaz, pokud účet není host a nepřekročil limity.
 - `getInvite(token: string): InviteInfo | null` — vrátí pouze dosud platnou
   pozvánku; použitou, zrušenou a prošlou nerozlišuje.
-- `consumeInvite(token: string, createdPersonId: number): void` — atomicky označí
-  odkaz použitý a nastaví `guest_of_person_id`; `createdPersonId` musí být přímo
-  návratová hodnota právě dokončené serverové registrace, nikdy ID z klienta.
+- `registerGuestWithInvite(token: string, input: GuestRegistrationInput): { userId: number; personId: number }`
+  — v jediné transakci založí nový heslový nebo Google účet, jeho strávníka,
+  nastaví `guest_of_person_id` a spotřebuje pozvánku. `GuestRegistrationInput`
+  je diskriminované sjednocení podle signatury výše; veřejné API nepřijímá
+  `personId` ani `claimPersonId`. Google varianta přijímá jen hodnotu vytvořenou
+  přes `sealPendingGoogleLink` po úspěšném `completeGoogleLogin`; profil ani
+  `subject` z formuláře do ní neposílej.
 - `revokeInvite(inviteId: number, actorUserId: number): void` — dovolí zrušení
   jen vlastníkovi nepoužité pozvánky.
 - `listInvites(inviterUserId: number): InviteInfo[]` a
@@ -699,5 +713,6 @@ interface InviteInfo {
 `baseUrl` ber jen z kanonického nastavení aplikace, ne z `Host`/`X-Forwarded-Host`.
 UI routy pro odkazy jsou `/ucet/overit-email` a `/ucet/obnovit-heslo`; jejich
 server actions musí před voláním ověřit a započítat neúspěchy na IP stejně jako
-přihlášení. Registrace heslem má po `createUserWithPassword` bez čekání na
-ověření zavolat `sendVerificationEmail`.
+přihlášení. Běžná registrace heslem má po `createUserWithPassword` a registrace
+hosta po `registerGuestWithInvite` bez čekání na ověření zavolat
+`sendVerificationEmail`.
