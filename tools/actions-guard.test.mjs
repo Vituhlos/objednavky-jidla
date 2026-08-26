@@ -48,6 +48,10 @@ const PUBLIC_ACTIONS = new Set([
   // člověk přihlašuje. Obranou je heslo (R6), podepsaná cookie s profilem
   // a limit pokusů na IP.
   "actionConfirmGoogleLink",
+  // Sama je tou branou: ověří PIN a vydá krátkodobý doklad, který guardAdmin
+  // uznává. PIN zůstává zadními vrátky do Nastavení — vědomá odchylka od R12,
+  // aby šlo appku odemknout, kdyby se přihlašování rozbilo.
+  "actionCheckPin",
 ]);
 
 /**
@@ -109,6 +113,7 @@ const LOGIN_ACTIONS = new Set([
   // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
   "actionRegisterGuest",
   "actionConfirmGoogleLink",
+  "actionCheckPin",
 ]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
@@ -120,6 +125,18 @@ test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
       `„${name}" je ve veřejném seznamu, ale nevypadá jako čtení`
     );
   }
+});
+
+test("PIN brána omezuje počet pokusů a vydává jen krátkodobý doklad", () => {
+  const telo = ACTIONS.find((a) => a.name === "actionCheckPin")?.body;
+  assert.ok(telo, "actionCheckPin musí existovat");
+  assert.match(telo, /checkRateLimit\(/, "bez limitu by šel PIN hádat");
+  assert.match(telo, /vystavPinDoklad\(\)/, "úspěch musí vydat doklad");
+  assert.match(telo, /settings_pin_bypass/, "vstup mimo správce se musí zapsat do auditu");
+
+  const brana = fs.readFileSync("lib/auth/pin-gate.ts", "utf8");
+  assert.match(brana, /httpOnly: true/, "doklad nesmí být čitelný z JavaScriptu");
+  assert.match(brana, /timingSafeEqual/, "podpis se porovnává konstantním časem");
 });
 
 test("přihlašovací akce omezují počet pokusů", () => {
@@ -305,4 +322,46 @@ test("dokud není správce, zápisy se nezamykají", async () => {
   users2.setUserRole(admin.userId, "admin");
 
   assert.equal(policy2.accountsEnabled(), true, "první správce zamkne zápisy");
+});
+
+// ── Doklad o PINu ───────────────────────────────────────────────────────────
+// Zadní vrátka do Nastavení bez správcovského účtu. Vědomá odchylka od R12,
+// takže o to víc záleží, aby se nedal podvrhnout.
+
+const pinGate = await lib("auth/pin-gate");
+const settings = await lib("settings");
+
+test("čerstvý doklad projde, podvržený ne", () => {
+  const doklad = pinGate.vystavPinDoklad();
+  assert.equal(pinGate.jePinDokladPlatny(doklad), true);
+
+  const [platiDo, podpis] = doklad.split(".");
+  for (const podvrh of [
+    undefined,
+    "",
+    platiDo,
+    `${platiDo}.`,
+    `${platiDo}.${podpis}x`,
+    `${Number(platiDo) + 3_600_000}.${podpis}`, // prodloužená platnost, starý podpis
+    `nesmysl.${podpis}`,
+  ]) {
+    assert.equal(pinGate.jePinDokladPlatny(podvrh), false, `prošlo: ${podvrh}`);
+  }
+});
+
+test("prošlý doklad neprojde", () => {
+  const stary = `${Date.now() - 1000}.cokoli`;
+  assert.equal(pinGate.jePinDokladPlatny(stary), false);
+});
+
+test("změna PINu zneplatní vydané doklady", () => {
+  // Bez vyhrazeného COOKIE_SIGNING_SECRET se podepisuje otiskem PINu, takže
+  // jeho změna staré doklady odřízne. To je vlastnost, ne vedlejší účinek.
+  delete process.env.COOKIE_SIGNING_SECRET;
+  settings.saveSettings({ settingsPin: "1234" });
+  const doklad = pinGate.vystavPinDoklad();
+  assert.equal(pinGate.jePinDokladPlatny(doklad), true);
+
+  settings.saveSettings({ settingsPin: "9876" });
+  assert.equal(pinGate.jePinDokladPlatny(doklad), false, "starý doklad musí přestat platit");
 });

@@ -50,12 +50,14 @@ const VERSION_INFO = getAppVersionInfo();
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, pinOnly = false,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
+  /** Otevřeno PINem bez správcovského účtu — zadní vrátka mají být vidět. */
+  pinOnly?: boolean;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("provoz");
@@ -155,6 +157,21 @@ export default function SettingsPage({
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav md:pb-24">
+        {unlocked && pinOnly && (
+          <div
+            className="rounded-2xl p-3 flex items-start gap-2"
+            role="status"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.22)" }}
+          >
+            <MIcon name="key" size={15} style={{ color: "#D97706", flexShrink: 0, marginTop: 1 }} />
+            <span className="text-[12px] text-stone-700">
+              Jste tu <b>jen na PIN</b>, bez správcovského účtu. Funguje to jako záložní
+              cesta, kdyby se přihlašování rozbilo — ale kdokoli s tímhle PINem si
+              odsud stáhne zálohu celé databáze. Zapsáno do auditu. Až účty
+              vyzkoušíte, dejte vědět a vrátka zavřeme.
+            </span>
+          </div>
+        )}
         {!unlocked ? (
           /* PIN lock */
           <PinGate onUnlock={handleUnlock} />

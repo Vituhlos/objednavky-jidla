@@ -55,7 +55,15 @@ import {
   type DuplicateGroup,
   type Person,
 } from "@/lib/people";
-import { requireAdmin, requireSession } from "@/lib/auth/guards";
+import { getSession, requireAdmin, requireSession } from "@/lib/auth/guards";
+import {
+  jePinDokladPlatny,
+  PIN_COOKIE,
+  pinCookieOptions,
+  vystavPinDoklad,
+} from "@/lib/auth/pin-gate";
+import { logAudit } from "@/lib/audit";
+import { cookies } from "next/headers";
 import {
   deleteUser,
   isBootstrapPasswordUnchanged,
@@ -91,9 +99,15 @@ function isCutoffActive(): boolean {
 // schováním tlačítka a ne v proxy/middleware, které jde obejít.
 // Pravidla samotná jsou v lib/auth/policy.ts, aby se dala testovat bez Nextu.
 
-/** Vyžádá správce. V představu bez účtů propustí. */
+/**
+ * Vyžádá správce. Propustí i toho, kdo právě zadal PIN, a režim bez účtů.
+ *
+ * PIN je vědomě ponechaný jako zadní vrátka — viz lib/auth/pin-gate.ts.
+ */
 async function guardAdmin(): Promise<void> {
-  if (accountsEnabled()) await requireAdmin();
+  if (!accountsEnabled()) return;
+  if (jePinDokladPlatny((await cookies()).get(PIN_COOKIE)?.value)) return;
+  await requireAdmin();
 }
 
 /** Vyžádá přihlášení. V představu bez účtů vrátí `null`. */
@@ -415,13 +429,22 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
-  await guardAdmin();
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   const key = `pin:${ip}`;
   if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
     return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
   }
-  return { ok: checkPin(pin) };
+  if (!checkPin(pin)) return { ok: false };
+
+  const store = await cookies();
+  store.set(PIN_COOKIE, vystavPinDoklad(), pinCookieOptions());
+
+  // Vstup do Nastavení mimo správcovský účet má být vidět — jsou to zadní vrátka.
+  const session = await getSession();
+  if (accountsEnabled() && session?.role !== "admin") {
+    logAudit({ action: "settings_pin_bypass", details: "Nastavení otevřena PINem bez správcovského účtu" });
+  }
+  return { ok: true };
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
