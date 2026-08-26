@@ -70,7 +70,19 @@ opakování nikdy nepomohlo.
 u server actions. Recenzent by měl ověřit, že žádná kontrola nestojí jen na
 skrytém prvku — k tomu slouží `tools/actions-guard.test.mjs`.
 
-### 5. Rozpočet pokusů u registrace
+### 5. Správa účtů obchází předúčtový režim
+
+Akce v `app/actions.ts` pod hlavičkou „Účty (administrace)" se drží
+`requireAdmin()`, ne `guardAdmin()`.
+
+**Proč:** kdyby platil předúčtový režim, mohl by se v databázi bez správce
+kdokoli povýšit na správce — a tím z toho režimu natrvalo vystoupit. To je
+jediná skupina akcí, která z něj umí vystoupit, takže musí být výjimkou.
+
+**Co prověřit:** je výčet úplný? Existuje jiná akce, která umí změnit roli
+nebo založit správce a je zajištěná jen `guardAdmin()`?
+
+### 6. Rozpočet pokusů u registrace
 
 15 registrací za hodinu na IP, odečítá se **až skutečně založený účet**.
 
@@ -133,6 +145,9 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | `0970de3` | oprava statického testu po přibytí registrace |
 | `8a69030` | obnova a změna hesla |
 | `c6f3a37` | přihlášená zařízení |
+| `c504eda` | založení tohohle protokolu |
+| `7902ac7` | pozvánky hostů a registrace z odkazu (R19, R20) |
+| `105232a` | správa účtů v nastavení |
 
 ### Klasifikace server actions
 
@@ -162,6 +177,13 @@ skutečně selhal a jmenoval ji.
    proto „odhlásit ostatní zařízení".
 3. **Nepřihlášený vidí jména kolegů** — to je záměr (R1), ne opomenutí.
    Hlavička `X-Robots-Tag: noindex` zatím nasazená není.
+4. **Google přihlášení není hotové.** Tlačítko se ukazuje, když je Google
+   nastavený, a míří na hotový route handler. Chybí obrazovka pro stav
+   `auth=google-link-required` (potvrzení heslem při propojování) a registrace
+   hosta přes Google.
+5. **Sekce Účty nebyla vizuálně proklikaná** — Nastavení jsou za PINem, který
+   nezadávám. Chování pod ní ověřeno přímo (ochrana posledního správce drží
+   ve všech třech směrech), vzhled ne.
 
 ---
 
