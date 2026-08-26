@@ -6,6 +6,43 @@ strany. Backend v `lib/auth/**` je hotový a otestovaný, tenhle dokument popisu
 jeho zapojení do aplikace.
 
 Větev vychází z `feat/ucty-backend` (`de10e08`). Nic není pushnuté.
+20 commitů, 27 nových souborů.
+
+```bash
+git log --oneline de10e08..feat/ucty-ui
+git diff de10e08..feat/ucty-ui
+```
+
+---
+
+## Jak to prověřit
+
+Nejdřív stav, pak úsudek.
+
+```bash
+npm ci                 # dev server musí být zastavený — drží lightningcss
+npm run lint           # čistě, bez warningů
+npx tsc --noEmit        # chyby v tools/gravityui-reference-mcp/** jsou cizí a existující
+npm test               # 88 Vitest + 122 node:test
+npm run build
+npm audit              # 0 zranitelností
+```
+
+Poté v tomhle pořadí:
+
+1. **Oddíl „Na co se dívat kriticky“ níže** — osm míst, kde jsem rozhodoval.
+   U každého je napísané, co u něj ověřit. **Bod 6 (PIN) je nejrizikovější.**
+2. **`tools/actions-guard.test.mjs`** — statický test, že žádná server action
+   nezůstala bez kontroly. Klíčové je prověřit **seznam `PUBLIC_ACTIONS`**
+   (11 položek): patří tam každá z nich?
+3. **`lib/auth/policy.ts` a `lib/auth/pin-gate.ts`** — celá moje pravidlová
+   vrstva nad backendem. Dohromady ani ne 150 řádků.
+4. **`app/actions.ts` a `app/actions-auth.ts`** — 67 akcí, u každé zkontrolovat,
+   že kontrola sedí před zápisem a odpovídá tabulce oprávnění.
+5. **Známá omezení** na konci — věci, které vědomě hotové nejsou.
+
+Backend v `lib/auth/**` je hotový a otestovaný; měnil se jediným commitem
+(`548fe85`), který je popsán níže.
 
 ---
 
@@ -173,7 +210,7 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 
 | Commit | Co |
 |---|---|
-| `c2b5975` | docs — `AGENTS.md` tvrdil, že není testovací framework (je, 188 testů) a že lint má ~42 chyb (prochází čistě); `CLAUDE.md` uváděl Next.js 15 místo 16 |
+| `c2b5975` | docs — `AGENTS.md` tvrdil, že není testovací framework (je, tehdy 188 testů) a že lint má ~42 chyb (prochází čistě); `CLAUDE.md` uváděl Next.js 15 místo 16 |
 | `5fa45d8` | guardy na všech 47 server actions + `lib/auth/policy.ts` + statický test |
 | `548fe85` | oprava migrace (viz výše) |
 | `182e50e` | přihlášení, odhlášení, `AccountView` v navigaci |
@@ -191,18 +228,22 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | `acb0703` | jméno v řádku jako výběr |
 | `7574dd3` | X-Robots-Tag noindex a robots.txt |
 | `2155b35` | PIN jako zadní vrátka do Nastavení |
+| `27940e4`, `c16b5ac` | další doplnění tohohle protokolu |
 
 ### Klasifikace server actions
 
-47 exportovaných akcí v `app/actions.ts`, dalších pár v `app/actions-auth.ts`:
+67 exportovaných akcí: 53 v `app/actions.ts`, 14 v `app/actions-auth.ts`.
 
 | Kategorie | Počet | Příklad |
 |---|---|---|
 | Veřejné čtení | 3 | `actionGetDepartments` |
-| Vstup do přihlášení | 5 | `actionLogin`, `actionRegister` |
-| Jen správce | 38 | `actionSendOrder`, `actionSaveSettings` |
-| Přihlášený | 3 | pizza řádky |
+| Veřejný vstup (přihlášení, registrace, obnova, PIN) | 8 | `actionLogin`, `actionCheckPin` |
+| Jen správce | ~43 | `actionSendOrder`, `actionSaveSettings` |
+| Přihlášený | ~10 | pizza řádky, sezení, pozvánky |
 | Vlastnictví | 3 | řádky objednávky |
+
+Veřejných je v testu 11 (3 čtení + 8 vstupů). **Každá z nich má v testu
+komentář, proč tam je — to je místo, které stojí za nejpřísnější pohled.**
 
 Seznam veřejných je v `tools/actions-guard.test.mjs` a doplnit se do něj dá jen
 vědomě. Test byl ověřen tím, že po dočasném odebrání guardu z `actionSendOrder`
@@ -228,6 +269,9 @@ skutečně selhal a jmenoval ji.
 6. **Pasivního hosta nejde založit.** Člověk bez účtu, za kterého objednává
    někdo jiný, existuje ve schématu (`guest_of_person_id`), ale UI ho vytvořit
    neumí. Týká se to např. manželky, která appku nikdy neotevře.
+7. **Ve vývojové databázi zůstávají testovací účty** (`spravce.test@`,
+   `stravnik.test@`, `petr.test@`, `marie.test@`) a seedovaní strávníci.
+   Do produkce se nedostanou — jsou jen v lokálním `data/stros.db`.
 5. **Sekce Účty nebyla vizuálně proklikaná** — Nastavení jsou za PINem, který
    nezadávám. Chování pod ní ověřeno přímo (ochrana posledního správce drží
    ve všech třech směrech), vzhled ne.
