@@ -26,12 +26,18 @@ type PizzaPendingDelete = { rowId: number; rowData: PizzaOrderRow };
 const DAY_CODE_TO_JS: Record<string, number> = { Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5 };
 
 export default function PizzaPage({
+  canEdit = true,
+  canManage = true,
   initialData,
   departments = [],
   pizzaCutoffEnabled = false,
   pizzaCutoffTime = "",
   pizzaCutoffDays = "",
 }: {
+  /** Zapisovat smí jen přihlášený (R1). */
+  canEdit?: boolean;
+  /** Ceník přenáší z webu pizzerie správce. */
+  canManage?: boolean;
   initialData: PizzaOrderData;
   departments?: DepartmentInfo[];
   pizzaCutoffEnabled?: boolean;
@@ -41,7 +47,8 @@ export default function PizzaPage({
   const [rows, setRows] = useState(initialData.rows);
   const [pizzaItems, setPizzaItems] = useState(initialData.pizzaItems);
   const [orderId] = useState(initialData.order.id);
-  const isClosed = initialData.order.status === "sent";
+  // Zámek už neznamená jen „odesláno“, ale „nelze zapisovat“ — nepřihlášený čte.
+  const isClosed = initialData.order.status === "sent" || !canEdit;
 
   const showCutoffBanner = pizzaCutoffEnabled && !!pizzaCutoffTime && !isClosed && (() => {
     const allowedDays = pizzaCutoffDays.split(",").map((d) => DAY_CODE_TO_JS[d.trim()]).filter(Boolean);
@@ -187,6 +194,7 @@ export default function PizzaPage({
         {scrapeStatus && <span className="text-[12px] text-emerald-600">{scrapeStatus}</span>}
         {scrapeError && <span className="text-[12px] text-red-500 truncate max-w-xs">{scrapeError}</span>}
         <div className="ml-auto">
+          {canManage && (
           <button
             className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
             disabled={isPending}
@@ -196,6 +204,7 @@ export default function PizzaPage({
             <MIcon name="refresh" size={14} />
             {isPending ? "Načítám..." : "Aktualizovat ceník"}
           </button>
+          )}
         </div>
       </div>
 
@@ -213,6 +222,7 @@ export default function PizzaPage({
         <div className="flex items-center gap-2 px-4 pb-2.5">
           {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
           {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
+          {canManage && (
           <button
             className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
             disabled={isPending}
@@ -222,6 +232,7 @@ export default function PizzaPage({
             <MIcon name="refresh" size={13} />
             {isPending ? "Načítám..." : "Aktualizovat ceník"}
           </button>
+          )}
         </div>
       </div>
 

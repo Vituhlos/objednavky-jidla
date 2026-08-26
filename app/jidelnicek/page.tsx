@@ -11,6 +11,8 @@ import {
 import { getHolidayName } from "@/lib/holidays";
 import { getClosureForDate, getClosureDates } from "@/lib/closures";
 import MenuPage from "@/app/components/MenuPage";
+import { getAccountView } from "@/lib/auth/account-view";
+import { accountsEnabled } from "@/lib/auth/policy";
 import { getSettings } from "@/lib/settings";
 import type { MenuItem } from "@/lib/types";
 import path from "path";
@@ -119,8 +121,12 @@ export default async function JidelnicekPage() {
 
   const settings = getSettings();
 
+  const account = await getAccountView();
+  const canManage = !accountsEnabled() || account?.role === "admin";
+
   return (
     <MenuPage
+      canManage={canManage}
       defaultMealPrice={parseInt(settings.defaultMealPrice) || 110}
       defaultSoupPrice={parseInt(settings.defaultSoupPrice) || 30}
       todayCode={getTodayDayCode()}

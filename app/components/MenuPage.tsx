@@ -22,6 +22,8 @@ import { useMenuDeletion } from "./menu/useMenuDeletion";
 import { useMenuImport } from "./menu/useMenuImport";
 
 interface Props {
+  /** Úpravy jídelníčku umí jen správce. */
+  canManage?: boolean;
   weeks: MenuWeek[];
   todayCode: string | null;
   defaultMealPrice: number;
@@ -47,6 +49,7 @@ const DRAFT_ITEM_ID = -1;
  * nezaložil vlastní a nerozdvojil tak stav „něco běží“.
  */
 export default function MenuPage({
+  canManage = true,
   weeks,
   todayCode,
   defaultMealPrice,
@@ -58,7 +61,10 @@ export default function MenuPage({
   // Replaces the old pair of currentMenu/nextMenu states.
   const [menuEdits, setMenuEdits] = useState<Record<string, WeekMenu>>({});
   const prevWeeksRef = useRef(weeks);
-  const [editMode, setEditMode] = useState(false);
+  const [editModeWanted, setEditMode] = useState(false);
+  // Odvozená hodnota, ne obalený setter — režim úprav se u nesprávce nezapne,
+  // ať se do stavu dostane cokoli.
+  const editMode = canManage && editModeWanted;
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [activeDayOverride, setActiveDayOverride] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -243,6 +249,7 @@ export default function MenuPage({
         activeWeekName={activeWeekName}
         activeWeekStart={activeWeekStart}
         canDeleteActiveWeek={canDeleteActiveWeek}
+        canManage={canManage}
         editMode={editMode}
         hasPdfActive={activeWeekData.hasPdf}
         isCurrentWeek={activeWeekData.isCurrent}

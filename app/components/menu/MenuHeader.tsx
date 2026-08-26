@@ -4,6 +4,8 @@ import type { MenuWeek } from "@/app/jidelnicek/page";
 import MIcon from "../MIcon";
 
 interface MenuHeaderProps {
+  /** Úpravy jídelníčku umí jen správce. */
+  canManage?: boolean;
   weeks: MenuWeek[];
   activeWeekStart: string;
   activeWeekLabel: string | null;
@@ -30,6 +32,7 @@ interface MenuHeaderProps {
  * kontext `Tabs` u koordinátoru.
  */
 export function MenuHeader({
+  canManage = true,
   weeks,
   activeWeekStart,
   activeWeekLabel,
@@ -59,6 +62,7 @@ export function MenuHeader({
           </a>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {canManage && (
           <button
             className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
             onClick={onToggleEdit}
@@ -66,7 +70,8 @@ export function MenuHeader({
           >
             {editMode ? "Zavřít úpravu" : "Upravit ručně"}
           </button>
-          {canDeleteActiveWeek && (
+          )}
+          {canManage && canDeleteActiveWeek && (
             <button
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
               disabled={isPending}
@@ -76,6 +81,7 @@ export function MenuHeader({
               Smazat {activeWeekName}
             </button>
           )}
+          {canManage && (
           <button
             className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
             onClick={onOpenImport}
@@ -83,6 +89,7 @@ export function MenuHeader({
           >
             <MIcon name="upload_file" size={14} /> Import PDF
           </button>
+          )}
         </div>
       </div>
 
@@ -91,6 +98,7 @@ export function MenuHeader({
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
           {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
+          {canManage && (
           <button
             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
             onClick={onOpenImport}
@@ -98,6 +106,7 @@ export function MenuHeader({
           >
             <MIcon name="upload_file" size={13} /> PDF
           </button>
+          )}
         </div>
       </div>
 
@@ -129,7 +138,7 @@ export function MenuHeader({
             ↓ PDF
           </a>
         )}
-        {isCurrentWeek && (
+        {canManage && isCurrentWeek && (
           <button
             className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
             onClick={onToggleEdit}
