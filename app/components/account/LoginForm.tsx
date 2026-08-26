@@ -142,6 +142,10 @@ export function LoginForm({ googleEnabled, next }: { googleEnabled: boolean; nex
         )}
 
         <p className="text-[12px] text-stone-500 text-center">
+          <a className="underline" href="/ucet/zapomenute-heslo">Zapomenělé heslo?</a>
+        </p>
+
+        <p className="text-[12px] text-stone-500 text-center">
           Nemáte účet?{" "}
           <a className="font-semibold underline" href="/ucet/registrace">
             Zaregistrujte se

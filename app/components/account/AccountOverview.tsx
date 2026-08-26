@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { actionLogout } from "@/app/actions-auth";
 import type { AccountView } from "@/lib/auth/account-view";
+import { ChangePasswordForm } from "./PasswordForms";
 import MIcon from "../MIcon";
 
 function Radek({ label, children }: { label: string; children: React.ReactNode }) {
@@ -63,6 +64,11 @@ export function AccountOverview({ account }: { account: AccountView }) {
             <Radek label="Objednáváte za">{account.personCount} strávníky</Radek>
           )}
         </div>
+      </div>
+
+      <div className="glass rounded-3xl p-5 flex flex-col gap-3">
+        <p className="font-display font-bold text-[14px] text-stone-900">Heslo</p>
+        <ChangePasswordForm />
       </div>
 
       <button

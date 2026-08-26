@@ -37,7 +37,20 @@ const PUBLIC_ACTIONS = new Set([
   // Registrace je z podstaty pro nepřihlášené (R2). Brání se limitem pokusů
   // na IP a tím, že existenci účtu neprozradí.
   "actionRegister",
+  // Kdo zapomněl heslo, nemůže být přihlášený. Obranou je limit pokusů na IP
+  // a to, že odpověď je stejná pro existující i neexistující účet.
+  "actionRequestPasswordReset",
+  "actionResetPassword",
 ]);
+
+/**
+ * Co se počítá za kontrolu oprávnění.
+ *
+ * guardAdmin a guardSession jsou obaly, které navíc pouštějí představ bez účtů.
+ * requireSession a requireAdmin jsou též kontroly — akce, která dává smysl jen
+ * přihlášenému, si je volá přímo.
+ */
+const GUARDS = ["guardAdmin()", "guardSession()", "requireSession()", "requireAdmin()"];
 
 function extractActions(source) {
   const found = [];
@@ -63,9 +76,7 @@ test("v actions.ts jsou všechny akce vidět", () => {
 test("každá neveřejná akce má guard", () => {
   const nechraneno = ACTIONS.filter(
     ({ name, body }) =>
-      !PUBLIC_ACTIONS.has(name) &&
-      !body.includes("guardAdmin()") &&
-      !body.includes("guardSession()")
+      !PUBLIC_ACTIONS.has(name) && !GUARDS.some((g) => body.includes(g))
   ).map((a) => a.name);
 
   assert.deepEqual(
@@ -76,7 +87,13 @@ test("každá neveřejná akce má guard", () => {
   );
 });
 
-const LOGIN_ACTIONS = new Set(["actionLogin", "actionLogout", "actionRegister"]);
+const LOGIN_ACTIONS = new Set([
+  "actionLogin",
+  "actionLogout",
+  "actionRegister",
+  "actionRequestPasswordReset",
+  "actionResetPassword",
+]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
   for (const name of PUBLIC_ACTIONS) {

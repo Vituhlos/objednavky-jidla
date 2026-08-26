@@ -4,15 +4,25 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset, isRateLimited } from "@/lib/rate-limit";
 import { AuthError } from "@/lib/auth/errors";
+import { requireSession } from "@/lib/auth/guards";
 import {
   createSession,
   getSessionCookieOptions,
   revokeSession,
   SESSION_COOKIE,
 } from "@/lib/auth/sessions";
-import { authenticateWithPassword, createUserWithPassword } from "@/lib/auth/users";
+import {
+  authenticateWithPassword,
+  changePassword,
+  createUserWithPassword,
+  verifyUserPassword,
+} from "@/lib/auth/users";
 import { checkPasswordStrength } from "@/lib/auth/password";
-import { sendVerificationEmail } from "@/lib/auth/mail";
+import {
+  resetPasswordWithToken,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "@/lib/auth/mail";
 import { findMergeCandidates } from "@/lib/people";
 import { getSettings } from "@/lib/settings";
 
@@ -227,5 +237,93 @@ export async function actionRegister(
   }
 
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// ── Hesla ────────────────────────────────────────────────────────────────────
+
+const RESET_MAX = 10;
+const RESET_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Požádá o odkaz na obnovu hesla.
+ *
+ * Odpověď je vždy stejná, i pro neexistující účet. Jinak by se z formuláře
+ * stal seznam toho, kdo tu účet má — a ten seznam by šel projet strojově.
+ */
+export async function actionRequestPasswordReset(
+  email: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const HOTOVO = { ok: true } as const;
+  if (typeof email !== "string" || !email.trim()) return HOTOVO;
+
+  const key = `reset-request:${await clientIp()}`;
+  if (!checkRateLimit(key, RESET_MAX, RESET_WINDOW_MS)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
+  }
+
+  try {
+    await sendPasswordResetEmail(email, appBaseUrl());
+  } catch {
+    // Ani chyba SMTP nesmí prozradit, že účet existuje.
+  }
+  return HOTOVO;
+}
+
+export async function actionResetPassword(
+  token: unknown,
+  newPassword: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (typeof token !== "string" || typeof newPassword !== "string") {
+    return { ok: false, error: "Odkaz nefunguje. Vyžádejte si nový." };
+  }
+
+  const key = `reset-use:${await clientIp()}`;
+  if (!checkRateLimit(key, RESET_MAX, RESET_WINDOW_MS)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
+  }
+
+  const strength = checkPasswordStrength(newPassword);
+  if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
+
+  try {
+    resetPasswordWithToken(token, newPassword);
+  } catch {
+    // Použitý, prošlý i vymyšlený token končí stejně — jinak by šlo tokeny
+    // zkoušet a poznat, který existoval.
+    return { ok: false, error: "Odkaz už byl použitý, nebo mu vypršela platnost." };
+  }
+
+  // Sezení zrušil backend. Cookie po sobě uklidíme, ať nezůstane mrtvá.
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Změna hesla zevnitř účtu. Aktuální sezení zůstává, ostatní zanikají. */
+export async function actionChangePassword(
+  currentPassword: unknown,
+  newPassword: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    return { ok: false, error: "Vyplňte obě pole." };
+  }
+
+  const key = `password-change:${await clientIp()}`;
+  if (isRateLimited(key, RESET_MAX)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
+  }
+  if (!verifyUserPassword(session.userId, currentPassword)) {
+    checkRateLimit(key, RESET_MAX, RESET_WINDOW_MS);
+    return { ok: false, error: "Stávající heslo nesouhlasí." };
+  }
+
+  const strength = checkPasswordStrength(newPassword);
+  if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
+
+  changePassword(session.userId, newPassword, session.sessionId);
   return { ok: true };
 }
