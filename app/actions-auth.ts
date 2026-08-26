@@ -26,6 +26,13 @@ import {
   sendVerificationEmail,
 } from "@/lib/auth/mail";
 import { findMergeCandidates } from "@/lib/people";
+import {
+  countActiveGuests,
+  createInvite,
+  listInvites,
+  registerGuestWithInvite,
+  revokeInvite,
+} from "@/lib/auth/invites";
 import { getSettings } from "@/lib/settings";
 
 /**
@@ -403,4 +410,169 @@ function describeDevice(userAgent: string | null): string {
           : null;
 
   return browser ? `${system} · ${browser}` : system;
+}
+
+// ── Pozvánky hostů ───────────────────────────────────────────────────────────
+
+export interface InviteView {
+  id: number;
+  createdAt: string;
+  expiresAt: string;
+  used: boolean;
+  revoked: boolean;
+}
+
+/**
+ * Vytvoří pozvací odkaz pro hosta.
+ *
+ * Token se vrací **jedinkrát** — potom už ho nikdo nezjistí, protože v databázi
+ * je jen otisk. Kdo odkaz ztratí, vytvoří nový a starý zruší.
+ *
+ * Limity (tři aktivní hosté, pět čekajících pozvánek) i pravidlo „host nesmí
+ * zvát dál" hlídá backend; tady se jen ukáže, co odmítl.
+ */
+export async function actionCreateInvite(): Promise<
+  { ok: true; url: string; expiresAt: string } | { ok: false; error: string }
+> {
+  const session = await requireSession();
+
+  // Adresa se ověřuje dřív, než pozvánka vznikne. Obráceně by chybějící
+  // APP_URL založila pozvánku, jejíž odkaz už nikdo nikdy neuvidí — a ještě by
+  // ubrala z pěti čekajících.
+  let base: string;
+  try {
+    base = appBaseUrl();
+  } catch {
+    return {
+      ok: false,
+      error: "Aplikace nezná svou veřejnou adresu. Správce musí nastavit APP_URL.",
+    };
+  }
+
+  try {
+    const { token, expiresAt } = createInvite(session.userId);
+    const url = new URL("/ucet/pozvanka", base);
+    url.searchParams.set("token", token);
+    return { ok: true, url: url.href, expiresAt };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Pozvánku se nepodařilo vytvořit.",
+    };
+  }
+}
+
+export async function actionListInvites(): Promise<InviteView[]> {
+  const session = await requireSession();
+  return listInvites(session.userId).map((i) => ({
+    id: i.id,
+    createdAt: i.createdAt,
+    expiresAt: i.expiresAt,
+    used: i.usedAt !== null,
+    revoked: i.revokedAt !== null,
+  }));
+}
+
+export async function actionRevokeInvite(
+  inviteId: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(inviteId) || (inviteId as number) <= 0) {
+    return { ok: false, error: "Neplatná pozvánka." };
+  }
+  try {
+    revokeInvite(inviteId as number, session.userId);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Pozvánku se nepodařilo zrušit.",
+    };
+  }
+}
+
+export async function actionGuestCount(): Promise<number> {
+  const session = await requireSession();
+  return countActiveGuests(session.userId);
+}
+
+/**
+ * Registrace hosta z pozvánky.
+ *
+ * Účet, strávník, vztah hosta i spotřebování pozvánky vznikají v jediné
+ * backendové transakci — proto se sem posílá jen to, co host vyplnil. Žádné
+ * `personId` ani `claimPersonId`: host historii nepřebírá, host je nový.
+ */
+export async function actionRegisterGuest(
+  token: unknown,
+  email: unknown,
+  name: unknown,
+  password: unknown,
+  departmentId: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (
+    typeof token !== "string" ||
+    typeof email !== "string" ||
+    typeof name !== "string" ||
+    typeof password !== "string"
+  ) {
+    return { ok: false, error: "Vyplňte prosím všechna pole." };
+  }
+
+  const deptId =
+    Number.isSafeInteger(departmentId) && (departmentId as number) > 0
+      ? (departmentId as number)
+      : null;
+  if (deptId === null) return { ok: false, error: "Vyberte oddělení." };
+
+  const jmeno = name.trim();
+  if (jmeno.length < 2) return { ok: false, error: "Vyplňte jméno a příjmení." };
+  if (email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return { ok: false, error: "E-mail nemá platný tvar." };
+  }
+
+  const strength = checkPasswordStrength(password);
+  if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
+
+  const key = `guest-register:${await clientIp()}`;
+  if (!checkRateLimit(key, REGISTER_MAX, REGISTER_WINDOW_MS)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to později." };
+  }
+
+  let userId: number;
+  try {
+    ({ userId } = registerGuestWithInvite(token, {
+      provider: "password",
+      email,
+      name: jmeno,
+      password,
+      departmentId: deptId,
+    }));
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Registraci se nepodařilo dokončit.",
+    };
+  }
+
+  try {
+    await sendVerificationEmail(userId, appBaseUrl());
+  } catch {
+    // Účet existuje; nefunkční SMTP registraci neshodí.
+  }
+
+  try {
+    const { token: sessionToken, expiresAt } = createSession(userId, {
+      persistent: false,
+      userAgent: (await headers()).get("user-agent") ?? undefined,
+    });
+    const store = await cookies();
+    store.set(SESSION_COOKIE, sessionToken, getSessionCookieOptions(false, expiresAt));
+  } catch (err) {
+    if (err instanceof AuthError) return { ok: false, error: err.message };
+    throw err;
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

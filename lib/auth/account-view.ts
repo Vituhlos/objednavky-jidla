@@ -1,4 +1,5 @@
 import { getSession } from "./guards";
+import { getPerson } from "../people";
 import { getUserById } from "./users";
 
 /**
@@ -16,6 +17,14 @@ export interface AccountView {
   emailVerified: boolean;
   /** Kolik strávníků účet zastupuje — přepínač „objednávám za“ má smysl od dvou. */
   personCount: number;
+  /**
+   * Je tenhle účet host?
+   *
+   * Host nesmí zvát další hosty (R20). Backend to odmítne sám, ale UI mu tu
+   * sekci nemá vůbec ukazovat — tlačítko, které vždycky selže, je horší než
+   * žádné.
+   */
+  isGuest: boolean;
 }
 
 export async function getAccountView(): Promise<AccountView | null> {
@@ -31,5 +40,6 @@ export async function getAccountView(): Promise<AccountView | null> {
     role: user.role,
     emailVerified: user.emailVerified,
     personCount: user.personIds.length,
+    isGuest: user.personIds.some((id) => getPerson(id)?.guestOfPersonId != null),
   };
 }

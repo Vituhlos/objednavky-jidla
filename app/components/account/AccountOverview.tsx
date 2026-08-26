@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { actionLogout } from "@/app/actions-auth";
 import type { AccountView } from "@/lib/auth/account-view";
 import { ChangePasswordForm } from "./PasswordForms";
+import { InviteSection } from "./InviteSection";
 import { SessionList } from "./SessionList";
 import MIcon from "../MIcon";
 
@@ -61,6 +62,7 @@ export function AccountOverview({ account }: { account: AccountView }) {
               </span>
             )}
           </Radek>
+          {account.isGuest && <Radek label="Účet">host</Radek>}
           {account.personCount > 1 && (
             <Radek label="Objednáváte za">{account.personCount} strávníky</Radek>
           )}
@@ -71,6 +73,8 @@ export function AccountOverview({ account }: { account: AccountView }) {
         <p className="font-display font-bold text-[14px] text-stone-900">Heslo</p>
         <ChangePasswordForm />
       </div>
+
+      {!account.isGuest && <InviteSection />}
 
       <SessionList />
 

@@ -41,6 +41,9 @@ const PUBLIC_ACTIONS = new Set([
   // a to, že odpověď je stejná pro existující i neexistující účet.
   "actionRequestPasswordReset",
   "actionResetPassword",
+  // Host se registruje z pozvánky, takže přihlášený být nemůže. Oprávněním
+  // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
+  "actionRegisterGuest",
 ]);
 
 /**
@@ -93,6 +96,9 @@ const LOGIN_ACTIONS = new Set([
   "actionRegister",
   "actionRequestPasswordReset",
   "actionResetPassword",
+  // Host se registruje z pozvánky, takže přihlášený být nemůže. Oprávněním
+  // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
+  "actionRegisterGuest",
 ]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
