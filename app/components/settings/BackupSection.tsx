@@ -15,11 +15,11 @@ import { SettingsSection } from "./SettingsPrimitives";
  * která umí přepsat funkční konfiguraci appky.
  */
 export function BackupSection({
-  getPin,
   isActive,
+  onStepUpRequired,
 }: {
-  getPin: () => string;
   isActive: boolean;
+  onStepUpRequired: () => void;
 }) {
   const [downloadError, setDownloadError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -60,9 +60,13 @@ export function BackupSection({
       try {
         const res = await fetch("/api/restore", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-settings-pin": getPin() },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ backup: restoreFile, restoreSettings: restoreIncludeSettings }),
         });
+        if (res.status === 401 || res.status === 403) {
+          onStepUpRequired();
+          return;
+        }
         const json = await res.json() as { ok: boolean; result?: RestoreResult; error?: string };
         if (json.ok && json.result) {
           setRestoreResult(json.result);
@@ -95,15 +99,19 @@ export function BackupSection({
   const backupHasSettings = typeof (restoreFile as Record<string, unknown> | null)?.settings === "object";
 
   /**
-   * Záloha se stahuje fetchem, ne prostým odkazem — PIN se posílá v hlavičce
-   * a do adresy nepatří, aby nekončil v historii prohlížeče ani v logu proxy.
+   * Záloha se stahuje fetchem, protože tak lze bezpečně reagovat na vypršení
+   * HttpOnly step-up dokladu bez přenášení PINu přes JavaScript.
    */
   const handleDownload = async () => {
     setDownloadError("");
     try {
-      const res = await fetch("/api/backup", { headers: { "x-settings-pin": getPin() } });
+      const res = await fetch("/api/backup");
+      if (res.status === 401 || res.status === 403) {
+        onStepUpRequired();
+        return;
+      }
       if (!res.ok) {
-        setDownloadError(res.status === 401 ? "Neplatný PIN — odemkni Nastavení znovu." : await res.text());
+        setDownloadError((await res.text()) || "Zálohu se nepodařilo stáhnout.");
         return;
       }
       const blob = await res.blob();
@@ -132,7 +140,7 @@ export function BackupSection({
       >
         <MIcon name="download" size={14} /> Stáhnout zálohu
       </button>
-      {downloadError && <p className="text-[12px] text-red-500">{downloadError}</p>}
+      {downloadError && <p className="text-[12px] text-red-500" role="alert">{downloadError}</p>}
 
       <div className="border-t border-white/40 pt-3 flex flex-col gap-3">
         <p className="text-[12px] font-semibold text-stone-700">Obnova ze zálohy</p>
@@ -189,7 +197,7 @@ export function BackupSection({
               onClick={handleRestore}
               type="button"
             >
-              {restoreStatus === "pending" ? "Obnovuji..." : "Obnovit data"}
+              {restoreStatus === "pending" ? "Obnovuji…" : "Obnovit data"}
             </button>
           </div>
         )}
@@ -204,7 +212,7 @@ export function BackupSection({
         )}
 
         {restoreStatus === "error" && restoreError && (
-          <p className="text-[12px] text-red-500">{restoreError}</p>
+          <p className="text-[12px] text-red-500" role="alert">{restoreError}</p>
         )}
       </div>
     </SettingsSection>

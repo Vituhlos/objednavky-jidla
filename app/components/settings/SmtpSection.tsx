@@ -17,7 +17,13 @@ import {
  * projevil až po uložení. Formulář se hledá přes `closest("form")` od tlačítka,
  * takže sekce nepotřebuje znát ref na rodiče.
  */
-export function SmtpSection({ getPin, settings }: { getPin: () => string; settings: AppSettings }) {
+export function SmtpSection({
+  onStepUpRequired,
+  settings,
+}: {
+  onStepUpRequired: () => void;
+  settings: AppSettings;
+}) {
   const [smtpTestStatus, setSmtpTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [smtpTestMsg, setSmtpTestMsg] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -34,14 +40,18 @@ export function SmtpSection({ getPin, settings }: { getPin: () => string; settin
       secure: fd.get("smtpSecure") === "on" ? "true" : "false",
     };
     setSmtpTestStatus("idle");
-    setSmtpTestMsg("Testuji připojení...");
+    setSmtpTestMsg("Testuji připojení…");
     startTransition(async () => {
       try {
         const res = await fetch("/api/smtp-test", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-settings-pin": getPin() },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(config),
         });
+        if (res.status === 401 || res.status === 403) {
+          onStepUpRequired();
+          return;
+        }
         const json = await res.json() as { ok: boolean; error?: string };
         if (json.ok) { setSmtpTestStatus("ok"); setSmtpTestMsg("Připojení proběhlo úspěšně."); }
         else { setSmtpTestStatus("error"); setSmtpTestMsg(json.error ?? "Nepodařilo se připojit."); }
@@ -85,7 +95,10 @@ export function SmtpSection({ getPin, settings }: { getPin: () => string; settin
             Testovat připojení
           </button>
           {smtpTestMsg && (
-            <span className={`text-[12px] font-medium ${smtpTestStatus === "ok" ? "text-emerald-600" : smtpTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}>
+            <span
+              className={`text-[12px] font-medium ${smtpTestStatus === "ok" ? "text-emerald-600" : smtpTestStatus === "error" ? "text-red-500" : "text-stone-500"}`}
+              role={smtpTestStatus === "error" ? "alert" : "status"}
+            >
               {smtpTestMsg}
             </span>
           )}

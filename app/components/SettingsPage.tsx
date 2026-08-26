@@ -46,52 +46,44 @@ import {
 import MIcon from "./MIcon";
 
 const VERSION_INFO = getAppVersionInfo();
+const SETTINGS_STEP_UP_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
-  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder, pinOnly = false,
+  settings, departments: initialDepts, auditLog: initialAuditLog, todayOrder,
 }: {
   settings: AppSettings;
   departments: DepartmentInfo[];
   auditLog: AuditEntry[];
   todayOrder?: { id: number; status: string };
-  /** Otevřeno PINem bez správcovského účtu — zadní vrátka mají být vidět. */
-  pinOnly?: boolean;
 }) {
   const [unlocked, setUnlocked] = useState(false);
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>("provoz");
   // Which categories hold edits that the big form hasn't saved yet. Sections that
   // save on the spot (oddělení, zavřeno, dnešní objednávka) sit outside the form and
   // never land here — that's the point: the dot only marks what is genuinely pending.
   const [dirtyTabs, setDirtyTabs] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
-  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
-
-  const handleUnlock = (candidate: string) => {
+  // PIN si UI nikam neukládá. Po úspěšném actionCheckPin drží oprávnění
+  // HttpOnly cookie, kterou klient neumí přečíst — a nemá proč.
+  const handleUnlock = useCallback(() => {
+    setLockNotice(null);
     setUnlocked(true);
-    confirmedPinRef.current = candidate;
-  };
-
-  const resetSessionTimer = () => {
-    if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
-    sessionTimerRef.current = setTimeout(() => {
-      setUnlocked(false);
-      confirmedPinRef.current = "";
-      sessionTimerRef.current = null;
-    }, SESSION_TIMEOUT_MS);
-  };
+  }, []);
+  const requireNewStepUp = useCallback((notice = "Oprávnění vypršelo. Odemkněte Nastavení znovu.") => {
+    setLockNotice(notice);
+    setUnlocked(false);
+  }, []);
 
   useEffect(() => {
-    if (unlocked) resetSessionTimer();
-    else {
-      if (sessionTimerRef.current) { clearTimeout(sessionTimerRef.current); sessionTimerRef.current = null; }
-    }
-    return () => { if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlocked]);
+    if (!unlocked) return;
+    // Doklad na serveru se uložením neprodlužuje, proto ani klientský časovač
+    // nesmí začínat znovu po každé citlivé akci.
+    const timeout = setTimeout(() => requireNewStepUp(), SETTINGS_STEP_UP_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [requireNewStepUp, unlocked]);
 
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -100,24 +92,21 @@ export default function SettingsPage({
   const [telegramSubs, setTelegramSubs] = useState<TelegramSubscription[]>([]);
   const [telegramSubsLoaded, setTelegramSubsLoaded] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const confirmedPinRef = useRef("");
-  // Chráněné API routy chtějí PIN v hlavičce. Předává se jako funkce, ne
-  // hodnota — ref se plní až při odemčení a getter tak nemůže zestárnout.
-  const getPin = useCallback(() => confirmedPinRef.current, []);
 
   const telegram = useTelegramStatus(
     settings,
-    activeTab === "lide" || activeTab === "napojeni"
+    unlocked && (activeTab === "lide" || activeTab === "napojeni")
   );
 
   useEffect(() => {
+    if (!unlocked) return;
     if (activeTab !== "lide" && activeTab !== "napojeni") return;
     if (telegramSubsLoaded) return;
     actionGetTelegramSubscriptions().then((subs) => {
       setTelegramSubs(subs);
       setTelegramSubsLoaded(true);
-    });
-  }, [activeTab, telegramSubsLoaded]);
+    }).catch(() => requireNewStepUp());
+  }, [activeTab, requireNewStepUp, telegramSubsLoaded, unlocked]);
 
 
 
@@ -129,14 +118,26 @@ export default function SettingsPage({
     setSaveStatus("idle");
     startTransition(async () => {
       try {
-        await actionSaveSettings(updates, confirmedPinRef.current);
-        resetSessionTimer();
+        await actionSaveSettings(updates);
+
+        // Změna PINu zneplatní doklad na serveru. Kdyby se UI tvářilo dál
+        // odemknutě, další uložení by spadlo na VYZADOVAN_PIN — tak se zamkne
+        // rovnou a vyžádá nový PIN.
+        if (updates.settingsPin) {
+          setDirtyTabs([]);
+          requireNewStepUp("PIN byl změněn. Pro další úpravy se ověřte novým PINem.");
+          return;
+        }
+
         // Nothing is pending any more — clears the bar and the sidebar dots
         setDirtyTabs([]);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 3000);
       } catch {
-        setSaveStatus("error");
+        // Next.js v produkci nemusí klientovi zpřístupnit text výjimky ze
+        // Server Action. Nehádej podle hlášky: neúspěšný citlivý zápis se
+        // bezpečně vrátí za step-up a rozepsané změny zůstanou zachované.
+        requireNewStepUp("Uložení se nepotvrdilo. Odemkněte Nastavení a zkuste to znovu.");
       }
     });
   };
@@ -157,24 +158,9 @@ export default function SettingsPage({
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav md:pb-24">
-        {unlocked && pinOnly && (
-          <div
-            className="rounded-2xl p-3 flex items-start gap-2"
-            role="status"
-            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.22)" }}
-          >
-            <MIcon name="key" size={15} style={{ color: "#D97706", flexShrink: 0, marginTop: 1 }} />
-            <span className="text-[12px] text-stone-700">
-              Jste tu <b>jen na PIN</b>, bez správcovského účtu. Funguje to jako záložní
-              cesta, kdyby se přihlašování rozbilo — ale kdokoli s tímhle PINem si
-              odsud stáhne zálohu celé databáze. Zapsáno do auditu. Až účty
-              vyzkoušíte, dejte vědět a vrátka zavřeme.
-            </span>
-          </div>
-        )}
         {!unlocked ? (
           /* PIN lock */
-          <PinGate onUnlock={handleUnlock} />
+          <PinGate notice={lockNotice} onUnlock={handleUnlock} />
         ) : (
           <>
             <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
@@ -293,7 +279,7 @@ export default function SettingsPage({
               {/* E-mail & IMAP tab */}
               <div className="flex flex-col gap-4" data-cat="napojeni" style={{ display: activeTab === "napojeni" ? "flex" : "none" }}>
 
-                <SmtpSection getPin={getPin} settings={settings} />
+                <SmtpSection onStepUpRequired={requireNewStepUp} settings={settings} />
 
                 <MenuImportSection settings={settings} />
 
@@ -324,7 +310,7 @@ export default function SettingsPage({
 
             {/* ── Systém — non-form sections ── */}
             <AboutSection isActive={activeTab === "system"} />
-            <BackupSection getPin={getPin} isActive={activeTab === "system"} />
+            <BackupSection isActive={activeTab === "system"} onStepUpRequired={requireNewStepUp} />
             <AuditLogSection entries={initialAuditLog} isActive={activeTab === "system"} />
 
             <TelegramSubscribersSection

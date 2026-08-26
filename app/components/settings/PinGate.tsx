@@ -1,24 +1,33 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { actionCheckPin } from "@/app/actions";
 import MIcon from "../MIcon";
 
 /**
- * Zámek nastavení. Po správném PINu předá zadanou hodnotu nahoru — server ji
- * u každého uložení chce znovu, takže si ji koordinátor drží po dobu relace.
+ * Step-up potvrzení PINem nad již přihlášeným správcem. Syrový PIN smí vidět
+ * jen rate-limitovaná server action; rodič dostane pouze zprávu, že server
+ * vystavil HttpOnly doklad.
  *
  * Po několika chybných pokusech vrátí server `lockedUntil` a zámek odpočítává.
  * Zbývající čas žije ve stavu a osvěžuje ho interval; čtení hodin při renderu
  * by z komponenty udělalo nečistou funkci.
  */
-export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
+export function PinGate({
+  notice,
+  onUnlock,
+}: {
+  notice?: string | null;
+  onUnlock: () => void;
+}) {
   const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [lockLeftMs, setLockLeftMs] = useState(0);
   const [isPending, startTransition] = useTransition();
   const pinInputRef = useRef<HTMLInputElement>(null);
+  const feedbackId = useId();
+  const noticeId = useId();
 
   useEffect(() => {
     const t = setTimeout(() => pinInputRef.current?.focus(), 150);
@@ -44,21 +53,30 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPinError(false);
+    setPinError(null);
     startTransition(async () => {
-      const res = await actionCheckPin(pin);
-      if (res.ok) {
-        setLockedUntil(null);
-        onUnlock(pin);
-        return;
+      try {
+        const res = await actionCheckPin(pin);
+        if (res.ok) {
+          setLockedUntil(null);
+          // PIN už není k ničemu — oprávnění drží HttpOnly doklad ze serveru.
+          // Nedržet ho ve stavu je laciné a odstraňuje to celý druh chyby.
+          setPin("");
+          onUnlock();
+          return;
+        }
+        setPin("");
+        if (res.lockedUntil) {
+          setLockedUntil(res.lockedUntil);
+          setLockLeftMs(Math.max(0, res.lockedUntil - Date.now()));
+          setPinError(null);
+        } else {
+          setPinError("Nesprávný PIN. Zkuste to znovu.");
+        }
+      } catch {
+        setPin("");
+        setPinError("Ověření se nepodařilo. Obnovte stránku a přihlaste se znovu.");
       }
-      setPin("");
-      if (res.lockedUntil) {
-        setLockedUntil(res.lockedUntil);
-        setLockLeftMs(Math.max(0, res.lockedUntil - Date.now()));
-        setPinError(false);
-      }
-      else setPinError(true);
     });
   };
 
@@ -72,28 +90,37 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
           <p className="font-display font-bold text-[17px] text-stone-900">Přístup chráněn PINem</p>
           <p className="text-[12.5px] text-stone-500 mt-1">Potvrďte správcovský PIN. Platnost je 30 minut.</p>
         </div>
+        {notice && (
+          <p className="text-[12px] text-amber-700 text-center -mt-1" id={noticeId} role="status">
+            {notice}
+          </p>
+        )}
         <form className="w-full flex flex-col gap-3" onSubmit={handlePinSubmit}>
           <label className="sr-only" htmlFor="settings-pin">Správcovský PIN</label>
           <input
+            aria-describedby={[notice ? noticeId : "", pinError || isLocked ? feedbackId : ""].filter(Boolean).join(" ") || undefined}
             aria-invalid={pinError ? true : undefined}
             autoComplete="current-password"
             className="modal-input text-center font-display font-bold"
             disabled={isLocked || isPending}
             id="settings-pin"
             maxLength={128}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => {
+              setPin(e.target.value);
+              setPinError(null);
+            }}
             ref={pinInputRef}
             style={{ fontSize: "18px" }}
             type="password"
             value={pin}
           />
           {pinError && !isLocked && (
-            <p className="text-[12px] text-red-500 text-center -mt-1" role="alert">
-              Nesprávný PIN. Zkuste to znovu.
+            <p className="text-[12px] text-red-500 text-center -mt-1" id={feedbackId} role="alert">
+              {pinError}
             </p>
           )}
           {isLocked && (
-            <p className="text-[12px] text-amber-700 text-center -mt-1" role="alert">
+            <p className="text-[12px] text-amber-700 text-center -mt-1" id={feedbackId} role="alert">
               Moc pokusů po sobě. Zkuste to znovu za <b className="tabular-nums">{lockLeft}</b>.
             </p>
           )}
@@ -102,7 +129,7 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
             disabled={isPending || pin.length === 0 || isLocked}
             type="submit"
           >
-            {isPending ? "Ověřuji..." : "Odemknout"}
+            {isPending ? "Ověřuji…" : "Odemknout"}
           </button>
         </form>
       </div>

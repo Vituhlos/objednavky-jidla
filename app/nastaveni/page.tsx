@@ -19,7 +19,6 @@ export default async function Page() {
   return (
     <SettingsPage
       auditLog={auditLog}
-      pinOnly={false}
       departments={departments}
       settings={settings}
       todayOrder={{ id: todayData.order.id, status: todayData.order.status }}

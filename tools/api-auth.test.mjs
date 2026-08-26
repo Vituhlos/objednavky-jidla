@@ -15,6 +15,13 @@ const SETTINGS_ROUTES = [
   "app/api/smtp-test/route.ts",
 ];
 
+const SETTINGS_CLIENTS = [
+  "app/components/SettingsPage.tsx",
+  "app/components/settings/BackupSection.tsx",
+  "app/components/settings/PinGate.tsx",
+  "app/components/settings/SmtpSection.tsx",
+];
+
 test("citlivé API vyžaduje admin session i PIN proof", () => {
   const helper = read("lib/api-auth.ts");
   assert.match(helper, /await requireAdminWithPin\(\)/);
@@ -24,6 +31,25 @@ test("citlivé API vyžaduje admin session i PIN proof", () => {
     assert.match(source, /await requireSettingsAccess\(\)/, `${file} nemá step-up guard`);
     assert.doesNotMatch(source, /requireSettingsPin|x-settings-pin/, `${file} stále přijímá raw PIN`);
   }
+});
+
+test("klient Nastavení po step-upu nikde nedrží ani nepředává raw PIN", () => {
+  for (const file of SETTINGS_CLIENTS) {
+    const source = read(file);
+    assert.doesNotMatch(
+      source,
+      /x-settings-pin|confirmedPinRef|getPin/,
+      `${file} znovu přenáší raw PIN mimo step-up akci`
+    );
+  }
+
+  const page = read("app/components/SettingsPage.tsx");
+  assert.match(page, /await actionSaveSettings\(updates\)/);
+  assert.doesNotMatch(page, /actionSaveSettings\(updates\s*,/);
+
+  const gate = read("app/components/settings/PinGate.tsx");
+  assert.match(gate, /await actionCheckPin\(pin\)/);
+  assert.match(gate, /onUnlock: \(\) => void/);
 });
 
 test("API guard běží před čtením těla, databáze a externím spojením", () => {
