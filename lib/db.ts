@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { migrateAuth } from "./auth/schema";
 
 const DB_PATH =
   process.env.DB_PATH ?? path.join(process.cwd(), "data", "stros.db");
@@ -226,6 +227,7 @@ function migrate(db: Database.Database): void {
   `);
 
   backfillPeople(db);
+  migrateAuth(db);
 
   // Add department column to pizza_order_rows (idempotent)
   try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}

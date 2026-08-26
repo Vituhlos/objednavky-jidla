@@ -147,17 +147,17 @@ test("bez tabulky účtů nemá nikdo účet — pravidlo R4 zatím nic neblokuj
 });
 
 test("jakmile účty existují, sloučení strávníka s účtem se odmítne", () => {
-  // Předběhneme fázi 2 a vytvoříme tabulku, kterou `hasAccount` hledá.
-  db.exec("CREATE TABLE IF NOT EXISTS user_people (user_id INTEGER, person_id INTEGER)");
-
   const target = people.getPeople().find((p) => p.name === "Petr Novák");
   const sourceId = people.findOrCreatePerson("Petr Novák", "Kanceláře");
-  db.prepare("INSERT INTO user_people (user_id, person_id) VALUES (1, ?)").run(sourceId);
+  const userId = Number(
+    db
+      .prepare("INSERT INTO users (email, email_normalized, name) VALUES (?, ?, ?)")
+      .run("petr@example.cz", "petr@example.cz", "Petr Novák").lastInsertRowid
+  );
+  db.prepare("INSERT INTO user_people (user_id, person_id) VALUES (?, ?)").run(userId, sourceId);
 
   assert.equal(people.hasAccount(sourceId), true);
   assert.throws(() => people.mergePeople(sourceId, target.id), /má vlastní účet/);
-
-  db.exec("DROP TABLE user_people");
 });
 
 // ── Migrace samotná ─────────────────────────────────────────────────────────

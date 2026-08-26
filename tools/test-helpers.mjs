@@ -18,15 +18,25 @@ import { pathToFileURL } from "node:url";
 // ---------------------------------------------------------------------------
 export function loadLib() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lib-"));
-  const names = fs
-    .readdirSync("lib")
-    .filter((f) => f.endsWith(".ts"))
-    .map((f) => f.replace(/\.ts$/, ""));
-  const relativeImport = new RegExp(`from "\\./(${names.join("|")})"`, "g");
+  const files = fs
+    .readdirSync("lib", { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .map((entry) => path.join(entry.parentPath, entry.name));
 
-  for (const name of names) {
-    const src = fs.readFileSync(path.join("lib", `${name}.ts`), "utf8");
-    fs.writeFileSync(path.join(dir, `${name}.ts`), src.replace(relativeImport, 'from "./$1.ts"'));
+  for (const file of files) {
+    const relative = path.relative("lib", file);
+    const target = path.join(dir, relative);
+    const sourceDir = path.dirname(file);
+    const src = fs.readFileSync(file, "utf8").replace(
+      /(from\s+["'])(\.\.?\/[^"']+)(["'])/g,
+      (match, before, specifier, after) => {
+        if (path.extname(specifier)) return match;
+        const imported = path.resolve(sourceDir, `${specifier}.ts`);
+        return fs.existsSync(imported) ? `${before}${specifier}.ts${after}` : match;
+      }
+    );
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, src);
   }
   fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ type: "module" }));
   fs.symlinkSync(path.resolve("node_modules"), path.join(dir, "node_modules"), "junction");
