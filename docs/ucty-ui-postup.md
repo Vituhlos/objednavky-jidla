@@ -82,7 +82,31 @@ jediná skupina akcí, která z něj umí vystoupit, takže musí být výjimkou
 **Co prověřit:** je výčet úplný? Existuje jiná akce, která umí změnit roli
 nebo založit správce a je zajištěná jen `guardAdmin()`?
 
-### 6. Jméno v řádku je pro nesprávce výběr
+### 6. PIN zůstává zadními vrátky do Nastavení — **vědomá odchylka od R12**
+
+Správný PIN otevře Nastavení i bez přihlášení. R12 přitom říkalo, že PIN má
+být až druhým krokem, ne obchvatem účtů.
+
+**Proč přesto:** kdyby se přihlašování rozbilo, je to jediná cesta zpět — a bez
+Nastavení nejde spravit ani SMTP, přes které se obnovuje heslo. Bez vrátek by
+šla aplikace zamknout tak, že by nešla odemknout. Rozhodnutí majitele, dočasné
+na dobu zkoušení.
+
+**Jak to funguje:** správný PIN vydá krátkodobý podepsaný doklad (30 minut,
+HttpOnly), který `guardAdmin()` uznává vedle správcovského sezení. Není to
+sezení — nenese uživatele a mimo Nastavení neplatí.
+
+**Co prověřit — tohle je nejrizikovější místo celé větve:**
+
+- Čtyřmístný PIN při pěti pokusech za deset minut vydrží ~14 dní hádání.
+  Kdo se dostane do Nastavení, stáhne si `/api/backup` s celou databází.
+  **Doporučení: před nasazením změnit PIN z výchozího `1234` a prodloužit ho.**
+- Neměl by limit být přísnější, když už PIN otevírá víc než dřív?
+- Stálo by za to zapnout vrátka jen při chybějícím správci, ne trvale?
+- Vstup mimo správcovský účet se zapisuje jako `settings_pin_bypass` — sleduje
+  to někdo?
+
+### 7. Jméno v řádku je pro nesprávce výběr
 
 Nesprávce nevyplňuje křestní a příjmení, ale vybírá z `AccountView.orderableNames`.
 Při jediném jménu se jen vypíše.
@@ -96,7 +120,7 @@ Aktivní host má vlastní účet, takže se v seznamu hostitele **neobjeví** �
 objednává si sám. Pasivní host (člověk bez účtu, za kterého objednává někdo
 jiný) zatím nejde založit — viz známá omezení.
 
-### 7. Rozpočet pokusů u registrace
+### 8. Rozpočet pokusů u registrace
 
 15 registrací za hodinu na IP, odečítá se **až skutečně založený účet**.
 
@@ -166,6 +190,7 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | `c2878f1` | propojení Google účtu potvrzením hesla (R6) + stavy z callbacku |
 | `acb0703` | jméno v řádku jako výběr |
 | `7574dd3` | X-Robots-Tag noindex a robots.txt |
+| `2155b35` | PIN jako zadní vrátka do Nastavení |
 
 ### Klasifikace server actions
 
