@@ -510,6 +510,20 @@ export function getOrderByRowId(rowId: number): Order | null {
   return row ? mapOrder(row) : null;
 }
 
+/**
+ * Komu řádek patří — `null` u řádku, který ještě nikdo nepodepsal jménem.
+ *
+ * Nový řádek vzniká prázdný a strávníka dostane až vyplněním jména. Kontrola
+ * oprávnění proto musí ty dva stavy rozlišit: jinak by uživatel nemohl upravit
+ * ani řádek, který si sám právě založil.
+ */
+export function getRowOwner(rowId: number): { exists: boolean; personId: number | null } {
+  const row = getDb()
+    .prepare("SELECT person_id AS personId FROM order_rows WHERE id = ?")
+    .get(rowId) as { personId: number | null } | undefined;
+  return row ? { exists: true, personId: row.personId } : { exists: false, personId: null };
+}
+
 export function reopenOrder(orderId: number): void {
   getDb()
     .prepare("UPDATE orders SET status = 'draft', sent_at = NULL WHERE id = ?")

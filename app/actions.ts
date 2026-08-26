@@ -55,6 +55,14 @@ import {
   type DuplicateGroup,
   type Person,
 } from "@/lib/people";
+import { requireAdmin, requireSession } from "@/lib/auth/guards";
+import {
+  accountsEnabled,
+  assertId,
+  assertMayEditRow,
+  assertNameIsOwn,
+} from "@/lib/auth/policy";
+import type { SessionInfo } from "@/lib/auth/sessions";
 import {
   getDepartments,
   addDepartment,
@@ -69,12 +77,29 @@ function isCutoffActive(): boolean {
   return isOrderingLocked({ cutoffTime, forceOpenAt: orderForceOpenAt, now: getPragueNow() });
 }
 
+// ── Oprávnění ────────────────────────────────────────────────
+// Čtení zůstává veřejné (R1). Zamykají se zápisy, a to tady u serveru — ne
+// schováním tlačítka a ne v proxy/middleware, které jde obejít.
+// Pravidla samotná jsou v lib/auth/policy.ts, aby se dala testovat bez Nextu.
+
+/** Vyžádá správce. V představu bez účtů propustí. */
+async function guardAdmin(): Promise<void> {
+  if (accountsEnabled()) await requireAdmin();
+}
+
+/** Vyžádá přihlášení. V představu bez účtů vrátí `null`. */
+async function guardSession(): Promise<SessionInfo | null> {
+  return accountsEnabled() ? requireSession() : null;
+}
+
 export async function actionAddRow(
   orderId: number,
   department: Department,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
-  const order = getOrderById(orderId);
+  await guardSession();
+
+  const order = getOrderById(assertId(orderId, "číslo objednávky"));
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
   }
@@ -103,6 +128,13 @@ export async function actionUpdateRow(
   }>,
   pushEndpoint?: string,
 ): Promise<OrderRowEnriched> {
+  assertId(rowId, "číslo řádku");
+  const session = await guardSession();
+  if (session) {
+    await assertMayEditRow(session, rowId);
+    if (updates?.personName !== undefined) await assertNameIsOwn(session, updates.personName);
+  }
+
   const order = getOrderByRowId(rowId);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
@@ -113,6 +145,10 @@ export async function actionUpdateRow(
 }
 
 export async function actionDeleteRow(rowId: number): Promise<void> {
+  assertId(rowId, "číslo řádku");
+  const session = await guardSession();
+  if (session) await assertMayEditRow(session, rowId);
+
   const order = getOrderByRowId(rowId);
   if (order?.date === getPragueISODate() && isCutoffActive()) {
     throw new Error("Objednávky jsou uzavřeny po uzávěrce. Požádejte administrátora o otevření.");
@@ -123,6 +159,7 @@ export async function actionDeleteRow(rowId: number): Promise<void> {
 }
 
 export async function actionSendOrder(orderId: number): Promise<void> {
+  await guardAdmin();
   await dbSendOrder(orderId);
   revalidatePath("/");
   broadcast();
@@ -142,6 +179,7 @@ export async function actionConfirmMenuImport(
   items: ParsedMenuItem[],
   tmpPdfName?: string
 ): Promise<void> {
+  await guardAdmin();
   setMenuForWeek(weekStart, weekLabel, items);
   if (tmpPdfName) {
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
@@ -156,6 +194,7 @@ export async function actionConfirmMenuImport(
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
+  await guardAdmin();
   deleteMenuForWeek(weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
@@ -173,6 +212,7 @@ export async function actionAddMenuItem(item: {
   price: number;
   weekStart?: string;
 }): Promise<MenuItem> {
+  await guardAdmin();
   return addMenuItem(item);
 }
 
@@ -180,16 +220,19 @@ export async function actionUpdateMenuItem(
   id: number,
   updates: Partial<{ code: string; name: string; price: number; allergens: string }>
 ): Promise<MenuItem> {
+  await guardAdmin();
   return updateMenuItem(id, updates);
 }
 
 export async function actionDeleteMenuItem(id: number): Promise<void> {
+  await guardAdmin();
   deleteMenuItem(id);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionAddPizzaRow(orderId: number): Promise<PizzaOrderRow> {
+  await guardSession();
   const row = addPizzaRow(orderId);
   revalidatePath("/pizza");
   return row;
@@ -199,6 +242,7 @@ export async function actionUpdatePizzaRow(
   rowId: number,
   updates: Partial<{ personName: string; department: string; pizzaItemId: number | null; count: number }>
 ): Promise<PizzaOrderRow> {
+  await guardSession();
   const row = updatePizzaRow(rowId, updates);
   revalidatePath("/pizza");
   broadcast();
@@ -206,6 +250,7 @@ export async function actionUpdatePizzaRow(
 }
 
 export async function actionDeletePizzaRow(rowId: number): Promise<void> {
+  await guardSession();
   deletePizzaRow(rowId);
   revalidatePath("/pizza");
 }
@@ -213,12 +258,14 @@ export async function actionDeletePizzaRow(rowId: number): Promise<void> {
 export async function actionUpdatePizzaPrices(
   items: Array<{ code: number; name: string; price: number }>
 ): Promise<{ id: number; code: number; name: string; price: number }[]> {
+  await guardAdmin();
   const saved = replacePizzaItems(items);
   revalidatePath("/pizza");
   return saved;
 }
 
 export async function actionReopenOrder(orderId: number): Promise<void> {
+  await guardAdmin();
   // reopenOrderAndUnlock() po uzávěrce zároveň odemkne objednávání — jinak
   // by byla objednávka "otevřená", ale nikdo by do ní nemohl psát.
   reopenOrderAndUnlock(orderId);
@@ -229,22 +276,26 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
 }
 
 export async function actionUnlockCutoff(pin: string): Promise<{ ok: boolean; error?: string }> {
+  await guardAdmin();
   if (!checkPin(pin)) return { ok: false, error: "Špatný PIN" };
   saveSettings({ orderForceOpenAt: forceOpenStamp(getPragueNow()) });
   return { ok: true };
 }
 
 export async function actionResendOrder(orderId: number): Promise<void> {
+  await guardAdmin();
   await resendOrderEmail(orderId);
 }
 
 export async function actionCloseDay(dayCode: string, weekStart: string): Promise<void> {
+  await guardAdmin();
   closeDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
 }
 
 export async function actionOpenDay(dayCode: string, weekStart: string): Promise<void> {
+  await guardAdmin();
   openDay(dayCode, weekStart);
   revalidatePath("/jidelnicek");
   revalidatePath("/");
@@ -263,6 +314,7 @@ export async function actionAddClosure(
   note = "",
   icon = ""
 ): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
+  await guardAdmin();
   const problem = validateClosure(startDate, endDate);
   if (problem) return { ok: false, error: problem };
 
@@ -282,6 +334,7 @@ export async function actionUpdateClosure(
   note = "",
   icon = ""
 ): Promise<{ ok: true; closure: Closure } | { ok: false; error: string }> {
+  await guardAdmin();
   const problem = validateClosure(startDate, endDate, id);
   if (problem) return { ok: false, error: problem };
 
@@ -294,6 +347,7 @@ export async function actionUpdateClosure(
 }
 
 export async function actionDeleteClosure(id: number): Promise<void> {
+  await guardAdmin();
   deleteClosure(id);
   revalidatePath("/");
   revalidatePath("/jidelnicek");
@@ -302,6 +356,7 @@ export async function actionDeleteClosure(id: number): Promise<void> {
 }
 
 export async function actionClearOrder(orderId: number): Promise<void> {
+  await guardAdmin();
   clearOrderRows(orderId);
   revalidatePath("/");
   broadcast();
@@ -314,6 +369,7 @@ export async function actionGetDepartments(): Promise<DepartmentInfo[]> {
 export async function actionAddDepartment(data: {
   name: string; label: string; emailLabel: string; accent: string;
 }): Promise<DepartmentInfo> {
+  await guardAdmin();
   const dept = addDepartment(data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -324,6 +380,7 @@ export async function actionUpdateDepartment(
   id: number,
   data: Partial<{ label: string; emailLabel: string; accent: string }>
 ): Promise<DepartmentInfo> {
+  await guardAdmin();
   const dept = updateDepartment(id, data);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -331,12 +388,14 @@ export async function actionUpdateDepartment(
 }
 
 export async function actionDeleteDepartment(id: number): Promise<void> {
+  await guardAdmin();
   deleteDepartment(id);
   revalidatePath("/");
   revalidatePath("/nastaveni");
 }
 
 export async function actionReorderDepartments(orderedIds: number[]): Promise<void> {
+  await guardAdmin();
   reorderDepartments(orderedIds);
   revalidatePath("/");
   revalidatePath("/nastaveni");
@@ -347,6 +406,7 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
+  await guardAdmin();
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   const key = `pin:${ip}`;
   if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
@@ -356,16 +416,19 @@ export async function actionCheckPin(
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
+  await guardAdmin();
   if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
   saveSettings(updates);
   revalidatePath("/nastaveni");
 }
 
 export async function actionCheckImap(): Promise<ImapCheckResult> {
+  await guardAdmin();
   return checkImapForMenu();
 }
 
 export async function actionSendTestPush(): Promise<{ sent: number; error?: string }> {
+  await guardAdmin();
   const subs = getAllSubscriptions();
   if (subs.length === 0) return { sent: 0, error: "Žádný prohlížeč nemá povolené notifikace." };
   await sendPushToAll("Test notifikace ✓", "Push notifikace fungují správně.", "/");
@@ -373,11 +436,13 @@ export async function actionSendTestPush(): Promise<{ sent: number; error?: stri
 }
 
 export async function actionDismissAutoSendError(): Promise<void> {
+  await guardAdmin();
   saveSettings({ autoSendErrorAcked: "true" });
   revalidatePath("/");
 }
 
 export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
+  await guardAdmin();
   const hdrs = await headers();
   const host = hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
@@ -386,6 +451,7 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
 }
 
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
+  await guardAdmin();
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
   if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
@@ -398,15 +464,18 @@ export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: nu
 }
 
 export async function actionGetTelegramSubscriptions(): Promise<TelegramSubscription[]> {
+  await guardAdmin();
   return getTelegramSubscriptions();
 }
 
 export async function actionRemoveTelegramSubscription(chatId: string): Promise<void> {
+  await guardAdmin();
   removeTelegramSubscription(chatId);
   revalidatePath("/nastaveni");
 }
 
 export async function actionSetTelegramAdmin(chatId: string, isAdmin: boolean): Promise<void> {
+  await guardAdmin();
   setTelegramAdmin(chatId, isAdmin);
   revalidatePath("/nastaveni");
 }
@@ -417,6 +486,7 @@ export async function actionGetTelegramBotInfo(): Promise<{
   username?: string;
   error?: string;
 }> {
+  await guardAdmin();
   return getTelegramBotInfo();
 }
 
@@ -425,10 +495,12 @@ export async function actionGetTelegramWebhookStatus(): Promise<{
   hasWebhook: boolean;
   url?: string;
 }> {
+  await guardAdmin();
   return getTelegramWebhookStatus();
 }
 
 export async function actionSetTelegramCommands(): Promise<{ ok: boolean; description?: string }> {
+  await guardAdmin();
   return setTelegramCommands();
 }
 
@@ -438,24 +510,29 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 // akce zavřou za přihlášení.
 
 export async function actionGetPeople(): Promise<Person[]> {
+  await guardAdmin();
   return getPeople();
 }
 
 export async function actionGetDuplicatePeople(): Promise<DuplicateGroup[]> {
+  await guardAdmin();
   return findDuplicateGroups();
 }
 
 export async function actionRenamePerson(id: number, name: string): Promise<void> {
+  await guardAdmin();
   renamePerson(id, name);
   broadcast();
 }
 
 export async function actionMergePeople(sourceId: number, targetId: number): Promise<void> {
+  await guardAdmin();
   mergePeople(sourceId, targetId);
   broadcast();
 }
 
 export async function actionSetPersonActive(id: number, active: boolean): Promise<void> {
+  await guardAdmin();
   setPersonActive(id, active);
   broadcast();
 }
