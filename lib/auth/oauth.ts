@@ -102,7 +102,13 @@ function openCookie(value: string): SealedGoogleCookie | null {
     const { secret } = googleCredentials();
     const expected = createHmac("sha256", secret).update(parts[0], "ascii").digest();
     const actual = Buffer.from(parts[1], "base64url");
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+    if (
+      actual.length !== expected.length ||
+      actual.toString("base64url") !== parts[1] ||
+      !timingSafeEqual(actual, expected)
+    ) {
+      return null;
+    }
 
     const parsed = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as unknown;
     if (!parsed || typeof parsed !== "object") return null;

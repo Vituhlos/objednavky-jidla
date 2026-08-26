@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { loadLib } from "./test-helpers.mjs";
+import { loadLib, startFakeSmtp } from "./test-helpers.mjs";
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "auth-"));
 process.env.DB_PATH = path.join(dataDir, "test.db");
@@ -25,6 +25,7 @@ const guards = await lib("auth/guards");
 const { AuthError } = await lib("auth/errors");
 const settings = await lib("settings");
 const oauth = await lib("auth/oauth");
+const mail = await lib("auth/mail");
 const db = getDb();
 
 const AUTH_TABLES = [
@@ -542,5 +543,100 @@ test("bootstrap založí prvního správce jednou a změněné heslo už nepřep
     delete process.env.ADMIN_PASSWORD;
     delete process.env.ADMIN_NAME;
     process.env.DB_PATH = path.join(dataDir, "test.db");
+  }
+});
+
+function tokenFromMessage(message) {
+  const decoded = message
+    .replace(/=\r?\n/g, "")
+    .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+  const match = decoded.match(/[?&]token=([A-Za-z0-9_-]{43})/);
+  assert.ok(match, "e-mail musí obsahovat jednorázový token");
+  return match[1];
+}
+
+test("ověřovací a obnovovací e-maily používají jednorázové otisky", async () => {
+  const smtp = await startFakeSmtp();
+  settings.saveSettings({
+    smtpHost: "127.0.0.1",
+    smtpPort: String(smtp.port),
+    smtpUser: "test@example.cz",
+    smtpPass: "test-password",
+    smtpFrom: "kantyna@example.cz",
+    smtpSecure: "false",
+  });
+
+  try {
+    await mail.sendVerificationEmail(passwordAccount.userId, "http://localhost:3000");
+    assert.equal(smtp.messages.length, 1);
+    const verifyToken = tokenFromMessage(smtp.messages[0]);
+    const verifyRow = db
+      .prepare(
+        "SELECT token_hash AS hash, used_at AS usedAt FROM login_tokens WHERE user_id = ? AND purpose = 'verify' ORDER BY id DESC LIMIT 1"
+      )
+      .get(passwordAccount.userId);
+    assert.equal(verifyRow.hash, tokens.hashToken(verifyToken));
+    assert.equal(verifyRow.usedAt, null);
+    assert.doesNotMatch(verifyRow.hash, new RegExp(verifyToken));
+
+    assert.equal(mail.consumeVerificationToken(verifyToken), passwordAccount.userId);
+    assert.equal(users.getUserById(passwordAccount.userId).emailVerified, true);
+    assert.throws(() => mail.consumeVerificationToken(verifyToken), /není platný/);
+
+    await mail.sendVerificationEmail(passwordAccount.userId, "http://localhost:3000");
+    assert.equal(smtp.messages.length, 1, "ověřenému účtu se další e-mail neposílá");
+
+    const beforeUnknown = db.prepare("SELECT COUNT(*) AS n FROM login_tokens").get().n;
+    await mail.sendPasswordResetEmail("nikdo@example.cz", "http://localhost:3000");
+    assert.equal(smtp.messages.length, 1, "neexistující adresa nic neodešle");
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM login_tokens").get().n, beforeUnknown);
+
+    smtp.failOnce();
+    await assert.rejects(() =>
+      mail.sendPasswordResetEmail("jana.novakova@example.cz", "http://localhost:3000")
+    );
+    const failed = db
+      .prepare(
+        "SELECT used_at AS usedAt FROM login_tokens WHERE user_id = ? AND purpose = 'reset' ORDER BY id DESC LIMIT 1"
+      )
+      .get(passwordAccount.userId);
+    assert.notEqual(failed.usedAt, null, "nedoručený token musí být neplatný");
+
+    const oldSession = sessions.createSession(passwordAccount.userId, { persistent: true });
+    await mail.sendPasswordResetEmail(
+      "JANA.NOVAKOVA@example.cz",
+      "http://localhost:3000"
+    );
+    assert.equal(smtp.messages.length, 2);
+    const resetToken = tokenFromMessage(smtp.messages[1]);
+    const resetRow = db
+      .prepare(
+        "SELECT token_hash AS hash, expires_at AS expiresAt FROM login_tokens WHERE user_id = ? AND purpose = 'reset' ORDER BY id DESC LIMIT 1"
+      )
+      .get(passwordAccount.userId);
+    assert.equal(resetRow.hash, tokens.hashToken(resetToken));
+    assert.ok(new Date(resetRow.expiresAt).getTime() - Date.now() <= 15 * 60 * 1000);
+
+    assert.equal(
+      mail.resetPasswordWithToken(resetToken, "heslo po bezpečné obnově"),
+      passwordAccount.userId
+    );
+    assert.equal(sessions.readSession(oldSession.token), null);
+    assert.equal(
+      users.authenticateWithPassword(
+        "jana.novakova@example.cz",
+        "heslo po bezpečné obnově"
+      ).id,
+      passwordAccount.userId
+    );
+    assert.throws(
+      () => mail.resetPasswordWithToken(resetToken, "další dost dlouhé heslo"),
+      /není platný/
+    );
+
+    const adminLink = mail.createResetLinkForUser(passwordAccount.userId);
+    assert.match(adminLink, /^\/ucet\/obnovit-heslo\?token=[A-Za-z0-9_-]{43}$/);
+  } finally {
+    await smtp.close();
   }
 });
