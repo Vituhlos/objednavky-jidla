@@ -27,14 +27,18 @@ export function loadLib() {
     const relative = path.relative("lib", file);
     const target = path.join(dir, relative);
     const sourceDir = path.dirname(file);
-    const src = fs.readFileSync(file, "utf8").replace(
-      /(from\s+["'])(\.\.?\/[^"']+)(["'])/g,
-      (match, before, specifier, after) => {
-        if (path.extname(specifier)) return match;
-        const imported = path.resolve(sourceDir, `${specifier}.ts`);
-        return fs.existsSync(imported) ? `${before}${specifier}.ts${after}` : match;
-      }
-    );
+    const src = fs
+      .readFileSync(file, "utf8")
+      .replace(
+        /(from\s+["'])(\.\.?\/[^"']+)(["'])/g,
+        (match, before, specifier, after) => {
+          if (path.extname(specifier)) return match;
+          const imported = path.resolve(sourceDir, `${specifier}.ts`);
+          return fs.existsSync(imported) ? `${before}${specifier}.ts${after}` : match;
+        }
+      )
+      // Next bundler rozřeší veřejný subpath bez přípony, nativní Node loader ne.
+      .replace(/from "next\/headers"/g, 'from "next/headers.js"');
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, src);
   }

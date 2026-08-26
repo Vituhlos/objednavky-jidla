@@ -20,6 +20,9 @@ const { migrateAuth } = await lib("auth/schema");
 const password = await lib("auth/password");
 const tokens = await lib("auth/tokens");
 const users = await lib("auth/users");
+const sessions = await lib("auth/sessions");
+const guards = await lib("auth/guards");
+const { AuthError } = await lib("auth/errors");
 const db = getDb();
 
 const AUTH_TABLES = [
@@ -240,6 +243,166 @@ test("po ručním propojení rozhoduje Google subject, ne změněný e-mail", ()
   assert.deepEqual(resolved, passwordAccount);
   assert.deepEqual(users.getUserById(passwordAccount.userId).providers, ["google"]);
   assert.equal(users.getUserById(passwordAccount.userId).email, "Jana.Novakova@Example.cz");
+});
+
+test("heslové ověření vrací jen DTO a neznámý účet bezpečně odmítne", () => {
+  const authenticated = users.authenticateWithPassword(
+    "jana.novakova@example.cz",
+    "bezpečné heslo 123"
+  );
+  assert.equal(authenticated.id, passwordAccount.userId);
+  assert.equal(users.authenticateWithPassword("nikdo@example.cz", "bezpečné heslo 123"), null);
+  assert.equal(users.verifyUserPassword(passwordAccount.userId, "špatné dlouhé heslo"), false);
+});
+
+test("sezení ukládá jen otisk tokenu a vrací minimální DTO", () => {
+  const created = sessions.createSession(passwordAccount.userId, {
+    persistent: false,
+    userAgent: "Testovací prohlížeč\u0000",
+  });
+  const info = sessions.readSession(created.token);
+
+  assert.ok(info);
+  assert.deepEqual(info.personIds, [passwordAccount.personId]);
+  assert.equal(info.userId, passwordAccount.userId);
+  assert.ok(new Date(created.expiresAt).getTime() > Date.now());
+
+  const stored = db
+    .prepare("SELECT token_hash, user_agent FROM sessions WHERE id = ?")
+    .get(info.sessionId);
+  assert.equal(stored.token_hash, tokens.hashToken(created.token));
+  assert.notEqual(stored.token_hash, created.token);
+  assert.equal(stored.user_agent, "Testovací prohlížeč");
+  assert.equal(JSON.stringify(sessions.listSessions(passwordAccount.userId)).includes(created.token), false);
+
+  sessions.revokeSession(created.token);
+  assert.equal(sessions.readSession(created.token), null);
+});
+
+test("nečinnost a absolutní strop se vynucují každý samostatně", () => {
+  const idle = sessions.createSession(passwordAccount.userId, { persistent: false });
+  const idleInfo = sessions.readSession(idle.token);
+  db.prepare(
+    "UPDATE sessions SET idle_expires_at = datetime('now', '-1 second'), absolute_expires_at = datetime('now', '+1 day') WHERE id = ?"
+  ).run(idleInfo.sessionId);
+  assert.equal(sessions.readSession(idle.token), null, "prošlá nečinnost se odmítne");
+
+  const absolute = sessions.createSession(passwordAccount.userId, { persistent: true });
+  const absoluteInfo = sessions.readSession(absolute.token);
+  db.prepare(
+    "UPDATE sessions SET idle_expires_at = datetime('now', '+1 day'), absolute_expires_at = datetime('now', '-1 second') WHERE id = ?"
+  ).run(absoluteInfo.sessionId);
+  assert.equal(sessions.readSession(absolute.token), null, "absolutní strop se odmítne");
+});
+
+test("klouzavá platnost nikdy nepřeleze absolutní strop", () => {
+  const created = sessions.createSession(passwordAccount.userId, { persistent: true });
+  const info = sessions.readSession(created.token);
+  db.prepare(
+    `UPDATE sessions
+     SET last_seen_at = datetime('now', '-2 minutes'),
+         idle_expires_at = datetime('now', '+1 minute'),
+         absolute_expires_at = datetime('now', '+10 minutes')
+     WHERE id = ?`
+  ).run(info.sessionId);
+
+  assert.ok(sessions.readSession(created.token));
+  const row = db
+    .prepare(
+      `SELECT
+         julianday(idle_expires_at) <= julianday(absolute_expires_at) AS bounded,
+         abs(julianday(idle_expires_at) - julianday(absolute_expires_at)) < 0.000001 AS capped
+       FROM sessions WHERE id = ?`
+    )
+    .get(info.sessionId);
+  assert.equal(row.bounded, 1);
+  assert.equal(row.capped, 1);
+  sessions.revokeSession(created.token);
+});
+
+test("změna hesla ponechá aktuální sezení a zruší ostatní", () => {
+  const current = sessions.createSession(passwordAccount.userId, { persistent: false });
+  const other = sessions.createSession(passwordAccount.userId, { persistent: true });
+  const currentInfo = sessions.readSession(current.token);
+
+  users.changePassword(
+    passwordAccount.userId,
+    "nové bezpečné heslo 456",
+    currentInfo.sessionId
+  );
+
+  assert.ok(sessions.readSession(current.token));
+  assert.equal(sessions.readSession(other.token), null);
+  sessions.revokeSession(current.token);
+});
+
+test("blokace zneplatní všechna sezení a zachová důvod odmítnutí", () => {
+  const account = users.createUserFromGoogle({
+    email: "blokovany@example.cz",
+    name: "Blokovaný uživatel",
+    subject: "google-blocked",
+    departmentId: 1,
+  });
+  const first = sessions.createSession(account.userId, { persistent: false });
+  const second = sessions.createSession(account.userId, { persistent: true });
+
+  users.setUserStatus(account.userId, "blocked");
+
+  assert.equal(sessions.readSession(first.token), null);
+  assert.equal(sessions.readSession(second.token), null);
+  assert.equal(sessions.isBlockedSessionToken(first.token), true);
+  users.setUserStatus(account.userId, "active");
+  assert.equal(sessions.readSession(first.token), null, "odblokování staré sezení neoživí");
+});
+
+test("guard pustí vlastníka a správce, cizí i neznámý řádek odmítne", async () => {
+  const other = users.createUserFromGoogle({
+    email: "cizi@example.cz",
+    name: "Cizí strávník",
+    subject: "google-foreign",
+    departmentId: 2,
+  });
+  const orderId = Number(
+    db.prepare("INSERT INTO orders (date) VALUES (?)").run("2026-08-26").lastInsertRowid
+  );
+  const ownRowId = Number(
+    db
+      .prepare(
+        "INSERT INTO order_rows (order_id, department, person_name, person_id) VALUES (?, ?, ?, ?)"
+      )
+      .run(orderId, "Konstrukce", "Jana Nováková", passwordAccount.personId).lastInsertRowid
+  );
+  const foreignRowId = Number(
+    db
+      .prepare(
+        "INSERT INTO order_rows (order_id, department, person_name, person_id) VALUES (?, ?, ?, ?)"
+      )
+      .run(orderId, "Dílna", "Cizí strávník", other.personId).lastInsertRowid
+  );
+  const ownerSession = {
+    sessionId: 1,
+    userId: passwordAccount.userId,
+    role: "user",
+    personIds: [passwordAccount.personId],
+  };
+  const adminSession = { ...ownerSession, role: "admin" };
+
+  await assert.doesNotReject(() => guards.assertCanEditRow(ownerSession, ownRowId));
+  await assert.rejects(
+    () => guards.assertCanEditRow(ownerSession, foreignRowId),
+    (error) => error instanceof AuthError && error.code === "CIZI_ZAZNAM"
+  );
+  await assert.doesNotReject(() => guards.assertCanEditRow(adminSession, foreignRowId));
+  await assert.rejects(
+    () => guards.assertCanEditRow(adminSession, 999_999),
+    (error) => error instanceof AuthError && error.code === "CIZI_ZAZNAM"
+  );
+  await assert.doesNotReject(() =>
+    guards.assertCanActAsPerson(ownerSession, passwordAccount.personId)
+  );
+  await assert.rejects(() => guards.assertCanActAsPerson(ownerSession, other.personId), {
+    code: "CIZI_ZAZNAM",
+  });
 });
 
 test("smazání účtu ponechá strávníka, objednávku i otisk jména", () => {

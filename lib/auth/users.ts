@@ -1,7 +1,7 @@
 import { getDb } from "../db";
 import { logAudit } from "../audit";
 import { hasAccount } from "../people";
-import { hashPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 export interface AuthUser {
   id: number;
@@ -48,6 +48,11 @@ const SELECT_USER = `
     last_login_at AS lastLoginAt
   FROM users
 `;
+
+// Platný otisk neznámého hesla drží dobu chybné odpovědi stejnou i pro adresu,
+// která v databázi není. Hodnota není tajemství a nikdy nepatří účtu.
+const DUMMY_PASSWORD_HASH =
+  "scrypt$17$8$1$AAAAAAAAAAAAAAAAAAAAAA==$dksUA1L27ByEsUKX5S2ymwrix0pFkhoU/2Ds50iC9Zk=";
 
 function requireId(id: number, label: string): void {
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error(`${label} není platné.`);
@@ -326,6 +331,34 @@ export function listUsers(): AuthUser[] {
   return rows.map(toAuthUser);
 }
 
+export function authenticateWithPassword(email: string, plain: string): AuthUser | null {
+  let normalized: string | null = null;
+  try {
+    normalized = normalizeEmail(email).normalized;
+  } catch {}
+
+  const row = normalized
+    ? (getDb()
+        .prepare("SELECT id, password_hash AS passwordHash FROM users WHERE email_normalized = ?")
+        .get(normalized) as { id: number; passwordHash: string | null } | undefined)
+    : undefined;
+  const verified = verifyPassword(plain, row?.passwordHash ?? DUMMY_PASSWORD_HASH);
+  if (!row || !row.passwordHash || !verified) {
+    logAudit({ action: "user_login_failed", details: "neplatné přihlašovací údaje" });
+    return null;
+  }
+  return getUserById(row.id);
+}
+
+export function verifyUserPassword(userId: number, plain: string): boolean {
+  const row = Number.isSafeInteger(userId)
+    ? (getDb()
+        .prepare("SELECT password_hash AS passwordHash FROM users WHERE id = ?")
+        .get(userId) as { passwordHash: string | null } | undefined)
+    : undefined;
+  return verifyPassword(plain, row?.passwordHash ?? DUMMY_PASSWORD_HASH) && !!row?.passwordHash;
+}
+
 export function setUserStatus(id: number, status: "active" | "blocked"): void {
   requireId(id, "Uživatel");
   if (status !== "active" && status !== "blocked") throw new Error("Stav účtu není platný.");
@@ -339,7 +372,13 @@ export function setUserStatus(id: number, status: "active" | "blocked"): void {
 
   getDb().transaction(() => {
     getDb().prepare("UPDATE users SET status = ? WHERE id = ?").run(status, id);
-    if (status === "blocked") getDb().prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+    if (status === "blocked") {
+      // Řádek zůstane do absolutního stropu jen kvůli rozlišení BLOKOVAN;
+      // prošlá nečinnost zabrání jeho oživení po případném odblokování.
+      getDb()
+        .prepare("UPDATE sessions SET idle_expires_at = datetime('now') WHERE user_id = ?")
+        .run(id);
+    }
   })();
   logAudit({
     action: status === "blocked" ? "user_block" : "user_unblock",
