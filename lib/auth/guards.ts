@@ -11,6 +11,14 @@ import {
 
 const NOT_SIGNED_IN = "Pro tuto akci se nejdřív přihlaste.";
 
+function activeAdminExists(): boolean {
+  return Boolean(
+    getDb()
+      .prepare("SELECT 1 FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1")
+      .get()
+  );
+}
+
 async function getSessionToken(): Promise<string | null> {
   const store = await cookies();
   return store.get(SESSION_COOKIE)?.value ?? null;
@@ -26,7 +34,17 @@ export async function requireSession(): Promise<SessionInfo> {
   if (!token) throw new AuthError("NEPRIHLASEN", NOT_SIGNED_IN);
 
   const session = readSession(token);
-  if (session) return session;
+  if (session) {
+    // Účet bez správce nesmí otevřít zapisovací provoz jen tím, že se někdo
+    // veřejně zaregistruje. Obnovu provádí výhradně bootstrap z prostředí.
+    if (!activeAdminExists()) {
+      throw new AuthError(
+        "JEN_SPRAVCE",
+        "Aplikace nemá aktivního správce. Obraťte se na provozovatele."
+      );
+    }
+    return session;
+  }
   if (isBlockedSessionToken(token)) {
     throw new AuthError("BLOKOVAN", "Tento účet je zablokovaný. Obraťte se na správce.");
   }

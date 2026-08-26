@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp } from "@/lib/api-auth";
 import { checkRateLimit, isRateLimited } from "@/lib/rate-limit";
-import { getSettings } from "@/lib/settings";
+import { getCanonicalAppOrigin } from "@/lib/auth/app-url";
 import {
   buildGoogleAuthUrl,
   GOOGLE_FLOW_COOKIE,
@@ -22,16 +22,8 @@ function noStore(response: NextResponse): NextResponse {
   return response;
 }
 
-function callbackUri(request: NextRequest): string {
-  const configured = process.env.APP_URL?.trim() || getSettings().telegramAppUrl.trim();
-  if (!configured && process.env.NODE_ENV === "production") {
-    throw new Error("Pro Google přihlášení nastavte APP_URL.");
-  }
-  const base = new URL(configured || request.nextUrl.origin);
-  if (base.username || base.password || base.hash || base.search) {
-    throw new Error("APP_URL není platná veřejná adresa aplikace.");
-  }
-  return new URL("/api/auth/google/callback", base).href;
+function callbackUri(): string {
+  return new URL("/api/auth/google/callback", getCanonicalAppOrigin()).href;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -50,7 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const redirectUri = callbackUri(request);
+    const redirectUri = callbackUri();
     const flow = await buildGoogleAuthUrl(redirectUri);
     const response = NextResponse.redirect(flow.url, { status: 302 });
     response.cookies.set(

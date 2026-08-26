@@ -2,7 +2,9 @@ import type Database from "better-sqlite3";
 import { hashPassword } from "./password";
 
 function bootstrapFirstAdmin(db: Database.Database): void {
-  const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get();
+  const adminExists = db
+    .prepare("SELECT 1 FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1")
+    .get();
   if (adminExists) return;
 
   const email = process.env.ADMIN_EMAIL?.trim() ?? "";
@@ -19,9 +21,37 @@ function bootstrapFirstAdmin(db: Database.Database): void {
   const passwordHash = hashPassword(password);
 
   db.transaction(() => {
-    if (db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get()) return;
-    if (db.prepare("SELECT 1 FROM users WHERE email_normalized = ?").get(emailNormalized)) {
-      throw new Error("ADMIN_EMAIL už používá účet bez role správce.");
+    if (
+      db.prepare("SELECT 1 FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1").get()
+    ) {
+      return;
+    }
+
+    const existing = db
+      .prepare("SELECT id, role, name FROM users WHERE email_normalized = ?")
+      .get(emailNormalized) as { id: number; role: "admin" | "user"; name: string } | undefined;
+    if (existing) {
+      if (existing.role !== "admin") {
+        throw new Error("ADMIN_EMAIL už používá účet bez role správce.");
+      }
+
+      // Env bootstrap je poslední out-of-band obnova. Heslo přepíše pouze tehdy,
+      // když nezůstal žádný aktivní správce; za normálního provozu na něj nesáhne.
+      db.prepare(
+        "UPDATE users SET status = 'active', password_hash = ?, email_verified_at = COALESCE(email_verified_at, datetime('now')) WHERE id = ?"
+      ).run(passwordHash, existing.id);
+      db.prepare("DELETE FROM sessions WHERE user_id = ?").run(existing.id);
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(
+        "auth_bootstrap_user_id",
+        String(existing.id)
+      );
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, '1')").run(
+        "auth_bootstrap_password_unchanged"
+      );
+      db.prepare(
+        "INSERT INTO audit_log (action, person_name, details) VALUES ('user_status', ?, ?)"
+      ).run(existing.name, `obnova správce z prostředí #${existing.id}`);
+      return;
     }
 
     const name = process.env.ADMIN_NAME?.trim() || "Správce";

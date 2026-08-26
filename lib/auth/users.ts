@@ -1,6 +1,5 @@
 import { getDb } from "../db";
 import { logAudit } from "../audit";
-import { hasAccount } from "../people";
 import { hashPassword, verifyPassword } from "./password";
 
 export interface AuthUser {
@@ -97,7 +96,6 @@ function validateRegistrationInput(input: RegistrationInput): {
   emailNormalized: string;
   name: string;
   departmentId: number | null;
-  claimPersonId?: number;
 } {
   if (!input || typeof input !== "object") throw new UserInputError("Registraci nelze dokončit.");
 
@@ -105,7 +103,11 @@ function validateRegistrationInput(input: RegistrationInput): {
   const name = normalizeName(input.name);
   const departmentId = input.departmentId;
   if (departmentId !== null) requireId(departmentId, "Oddělení");
-  if (input.claimPersonId !== undefined) requireId(input.claimPersonId, "Strávník");
+  if (input.claimPersonId !== undefined) {
+    // Veřejné údaje strávníka nemohou prokázat, komu patří. Přímý claim by
+    // zároveň předal právo měnit jeho existující objednávky.
+    throw new UserInputError("Převzetí dřívější historie musí potvrdit správce.");
+  }
 
   const db = getDb();
   if (
@@ -120,7 +122,6 @@ function validateRegistrationInput(input: RegistrationInput): {
     emailNormalized: normalized,
     name,
     departmentId,
-    claimPersonId: input.claimPersonId,
   };
 }
 
@@ -136,24 +137,9 @@ function isUniqueConstraint(error: unknown): boolean {
 function createPersonLink(
   userId: number,
   name: string,
-  departmentId: number | null,
-  claimPersonId?: number
+  departmentId: number | null
 ): number {
   const db = getDb();
-  if (claimPersonId !== undefined) {
-    const person = db.prepare("SELECT id FROM people WHERE id = ?").get(claimPersonId);
-    if (!person) throw new UserInputError("Vybraný strávník neexistuje.");
-    if (hasAccount(claimPersonId)) {
-      throw new UserInputError("Vybraný strávník už má vlastní účet.");
-    }
-    db.prepare("UPDATE people SET active = 1 WHERE id = ?").run(claimPersonId);
-    db.prepare("INSERT INTO user_people (user_id, person_id) VALUES (?, ?)").run(
-      userId,
-      claimPersonId
-    );
-    return claimPersonId;
-  }
-
   const personId = Number(
     db.prepare("INSERT INTO people (name, department_id) VALUES (?, ?)").run(name, departmentId)
       .lastInsertRowid
@@ -232,8 +218,7 @@ export function createUserWithPassword(input: {
       const personId = createPersonLink(
         userId,
         normalized.name,
-        normalized.departmentId,
-        normalized.claimPersonId
+        normalized.departmentId
       );
       return { userId, personId };
     })();
@@ -293,8 +278,7 @@ export function createUserFromGoogle(input: {
       const personId = createPersonLink(
         userId,
         normalized.name,
-        normalized.departmentId,
-        normalized.claimPersonId
+        normalized.departmentId
       );
       return { userId, personId };
     })();

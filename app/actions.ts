@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitReset, isRateLimited } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
@@ -94,6 +94,7 @@ import {
   reorderDepartments,
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
+import { getCanonicalAppOrigin } from "@/lib/auth/app-url";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -363,9 +364,8 @@ export async function actionReopenOrder(orderId: number): Promise<void> {
   broadcast();
 }
 
-export async function actionUnlockCutoff(pin: string): Promise<{ ok: boolean; error?: string }> {
-  await guardAdmin();
-  if (!checkPin(pin)) return { ok: false, error: "Špatný PIN" };
+export async function actionUnlockCutoff(_pin: string): Promise<{ ok: boolean; error?: string }> {
+  await guardSettings();
   saveSettings({ orderForceOpenAt: forceOpenStamp(getPragueNow()) });
   return { ok: true };
 }
@@ -495,9 +495,20 @@ export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
   const session = await requireAdmin();
-  const key = `pin:${session.userId}:${session.sessionId}`;
-  if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
-    return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
+  const windowMs = 10 * 60 * 1000;
+  const rules = [
+    { key: `pin:session:${session.userId}:${session.sessionId}`, max: 5 },
+    { key: `pin:user:${session.userId}`, max: 5 },
+    { key: "pin:global", max: 30 },
+  ];
+  const locked = rules.find((rule) => isRateLimited(rule.key, rule.max));
+  if (locked) {
+    return { ok: false, lockedUntil: getRateLimitReset(locked.key) ?? Date.now() };
+  }
+  for (const rule of rules) {
+    if (!checkRateLimit(rule.key, rule.max, windowMs)) {
+      return { ok: false, lockedUntil: getRateLimitReset(rule.key) ?? Date.now() };
+    }
   }
   if (!checkPin(pin)) return { ok: false };
 
@@ -509,7 +520,7 @@ export async function actionCheckPin(
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
   await guardSettings();
-  if (!checkPin(pin ?? "")) throw new Error("Neplatný PIN.");
+  void pin;
   const sanitized = sanitizeClientSettingsUpdates(updates);
   saveSettings(sanitized);
   if (sanitized.settingsPin) (await cookies()).delete(PIN_COOKIE);
@@ -537,19 +548,7 @@ export async function actionDismissAutoSendError(): Promise<void> {
 
 export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; description?: string }> {
   await guardSettings();
-  const configured = process.env.APP_URL?.trim() || getSettings().telegramAppUrl.trim();
-  if (!configured) throw new Error("Pro webhook nastavte veřejnou adresu aplikace.");
-
-  let base: URL;
-  try {
-    base = new URL(configured);
-  } catch {
-    throw new Error("Veřejná adresa aplikace není platná.");
-  }
-  if (base.protocol !== "https:" && process.env.NODE_ENV === "production") {
-    throw new Error("Veřejná adresa aplikace musí používat HTTPS.");
-  }
-  const webhookUrl = new URL("/api/telegram/webhook", base).href;
+  const webhookUrl = new URL("/api/telegram/webhook", getCanonicalAppOrigin()).href;
   return setTelegramWebhook(webhookUrl);
 }
 

@@ -300,7 +300,7 @@ test("stejný e-mail s jinou velikostí písmen se odmítne obecnou hláškou", 
   );
 });
 
-test("claimPersonId se odmítne, když strávník už účet má", () => {
+test("claimPersonId se odmítne vždy, protože veřejné ID není důkaz identity", () => {
   const claimed = users.createUserFromGoogle({
     email: "claim@example.cz",
     name: "Pavel Vlastník",
@@ -317,9 +317,33 @@ test("claimPersonId se odmítne, když strávník už účet má", () => {
         departmentId: 1,
         claimPersonId: claimed.personId,
       }),
-    /už má vlastní účet/
+    /musí potvrdit správce/
   );
   assert.equal(users.getUserByEmail("utocnik@example.cz"), null, "transakce se musí celá vrátit");
+});
+
+test("ani osiřelého strávníka nelze převzít veřejným personId", () => {
+  const orphanId = Number(
+    db.prepare("INSERT INTO people (name, department_id) VALUES (?, ?)").run("Veřejný Sirotek", 1)
+      .lastInsertRowid
+  );
+
+  assert.throws(
+    () =>
+      users.createUserWithPassword({
+        email: "orphan-claim@example.cz",
+        name: "Veřejný Sirotek",
+        password: "dostatečně dlouhé heslo",
+        departmentId: 1,
+        claimPersonId: orphanId,
+      }),
+    /musí potvrdit správce/
+  );
+  assert.equal(users.getUserByEmail("orphan-claim@example.cz"), null);
+  assert.equal(
+    db.prepare("SELECT 1 FROM user_people WHERE person_id = ?").get(orphanId),
+    undefined
+  );
 });
 
 test("Google se podle shody e-mailu s heslovým účtem automaticky nepropojí", () => {
@@ -584,6 +608,16 @@ test("bootstrap založí prvního správce jednou a změněné heslo už nepřep
     );
     bootstrapUsers.changePassword(admin.id, "nové ještě bezpečnější heslo");
     assert.equal(bootstrapUsers.isBootstrapPasswordUnchanged(), false);
+
+    bootstrapDb.prepare("UPDATE users SET status = 'blocked' WHERE id = ?").run(admin.id);
+    process.env.ADMIN_PASSWORD = "nouzové heslo z prostředí";
+    runMigration(bootstrapDb);
+    const recovered = bootstrapDb
+      .prepare("SELECT status, password_hash AS hash FROM users WHERE id = ?")
+      .get(admin.id);
+    assert.equal(recovered.status, "active");
+    assert.equal(bootstrapPassword.verifyPassword(process.env.ADMIN_PASSWORD, recovered.hash), true);
+    assert.equal(bootstrapUsers.isBootstrapPasswordUnchanged(), true);
   } finally {
     delete process.env.ADMIN_EMAIL;
     delete process.env.ADMIN_PASSWORD;

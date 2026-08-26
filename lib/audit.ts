@@ -29,9 +29,7 @@ export type AuditAction =
   | "google_link"
   | "invite_create"
   | "invite_use"
-  | "invite_revoke"
-  // Vstup do Nastavení PINem bez správcovského účtu — zadní vrátka mají být vidět.
-  | "settings_pin_bypass";
+  | "invite_revoke";
 
 export interface AuditEntry {
   id: number;

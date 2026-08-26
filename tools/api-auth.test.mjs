@@ -3,8 +3,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { loadLib } from "./test-helpers.mjs";
 
 const read = (file) => fs.readFileSync(file, "utf8");
+const lib = loadLib();
+const { getClientIpFromHeaders } = await lib("api-auth");
 
 const SETTINGS_ROUTES = [
   "app/api/backup/route.ts",
@@ -42,4 +45,24 @@ test("API guard běží před čtením těla, databáze a externím spojením", 
 test("PDF import vyžaduje správce před parsováním uploadu", () => {
   const source = read("app/api/menu/import/route.ts");
   assert.ok(source.indexOf("await requireApiAdmin()") < source.indexOf("request.formData()"));
+});
+
+test("nedůvěryhodné forwarded hlavičky nejdou střídat kvůli obcházení limitu", () => {
+  delete process.env.TRUST_CLOUDFLARE_PROXY;
+  for (const value of ["1.1.1.1", "8.8.8.8", "203.0.113.9, 10.0.0.1"]) {
+    assert.equal(getClientIpFromHeaders(new Headers({ "x-forwarded-for": value })), "untrusted");
+  }
+});
+
+test("v potvrzeném Cloudflare režimu se přijme jen platná canonical IP", () => {
+  process.env.TRUST_CLOUDFLARE_PROXY = "true";
+  assert.equal(
+    getClientIpFromHeaders(new Headers({ "cf-connecting-ip": "203.0.113.9" })),
+    "203.0.113.9"
+  );
+  assert.equal(
+    getClientIpFromHeaders(new Headers({ "cf-connecting-ip": "podvrh" })),
+    "untrusted"
+  );
+  delete process.env.TRUST_CLOUDFLARE_PROXY;
 });

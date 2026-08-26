@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset, isRateLimited } from "@/lib/rate-limit";
@@ -27,7 +28,6 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "@/lib/auth/mail";
-import { findMergeCandidates } from "@/lib/people";
 import {
   countActiveGuests,
   createInvite,
@@ -35,7 +35,8 @@ import {
   registerGuestWithInvite,
   revokeInvite,
 } from "@/lib/auth/invites";
-import { getSettings } from "@/lib/settings";
+import { getClientIpFromHeaders } from "@/lib/api-auth";
+import { getCanonicalAppOrigin } from "@/lib/auth/app-url";
 
 /**
  * Akce kolem přihlášení.
@@ -59,8 +60,42 @@ export type LoginResult =
   | { ok: true }
   | { ok: false; error: string; lockedUntil?: number };
 
-async function clientIp(): Promise<string> {
-  return (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+interface RateLimitRule {
+  key: string;
+  max: number;
+  windowMs: number;
+}
+
+function rateLimitSubject(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+async function publicRateLimitRules(
+  scope: string,
+  identity: string,
+  options: { identityMax: number; ipMax: number; globalMax: number; windowMs: number }
+): Promise<RateLimitRule[]> {
+  const ip = getClientIpFromHeaders(await headers());
+  const rules: RateLimitRule[] = [
+    {
+      key: `${scope}:identity:${rateLimitSubject(identity)}`,
+      max: options.identityMax,
+      windowMs: options.windowMs,
+    },
+    { key: `${scope}:global`, max: options.globalMax, windowMs: options.windowMs },
+  ];
+  if (ip !== "untrusted") {
+    rules.push({ key: `${scope}:ip:${ip}`, max: options.ipMax, windowMs: options.windowMs });
+  }
+  return rules;
+}
+
+function lockedRule(rules: RateLimitRule[]): RateLimitRule | undefined {
+  return rules.find((rule) => isRateLimited(rule.key, rule.max));
+}
+
+function recordAttempt(rules: RateLimitRule[]): void {
+  for (const rule of rules) checkRateLimit(rule.key, rule.max, rule.windowMs);
 }
 
 export async function actionLogin(
@@ -74,12 +109,34 @@ export async function actionLogin(
   }
   const persistent = stayLoggedIn === true;
 
-  const key = `login:${await clientIp()}`;
-  if (isRateLimited(key, LOGIN_MAX_FAILURES)) {
+  const admissionRules = await publicRateLimitRules("login-admission", email.trim().toLowerCase(), {
+    identityMax: 30,
+    ipMax: 100,
+    globalMax: 1_000,
+    windowMs: LOGIN_WINDOW_MS,
+  });
+  const admissionLocked = lockedRule(admissionRules);
+  if (admissionLocked) {
     return {
       ok: false,
       error: "Příliš mnoho pokusů. Zkuste to znovu za chvíli.",
-      lockedUntil: getRateLimitReset(key) ?? Date.now(),
+      lockedUntil: getRateLimitReset(admissionLocked.key) ?? Date.now(),
+    };
+  }
+  recordAttempt(admissionRules);
+
+  const rules = await publicRateLimitRules("login", email.trim().toLowerCase(), {
+    identityMax: LOGIN_MAX_FAILURES,
+    ipMax: 50,
+    globalMax: 500,
+    windowMs: LOGIN_WINDOW_MS,
+  });
+  const locked = lockedRule(rules);
+  if (locked) {
+    return {
+      ok: false,
+      error: "Příliš mnoho pokusů. Zkuste to znovu za chvíli.",
+      lockedUntil: getRateLimitReset(locked.key) ?? Date.now(),
     };
   }
 
@@ -87,7 +144,7 @@ export async function actionLogin(
   if (!user) {
     // Rozpočet ubírá jen neúspěch. Kdyby ho ubíral každý pokus, vyhodilo by to
     // člověka, který se přihlašuje správně několikrát za den.
-    checkRateLimit(key, LOGIN_MAX_FAILURES, LOGIN_WINDOW_MS);
+    recordAttempt(rules);
     return { ok: false, error: BAD_CREDENTIALS };
   }
 
@@ -145,9 +202,7 @@ export type RegisterResult =
  * pak mířil na jeho server i s platným tokenem.
  */
 function appBaseUrl(): string {
-  const configured = process.env.APP_URL?.trim() || getSettings().telegramAppUrl.trim();
-  if (!configured) throw new Error("Pro odesílání odkazů nastavte APP_URL.");
-  return new URL(configured).origin;
+  return getCanonicalAppOrigin();
 }
 
 export async function actionRegister(
@@ -180,39 +235,29 @@ export async function actionRegister(
   const strength = checkPasswordStrength(password);
   if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
 
-  const key = `register:${await clientIp()}`;
-  if (isRateLimited(key, REGISTER_MAX)) {
+  const rules = await publicRateLimitRules("register", email.trim().toLowerCase(), {
+    identityMax: 10,
+    ipMax: REGISTER_MAX,
+    globalMax: 100,
+    windowMs: REGISTER_WINDOW_MS,
+  });
+  if (lockedRule(rules)) {
     return { ok: false, error: "Příliš mnoho registrací z této sítě. Zkuste to později." };
   }
 
-  // „Nejsi to náhodou ty?" — nabídne se jen strávník bez účtu (R4). Jména
-  // strávníků jsou stejně veřejná na objednávkové stránce, takže se nic
-  // nového neprozrazuje.
-  const claimId =
-    Number.isSafeInteger(claimPersonId) && (claimPersonId as number) > 0
-      ? (claimPersonId as number)
-      : undefined;
-  if (claimPersonId === undefined) {
-    const kandidati = findMergeCandidates(jmeno);
-    if (kandidati.length > 0) {
-      return {
-        ok: false,
-        claim: kandidati.map((p) => ({
-          id: p.id,
-          name: p.name,
-          department: p.departmentName,
-          orderCount: p.orderCount,
-          lastOrderDate: p.lastOrderDate,
-        })),
-      };
-    }
+  // Jméno, oddělení ani veřejné personId nejsou důkaz identity. Historii proto
+  // po registraci slučuje správce přes chráněnou správu lidí.
+  if (claimPersonId !== undefined) {
+    return {
+      ok: false,
+      error: "Převzetí dřívější historie musí potvrdit správce.",
+    };
   }
 
-  // Rozpočet ubírá až skutečně založený účet. Otevřená registrace na veřejné
+  // Rozpočet ubírá až skutečný pokus o založení účtu. Otevřená registrace na veřejné
   // adrese je sama o sobě to, co se dá zneužít — ale mezikrok „nejsi to ty?“
   // žádný účet nezakládá a nemá co ubírat.
-  checkRateLimit(key, REGISTER_MAX, REGISTER_WINDOW_MS);
-
+  recordAttempt(rules);
   let userId: number;
   try {
     ({ userId } = createUserWithPassword({
@@ -220,14 +265,12 @@ export async function actionRegister(
       name: jmeno,
       password,
       departmentId: deptId,
-      claimPersonId: claimId,
     }));
   } catch (err) {
     // Nesmí prozradit, jestli e-mail už účet má — jinak by šlo účty vyzkoušet.
     if (err instanceof AuthError) return { ok: false, error: err.message };
     return { ok: false, error: "Účet se nepodařilo založit. Zkontrolujte údaje." };
   }
-
   try {
     await sendVerificationEmail(userId, appBaseUrl());
   } catch {
@@ -268,10 +311,16 @@ export async function actionRequestPasswordReset(
   const HOTOVO = { ok: true } as const;
   if (typeof email !== "string" || !email.trim()) return HOTOVO;
 
-  const key = `reset-request:${await clientIp()}`;
-  if (!checkRateLimit(key, RESET_MAX, RESET_WINDOW_MS)) {
+  const rules = await publicRateLimitRules("reset-request", email.trim().toLowerCase(), {
+    identityMax: 5,
+    ipMax: 30,
+    globalMax: 200,
+    windowMs: RESET_WINDOW_MS,
+  });
+  if (lockedRule(rules)) {
     return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
   }
+  recordAttempt(rules);
 
   try {
     await sendPasswordResetEmail(email, appBaseUrl());
@@ -289,10 +338,16 @@ export async function actionResetPassword(
     return { ok: false, error: "Odkaz nefunguje. Vyžádejte si nový." };
   }
 
-  const key = `reset-use:${await clientIp()}`;
-  if (!checkRateLimit(key, RESET_MAX, RESET_WINDOW_MS)) {
+  const rules = await publicRateLimitRules("reset-use", token, {
+    identityMax: RESET_MAX,
+    ipMax: 50,
+    globalMax: 300,
+    windowMs: RESET_WINDOW_MS,
+  });
+  if (lockedRule(rules)) {
     return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
   }
+  recordAttempt(rules);
 
   const strength = checkPasswordStrength(newPassword);
   if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
@@ -323,7 +378,7 @@ export async function actionChangePassword(
     return { ok: false, error: "Vyplňte obě pole." };
   }
 
-  const key = `password-change:${await clientIp()}`;
+  const key = `password-change:${session.userId}:${session.sessionId}`;
   if (isRateLimited(key, RESET_MAX)) {
     return { ok: false, error: "Příliš mnoho pokusů. Zkuste to za hodinu." };
   }
@@ -536,10 +591,16 @@ export async function actionRegisterGuest(
   const strength = checkPasswordStrength(password);
   if (!strength.ok) return { ok: false, error: strength.reason ?? "Heslo je příliš krátké." };
 
-  const key = `guest-register:${await clientIp()}`;
-  if (!checkRateLimit(key, REGISTER_MAX, REGISTER_WINDOW_MS)) {
+  const rules = await publicRateLimitRules("guest-register", token, {
+    identityMax: 10,
+    ipMax: 30,
+    globalMax: 100,
+    windowMs: REGISTER_WINDOW_MS,
+  });
+  if (lockedRule(rules)) {
     return { ok: false, error: "Příliš mnoho pokusů. Zkuste to později." };
   }
+  recordAttempt(rules);
 
   let userId: number;
   try {
@@ -611,14 +672,29 @@ export async function actionConfirmGoogleLink(
     return { ok: false, error: BAD_CREDENTIALS };
   }
 
-  const key = `google-link:${await clientIp()}`;
-  if (isRateLimited(key, LOGIN_MAX_FAILURES)) {
+  const rules = await publicRateLimitRules("google-link", pending.email.toLowerCase(), {
+    identityMax: LOGIN_MAX_FAILURES,
+    ipMax: 50,
+    globalMax: 500,
+    windowMs: LOGIN_WINDOW_MS,
+  });
+  if (lockedRule(rules)) {
     return { ok: false, error: "Příliš mnoho pokusů. Zkuste to znovu za chvíli." };
   }
 
+  const admissionRules = await publicRateLimitRules(
+    "google-link-admission",
+    pending.email.toLowerCase(),
+    { identityMax: 30, ipMax: 100, globalMax: 1_000, windowMs: LOGIN_WINDOW_MS }
+  );
+  if (lockedRule(admissionRules)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to znovu za chvíli." };
+  }
+  recordAttempt(admissionRules);
+
   const user = authenticateWithPassword(pending.email, password);
   if (!user) {
-    checkRateLimit(key, LOGIN_MAX_FAILURES, LOGIN_WINDOW_MS);
+    recordAttempt(rules);
     return { ok: false, error: BAD_CREDENTIALS };
   }
 

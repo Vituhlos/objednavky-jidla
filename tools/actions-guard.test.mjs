@@ -10,14 +10,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 
 import { loadLib } from "./test-helpers.mjs";
 
 // ── Statické pokrytí ────────────────────────────────────────────────────────
 
-const SOURCE = ["app/actions.ts", "app/actions-auth.ts"]
-  .map((f) => fs.readFileSync(f, "utf8"))
-  .join("\n");
+const SOURCE_FILES = ["app/actions.ts", "app/actions-auth.ts"];
 
 /**
  * Akce, které smí volat i nepřihlášený.
@@ -50,58 +49,145 @@ const PUBLIC_ACTIONS = new Set([
   "actionConfirmGoogleLink",
 ]);
 
-/**
- * Co se počítá za kontrolu oprávnění.
- *
- * Obaly drží konkrétní hranice: session, správce a správce s PIN step-upem.
- */
-const GUARDS = [
-  "guardAdmin()",
-  "guardSettings()",
-  "guardSession()",
-  "requireSession()",
-  "requireAdmin()",
-  "requireAdminWithPin()",
-];
+const SESSION_ACTIONS = new Set([
+  "actionAddRow", "actionUpdateRow", "actionDeleteRow",
+  "actionAddPizzaRow", "actionUpdatePizzaRow", "actionDeletePizzaRow",
+  "actionChangePassword", "actionListSessions", "actionRevokeOtherSessions",
+  "actionCreateInvite", "actionListInvites", "actionRevokeInvite", "actionGuestCount",
+]);
+
+const ADMIN_ACTIONS = new Set([
+  "actionSendOrder", "actionConfirmMenuImport", "actionDeleteMenuWeek",
+  "actionAddMenuItem", "actionUpdateMenuItem", "actionDeleteMenuItem",
+  "actionUpdatePizzaPrices", "actionReopenOrder",
+  "actionResendOrder", "actionCloseDay", "actionOpenDay", "actionClearOrder",
+  "actionDismissAutoSendError",
+]);
+
+const SETTINGS_ACTIONS = new Set([
+  "actionAddClosure", "actionUpdateClosure", "actionDeleteClosure",
+  "actionAddDepartment", "actionUpdateDepartment", "actionDeleteDepartment",
+  "actionReorderDepartments", "actionUnlockCutoff", "actionSaveSettings", "actionCheckImap",
+  "actionSendTestPush", "actionSetTelegramWebhook", "actionSendTelegramTest",
+  "actionGetTelegramSubscriptions", "actionRemoveTelegramSubscription",
+  "actionSetTelegramAdmin", "actionGetTelegramBotInfo", "actionGetTelegramWebhookStatus",
+  "actionSetTelegramCommands", "actionGetPeople", "actionGetDuplicatePeople",
+  "actionRenamePerson", "actionMergePeople", "actionSetPersonActive",
+  "actionListUsers", "actionSetUserStatus", "actionSetUserRole", "actionDeleteUser",
+  "actionCreateResetLink", "actionBootstrapPasswordUnchanged",
+]);
 
 /**
  * V souboru s „use server“ je **každá** exportovaná async funkce server action,
  * ať se jmenuje jakkoli. Kdyby se hledaly jen názvy začínající „action“, stačilo
  * by pomocnou funkci pojmenovat jinak a proklouzla by bez kontroly.
  */
-function extractActions(source) {
-  const found = [];
-  const re = /export async function (\w+)\(/g;
-  const starts = [];
-  let match;
-  while ((match = re.exec(source)) !== null) starts.push([match[1], match.index]);
+function awaitedCallName(statement) {
+  let expression;
+  if (ts.isExpressionStatement(statement)) expression = statement.expression;
+  if (ts.isVariableStatement(statement) && statement.declarationList.declarations.length === 1) {
+    expression = statement.declarationList.declarations[0].initializer;
+  }
+  if (!expression || !ts.isAwaitExpression(expression) || !ts.isCallExpression(expression.expression)) {
+    return null;
+  }
+  const callee = expression.expression.expression;
+  return ts.isIdentifier(callee) ? callee.text : null;
+}
 
-  for (let i = 0; i < starts.length; i++) {
-    const [name, from] = starts[i];
-    const to = i + 1 < starts.length ? starts[i + 1][1] : source.length;
-    found.push({ name, body: source.slice(from, to) });
+function extractActions() {
+  const found = [];
+  for (const file of SOURCE_FILES) {
+    const source = fs.readFileSync(file, "utf8");
+    const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    for (const statement of ast.statements) {
+      const exported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+      const asyncModifier = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword);
+      if (exported && ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          const initializer = declaration.initializer;
+          const isAsync = initializer?.modifiers?.some(
+            (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword
+          );
+          if (
+            ts.isIdentifier(declaration.name) &&
+            initializer &&
+            ts.isArrowFunction(initializer) &&
+            isAsync &&
+            ts.isBlock(initializer.body)
+          ) {
+            found.push({
+              name: declaration.name.text,
+              body: initializer.body.getText(ast),
+              statements: initializer.body.statements.map((item, index) => ({
+                index,
+                text: item.getText(ast),
+                awaitedCall: awaitedCallName(item),
+              })),
+            });
+          }
+        }
+        continue;
+      }
+      if (!exported || !asyncModifier || !ts.isFunctionDeclaration(statement) || !statement.name || !statement.body) continue;
+      found.push({
+        name: statement.name.text,
+        body: statement.body.getText(ast),
+        statements: statement.body.statements.map((item, index) => ({
+          index,
+          text: item.getText(ast),
+          awaitedCall: awaitedCallName(item),
+        })),
+      });
+    }
   }
   return found;
 }
 
-const ACTIONS = extractActions(SOURCE);
+const ACTIONS = extractActions();
 
 test("v actions.ts jsou všechny akce vidět", () => {
   assert.ok(ACTIONS.length >= 45, `nalezeno jen ${ACTIONS.length} akcí — parser nejspíš selhal`);
 });
 
-test("každá neveřejná akce má guard", () => {
-  const nechraneno = ACTIONS.filter(
-    ({ name, body }) =>
-      !PUBLIC_ACTIONS.has(name) && !GUARDS.some((g) => body.includes(g))
-  ).map((a) => a.name);
+test("každá neveřejná akce má přesný top-level guard před citlivou prací", () => {
+  const problems = [];
+  const classified = new Set([...PUBLIC_ACTIONS, ...SESSION_ACTIONS, ...ADMIN_ACTIONS, ...SETTINGS_ACTIONS, "actionCheckPin"]);
 
-  assert.deepEqual(
-    nechraneno,
-    [],
-    `bez kontroly oprávnění: ${nechraneno.join(", ")}. Přidej guard, ` +
-      "nebo akci vědomě zapiš do PUBLIC_ACTIONS."
-  );
+  for (const action of ACTIONS) {
+    if (!classified.has(action.name)) {
+      problems.push(`${action.name}: chybí v tabulce oprávnění`);
+      continue;
+    }
+    if (PUBLIC_ACTIONS.has(action.name)) continue;
+
+    const expected = SETTINGS_ACTIONS.has(action.name)
+      ? (action.name.startsWith("actionListUser") || action.name.startsWith("actionSetUser") || action.name === "actionDeleteUser" || action.name === "actionCreateResetLink" || action.name === "actionBootstrapPasswordUnchanged"
+          ? "requireAdminWithPin"
+          : "guardSettings")
+      : ADMIN_ACTIONS.has(action.name)
+        ? "guardAdmin"
+        : action.name === "actionCheckPin"
+          ? "requireAdmin"
+          : action.name.endsWith("Row")
+            ? "guardSession"
+            : "requireSession";
+    const guard = action.statements.find((statement) => statement.awaitedCall === expected);
+    if (!guard) {
+      problems.push(`${action.name}: očekáván ${expected}() jako top-level await`);
+      continue;
+    }
+    if (guard.index > 1 || (guard.index === 1 && !/\bassertId\(/.test(action.statements[0].text))) {
+      problems.push(`${action.name}: ${expected}() běží příliš pozdě`);
+    }
+  }
+
+  const existing = new Set(ACTIONS.map((action) => action.name));
+  for (const name of classified) {
+    if (!existing.has(name)) problems.push(`${name}: zůstal v tabulce, ale akce neexistuje`);
+  }
+
+  assert.deepEqual(problems, []);
 });
 
 const LOGIN_ACTIONS = new Set([
@@ -148,6 +234,10 @@ test("přihlašovací akce omezují počet pokusů", () => {
   const zdroj = fs.readFileSync("app/actions-auth.ts", "utf8");
   assert.match(zdroj, /isRateLimited\(/, "před pokusem se musí číst rozpočet");
   assert.match(zdroj, /checkRateLimit\(/, "neúspěch musí rozpočet ubrat");
+  assert.match(zdroj, /:identity:/, "limit musí chránit konkrétní účet nebo token");
+  assert.match(zdroj, /:global/, "střídání identit musí zastavit globální rozpočet");
+  assert.match(zdroj, /createHash\("sha256"\)/, "PII ani capability token nepatří do klíče v DB");
+  assert.doesNotMatch(zdroj, /x-forwarded-for/i, "server action nesmí věřit raw XFF");
 });
 
 test("přihlášení nerozlišuje neznámý e-mail od špatného hesla", () => {
@@ -386,6 +476,42 @@ test("PIN kontrola není veřejná akce", () => {
   assert.equal(PUBLIC_ACTIONS.has("actionCheckPin"), false);
 });
 
+test("PIN se ověřuje jen v jediné omezené step-up akci", () => {
+  const callers = ACTIONS.filter((action) => /\bcheckPin\s*\(/.test(action.body)).map(
+    (action) => action.name
+  );
+  assert.deepEqual(callers, ["actionCheckPin"]);
+  assert.ok(SETTINGS_ACTIONS.has("actionUnlockCutoff"));
+
+  const stepUp = ACTIONS.find((action) => action.name === "actionCheckPin");
+  assert.match(stepUp.body, /pin:user:/, "nové session nesmí resetovat uživatelský limit");
+  assert.match(stepUp.body, /pin:global/, "střídání správců musí zastavit globální rozpočet");
+});
+
+test("veřejné personId nikdy nepřevede vlastnictví historie", () => {
+  const register = ACTIONS.find((action) => action.name === "actionRegister");
+  assert.ok(register);
+  assert.doesNotMatch(register.body, /claimPersonId\s*:/);
+
+  const usersSource = fs.readFileSync("lib/auth/users.ts", "utf8");
+  assert.match(
+    usersSource,
+    /if \(input\.claimPersonId !== undefined\)[\s\S]*?Převzetí dřívější historie musí potvrdit správce/
+  );
+});
+
+test("platná session bez aktivního správce zůstane fail-closed", () => {
+  const guardsSource = fs.readFileSync("lib/auth/guards.ts", "utf8");
+  assert.match(
+    guardsSource,
+    /SELECT 1 FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1/
+  );
+  assert.match(
+    guardsSource,
+    /if \(session\)[\s\S]*?if \(!activeAdminExists\(\)\)[\s\S]*?throw new AuthError/
+  );
+});
+
 test("server Nastavení vyžádá správce a neposílá celý settings objekt", () => {
   const source = fs.readFileSync("app/nastaveni/page.tsx", "utf8");
   assert.ok(source.indexOf("await requireAdmin()") < source.indexOf("getSettingsForClient()"));
@@ -421,6 +547,15 @@ test("DTO Nastavení nikdy neobsahuje uložená tajemství", () => {
     smtpHost: "smtp.example.cz",
   });
   assert.deepEqual(sanitized, { smtpHost: "smtp.example.cz" });
+  assert.throws(
+    () => settings.sanitizeClientSettingsUpdates({ settingsPin: "1234" }),
+    /8 až 128 znaků/
+  );
+});
+
+test("správcovský PIN nemá známou výchozí hodnotu", () => {
+  const source = fs.readFileSync("lib/settings.ts", "utf8");
+  assert.doesNotMatch(source, /SETTINGS_PIN\s*\?\?\s*["']1234["']/);
 });
 
 test("čerstvý doklad platí jen pro session, pro kterou vznikl", () => {

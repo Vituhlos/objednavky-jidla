@@ -1,5 +1,5 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getClientIp } from "@/lib/api-auth";
 import { checkRateLimit, isRateLimited } from "@/lib/rate-limit";
 import { AuthError } from "@/lib/auth/errors";
 import {
@@ -46,8 +46,11 @@ function appRedirect(redirectUri: string, status: string): NextResponse {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const rateKey = `auth-google-callback:${getClientIp(request)}`;
-  if (isRateLimited(rateKey, MAX_FAILURES)) {
+  const rawFlow = request.cookies.get(GOOGLE_FLOW_COOKIE)?.value;
+  const subject = createHash("sha256").update(rawFlow ?? "missing", "utf8").digest("hex");
+  const rateKey = `auth-google-callback:flow:${subject}`;
+  const globalRateKey = "auth-google-callback:global";
+  if (isRateLimited(rateKey, MAX_FAILURES) || isRateLimited(globalRateKey, 200)) {
     return finish(
       new NextResponse("Příliš mnoho neúspěšných pokusů. Zkuste to za 15 minut.", {
         status: 429,
@@ -55,10 +58,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const rawFlow = request.cookies.get(GOOGLE_FLOW_COOKIE)?.value;
   const checks = rawFlow ? readGoogleFlowCookie(rawFlow) : null;
   if (!checks) {
     checkRateLimit(rateKey, MAX_FAILURES, FAILURE_WINDOW_MS);
+    checkRateLimit(globalRateKey, 200, FAILURE_WINDOW_MS);
     return finish(new NextResponse("Přihlášení přes Google vypršelo.", { status: 400 }));
   }
 
@@ -100,6 +103,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     checkRateLimit(rateKey, MAX_FAILURES, FAILURE_WINDOW_MS);
+    checkRateLimit(globalRateKey, 200, FAILURE_WINDOW_MS);
     return finish(appRedirect(checks.redirectUri, "google-failed"));
   }
 }

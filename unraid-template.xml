@@ -6,7 +6,7 @@
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Overview>Interní objednávkový systém pro správu objednávek obědů (LIMA) a pizzy. Bez přihlášení, sdílený objednávkový list po odděleních, odeslání e-mailem s PDF přílohou.</Overview>
+  <Overview>Interní objednávkový systém pro správu objednávek obědů (LIMA) a pizzy s uživatelskými účty, rolemi a bezpečnou správou.</Overview>
   <Category>Productivity: Tools:</Category>
   <Icon>https://raw.githubusercontent.com/Vituhlos/objednavky-jidla/main/app/icon.svg</Icon>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
@@ -117,12 +117,67 @@
   <Config
     Name="PIN pro Nastavení"
     Target="SETTINGS_PIN"
-    Default="1234"
+    Default=""
     Mode=""
-    Description="PIN kód pro přístup ke stránce Nastavení."
+    Description="Druhý krok pro citlivou správu. Zvolte unikátní dlouhý PIN, ne 1234."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="true"></Config>
+
+  <Config
+    Name="E-mail prvního správce"
+    Target="ADMIN_EMAIL"
+    Default=""
+    Mode=""
+    Description="E-mail prvního správce a nouzové obnovy."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="false"></Config>
+
+  <Config
+    Name="Heslo prvního správce"
+    Target="ADMIN_PASSWORD"
+    Default=""
+    Mode=""
+    Description="Alespoň 12 znaků; po prvním přihlášení jej změňte."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="true"></Config>
+
+  <Config
+    Name="Podpisový secret cookies"
+    Target="COOKIE_SIGNING_SECRET"
+    Default=""
+    Mode=""
+    Description="Náhodný secret alespoň 32 bajtů, nezávislý na ostatních heslech."
+    Type="Variable"
+    Display="always"
+    Required="true"
+    Mask="true"></Config>
+
+  <Config
+    Name="Veřejná adresa aplikace"
+    Target="APP_URL"
+    Default=""
+    Mode=""
+    Description="Kanonická HTTPS adresa, například https://obedy.example.com."
     Type="Variable"
     Display="always"
     Required="false"
-    Mask="true">1234</Config>
+    Mask="false"></Config>
+
+  <Config
+    Name="Důvěřovat Cloudflare IP"
+    Target="TRUST_CLOUDFLARE_PROXY"
+    Default="false"
+    Mode=""
+    Description="Zapněte jen pokud přímý port není z internetu dostupný a veškerý provoz jde přes Cloudflare."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">false</Config>
 
 </Container>

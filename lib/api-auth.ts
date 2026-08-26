@@ -1,8 +1,18 @@
+import { isIP } from "node:net";
 import { AuthError } from "./auth/errors";
 import { requireAdmin, requireAdminWithPin } from "./auth/guards";
 
 export function getClientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  return getClientIpFromHeaders(req.headers);
+}
+
+export function getClientIpFromHeaders(headers: Pick<Headers, "get">): string {
+  // Bez výslovně potvrzeného a síťově uzavřeného Cloudflare ingressu je každá
+  // forwarded hlavička vstup útočníka. Sdílený klíč je přísnější, ale nejde
+  // obejít pouhým střídáním X-Forwarded-For.
+  if (process.env.TRUST_CLOUDFLARE_PROXY !== "true") return "untrusted";
+  const candidate = headers.get("cf-connecting-ip")?.trim() ?? "";
+  return isIP(candidate) ? candidate : "untrusted";
 }
 
 function deniedResponse(error: unknown): Response {

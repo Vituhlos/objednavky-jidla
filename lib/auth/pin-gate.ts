@@ -75,7 +75,12 @@ export function verifyPinProof(
   }
 
   if (received.length !== 32) return false;
-  const expected = signature(parts[0]);
+  let expected: Buffer;
+  try {
+    expected = signature(parts[0]);
+  } catch {
+    return false;
+  }
   if (!timingSafeEqual(expected, received)) return false;
 
   if (
