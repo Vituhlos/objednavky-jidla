@@ -36,6 +36,13 @@ interface RegistrationInput {
 
 class UserInputError extends Error {}
 
+export class GoogleLinkRequiredError extends Error {
+  constructor() {
+    super("Účet už existuje. Propojení s Googlem potvrďte heslem.");
+    this.name = "GoogleLinkRequiredError";
+  }
+}
+
 const SELECT_USER = `
   SELECT
     id,
@@ -268,7 +275,7 @@ export function createUserFromGoogle(input: {
   }
 
   if (db.prepare("SELECT 1 FROM users WHERE email_normalized = ?").get(normalized.emailNormalized)) {
-    throw new Error("Účet už existuje. Propojení s Googlem potvrďte heslem.");
+    throw new GoogleLinkRequiredError();
   }
 
   try {

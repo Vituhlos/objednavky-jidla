@@ -23,6 +23,8 @@ const users = await lib("auth/users");
 const sessions = await lib("auth/sessions");
 const guards = await lib("auth/guards");
 const { AuthError } = await lib("auth/errors");
+const settings = await lib("settings");
+const oauth = await lib("auth/oauth");
 const db = getDb();
 
 const AUTH_TABLES = [
@@ -132,6 +134,65 @@ test("token má 256 bitů náhody a v databázi použitelný jen otisk", () => {
   assert.notEqual(first.token, first.hash);
   assert.notEqual(first.token, second.token);
   assert.notEqual(first.hash, second.hash);
+});
+
+test("Google nastavení bere databázi před prostředím", () => {
+  process.env.GOOGLE_CLIENT_ID = "env-client";
+  process.env.GOOGLE_CLIENT_SECRET = "env-secret";
+  assert.equal(oauth.isGoogleConfigured(), true);
+
+  settings.saveSettings({
+    googleClientId: "db-client",
+    googleClientSecret: "db-secret",
+  });
+  delete process.env.GOOGLE_CLIENT_ID;
+  delete process.env.GOOGLE_CLIENT_SECRET;
+
+  const configured = settings.getSettings();
+  assert.equal(configured.googleClientId, "db-client");
+  assert.equal(configured.googleClientSecret, "db-secret");
+  assert.equal(oauth.isGoogleConfigured(), true);
+});
+
+test("OAuth cookie je krátkodobá, podepsaná a odolná proti změně", () => {
+  const checks = {
+    state: "s".repeat(43),
+    nonce: "n".repeat(43),
+    codeVerifier: "v".repeat(43),
+    redirectUri: "http://localhost:3000/api/auth/google/callback",
+  };
+  const sealed = oauth.sealGoogleFlowCookie(checks);
+  assert.deepEqual(oauth.readGoogleFlowCookie(sealed), checks);
+
+  const last = sealed.at(-1);
+  const tampered = `${sealed.slice(0, -1)}${last === "A" ? "B" : "A"}`;
+  assert.equal(oauth.readGoogleFlowCookie(tampered), null);
+  assert.equal(oauth.readGoogleFlowCookie("neplatna-cookie"), null);
+});
+
+test("čekající propojení Google neodhaluje data bez platného podpisu", () => {
+  const pending = {
+    email: "jana@example.cz",
+    subject: "google-subject-123",
+    name: "Jana Nováková",
+  };
+  const sealed = oauth.sealPendingGoogleLink(pending);
+  assert.deepEqual(oauth.readPendingGoogleLink(sealed), pending);
+  assert.equal(oauth.readPendingGoogleLink(`${sealed}x`), null);
+});
+
+test("záloha neobsahuje auth tabulky a filtruje Google secret", () => {
+  const source = fs.readFileSync("app/api/backup/route.ts", "utf8");
+  for (const table of [
+    "users",
+    "user_identities",
+    "sessions",
+    "login_tokens",
+    "guest_invites",
+  ]) {
+    assert.doesNotMatch(source, new RegExp(`SELECT[^;]+\\b${table}\\b`, "i"));
+  }
+  assert.match(source, /"googleClientSecret"/);
 });
 
 let passwordAccount;

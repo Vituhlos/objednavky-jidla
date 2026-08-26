@@ -14,6 +14,7 @@ const SENSITIVE_KEYS = new Set([
   "settingsPin",
   "vapidPrivateKey",
   "telegramBotToken",
+  "googleClientSecret",
   "telegramWebhookSecret",
 ]);
 
