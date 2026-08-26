@@ -14,6 +14,8 @@ process.env.DB_PATH = path.join(dataDir, "test.db");
 const lib = loadLib();
 const { getDb } = await lib("db");
 const { migrateAuth } = await lib("auth/schema");
+const password = await lib("auth/password");
+const tokens = await lib("auth/tokens");
 const db = getDb();
 
 const AUTH_TABLES = [
@@ -73,4 +75,54 @@ test("databáze odmítne neznámou roli a účel tokenu", () => {
         .run("x@example.cz", "x@example.cz", "X", "owner"),
     /CHECK constraint/
   );
+});
+
+test("heslo kratší než 12 znaků neprojde", () => {
+  assert.deepEqual(password.checkPasswordStrength("krátké123"), {
+    ok: false,
+    reason: "Heslo musí mít alespoň 12 znaků.",
+  });
+  assert.throws(() => password.hashPassword("krátké123"), /alespoň 12 znaků/);
+});
+
+test("dvanáct znaků stačí bez umělých požadavků na složitost", () => {
+  assert.deepEqual(password.checkPasswordStrength("dlouheheslo!"), { ok: true });
+});
+
+test("stejné heslo má pokaždé jiný otisk a oba se ověří", () => {
+  const plain = "správně dlouhé heslo";
+  const first = password.hashPassword(plain);
+  const second = password.hashPassword(plain);
+
+  assert.notEqual(first, second, "každý účet musí dostat náhodnou sůl");
+  assert.match(first, /^scrypt\$17\$8\$1\$[^$]+\$[^$]+$/);
+  assert.equal(password.verifyPassword(plain, first), true);
+  assert.equal(password.verifyPassword("jiné dlouhé heslo", first), false);
+});
+
+test("poškozený nebo cizí formát hesla nikdy nevyhodí výjimku", () => {
+  const malformed = [
+    "",
+    "sha256$17$8$1$sůl$otisk",
+    "scrypt$99$8$1$AAAA$AAAA",
+    "scrypt$17$8$1$neplatná-base64$AAAA",
+    "scrypt$17$8$1$AAAA$AAAA",
+  ];
+
+  for (const stored of malformed) {
+    assert.doesNotThrow(() => password.verifyPassword("správně dlouhé heslo", stored));
+    assert.equal(password.verifyPassword("správně dlouhé heslo", stored), false);
+  }
+});
+
+test("token má 256 bitů náhody a v databázi použitelný jen otisk", () => {
+  const first = tokens.newToken();
+  const second = tokens.newToken();
+
+  assert.match(first.token, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(first.hash, /^[a-f0-9]{64}$/);
+  assert.equal(tokens.hashToken(first.token), first.hash);
+  assert.notEqual(first.token, first.hash);
+  assert.notEqual(first.token, second.token);
+  assert.notEqual(first.hash, second.hash);
 });
