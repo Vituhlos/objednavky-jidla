@@ -169,7 +169,9 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - `sendOrder(id, email, "auto")` → loguje `auto_send`
 
 ### Nastavení a PIN
-- Stránka `/nastaveni` chráněna PINem (SHA-256 hash, plain fallback pro první spuštění)
+- Stránka `/nastaveni` vyžaduje aktivní admin session a 30minutový PIN step-up
+- PIN ověřuje jen rate-limitovaná `actionCheckPin`; citlivé akce přijímají HttpOnly proof cookie
+- Známý výchozí PIN neexistuje; nový PIN musí mít 8 až 128 znaků
 - DB hodnoty mají přednost před env proměnnými
 - Správa oddělení: soft delete (`active=0`); nelze smazat dept s dnešními draft objednávkami
 - Smazané oddělení zůstane viditelné v historii — `getOrderData()` doplní přes `getDepartmentByName()`
@@ -228,7 +230,7 @@ Všechna pole jsou string (čísla jako "30", bool jako "true"/"false").
 smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpReplyTo, smtpSecure
 orderEmailTo      — výchozí příjemce; env ORDER_EMAIL_TO
 cutoffTime        — "HH:MM", výchozí "08:00"
-settingsPin       — SHA-256 hash; env SETTINGS_PIN / výchozí "1234"
+settingsPin       — SHA-256 hash; povinný env SETTINGS_PIN nebo hodnota uložená správcem
 defaultSoupPrice  — "30"
 defaultMealPrice  — "110"
 priceRoll/BreadDumpling/PotatoDumpling/Ketchup/Tatarka/Bbq — ceny příloh
@@ -242,10 +244,10 @@ autoSendMinOrders — "1"
 
 ## Důležité detaily
 
-- Bez autentizace — pouze PIN pro Nastavení
+- Veřejné jsou jen čtení a explicitní vstupy do autentizace; všechny zápisy hlídá backendový guard
 - SQLite soubor: `DB_PATH` env nebo `./data/stros.db` — nutno mountovat jako Docker volume
 - Timezone: vše v `Europe/Prague`; server může být UTC
-- Rate limiting: klíč = IP adresa
+- Auth rate limiting: hash identity + globální rozpočet; IP jen z důvěryhodného Cloudflare ingressu
 - PDF název souboru: slug z názvu oddělení (NFD normalizace, diakritika → ASCII)
 - `computeRowPrice()` běží optimisticky na klientovi i autoritativně na serveru
 - Objednávka se vytvoří automaticky při prvním `getTodayOrderData()` daného dne

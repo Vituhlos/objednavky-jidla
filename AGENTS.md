@@ -19,7 +19,7 @@ Kantýna je single-service Next.js 16 aplikace (App Router, React 19, TypeScript
 - `better-sqlite3` je nativní modul — vyžaduje `python3`, `make`, `gcc` pro kompilaci. Tyto nástroje jsou v Cloud VM přítomny.
 - Scheduler (node-cron) se spouští automaticky přes `instrumentation.ts` při startu Node.js procesu. Všechny funkce (auto-send, IMAP, push notifikace, Telegram) jsou ve výchozím stavu vypnuté.
 - SMTP, IMAP, Telegram a Web Push jsou volitelné služby — aplikace funguje plně i bez nich.
-- Nastavení se konfiguruje přes UI na `/nastaveni` (výchozí PIN: `1234`).
+- Nastavení se konfiguruje přes UI na `/nastaveni`; `SETTINGS_PIN` nemá bezpečnou výchozí hodnotu.
 - Viz `README.md` pro přehled env proměnných a `CLAUDE.md` pro detailní kontext kódu.
 
 ### Release a verzování

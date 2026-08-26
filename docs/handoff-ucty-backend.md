@@ -261,9 +261,11 @@ Pravidla, která z toho nesmí vypadnout:
 
 - **R3 — strávník vzniká automaticky.** Založení účtu vždy vytvoří i řádek
   v `people` a vazbu v `user_people`. Nikdo nesmí skončit přihlášený bez strávníka.
-- **`claimPersonId` ověřuj na serveru.** Klient pošle „to jsem já, jsem
-  strávník #42". Než ho napojíš, sám si ověř `!hasAccount(42)` z `lib/people.ts`
-  (R4). Klientovi nevěř — jinak si kdokoli přivlastní cizí historii.
+- **Veřejný `claimPersonId` je po bezpečnostní revizi zakázaný.** Jméno,
+  oddělení ani veřejné ID nejsou důkaz identity a převzetí by rovnou předalo
+  právo měnit existující objednávky. Registrace vždy založí nového strávníka;
+  případnou historii sloučí správce přes chráněnou správu lidí. Volitelné pole
+  zůstává v signatuře kvůli kompatibilitě, ale backend je konzervativně odmítne.
 - **R10 — smazání účtu strávníka nemaže.** `deleteUser` smaže `users` (kaskáda
   vezme identity, sezení, pozvánky), ale strávníka jen označí `active = 0`.
   Historie a součty za minulé měsíce musí zůstat sedět.
@@ -477,7 +479,8 @@ Musí projít aspoň tohle:
 **Účty**
 - registrace založí i strávníka a vazbu `user_people` (R3)
 - druhá registrace téhož e-mailu jiným zápisem velikosti písmen neprojde
-- `claimPersonId` na strávníka, který **už má účet**, se odmítne (R4)
+- libovolný veřejný `claimPersonId`, včetně osiřelého strávníka, se odmítne;
+  historii může přiřadit až správce
 - smazání účtu nechá strávníka i jeho objednávky, jen ho zneaktivní (R10)
 - Google login na e-mail s heslem a bez navázané identity **nepřihlásí** (R6)
 - po spárování rozhoduje `subject` — změna e-mailu u Googlu přihlášení nerozbije
@@ -565,11 +568,13 @@ interface AuthUser {
 ```
 
 - `createUserWithPassword(input: { email: string; name: string; password: string; departmentId: number | null; claimPersonId?: number }): { userId: number; personId: number }`
-  — atomicky založí heslový účet a jeho strávníka, nebo bezpečně převezme sirotka
-  z historie; po úspěchu zavolej `sendVerificationEmail`.
+  — atomicky založí heslový účet a nového strávníka; veřejný `claimPersonId`
+  odmítne, protože bezpečné převzetí historie vyžaduje schválení správce;
+  po úspěchu zavolej `sendVerificationEmail`.
 - `createUserFromGoogle(input: { email: string; name: string; subject: string; departmentId: number | null; claimPersonId?: number }): { userId: number; personId: number }`
-  — založí/rozpozná Google účet podle `subject`; při pouhé shodě e-mailu vyhodí
-  `GoogleLinkRequiredError`, nikdy účty nespojí automaticky.
+  — založí/rozpozná Google účet podle `subject`, veřejný `claimPersonId` odmítne;
+  při pouhé shodě e-mailu vyhodí `GoogleLinkRequiredError`, nikdy účty nespojí
+  automaticky.
 - `getUserByEmail(email: string): AuthUser | null`, `getUserById(id: number): AuthUser | null`
   a `listUsers(): AuthUser[]` — vracejí pouze bezpečné DTO bez hesel a tokenů.
 - `authenticateWithPassword(email: string, plain: string): AuthUser | null` — ověří
@@ -619,20 +624,52 @@ interface SessionRow {
   otisků; `pruneExpiredSessions(): void` odstraní prošlá.
 - `isBlockedSessionToken(token: string): boolean` — interně pomáhá guardu odlišit
   zablokovaný účet od nepřihlášeného, ale nikdy nevrací platné sezení.
-- `getSession(): Promise<SessionInfo | null>`, `requireSession(): Promise<SessionInfo>`
-  a `requireAdmin(): Promise<SessionInfo>` (`lib/auth/guards.ts`) — čtou
-  `kantyna_session`; povinné varianty vyhazují `AuthError`.
+- `getSession(): Promise<SessionInfo | null>`, `requireSession(): Promise<SessionInfo>`,
+  `requireAdmin(): Promise<SessionInfo>` a `requireAdminWithPin(): Promise<SessionInfo>`
+  (`lib/auth/guards.ts`) — čtou
+  `kantyna_session`; povinné varianty vyhazují `AuthError`. `requireSession`
+  navíc odmítne provoz bez aktivního správce, takže veřejná registrace sama
+  nikdy neotevře objednávkové zápisy; obnova je jen přes bootstrap z prostředí.
 - `assertCanEditRow(s: SessionInfo, rowId: number): Promise<void>` — pustí správce
   nebo vlastníka `order_rows.person_id`, neznámý řádek vždy odmítne.
 - `assertCanActAsPerson(s: SessionInfo, personId: number): Promise<void>` — pustí
   správce nebo uživatele s daným `personId` ve svém sezení.
-- `AuthError` a `AuthErrorCode = "NEPRIHLASEN" | "BLOKOVAN" | "CIZI_ZAZNAM" | "JEN_SPRAVCE"`
+- `AuthError` a `AuthErrorCode = "NEPRIHLASEN" | "BLOKOVAN" | "CIZI_ZAZNAM" | "JEN_SPRAVCE" | "VYZADOVAN_PIN"`
   (`lib/auth/errors.ts`) — dávají UI stabilní kód a českou uživatelskou hlášku.
 
-Přihlášení heslem: před pokusem zkontroluj IP přes `isRateLimited`, zavolej
-`authenticateWithPassword`, pouze při `null` započítej neúspěch přes
-`checkRateLimit`, po úspěchu vytvoř sezení a cookie nastav pomocí
+Přihlášení heslem: použij vrstvený limit na hash normalizovaného e-mailu,
+globální rozpočet a pouze u ověřeného Cloudflare ingressu i canonical IP.
+Po úspěchu vytvoř sezení a cookie nastav pomocí
 `getSessionCookieOptions`. Při odhlášení zavolej `revokeSession` a cookie smaž.
+
+### Bezpečnostní integrace pro UI
+
+- `issuePinProof(session: SessionInfo, now?: number): string` a
+  `verifyPinProof(value: string | undefined, session: SessionInfo, now?: number): boolean`
+  (`lib/auth/pin-gate.ts`) — vystaví a ověří 30minutový PIN step-up vázaný na
+  konkrétní admin session; `PIN_COOKIE` a `pinCookieOptions()` slouží pro HttpOnly cookie.
+- PIN ověřuje pouze rate-limitovaná `actionCheckPin`. Všechny další citlivé
+  operace, včetně odemknutí uzávěrky a uložení Nastavení, přijímají jen admin
+  session s platným HttpOnly step-up dokladem; raw PIN argument není autorita.
+  UI proto nejprve volá `actionCheckPin` a teprve po úspěchu cílovou akci. PIN
+  pole musí přijmout 8 až 128 libovolných znaků, ne jen osm číslic.
+- `getSettingsForClient(): AppSettings` (`lib/settings.ts`) — vrátí klientský
+  objekt s maskovanými tajemstvími a bez PINu; tajemství jsou write-only.
+- `sanitizeClientSettingsUpdates(updates: Partial<AppSettings>): Partial<AppSettings>`
+  — zahodí maskované/prázdné secrety a vynutí nový PIN o délce 8 až 128 znaků.
+- `assertMayEditRow(session, rowId)` a `assertMayEditPizzaRow(session, rowId)`
+  (`lib/auth/policy.ts`) — vynutí vlastnictví obědového i pizza řádku; NULL
+  vlastník je jen pro správce.
+- `resolveOwnPerson(session, personName): { personId: number; name: string } | null`
+  — převede jméno výhradně na přesné `personId` z dané session, ne globálním
+  hledáním podle textu.
+- `safeInternalPath(raw): string` (`lib/auth/navigation.ts`) — vrátí pouze
+  bezpečnou interní návratovou cestu; odmítá i backslash varianty otevřeného redirectu.
+- `getCanonicalAppOrigin(): string` (`lib/auth/app-url.ts`) — vrátí čistý
+  kanonický HTTPS origin z `APP_URL`/nastavení bez důvěry v Host hlavičku.
+- `getClientIpFromHeaders(headers): string` (`lib/api-auth.ts`) — přijme
+  `CF-Connecting-IP` jen při `TRUST_CLOUDFLARE_PROXY=true`, jinak vrací sdílený
+  nedůvěryhodný subjekt a X-Forwarded-For ignoruje.
 
 ### Google (`lib/auth/oauth.ts` a route handlery)
 

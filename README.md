@@ -108,7 +108,11 @@ docker run -d \
   -e SMTP_USER=vas@email.cz \
   -e SMTP_PASS=heslo \
   -e ORDER_EMAIL_TO=prijemce@firma.cz \
-  -e SETTINGS_PIN=1234 \
+  -e ADMIN_EMAIL=spravce@firma.cz \
+  -e ADMIN_PASSWORD='dlouhe-jednorazove-heslo' \
+  -e COOKIE_SIGNING_SECRET='nahodny-secret-alespon-32-bajtu' \
+  -e SETTINGS_PIN='unikatni-dlouhy-pin' \
+  -e APP_URL=https://obedy.example.com \
   ghcr.io/vituhlos/objednavky-jidla:stable
 ```
 
@@ -129,7 +133,11 @@ services:
       SMTP_USER: vas@email.cz
       SMTP_PASS: heslo
       ORDER_EMAIL_TO: prijemce@firma.cz
-      SETTINGS_PIN: 1234
+      ADMIN_EMAIL: spravce@firma.cz
+      ADMIN_PASSWORD: "dlouhe-jednorazove-heslo"
+      COOKIE_SIGNING_SECRET: "nahodny-secret-alespon-32-bajtu"
+      SETTINGS_PIN: "unikatni-dlouhy-pin"
+      APP_URL: https://obedy.example.com
 ```
 
 Aplikace poběží na `http://localhost:3000`. SQLite databáze se vytvoří automaticky v namountovaném `/app/data`.
@@ -149,10 +157,15 @@ Pro běžné produkční nasazení na Unraidu používejte tag `:stable`. Při a
 | `SMTP_FROM` | Odesílatel (From) | = SMTP_USER |
 | `SMTP_SECURE` | Použít TLS | `false` |
 | `ORDER_EMAIL_TO` | Výchozí příjemce objednávky | — |
-| `SETTINGS_PIN` | PIN pro stránku Nastavení | `1234` |
+| `ADMIN_EMAIL` | E-mail prvního nebo nouzově obnoveného správce | povinné pro první spuštění |
+| `ADMIN_PASSWORD` | Bootstrapovací heslo správce, minimálně 12 znaků | povinné pro první spuštění |
+| `COOKIE_SIGNING_SECRET` | Nezávislý podpisový secret, minimálně 32 bajtů | povinné |
+| `SETTINGS_PIN` | Druhý krok pro citlivou správu | povinné, bez výchozí hodnoty |
+| `APP_URL` | Kanonická veřejná HTTPS adresa | povinné pro odkazy, Google a webhook |
+| `TRUST_CLOUDFLARE_PROXY` | Důvěřovat `CF-Connecting-IP`; jen při síťově uzavřeném originu | `false` |
 | `DB_PATH` | Cesta k SQLite souboru | `/app/data/stros.db` |
 
-> Nastavení lze měnit také přímo v aplikaci přes `/nastaveni` (chráněno PINem). Hodnoty uložené v aplikaci mají přednost před env proměnnými.
+> Nastavení lze měnit také přímo v aplikaci přes `/nastaveni` (správce + PIN). Hodnoty uložené v aplikaci mají přednost před env proměnnými.
 
 ---
 

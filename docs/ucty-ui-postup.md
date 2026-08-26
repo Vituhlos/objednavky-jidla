@@ -53,34 +53,15 @@ je to nejužitečnější část dokumentu.
 
 ### 1. Předúčtový režim — `lib/auth/policy.ts`
 
-Dokud v databázi není žádný **aktivní správce**, guardy mlčí a aplikace se chová
-jako před účty.
-
-**Proč:** bez toho by nasazení bez nastavených `ADMIN_EMAIL` a `ADMIN_PASSWORD`
-zamklo objednávky i Nastavení a dovnitř by se nedostal nikdo. Aplikace běží
-v produkci; upgrade ji nesmí zabít.
-
-**Proč to nejsou zadní vrátka:** přechod je jednosměrný. `setUserStatus`,
-`setUserRole` i `deleteUser` odmítají odebrat posledního aktivního správce, takže
-stav „žádný správce" už nikdy nenastane. Výsledek se proto memoizuje.
-
-**Co prověřit:** je ta jednosměrnost opravdu úplná? Existuje cesta, jak přijít
-o posledního správce (přímý zásah do databáze, obnova ze zálohy)? Pokud ano,
-memoizace by fail-closed držela zamčeno až do restartu — což je bezpečný směr,
-ale aplikaci by to zablokovalo.
+Po bezpečnostní revizi byl předúčtový režim odstraněn. Bez aktivního správce jsou
+všechny provozní a objednávkové zápisy fail-closed; veřejná registrace může
+založit účet, ale jeho session nezíská právo zapisovat. Obnovu správce řeší pouze
+`ADMIN_EMAIL` + `ADMIN_PASSWORD` při restartu, nikdy veřejná HTTP výjimka.
 
 ### 2. Nepřivlastněný řádek — `assertMayEditRow`
 
-Řádek s `person_id IS NULL` smí upravit **kdokoli přihlášený**.
-
-**Proč:** nový řádek vzniká prázdný a strávníka dostane až vyplněním jména.
-`assertCanEditRow` z backendu ho odmítá, takže by ho nemohl upravit ani ten, kdo
-si ho právě založil — objednat by nešlo vůbec.
-
-**Co prověřit:** je to přijatelné? Přihlášený kolega může vyplnit cizí prázdný
-řádek — ale jen **vlastním jménem** (`assertNameIsOwn`), takže si ho tím
-přivlastní. Škoda je nulová, ale je to výjimka z „zamítni ve výchozím stavu"
-a stojí za druhý pohled.
+Nový obědový i pizza řádek dostane `person_id` atomicky už při INSERTu. NULL je
+historický nebo poškozený stav a smí jej upravit jen správce.
 
 ### 3. Jméno v řádku už není volný text — `assertNameIsOwn`
 
@@ -107,41 +88,25 @@ opakování nikdy nepomohlo.
 u server actions. Recenzent by měl ověřit, že žádná kontrola nestojí jen na
 skrytém prvku — k tomu slouží `tools/actions-guard.test.mjs`.
 
-### 5. Správa účtů obchází předúčtový režim
+### 5. Správa účtů vyžaduje step-up
 
-Akce v `app/actions.ts` pod hlavičkou „Účty (administrace)" se drží
-`requireAdmin()`, ne `guardAdmin()`.
+Všechny akce správy účtů používají `requireAdminWithPin()`. Ukradené nebo
+zapomenuté admin sezení samo nestačí ke změně role, blokaci ani reset odkazu.
 
-**Proč:** kdyby platil předúčtový režim, mohl by se v databázi bez správce
-kdokoli povýšit na správce — a tím z toho režimu natrvalo vystoupit. To je
-jediná skupina akcí, která z něj umí vystoupit, takže musí být výjimkou.
+### 6. PIN je druhý krok po správcovské session
 
-**Co prověřit:** je výčet úplný? Existuje jiná akce, která umí změnit roli
-nebo založit správce a je zajištěná jen `guardAdmin()`?
+`actionCheckPin` nejprve vyžádá správce. Vydaný HttpOnly/SameSite=Strict doklad
+platí 30 minut jen pro konkrétní `sessionId` a `userId`; změna PINu jej okamžitě
+zneplatní. Podpis vyžaduje nezávislý `COOKIE_SIGNING_SECRET` alespoň 32 bajtů.
+Známý výchozí PIN neexistuje a nový musí mít 8 až 128 znaků.
+Raw PIN ověřuje výhradně rate-limitovaná `actionCheckPin`; odemknutí uzávěrky
+i uložení Nastavení už vyžadují vystavený step-up doklad.
 
-### 6. PIN zůstává zadními vrátky do Nastavení — **vědomá odchylka od R12**
-
-Správný PIN otevře Nastavení i bez přihlášení. R12 přitom říkalo, že PIN má
-být až druhým krokem, ne obchvatem účtů.
-
-**Proč přesto:** kdyby se přihlašování rozbilo, je to jediná cesta zpět — a bez
-Nastavení nejde spravit ani SMTP, přes které se obnovuje heslo. Bez vrátek by
-šla aplikace zamknout tak, že by nešla odemknout. Rozhodnutí majitele, dočasné
-na dobu zkoušení.
-
-**Jak to funguje:** správný PIN vydá krátkodobý podepsaný doklad (30 minut,
-HttpOnly), který `guardAdmin()` uznává vedle správcovského sezení. Není to
-sezení — nenese uživatele a mimo Nastavení neplatí.
-
-**Co prověřit — tohle je nejrizikovější místo celé větve:**
-
-- Čtyřmístný PIN při pěti pokusech za deset minut vydrží ~14 dní hádání.
-  Kdo se dostane do Nastavení, stáhne si `/api/backup` s celou databází.
-  **Doporučení: před nasazením změnit PIN z výchozího `1234` a prodloužit ho.**
-- Neměl by limit být přísnější, když už PIN otevírá víc než dřív?
-- Stálo by za to zapnout vrátka jen při chybějícím správci, ne trvale?
-- Vstup mimo správcovský účet se zapisuje jako `settings_pin_bypass` — sleduje
-  to někdo?
+**Nutná UI integrace:** `useCutoffUnlock` dnes volá rovnou
+`actionUnlockCutoff(rawPin)`. Nově musí nejprve zavolat `actionCheckPin`, a až po
+úspěchu `actionUnlockCutoff`; jeho starý argument se kvůli kompatibilitě ignoruje.
+`PinGate` ani `SecuritySection` také nesmí omezovat PIN na osm číslic. Platný PIN
+má 8 až 128 libovolných znaků a pole musí dovolit stejný rozsah jako backend.
 
 ### 7. Jméno v řádku je pro nesprávce výběr
 
@@ -157,17 +122,14 @@ Aktivní host má vlastní účet, takže se v seznamu hostitele **neobjeví** �
 objednává si sám. Pasivní host (člověk bez účtu, za kterého objednává někdo
 jiný) zatím nejde založit — viz známá omezení.
 
-### 8. Rozpočet pokusů u registrace
+### 8. Rozpočet pokusů a převzetí historie
 
-15 registrací za hodinu na IP, odečítá se **až skutečně založený účet**.
+Veřejné auth vstupy mají vrstvený limit na hash identity, globální rozpočet
+a volitelně důvěryhodnou Cloudflare IP. `X-Forwarded-For` se ignoruje.
 
-**Proč:** kolegové v kanceláři sdílejí jednu veřejnou IP. Přísnější číslo by
-zablokovalo tým, ne bota — ten dělá stovky pokusů. Mezikrok „nejsi to ty?"
-žádný účet nezakládá, takže nemá co odečítat.
-
-**Co prověřit:** je 15/hod správně? A je v pořádku, že mezikrok je nelimitovaný
-(chráněný jen `isRateLimited`)? Je to oracle na jména strávníků — ta jsou ale
-veřejná na objednávkové stránce, takže se nic nového neprozrazuje.
+Veřejné převzetí historie přes `claimPersonId` je zakázané. Jméno, oddělení ani
+veřejné ID nejsou důkaz identity; registrace založí nového strávníka a případné
+sloučení provede správce přes PINem chráněnou správu lidí.
 
 ---
 
@@ -216,7 +178,7 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | `182e50e` | přihlášení, odhlášení, `AccountView` v navigaci |
 | `3fe6019` | režim jen pro čtení na stránce objednávky |
 | `15a89d3` | role na jídelníčku, pizze a v nastavení |
-| `0805e74` | registrace s převzetím historie + ověření e-mailu |
+| `0805e74` | původní registrace s převzetím historie + ověření e-mailu; přímé převzetí následná bezpečnostní revize zakázala |
 | `0970de3` | oprava statického testu po přibytí registrace |
 | `8a69030` | obnova a změna hesla |
 | `c6f3a37` | přihlášená zařízení |
@@ -237,12 +199,12 @@ z objednávky odloženy, 16 řádků objednávek a 8 strávníků nedotčeno.
 | Kategorie | Počet | Příklad |
 |---|---|---|
 | Veřejné čtení | 3 | `actionGetDepartments` |
-| Veřejný vstup (přihlášení, registrace, obnova, PIN) | 8 | `actionLogin`, `actionCheckPin` |
-| Jen správce | ~43 | `actionSendOrder`, `actionSaveSettings` |
-| Přihlášený | ~10 | pizza řádky, sezení, pozvánky |
-| Vlastnictví | 3 | řádky objednávky |
+| Veřejný vstup (přihlášení, registrace, obnova) | 7 | `actionLogin`, `actionRegisterGuest` |
+| Správce | 14 | provozní správa + `actionCheckPin` |
+| Správce + PIN | 30 | Nastavení, integrace, lidé, účty a odemknutí uzávěrky |
+| Přihlášený + vlastnictví | 13 | obědové/pizza řádky, sezení, pozvánky |
 
-Veřejných je v testu 11 (3 čtení + 8 vstupů). **Každá z nich má v testu
+Veřejných je v testu 10 (3 čtení + 7 vstupů). **Každá z nich má v testu
 komentář, proč tam je — to je místo, které stojí za nejpřísnější pohled.**
 
 Seznam veřejných je v `tools/actions-guard.test.mjs` a doplnit se do něj dá jen
@@ -253,9 +215,9 @@ skutečně selhal a jmenoval ji.
 
 ## Známá omezení
 
-1. **Pizza řádky nemají vlastnictví.** `pizza_order_rows` nemají `person_id`,
-   jen `person_name`. Vynutit jde tedy jen přihlášení, ne „jen svoje". Náprava
-   by chtěla migraci schématu.
+1. **Staré pizza řádky mohou zůstat bez vlastníka.** Migrace přidala
+   `pizza_order_rows.person_id`; řádek, který nelze bezpečně přiřadit, smí měnit
+   jen správce. Nové řádky vznikají s vlastníkem atomicky.
 2. **Odhlášení jednoho konkrétního zařízení** není v UI. Backend umí zrušit
    sezení podle tokenu nebo všechna kromě aktuálního; podle id neumí. Nabízí se
    proto „odhlásit ostatní zařízení".
