@@ -1,4 +1,57 @@
 import type Database from "better-sqlite3";
+import { hashPassword } from "./password";
+
+function bootstrapFirstAdmin(db: Database.Database): void {
+  const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get();
+  if (adminExists) return;
+
+  const email = process.env.ADMIN_EMAIL?.trim() ?? "";
+  const password = process.env.ADMIN_PASSWORD ?? "";
+  if (!email || !password) return;
+
+  const emailNormalized = email.toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("ADMIN_EMAIL nemá platný formát e-mailové adresy.");
+  }
+
+  // Výpočet proběhne až po ověření, že správce chybí, aby každý start neplatil
+  // cenu scryptu a hlavně nikdy znovu nepřepsal již změněné heslo.
+  const passwordHash = hashPassword(password);
+
+  db.transaction(() => {
+    if (db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get()) return;
+    if (db.prepare("SELECT 1 FROM users WHERE email_normalized = ?").get(emailNormalized)) {
+      throw new Error("ADMIN_EMAIL už používá účet bez role správce.");
+    }
+
+    const name = process.env.ADMIN_NAME?.trim() || "Správce";
+    const userId = Number(
+      db
+        .prepare(
+          "INSERT INTO users (email, email_normalized, email_verified_at, password_hash, name, role) VALUES (?, ?, datetime('now'), ?, ?, 'admin')"
+        )
+        .run(email, emailNormalized, passwordHash, name).lastInsertRowid
+    );
+    const personId = Number(
+      db.prepare("INSERT INTO people (name, department_id) VALUES (?, NULL)").run(name)
+        .lastInsertRowid
+    );
+    db.prepare("INSERT INTO user_people (user_id, person_id) VALUES (?, ?)").run(
+      userId,
+      personId
+    );
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(
+      "auth_bootstrap_user_id",
+      String(userId)
+    );
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, '1')").run(
+      "auth_bootstrap_password_unchanged"
+    );
+    db.prepare(
+      "INSERT INTO audit_log (action, person_name, details) VALUES ('user_register', ?, ?)"
+    ).run(name, `bootstrap správce #${userId}`);
+  })();
+}
 
 export function migrateAuth(db: Database.Database): void {
   db.exec(`
@@ -65,5 +118,8 @@ export function migrateAuth(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_login_tokens_user_id ON login_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_guest_invites_inviter_user_id ON guest_invites(inviter_user_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_people_person_id ON user_people(person_id);
   `);
+
+  bootstrapFirstAdmin(db);
 }

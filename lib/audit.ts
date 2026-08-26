@@ -14,7 +14,22 @@ export type AuditAction =
   | "person_activate"
   | "person_deactivate"
   | "person_delete"
-  | "menu_imap_import";
+  | "menu_imap_import"
+  | "user_register"
+  | "user_login"
+  | "user_login_failed"
+  | "user_logout"
+  | "user_block"
+  | "user_unblock"
+  | "user_delete"
+  | "user_role_change"
+  | "password_change"
+  | "password_reset_request"
+  | "email_verify"
+  | "google_link"
+  | "invite_create"
+  | "invite_use"
+  | "invite_revoke";
 
 export interface AuditEntry {
   id: number;
