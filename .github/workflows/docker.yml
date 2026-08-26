@@ -6,6 +6,7 @@ on:
       - main
       - v2
       - v3
+      - feat/ucty-ui
     tags:
       - "v*.*.*"
   workflow_dispatch:
@@ -50,6 +51,8 @@ jobs:
           tags: |
             type=raw,value=v2-beta,enable=${{ github.ref == 'refs/heads/v2' }}
             type=raw,value=v3-beta,enable=${{ github.ref == 'refs/heads/v3' }}
+            type=raw,value=ucty-test,enable=${{ github.ref == 'refs/heads/feat/ucty-ui' }}
+            type=sha,prefix=ucty-test-,format=short,enable=${{ github.ref == 'refs/heads/feat/ucty-ui' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
             type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
@@ -76,6 +79,9 @@ jobs:
           elif [[ "$GITHUB_REF" == "refs/heads/v2" || "$GITHUB_REF" == "refs/heads/v3" ]]; then
             channel="beta"
             docker_tag="${GITHUB_REF_NAME}-beta"
+          elif [[ "$GITHUB_REF" == "refs/heads/feat/ucty-ui" ]]; then
+            channel="beta"
+            docker_tag="ucty-test-${GITHUB_SHA::7}"
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
