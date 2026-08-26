@@ -6,7 +6,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { createRequire } from "node:module";
 import { loadLib, startFakeSmtp } from "./test-helpers.mjs";
+
+// Staré schéma je potřeba založit dřív, než lib/db.ts databázi otevře a zmigruje.
+const LegacyDatabase = createRequire(import.meta.url)("better-sqlite3");
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "auth-"));
 process.env.DB_PATH = path.join(dataDir, "test.db");
@@ -681,4 +685,119 @@ test("ověřovací a obnovovací e-maily používají jednorázové otisky", asy
   } finally {
     await smtp.close();
   }
+});
+
+// ── Pozůstatky po starém pokusu o přihlašování ──────────────────────────────
+// Na větvích v2-auth vznikly tabulky `users` a `sessions` v jiném tvaru.
+// CREATE TABLE IF NOT EXISTS je tiše nechá být, takže první dotaz spadne na
+// chybějící sloupec — a protože sezení čte kořenový layout, spadne celá appka.
+
+test("migrace ustoupí tabulkám ze starého pokusu o přihlašování", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "auth-legacy-"));
+  const dbPath = path.join(dir, "legacy.db");
+
+  const raw = new LegacyDatabase(dbPath);
+  raw.exec(`
+    CREATE TABLE users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      email         TEXT    NOT NULL UNIQUE,
+      first_name    TEXT    NOT NULL,
+      last_name     TEXT    NOT NULL,
+      password_hash TEXT    NOT NULL,
+      role          TEXT    NOT NULL DEFAULT 'user',
+      active        INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE sessions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id),
+      token      TEXT    NOT NULL UNIQUE,
+      expires_at TEXT    NOT NULL
+    );
+    CREATE TABLE password_reset_tokens (
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token   TEXT    NOT NULL
+    );
+    INSERT INTO users (email, first_name, last_name, password_hash)
+      VALUES ('stary@example.cz', 'Starý', 'Pokus', 'x');
+    INSERT INTO sessions (user_id, token, expires_at)
+      VALUES (1, 'stary-token', '2030-01-01');
+  `);
+  raw.close();
+
+  process.env.DB_PATH = dbPath;
+  const lib2 = loadLib();
+  const { getDb: openDb } = await lib2("db");
+  const users2 = await lib2("auth/users");
+  const migrated = openDb();
+
+  assert.deepEqual(users2.listUsers(), [], "nad novým schématem musí dotaz projít");
+
+  const zalozene = migrated.prepare("SELECT COUNT(*) AS n FROM users_legacy_v2").get();
+  assert.equal(zalozene.n, 1, "data z opuštěného pokusu se odkládají, nemažou");
+
+  const sezeni = migrated.prepare("SELECT COUNT(*) AS n FROM sessions_legacy_v2").get();
+  assert.equal(sezeni.n, 1, "stará sezení taky");
+
+  // Nová migrace musí nad takovou databází umět i psát, nejen číst.
+  const zalozeny = users2.createUserWithPassword({
+    email: "novy@example.cz",
+    name: "Nový Uživatel",
+    password: "dostatecne-dlouhe-heslo",
+    departmentId: 1,
+  });
+  assert.ok(zalozeny.userId > 0, "nad uklizenou databází jde založit účet");
+});
+
+test("řádky objednávek přežijí úklid starých účtů", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "auth-legacy-rows-"));
+  const dbPath = path.join(dir, "legacy-rows.db");
+
+  // Starý pokus přidal do řádků objednávek user_id s vazbou na účty. Jeden
+  // vyplněný odkaz stačil, aby zahození starých účtů porazil cizí klíč — a
+  // tím se rozbila celá aplikace, ne jen přihlašování.
+  const raw = new LegacyDatabase(dbPath);
+  raw.exec(`
+    CREATE TABLE users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      password_hash TEXT NOT NULL
+    );
+    CREATE TABLE orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'draft'
+    );
+    CREATE TABLE order_rows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      department TEXT NOT NULL,
+      person_name TEXT NOT NULL DEFAULT '',
+      user_id INTEGER REFERENCES users(id)
+    );
+    INSERT INTO users (email, first_name, last_name, password_hash)
+      VALUES ('stary@example.cz', 'Starý', 'Pokus', 'x');
+    INSERT INTO orders (date) VALUES ('2026-08-20');
+    INSERT INTO order_rows (order_id, department, person_name, user_id)
+      VALUES (1, 'Konstrukce', 'Jana Nováková', 1);
+  `);
+  raw.close();
+
+  process.env.DB_PATH = dbPath;
+  const lib3 = loadLib();
+  const { getDb: openDb } = await lib3("db");
+  const migrated = openDb();
+
+  const radek = migrated
+    .prepare("SELECT person_name AS jmeno, user_id AS ucet FROM order_rows WHERE id = 1")
+    .get();
+  assert.equal(radek.jmeno, "Jana Nováková", "objednávka zůstala");
+  assert.equal(radek.ucet, null, "odkaz na opuštěný účet se uvolnil");
+
+  const mapa = migrated
+    .prepare("SELECT user_id AS ucet FROM order_rows_user_legacy_v2 WHERE id = 1")
+    .get();
+  assert.equal(mapa.ucet, 1, "dvojice se schovala stranou, aby šla dohledat");
 });

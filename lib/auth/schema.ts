@@ -53,7 +53,59 @@ function bootstrapFirstAdmin(db: Database.Database): void {
   })();
 }
 
+/**
+ * Odloží stranou tabulky z dřívějšího, nedokončeného pokusu o přihlašování.
+ *
+ * Na větvích `v2-auth-*` vznikly `users` a `sessions` v jiném tvaru. Protože
+ * se zakládá přes `CREATE TABLE IF NOT EXISTS`, migrace by je tiše nechala být
+ * a první dotaz by spadl na chybějící sloupec — a jelikož sezení čte kořenový
+ * layout, spadla by celá aplikace, ne jen přihlašování.
+ *
+ * Data se nemažou, jen se přesunou do `*_legacy_v2`. Kopie přes `CREATE TABLE
+ * AS SELECT` je schválně bez klíčů a omezení: díky tomu SQLite nepřepíše cizí
+ * klíče v ostatních tabulkách, jak by to udělal `ALTER TABLE RENAME`.
+ */
+function retireLegacyAuthTables(db: Database.Database): void {
+  const columns = (table: string) =>
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+
+  const users = columns("users");
+  if (users.length === 0 || users.includes("email_normalized")) return;
+
+  const retire = (table: string) => {
+    db.exec(`
+      DROP TABLE IF EXISTS ${table}_legacy_v2;
+      CREATE TABLE ${table}_legacy_v2 AS SELECT * FROM ${table};
+      DROP TABLE ${table};
+    `);
+  };
+
+  // Nejdřív všechno, co na `users` drží cizí klíč — jinak by zahození účtů
+  // ten klíč porušilo.
+  const sessions = columns("sessions");
+  if (sessions.length > 0 && !sessions.includes("token_hash")) retire("sessions");
+  if (columns("password_reset_tokens").length > 0) retire("password_reset_tokens");
+
+  // Starý pokus přidal do řádků objednávek `user_id` s vazbou na účty. Nová
+  // identita řádku je `person_id` (a `person_name` jako otisk), takže se
+  // hodnota uvolní — ale dvojice se schová stranou, aby šlo dohledat, kdo
+  // řádek kdysi založil.
+  for (const table of ["order_rows", "pizza_order_rows"]) {
+    if (!columns(table).includes("user_id")) continue;
+    db.exec(`
+      DROP TABLE IF EXISTS ${table}_user_legacy_v2;
+      CREATE TABLE ${table}_user_legacy_v2 AS
+        SELECT id, user_id FROM ${table} WHERE user_id IS NOT NULL;
+      UPDATE ${table} SET user_id = NULL WHERE user_id IS NOT NULL;
+    `);
+  }
+
+  retire("users");
+}
+
 export function migrateAuth(db: Database.Database): void {
+  retireLegacyAuthTables(db);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
