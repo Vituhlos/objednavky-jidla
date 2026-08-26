@@ -8,6 +8,7 @@ import {
   actionRenamePerson,
   actionSetPersonActive,
 } from "@/app/actions";
+import { formatCzechDate, pluralizeOrders } from "@/lib/format";
 import type { DuplicateGroup, Person } from "@/lib/people";
 import { ConfirmModal } from "../ConfirmModal";
 import MIcon from "../MIcon";
@@ -268,8 +269,8 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
                     </div>
                     <div className="text-[11px] text-stone-400">
                       {person.departmentName ?? "bez oddělení"}
-                      {person.orderCount > 0 && <> · {person.orderCount} objednávek</>}
-                      {person.lastOrderDate && <> · naposledy {person.lastOrderDate}</>}
+                      {person.orderCount > 0 && <> · {person.orderCount} {pluralizeOrders(person.orderCount)}</>}
+                      {person.lastOrderDate && <> · naposledy {formatCzechDate(person.lastOrderDate)}</>}
                       {!person.active && <> · neaktivní</>}
                     </div>
                   </div>
@@ -304,7 +305,7 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
         <div className="glass-soft rounded-2xl p-3 flex flex-col gap-2">
           <p className="text-[12.5px] text-stone-700">
             Historii strávníka <strong>{mergeSource.name}</strong>
-            {mergeSource.orderCount > 0 && <> ({mergeSource.orderCount} objednávek)</>} přesunout do:
+            {mergeSource.orderCount > 0 && <> ({mergeSource.orderCount} {pluralizeOrders(mergeSource.orderCount)})</>} přesunout do:
           </p>
           <SettingsField hint="zdrojový záznam po sloučení zmizí" label="Cílový strávník">
             <select
@@ -349,7 +350,7 @@ export function PeopleSection({ isActive }: { isActive: boolean }) {
         <ConfirmModal
           confirmLabel="Sloučit"
           isPending={isPending}
-          message={`„${mergeSource.name}“ zmizí a jeho ${mergeSource.orderCount} objednávek se přesune pod „${mergeTarget.name}“. Tuto akci nelze vrátit.`}
+          message={`„${mergeSource.name}“ zmizí a jeho ${mergeSource.orderCount} ${pluralizeOrders(mergeSource.orderCount)} se přesune pod „${mergeTarget.name}“. Tuto akci nelze vrátit.`}
           onClose={() => setConfirmMerge(false)}
           onConfirm={handleMerge}
           title="Sloučit strávníky"
