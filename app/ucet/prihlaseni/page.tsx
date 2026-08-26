@@ -27,13 +27,14 @@ export default async function Page({
 }) {
   const params = await searchParams;
   const next = safeNext(params.dalsi);
+  const googleFailed = params.chyba === "google";
 
   // Přihlášený tu nemá co dělat.
   if (await getAccountView()) redirect(next);
 
   return (
     <AccountShell icon="login" title="Přihlášení">
-      <LoginForm googleEnabled={isGoogleConfigured()} next={next} />
+      <LoginForm googleEnabled={isGoogleConfigured()} googleFailed={googleFailed} next={next} />
     </AccountShell>
   );
 }

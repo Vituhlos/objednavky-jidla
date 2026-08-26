@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset, isRateLimited } from "@/lib/rate-limit";
 import { AuthError } from "@/lib/auth/errors";
 import { requireSession } from "@/lib/auth/guards";
+import { GOOGLE_LINK_COOKIE, readPendingGoogleLink } from "@/lib/auth/oauth";
 import {
   createSession,
   getSessionCookieOptions,
@@ -17,6 +18,7 @@ import {
   authenticateWithPassword,
   changePassword,
   createUserWithPassword,
+  linkGoogleIdentity,
   verifyUserPassword,
 } from "@/lib/auth/users";
 import { checkPasswordStrength } from "@/lib/auth/password";
@@ -573,6 +575,68 @@ export async function actionRegisterGuest(
     throw err;
   }
 
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// ── Propojení Google účtu ────────────────────────────────────────────────────
+
+/**
+ * Dokončí propojení Googlu s existujícím heslovým účtem (R6).
+ *
+ * E-mail, `subject` ani jméno se **neberou z formuláře** — jsou v podepsané
+ * cookie, kterou vystavil callback po ověřeném přihlášení u Googlu. Z formuláře
+ * jde jen heslo. Kdyby se profil bral z klienta, stačilo by poslat cizí e-mail
+ * a Google by si přivlastnil cizí účet.
+ *
+ * Samotná shoda e-mailu nestačí — kdo chce k účtu připojit Google, musí nejdřív
+ * prokázat, že účet je jeho.
+ */
+export async function actionConfirmGoogleLink(
+  password: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const VYPRSELO = {
+    ok: false as const,
+    error: "Propojení vypršelo. Zkuste přihlášení přes Google znovu.",
+  };
+
+  const store = await cookies();
+  const sealed = store.get(GOOGLE_LINK_COOKIE)?.value;
+  if (!sealed) return VYPRSELO;
+
+  const pending = readPendingGoogleLink(sealed);
+  if (!pending) return VYPRSELO;
+
+  if (typeof password !== "string" || !password) {
+    return { ok: false, error: BAD_CREDENTIALS };
+  }
+
+  const key = `google-link:${await clientIp()}`;
+  if (isRateLimited(key, LOGIN_MAX_FAILURES)) {
+    return { ok: false, error: "Příliš mnoho pokusů. Zkuste to znovu za chvíli." };
+  }
+
+  const user = authenticateWithPassword(pending.email, password);
+  if (!user) {
+    checkRateLimit(key, LOGIN_MAX_FAILURES, LOGIN_WINDOW_MS);
+    return { ok: false, error: BAD_CREDENTIALS };
+  }
+
+  try {
+    linkGoogleIdentity(user.id, pending.subject);
+
+    const { token, expiresAt } = createSession(user.id, {
+      persistent: false,
+      userAgent: (await headers()).get("user-agent") ?? undefined,
+    });
+    store.set(SESSION_COOKIE, token, getSessionCookieOptions(false, expiresAt));
+  } catch (err) {
+    if (err instanceof AuthError) return { ok: false, error: err.message };
+    return { ok: false, error: "Propojení se nepodařilo dokončit." };
+  }
+
+  // Čekající stav už není k čemu — uklidit hned, ne až vyprší.
+  store.set(GOOGLE_LINK_COOKIE, "", { path: "/", maxAge: 0 });
   revalidatePath("/", "layout");
   return { ok: true };
 }

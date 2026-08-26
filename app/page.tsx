@@ -4,14 +4,39 @@ import { getMenuWeekLabel, getMenuDates, getClosedDates, getMondayISO, withOrder
 import { getClosures, getClosureForDate, getUpcomingClosure } from "@/lib/closures";
 import { getHolidayName, getHolidayDescription } from "@/lib/holidays";
 import { getPragueNow, toLocalISODate } from "@/lib/time";
+import { redirect } from "next/navigation";
 import OrderPage from "@/app/components/OrderPage";
 import { getAccountView } from "@/lib/auth/account-view";
 import { accountsEnabled } from "@/lib/auth/policy";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+/**
+ * Kam poslat návštěvníka podle stavu, se kterým se vrátil od Googlu.
+ *
+ * Callback umí přesměrovat jen na jedno místo, takže stav přichází v adrese.
+ * Tady se přeloží na obrazovku a z adresy zmizí — nemá smysl, aby ve historii
+ * prohlížeče zůstávalo visící ?auth=.
+ */
+const GOOGLE_STAVY: Record<string, string> = {
+  "google-link-required": "/ucet/propojit-google",
+  "google-failed": "/ucet/prihlaseni?chyba=google",
+  blocked: "/ucet/blokovano",
+  "google-ok": "/",
+};
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; auth?: string }>;
+}) {
   const params = await searchParams;
+
+  if (params.auth) {
+    const cil = GOOGLE_STAVY[params.auth] ?? "/";
+    redirect(cil);
+  }
+
   const pragueNow = getPragueNow();
   const todayISO = toLocalISODate(pragueNow);
 

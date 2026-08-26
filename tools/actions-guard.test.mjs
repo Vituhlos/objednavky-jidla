@@ -44,6 +44,10 @@ const PUBLIC_ACTIONS = new Set([
   // Host se registruje z pozvánky, takže přihlášený být nemůže. Oprávněním
   // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
   "actionRegisterGuest",
+  // Propojení Googlu s heslovým účtem probíhá před přihlášením — právě tím se
+  // člověk přihlašuje. Obranou je heslo (R6), podepsaná cookie s profilem
+  // a limit pokusů na IP.
+  "actionConfirmGoogleLink",
 ]);
 
 /**
@@ -55,9 +59,14 @@ const PUBLIC_ACTIONS = new Set([
  */
 const GUARDS = ["guardAdmin()", "guardSession()", "requireSession()", "requireAdmin()"];
 
+/**
+ * V souboru s „use server“ je **každá** exportovaná async funkce server action,
+ * ať se jmenuje jakkoli. Kdyby se hledaly jen názvy začínající „action“, stačilo
+ * by pomocnou funkci pojmenovat jinak a proklouzla by bez kontroly.
+ */
 function extractActions(source) {
   const found = [];
-  const re = /export async function (action\w+)\(/g;
+  const re = /export async function (\w+)\(/g;
   const starts = [];
   let match;
   while ((match = re.exec(source)) !== null) starts.push([match[1], match.index]);
@@ -99,6 +108,7 @@ const LOGIN_ACTIONS = new Set([
   // Host se registruje z pozvánky, takže přihlášený být nemůže. Oprávněním
   // je sám token — jednorázový, sedmidenní a v databázi jen jako otisk.
   "actionRegisterGuest",
+  "actionConfirmGoogleLink",
 ]);
 
 test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {

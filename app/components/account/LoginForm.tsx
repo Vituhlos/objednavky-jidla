@@ -13,12 +13,23 @@ import MIcon from "../MIcon";
  * pro špatné heslo i neznámý účet; rozlišit je by znamenalo dát návod, které
  * e-maily tu účet mají.
  */
-export function LoginForm({ googleEnabled, next }: { googleEnabled: boolean; next: string }) {
+export function LoginForm({
+  googleEnabled,
+  googleFailed = false,
+  next,
+}: {
+  googleEnabled: boolean;
+  /** Google přihlášení skončilo chybou — řekni to, ať člověk netipá. */
+  googleFailed?: boolean;
+  next: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    googleFailed ? "Přihlášení přes Google se nepodařilo. Zkuste to znovu, nebo použijte heslo." : null
+  );
   const [isPending, startTransition] = useTransition();
   const emailRef = useRef<HTMLInputElement>(null);
   const errorId = useId();
