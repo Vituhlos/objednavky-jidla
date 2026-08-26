@@ -1,4 +1,5 @@
 node_modules/
+tools/gravityui-reference-mcp/
 .next/
 data/
 .git/
