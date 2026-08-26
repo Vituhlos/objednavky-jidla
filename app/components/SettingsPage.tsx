@@ -25,6 +25,7 @@ import { PinGate } from "./settings/PinGate";
 import { TelegramBotCard, TelegramSection, useTelegramStatus } from "./settings/TelegramSection";
 import { TelegramSubscribersSection } from "./settings/TelegramSubscribersSection";
 import { TodayOrderSection } from "./settings/TodayOrderSection";
+import { UsersSection } from "./settings/UsersSection";
 import { MenuImportSection } from "./settings/MenuImportSection";
 import { OperationsSection } from "./settings/OperationsSection";
 import { PizzaSection } from "./settings/PizzaSection";
@@ -246,6 +247,8 @@ export default function SettingsPage({
             <DepartmentsSection initialDepartments={initialDepts} isActive={activeTab === "lide"} />
 
             <PeopleSection isActive={activeTab === "lide"} />
+
+            <UsersSection isActive={activeTab === "lide"} />
 
             {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
             <form

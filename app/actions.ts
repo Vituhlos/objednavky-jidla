@@ -57,6 +57,15 @@ import {
 } from "@/lib/people";
 import { requireAdmin, requireSession } from "@/lib/auth/guards";
 import {
+  deleteUser,
+  isBootstrapPasswordUnchanged,
+  listUsers,
+  setUserRole,
+  setUserStatus,
+  type AuthUser,
+} from "@/lib/auth/users";
+import { createResetLinkForUser } from "@/lib/auth/mail";
+import {
   accountsEnabled,
   assertId,
   assertMayEditRow,
@@ -535,4 +544,88 @@ export async function actionSetPersonActive(id: number, active: boolean): Promis
   await guardAdmin();
   setPersonActive(id, active);
   broadcast();
+}
+
+// ── Účty (administrace) ──────────────────────────────────────────────────────
+//
+// Tyhle akce se drží `requireAdmin()`, ne `guardAdmin()` — vědomě obcházejí
+// předúčtový režim. Kdyby v něm platily, mohl by se v databázi bez správce
+// kdokoli povýšit na správce a z toho režimu tím natrvalo vystoupit. Dokud
+// správce není, nemá se tu co spravovat: první vzniká z ADMIN_EMAIL při migraci.
+
+export async function actionListUsers(): Promise<AuthUser[]> {
+  await requireAdmin();
+  return listUsers();
+}
+
+export async function actionSetUserStatus(
+  id: number,
+  status: "active" | "blocked"
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  assertId(id, "číslo účtu");
+  if (status !== "active" && status !== "blocked") return { ok: false, error: "Neplatný stav." };
+
+  try {
+    setUserStatus(id, status);
+    return { ok: true };
+  } catch (err) {
+    // Ochrana posledního správce hlásí česky a srozumitelně — pusť ji dál.
+    return { ok: false, error: err instanceof Error ? err.message : "Změna se nepodařila." };
+  }
+}
+
+export async function actionSetUserRole(
+  id: number,
+  role: "admin" | "user"
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  assertId(id, "číslo účtu");
+  if (role !== "admin" && role !== "user") return { ok: false, error: "Neplatná role." };
+
+  try {
+    setUserRole(id, role);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Změna se nepodařila." };
+  }
+}
+
+export async function actionDeleteUser(
+  id: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  assertId(id, "číslo účtu");
+
+  try {
+    deleteUser(id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Smazání se nepodařilo." };
+  }
+}
+
+/**
+ * Odkaz na obnovu hesla pro cizí účet.
+ *
+ * Správce cizí heslo nenastavuje — vygeneruje odkaz a pošle ho. Tím se
+ * k cizímu heslu nikdy nedostane, i kdyby chtěl.
+ */
+export async function actionCreateResetLink(
+  id: number
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  assertId(id, "číslo účtu");
+
+  try {
+    return { ok: true, url: createResetLinkForUser(id) };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Odkaz se nepodařilo vytvořit." };
+  }
+}
+
+/** Používá první správce pořád heslo z proměnné prostředí? */
+export async function actionBootstrapPasswordUnchanged(): Promise<boolean> {
+  await requireAdmin();
+  return isBootstrapPasswordUnchanged();
 }
