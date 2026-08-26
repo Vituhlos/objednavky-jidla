@@ -4,6 +4,8 @@ import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
 import { getSettings } from "@/lib/settings";
+import { getAccountView } from "@/lib/auth/account-view";
+import { accountsEnabled } from "@/lib/auth/policy";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -39,13 +41,17 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+// Layout čte sezení z cookie, takže je dynamický. To je záměr: stránka se
+// obsahem liší podle toho, kdo se dívá, a sdílená cache by ji podstrčila
+// dalšímu návštěvníkovi.
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const settings = getSettings();
   const pizzaEnabled = settings.pizzaEnabled !== "false";
+  const account = await getAccountView();
   return (
     <html lang="cs" className={`${inter.variable} ${plusJakarta.variable}`}>
       <head>
@@ -63,7 +69,7 @@ export default function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
-        <AppTopBar pizzaEnabled={pizzaEnabled} />
+        <AppTopBar account={account} accountsEnabled={accountsEnabled()} pizzaEnabled={pizzaEnabled} />
         {children}
         <SwRegister />
       </body>

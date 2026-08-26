@@ -15,7 +15,9 @@ import { loadLib } from "./test-helpers.mjs";
 
 // ── Statické pokrytí ────────────────────────────────────────────────────────
 
-const SOURCE = fs.readFileSync("app/actions.ts", "utf8");
+const SOURCE = ["app/actions.ts", "app/actions-auth.ts"]
+  .map((f) => fs.readFileSync(f, "utf8"))
+  .join("\n");
 
 /**
  * Akce, které smí volat i nepřihlášený.
@@ -27,6 +29,11 @@ const PUBLIC_ACTIONS = new Set([
   "actionGetWeekStarts",
   "actionGetClosures",
   "actionGetDepartments",
+  // Vstupy do přihlášení. Guard by tu neměl co dělat — jsou to dveře, ne trezor.
+  // Vlastní obranu mají v omezení pokusů na IP a v obecné hlášce, která
+  // neprozradí, které e-maily tu účet mají.
+  "actionLogin",
+  "actionLogout",
 ]);
 
 function extractActions(source) {
@@ -66,14 +73,30 @@ test("každá neveřejná akce má guard", () => {
   );
 });
 
-test("veřejný seznam obsahuje jen čtení", () => {
+const LOGIN_ACTIONS = new Set(["actionLogin", "actionLogout"]);
+
+test("veřejný seznam obsahuje jen čtení a vstup do přihlášení", () => {
   for (const name of PUBLIC_ACTIONS) {
+    if (LOGIN_ACTIONS.has(name)) continue;
     assert.match(
       name,
       /^actionGet/,
       `„${name}" je ve veřejném seznamu, ale nevypadá jako čtení`
     );
   }
+});
+
+test("přihlašovací akce omezují počet pokusů", () => {
+  const zdroj = fs.readFileSync("app/actions-auth.ts", "utf8");
+  assert.match(zdroj, /isRateLimited\(/, "před pokusem se musí číst rozpočet");
+  assert.match(zdroj, /checkRateLimit\(/, "neúspěch musí rozpočet ubrat");
+});
+
+test("přihlášení nerozlišuje neznámý e-mail od špatného hesla", () => {
+  const zdroj = fs.readFileSync("app/actions-auth.ts", "utf8");
+  const hlasky = [...zdroj.matchAll(/error: (BAD_CREDENTIALS|"[^"]+")/g)].map((m) => m[1]);
+  const konkretni = hlasky.filter((h) => h !== "BAD_CREDENTIALS" && /e-mail|heslo/i.test(h));
+  assert.deepEqual(konkretni, [], `chybová hláška je příliš konkrétní: ${konkretni.join(", ")}`);
 });
 
 test("veřejný seznam odpovídá skutečným akcím", () => {

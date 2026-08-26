@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
+import type { AccountView } from "@/lib/auth/account-view";
 
 const NAV = [
   { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
@@ -34,9 +35,73 @@ const SidebarClock = memo(function SidebarClock() {
   );
 });
 
-export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
+/**
+ * Vstup do účtu v postranním panelu.
+ *
+ * Sedí nad hodinami, tedy tam, kde uživatel čeká „kdo jsem" — a drží stejný
+ * `glass-soft` blok jako ony, aby nepůsobil jako pozdější přílepek.
+ */
+function AccountBadge({ account }: { account: AccountView | null }) {
+  if (!account) {
+    return (
+      <Link
+        className="glass-soft rounded-2xl p-3 flex items-center gap-2.5 hover:bg-white/60 transition"
+        href="/ucet/prihlaseni"
+      >
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.18),rgba(234,88,12,0.18))" }}>
+          <MIcon name="login" size={17} fill style={{ color: "#D97706" }} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display font-bold text-[12.5px] text-stone-900">Přihlásit se</span>
+          <span className="block text-[11px] text-stone-500 leading-snug">Objednávat lze po přihlášení</span>
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      className="glass-soft rounded-2xl p-3 flex items-center gap-2.5 hover:bg-white/60 transition"
+      href="/ucet"
+    >
+      <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.18),rgba(234,88,12,0.18))" }}>
+        <MIcon name="person" size={17} fill style={{ color: "#D97706" }} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display font-bold text-[12.5px] text-stone-900 truncate">{account.name}</span>
+        <span className="block text-[11px] text-stone-500">
+          {account.role === "admin" ? "Správce" : "Strávník"}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+export default function AppTopBar({
+  account = null,
+  accountsEnabled = false,
+  pizzaEnabled = true,
+}: {
+  account?: AccountView | null;
+  accountsEnabled?: boolean;
+  pizzaEnabled?: boolean;
+}) {
   const pathname = usePathname();
-  const nav = pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza");
+
+  // Nastavení umí jen správce. Skrytí je pohodlí, ne ochrana — tou jsou guardy
+  // u server actions. Dokud účty nikdo nezaložil, zůstává vidět jako dřív.
+  const showSettings = !accountsEnabled || account?.role === "admin";
+
+  const nav = NAV.filter(
+    (n) => (pizzaEnabled || n.href !== "/pizza") && (showSettings || n.href !== "/nastaveni")
+  );
+
+  const accountItem = account
+    ? { href: "/ucet", label: "Účet", shortLabel: "Účet", icon: "person", exact: false }
+    : { href: "/ucet/prihlaseni", label: "Přihlásit se", shortLabel: "Účet", icon: "login", exact: false };
+  const mobileNav = [...nav, accountItem];
 
   return (
     <>
@@ -89,7 +154,8 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
           })}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-2">
+          <AccountBadge account={account} />
           <SidebarClock />
         </div>
       </aside>
@@ -103,15 +169,15 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
 
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
       <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
-        <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {nav.map(({ href, shortLabel, icon, exact }) => {
+        <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around gap-0.5 overflow-x-auto no-scrollbar">
+          {mobileNav.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={isActive ? "page" : undefined}
-                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
+                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition shrink-0"
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >
                 <MIcon
