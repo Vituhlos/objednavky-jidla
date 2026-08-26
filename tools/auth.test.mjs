@@ -13,6 +13,7 @@ process.env.DB_PATH = path.join(dataDir, "test.db");
 delete process.env.ADMIN_EMAIL;
 delete process.env.ADMIN_PASSWORD;
 delete process.env.ADMIN_NAME;
+process.env.COOKIE_SIGNING_SECRET = "test-cookie-signing-secret-with-32-bytes";
 
 const lib = loadLib();
 const { getDb } = await lib("db");
@@ -155,6 +156,27 @@ test("Google nastavení bere databázi před prostředím", () => {
   assert.equal(oauth.isGoogleConfigured(), true);
 });
 
+test("Google vyžaduje samostatný dostatečně dlouhý podpisový secret", () => {
+  const validSecret = process.env.COOKIE_SIGNING_SECRET;
+  try {
+    process.env.COOKIE_SIGNING_SECRET = "kratky";
+    assert.equal(oauth.isGoogleConfigured(), false);
+    assert.throws(
+      () =>
+        oauth.sealGoogleFlowCookie({
+          state: "s".repeat(43),
+          nonce: "n".repeat(43),
+          codeVerifier: "v".repeat(43),
+          redirectUri: "http://localhost:3000/api/auth/google/callback",
+        }),
+      /COOKIE_SIGNING_SECRET musí mít alespoň 32 bajtů/
+    );
+  } finally {
+    process.env.COOKIE_SIGNING_SECRET = validSecret;
+  }
+  assert.equal(oauth.isGoogleConfigured(), true);
+});
+
 test("OAuth cookie je krátkodobá, podepsaná a odolná proti změně", () => {
   const checks = {
     state: "s".repeat(43),
@@ -165,10 +187,30 @@ test("OAuth cookie je krátkodobá, podepsaná a odolná proti změně", () => {
   const sealed = oauth.sealGoogleFlowCookie(checks);
   assert.deepEqual(oauth.readGoogleFlowCookie(sealed), checks);
 
+  const originalGoogleSecret = settings.getSettings().googleClientSecret;
+  try {
+    settings.saveSettings({ googleClientSecret: "zrotovany-google-secret" });
+    assert.deepEqual(
+      oauth.readGoogleFlowCookie(sealed),
+      checks,
+      "rotace Google secretu nesmí měnit samostatný podpisový klíč"
+    );
+  } finally {
+    settings.saveSettings({ googleClientSecret: originalGoogleSecret });
+  }
+
   const last = sealed.at(-1);
   const tampered = `${sealed.slice(0, -1)}${last === "A" ? "B" : "A"}`;
   assert.equal(oauth.readGoogleFlowCookie(tampered), null);
   assert.equal(oauth.readGoogleFlowCookie("neplatna-cookie"), null);
+
+  const originalSigningSecret = process.env.COOKIE_SIGNING_SECRET;
+  try {
+    process.env.COOKIE_SIGNING_SECRET = "rotated-cookie-signing-secret-with-32-bytes";
+    assert.equal(oauth.readGoogleFlowCookie(sealed), null);
+  } finally {
+    process.env.COOKIE_SIGNING_SECRET = originalSigningSecret;
+  }
 });
 
 test("čekající propojení Google neodhaluje data bez platného podpisu", () => {

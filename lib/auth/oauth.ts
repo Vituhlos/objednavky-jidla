@@ -4,6 +4,8 @@ import { getSettings } from "../settings";
 
 const GOOGLE_ISSUER = new URL("https://accounts.google.com");
 const COOKIE_TTL_MS = 10 * 60 * 1000;
+const COOKIE_MAC_CONTEXT = "kantyna-google-cookie-v1\0";
+const MIN_COOKIE_SECRET_BYTES = 32;
 
 export const GOOGLE_FLOW_COOKIE = "kantyna_google_flow";
 export const GOOGLE_LINK_COOKIE = "kantyna_google_link";
@@ -35,6 +37,22 @@ function googleCredentials(): { clientId: string; secret: string } {
   const secret = settings.googleClientSecret;
   if (!clientId || !secret) throw new Error("Přihlášení přes Google není nastavené.");
   return { clientId, secret };
+}
+
+function cookieSigningKey(): Buffer {
+  const secret = process.env.COOKIE_SIGNING_SECRET ?? "";
+  const key = Buffer.from(secret, "utf8");
+  if (key.length < MIN_COOKIE_SECRET_BYTES) {
+    throw new Error("COOKIE_SIGNING_SECRET musí mít alespoň 32 bajtů.");
+  }
+  return key;
+}
+
+function cookieSignature(payload: string): Buffer {
+  return createHmac("sha256", cookieSigningKey())
+    .update(COOKIE_MAC_CONTEXT, "utf8")
+    .update(payload, "ascii")
+    .digest();
 }
 
 function validateRedirectUri(redirectUri: string): string {
@@ -87,9 +105,8 @@ async function getGoogleConfiguration(): Promise<client.Configuration> {
 }
 
 function sealCookie(value: SealedGoogleCookie): string {
-  const { secret } = googleCredentials();
   const payload = Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
-  const signature = createHmac("sha256", secret).update(payload, "ascii").digest("base64url");
+  const signature = cookieSignature(payload).toString("base64url");
   return `${payload}.${signature}`;
 }
 
@@ -99,8 +116,7 @@ function openCookie(value: string): SealedGoogleCookie | null {
     const parts = value.split(".");
     if (parts.length !== 2 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return null;
 
-    const { secret } = googleCredentials();
-    const expected = createHmac("sha256", secret).update(parts[0], "ascii").digest();
+    const expected = cookieSignature(parts[0]);
     const actual = Buffer.from(parts[1], "base64url");
     if (
       actual.length !== expected.length ||
@@ -177,7 +193,13 @@ export function readPendingGoogleLink(value: string): PendingGoogleLink | null {
 
 export function isGoogleConfigured(): boolean {
   const settings = getSettings();
-  return !!settings.googleClientId.trim() && !!settings.googleClientSecret;
+  if (!settings.googleClientId.trim() || !settings.googleClientSecret) return false;
+  try {
+    cookieSigningKey();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function buildGoogleAuthUrl(redirectUri: string): Promise<{

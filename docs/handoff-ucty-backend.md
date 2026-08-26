@@ -364,6 +364,9 @@ export async function completeGoogleLogin(currentUrl: URL, checks: {
 - **Přijmi jen `email_verified === true`.** Neověřený e-mail od Googlu není důkaz.
 - `client_id` a `client_secret` ber z `getSettings()`, s proměnnou prostředí jako
   zálohou — stejná konvence jako SMTP a Telegram (R16).
+- Krátkodobé OAuth cookies podepisuj samostatným serverovým
+  `COOKIE_SIGNING_SECRET` o délce alespoň 32 bajtů. Bez něj Google přihlášení
+  vypni; nikdy se nevracej k odvození z `googleClientSecret`.
 
 > **Pozor:** `openid-client` 6.x má **funkcionální API**, ne třídy `Issuer`
 > a `Client` z verze 5. Nepiš to z hlavy — otevři si typy nainstalované verze
@@ -628,7 +631,8 @@ Přihlášení heslem: před pokusem zkontroluj IP přes `isRateLimited`, zavole
 
 - `isGoogleConfigured(): boolean` — ověří přítomnost ID a secretu; databázové
   `googleClientId`/`googleClientSecret` mají přednost před
-  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` a zároveň vyžaduje samostatný
+  `COOKIE_SIGNING_SECRET` o délce alespoň 32 bajtů.
 - `buildGoogleAuthUrl(redirectUri: string): Promise<{ url: string; state: string; nonce: string; codeVerifier: string }>`
   — přes `openid-client` 6.x vytvoří Authorization Code URL s PKCE S256, `state`
   a `nonce`.
@@ -645,7 +649,10 @@ Přihlášení heslem: před pokusem zkontroluj IP přes `isRateLimited`, zavole
 `GET /api/auth/google/start` zahájí přihlášení, `GET /api/auth/google/callback`
 ho dokončí a založí netrvalé sezení. V produkci nastav `APP_URL` na kanonický
 HTTPS origin a u Googlu zaregistruj přesně
-`<APP_URL>/api/auth/google/callback`. Stav `auth=google-link-required` znamená:
+`<APP_URL>/api/auth/google/callback`. `COOKIE_SIGNING_SECRET` vygeneruj nezávisle
+na Google credentials, například `openssl rand -base64 32`; jeho rotace
+zneplatní nejvýše deset minut staré OAuth cookies. Stav
+`auth=google-link-required` znamená:
 na serveru načíst `GOOGLE_LINK_COOKIE`, zavolat `readPendingGoogleLink`, heslo
 ověřit přes `authenticateWithPassword`, navázat vrácený `subject` přes
 `linkGoogleIdentity`, založit sezení a pending cookie smazat. Cookie nikdy
