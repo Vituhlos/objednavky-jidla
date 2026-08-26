@@ -523,3 +523,174 @@ zapomenutou kontrolu neprojde.
 Takže **nepotřebuju hotové obrazovky — potřebuju spolehlivou vrstvu pod nimi.**
 Když budeš na vážkách mezi „udělám to univerzálnější" a „udělám to jednoznačné",
 volej to druhé.
+
+---
+
+## 10. Co je hotové a jak to zavolat
+
+### Migrace, hesla a tokeny
+
+- `migrateAuth(db: Database.Database): void` (`lib/auth/schema.ts`) — idempotentně
+  založí auth tabulky, indexy a případně prvního správce z `ADMIN_EMAIL` +
+  `ADMIN_PASSWORD` (`ADMIN_NAME` je volitelné).
+- `checkPasswordStrength(plain: string): { ok: boolean; reason?: string }` — ověří
+  minimální délku hesla bez pravidel umělé složitosti.
+- `hashPassword(plain: string): string` — vytvoří sebepopisný scrypt otisk; slabé
+  heslo odmítne.
+- `verifyPassword(plain: string, stored: string): boolean` — konstantním časem
+  ověří podporovaný otisk a pro cizí nebo poškozený formát vrátí `false`.
+- `newToken(): { token: string; hash: string }` — vrátí 256bitový base64url token
+  a jeho SHA-256 otisk; do databáze patří jen `hash`.
+- `hashToken(token: string): string` — spočítá SHA-256 otisk existujícího tokenu.
+
+### Účty (`lib/auth/users.ts`)
+
+```ts
+interface AuthUser {
+  id: number; email: string; name: string;
+  role: "admin" | "user"; status: "active" | "blocked";
+  emailVerified: boolean; createdAt: string; lastLoginAt: string | null;
+  providers: string[]; personIds: number[];
+}
+```
+
+- `createUserWithPassword(input: { email: string; name: string; password: string; departmentId: number | null; claimPersonId?: number }): { userId: number; personId: number }`
+  — atomicky založí heslový účet a jeho strávníka, nebo bezpečně převezme sirotka
+  z historie; po úspěchu zavolej `sendVerificationEmail`.
+- `createUserFromGoogle(input: { email: string; name: string; subject: string; departmentId: number | null; claimPersonId?: number }): { userId: number; personId: number }`
+  — založí/rozpozná Google účet podle `subject`; při pouhé shodě e-mailu vyhodí
+  `GoogleLinkRequiredError`, nikdy účty nespojí automaticky.
+- `getUserByEmail(email: string): AuthUser | null`, `getUserById(id: number): AuthUser | null`
+  a `listUsers(): AuthUser[]` — vracejí pouze bezpečné DTO bez hesel a tokenů.
+- `authenticateWithPassword(email: string, plain: string): AuthUser | null` — ověří
+  přihlašovací údaje se stejně drahou falešnou kontrolou pro neznámý e-mail;
+  limit neúspěchů na IP musí volající uplatnit přes `lib/rate-limit.ts`.
+- `verifyUserPassword(userId: number, plain: string): boolean` — ověří heslo při
+  citlivé operaci, zejména před `linkGoogleIdentity`.
+- `setUserStatus(id: number, status: "active" | "blocked"): void` — blokace
+  okamžitě zneplatní sezení; posledního aktivního správce zablokovat nejde.
+- `setUserRole(id: number, role: "admin" | "user"): void` — změní roli, ale
+  nedovolí odebrat posledního aktivního správce.
+- `deleteUser(id: number): void` — smaže účet a kaskádované auth údaje, strávníka
+  jen deaktivuje a historii ponechá.
+- `changePassword(userId: number, newPlain: string, exceptSessionId?: number): void`
+  — změní heslo a zruší všechna sezení kromě výslovně uvedeného aktuálního.
+- `linkGoogleIdentity(userId: number, subject: string): void` — naváže ověřený
+  Google `subject`; volej až po `verifyUserPassword`, nikdy jen podle e-mailu.
+- `markEmailVerified(userId: number): void` — důvěryhodné serverové volání označí
+  e-mail jako ověřený; běžný odkaz zpracuj přes `consumeVerificationToken`.
+- `isBootstrapPasswordUnchanged(): boolean` — řekne, zda první správce stále
+  používá bootstrapovací heslo.
+
+### Sezení a guardy
+
+```ts
+const SESSION_COOKIE = "kantyna_session";
+interface SessionInfo {
+  sessionId: number; userId: number;
+  role: "admin" | "user"; personIds: number[];
+}
+interface SessionRow {
+  id: number; createdAt: string; lastSeenAt: string;
+  idleExpiresAt: string; absoluteExpiresAt: string;
+  persistent: boolean; userAgent: string | null;
+}
+```
+
+- `createSession(userId: number, opts: { persistent: boolean; userAgent?: string }): { token: string; expiresAt: string }`
+  — založí nové náhodné sezení aktivního účtu a vrátí jedinou čitelnou kopii tokenu.
+- `getSessionCookieOptions(persistent: boolean, expiresAt: string)` — vrátí
+  jednotné `HttpOnly`, `SameSite=Lax`, `Path=/` a produkční `Secure` volby cookie.
+- `readSession(token: string): SessionInfo | null` — při každém čtení ověří idle
+  limit, absolutní strop, aktivní účet a vazbu na strávníka.
+- `revokeSession(token: string): void`, `revokeAllSessions(userId: number, exceptSessionId?: number): void`
+  — zruší jedno nebo všechna vybraná sezení.
+- `listSessions(userId: number): SessionRow[]` — vypíše sezení bez tokenů a jejich
+  otisků; `pruneExpiredSessions(): void` odstraní prošlá.
+- `isBlockedSessionToken(token: string): boolean` — interně pomáhá guardu odlišit
+  zablokovaný účet od nepřihlášeného, ale nikdy nevrací platné sezení.
+- `getSession(): Promise<SessionInfo | null>`, `requireSession(): Promise<SessionInfo>`
+  a `requireAdmin(): Promise<SessionInfo>` (`lib/auth/guards.ts`) — čtou
+  `kantyna_session`; povinné varianty vyhazují `AuthError`.
+- `assertCanEditRow(s: SessionInfo, rowId: number): Promise<void>` — pustí správce
+  nebo vlastníka `order_rows.person_id`, neznámý řádek vždy odmítne.
+- `assertCanActAsPerson(s: SessionInfo, personId: number): Promise<void>` — pustí
+  správce nebo uživatele s daným `personId` ve svém sezení.
+- `AuthError` a `AuthErrorCode = "NEPRIHLASEN" | "BLOKOVAN" | "CIZI_ZAZNAM" | "JEN_SPRAVCE"`
+  (`lib/auth/errors.ts`) — dávají UI stabilní kód a českou uživatelskou hlášku.
+
+Přihlášení heslem: před pokusem zkontroluj IP přes `isRateLimited`, zavolej
+`authenticateWithPassword`, pouze při `null` započítej neúspěch přes
+`checkRateLimit`, po úspěchu vytvoř sezení a cookie nastav pomocí
+`getSessionCookieOptions`. Při odhlášení zavolej `revokeSession` a cookie smaž.
+
+### Google (`lib/auth/oauth.ts` a route handlery)
+
+- `isGoogleConfigured(): boolean` — ověří přítomnost ID a secretu; databázové
+  `googleClientId`/`googleClientSecret` mají přednost před
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+- `buildGoogleAuthUrl(redirectUri: string): Promise<{ url: string; state: string; nonce: string; codeVerifier: string }>`
+  — přes `openid-client` 6.x vytvoří Authorization Code URL s PKCE S256, `state`
+  a `nonce`.
+- `completeGoogleLogin(currentUrl: URL, checks: GoogleFlowCookie): Promise<{ email: string; emailVerified: boolean; subject: string; name: string }>`
+  — ověří přesný callback, PKCE/state/nonce, podpis ID tokenu a přijme jen
+  `email_verified === true`.
+- `GOOGLE_FLOW_COOKIE`, `sealGoogleFlowCookie(checks)` a
+  `readGoogleFlowCookie(value)` — pracují s desetiminutovým HMAC podepsaným stavem
+  rozběhnutého přihlášení.
+- `GOOGLE_LINK_COOKIE`, `sealPendingGoogleLink(value)` a
+  `readPendingGoogleLink(value)` — drží deset minut podepsaný stav pro bezpečné
+  potvrzení existujícího heslového účtu.
+
+`GET /api/auth/google/start` zahájí přihlášení, `GET /api/auth/google/callback`
+ho dokončí a založí netrvalé sezení. V produkci nastav `APP_URL` na kanonický
+HTTPS origin a u Googlu zaregistruj přesně
+`<APP_URL>/api/auth/google/callback`. Stav `auth=google-link-required` znamená:
+na serveru načíst `GOOGLE_LINK_COOKIE`, zavolat `readPendingGoogleLink`, heslo
+ověřit přes `authenticateWithPassword`, navázat vrácený `subject` přes
+`linkGoogleIdentity`, založit sezení a pending cookie smazat. Cookie nikdy
+neparsuj v klientu ani její obsah neposílej do props.
+
+### Pozvánky (`lib/auth/invites.ts`)
+
+```ts
+interface InviteInfo {
+  id: number; inviterUserId: number; inviterName: string;
+  createdAt: string; expiresAt: string; usedAt: string | null;
+  revokedAt: string | null; createdPersonId: number | null;
+}
+```
+
+- `createInvite(inviterUserId: number): { token: string; expiresAt: string }` —
+  vytvoří sedmidenní odkaz, pokud účet není host a nepřekročil limity.
+- `getInvite(token: string): InviteInfo | null` — vrátí pouze dosud platnou
+  pozvánku; použitou, zrušenou a prošlou nerozlišuje.
+- `consumeInvite(token: string, createdPersonId: number): void` — atomicky označí
+  odkaz použitý a nastaví `guest_of_person_id`; `createdPersonId` musí být přímo
+  návratová hodnota právě dokončené serverové registrace, nikdy ID z klienta.
+- `revokeInvite(inviteId: number, actorUserId: number): void` — dovolí zrušení
+  jen vlastníkovi nepoužité pozvánky.
+- `listInvites(inviterUserId: number): InviteInfo[]` a
+  `countActiveGuests(inviterUserId: number): number` — vrátí bezpečný přehled bez
+  tokenů a počet aktivních hostů.
+
+### E-maily a jednorázové odkazy (`lib/auth/mail.ts`)
+
+- `sendVerificationEmail(userId: number, baseUrl: string): Promise<void>` — přes
+  existující `sendEmail` odešle 24hodinový ověřovací odkaz; ověřenému účtu nic
+  neposílá.
+- `sendPasswordResetEmail(email: string, baseUrl: string): Promise<void>` — odešle
+  15minutový obnovovací odkaz; neexistující nebo blokovaný e-mail skončí stejně
+  úspěšně a bez zprávy.
+- `createResetLinkForUser(userId: number): string` — vytvoří relativní
+  `/ucet/obnovit-heslo?token=…` pro administraci bez nastavování cizího hesla.
+- `consumeVerificationToken(token: string): number` — jednorázově označí e-mail
+  aktivního účtu jako ověřený a vrátí jeho `userId`.
+- `resetPasswordWithToken(token: string, newPlain: string): number` — jednorázově
+  nastaví nové heslo, zruší všechna sezení a vrátí `userId`.
+
+`baseUrl` ber jen z kanonického nastavení aplikace, ne z `Host`/`X-Forwarded-Host`.
+UI routy pro odkazy jsou `/ucet/overit-email` a `/ucet/obnovit-heslo`; jejich
+server actions musí před voláním ověřit a započítat neúspěchy na IP stejně jako
+přihlášení. Registrace heslem má po `createUserWithPassword` bez čekání na
+ověření zavolat `sendVerificationEmail`.
