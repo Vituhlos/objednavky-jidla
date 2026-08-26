@@ -155,6 +155,7 @@ export default function OrderPage({
     showUnlockModal,
     unlockPin,
     unlockError,
+    isUnlocking,
     openUnlock,
     closeUnlock,
     changePin,
@@ -687,33 +688,37 @@ export default function OrderPage({
               <p className="text-[13px] text-stone-600">
                 Uzávěrka proběhla v <strong>{cutoffTime}</strong>. Zadejte administrátorský PIN pro otevření objednávek. Pokud se čas uzávěrky posune dál, začne zase platit.
               </p>
+              <label className="modal-label" htmlFor="unlock-pin">Správcovský PIN</label>
               <input
+                aria-invalid={unlockError ? true : undefined}
+                autoComplete="current-password"
                 autoFocus
-                className="w-full px-3 py-2.5 rounded-2xl glass text-[14px] text-stone-800 outline-none focus:ring-2 focus:ring-amber-400/60 tracking-[0.3em] font-mono text-center"
-                inputMode="numeric"
-                maxLength={8}
+                className="w-full px-3 py-2.5 rounded-2xl glass text-[14px] text-stone-800 outline-none focus:ring-2 focus:ring-amber-400/60 text-center"
+                disabled={isUnlocking}
+                id="unlock-pin"
+                maxLength={128}
                 onChange={(e) => changePin(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleUnlock(); }}
-                placeholder="PIN"
                 type="password"
                 value={unlockPin}
               />
               {unlockError && (
-                <p className="text-[12.5px] text-red-600 font-medium">{unlockError}</p>
+                <p className="text-[12.5px] text-red-600 font-medium" role="alert">{unlockError}</p>
               )}
             </div>
             <div className="modal-sheet__footer">
               <button
                 className="v2-btn v2-btn--secondary"
+                disabled={isUnlocking}
                 onClick={closeUnlock}
                 type="button"
               >Zrušit</button>
               <button
                 className="v2-btn v2-btn--primary"
-                disabled={!unlockPin}
+                disabled={isUnlocking || !unlockPin}
                 onClick={handleUnlock}
                 type="button"
-              >Odemknout</button>
+              >{isUnlocking ? "Ověřuji…" : "Odemknout"}</button>
             </div>
           </div>
         </div>
