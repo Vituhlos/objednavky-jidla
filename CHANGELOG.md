@@ -8,12 +8,12 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Added
 
-- **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kde lidé píšou nápady, hlášení chyb, výtky i pochvaly. Sedm kategorií s emoji jako dlaždice (💡 nápad, 🐞 chyba, 🍽️ jídlo a objednávání, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné). Jméno je nepovinné a předvyplní se z posledního objednávání, jde i odeslat anonymně. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
-- Nastavení → **Připomínky** (za PINem): seznam s filtrem podle stavu (Nová, Přečteno, V plánu, Hotovo, Zamítnuto), interní poznámka, veřejná odpověď a mazání. Počet nových ukazuje odznak u záložky.
-- Seznam „Upravili jsme podle vás“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
+- **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kam lidé píšou nápady, chyby, výtky i pochvaly. Kategorie se vybírá emoji dlaždicí (💡 nápad, 🐞 chyba, 🍽️ jídlo, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné); teprve pak se ukáže otázka ušitá na kategorii, rychlé začátky vět na klik a pole, které roste s textem. Podpis jménem (předvyplní se z posledního objednávání), nebo bez jména. Rozepsaný text se průběžně ukládá v prohlížeči a po odchodu ze stránky se neztratí. Odeslání i přes Ctrl+Enter. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
+- Nastavení → **Připomínky** (za PINem): velká čísla K vyřízení / Nové / V plánu / Hotovo / Vše zároveň filtrují seznam. Stav (Nová, Přečteno, V plánu, Hotovo, Zamítnuto) se mění jedním klikem a projeví se hned; rozkliknutím se nová připomínka označí jako přečtená. K tomu interní poznámka, veřejná odpověď a mazání. Počet nových ukazuje odznak u záložky.
+- Seznam „Změnili jsme díky vám“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
 - Telegram: upozornění na novou připomínku. Posílá se **jen adminům bota** a jen těm, kdo si ho sami zapnou v `/nastaveni` → 💬 Nové připomínky. Ve výchozím stavu je vypnuté; běžným uživatelům se přepínač nenabízí a webhook ho od nich nepřijme ani při podvrženém `callback_data`.
 - Záloha (`/api/backup`) a obnova (`/api/restore`) zahrnují připomínky; obnova přeskakuje ty, které už v databázi jsou (stejný čas i text).
-- `lib/feedback.test.ts` (12 testů validace a textu pro Telegram) a `tools/feedback.test.mjs` (8 testů proti dočasné SQLite) — mimo jiné hlídají, že veřejný seznam nevydá text ani autora a že upozornění dostane jen admin, který si ho zapnul.
+- `lib/feedback.test.ts` (12 testů validace a textu pro Telegram), `app/components/feedback/feedback-utils.test.ts` (7 testů konceptu, vkládání začátků vět a data) a `tools/feedback.test.mjs` (8 testů proti dočasné SQLite) — mimo jiné hlídají, že veřejný seznam nevydá text ani autora a že upozornění dostane jen admin, který si ho zapnul.
 
 ### Security
 

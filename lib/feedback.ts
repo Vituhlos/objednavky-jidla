@@ -47,15 +47,15 @@ export const feedbackInputSchema = z.object({
     .transform(cleanText)
     .pipe(
       z.string()
-        .min(FEEDBACK_LIMITS.messageMin, `Napište prosím aspoň ${FEEDBACK_LIMITS.messageMin} znaků.`)
-        .max(FEEDBACK_LIMITS.messageMax, `Text může mít nejvýš ${FEEDBACK_LIMITS.messageMax} znaků.`),
+        .min(FEEDBACK_LIMITS.messageMin, `Napiš aspoň pár slov (min. ${FEEDBACK_LIMITS.messageMin} znaků).`)
+        .max(FEEDBACK_LIMITS.messageMax, `Na připomínku je to moc dlouhé, max. ${FEEDBACK_LIMITS.messageMax} znaků.`),
     ),
   authorName: z
     .string()
     .optional()
     .default("")
     .transform(cleanText)
-    .pipe(z.string().max(FEEDBACK_LIMITS.nameMax, `Jméno může mít nejvýš ${FEEDBACK_LIMITS.nameMax} znaků.`)),
+    .pipe(z.string().max(FEEDBACK_LIMITS.nameMax, `Jméno je moc dlouhé, max. ${FEEDBACK_LIMITS.nameMax} znaků.`)),
   page: z
     .string()
     .optional()

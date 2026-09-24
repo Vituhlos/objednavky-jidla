@@ -4,13 +4,41 @@
  */
 
 export const FEEDBACK_CATEGORIES = [
-  { id: "napad",    emoji: "💡", label: "Nápad na vylepšení" },
-  { id: "chyba",    emoji: "🐞", label: "Něco nefunguje" },
-  { id: "jidlo",    emoji: "🍽️", label: "Jídlo a objednávání" },
-  { id: "ovladani", emoji: "🎨", label: "Vzhled a ovládání" },
-  { id: "mobil",    emoji: "📱", label: "Na mobilu" },
-  { id: "pochvala", emoji: "🙌", label: "Pochvala" },
-  { id: "jine",     emoji: "💬", label: "Jiné" },
+  {
+    id: "napad", emoji: "💡", label: "Nápad", short: "Nápad",
+    question: "Co by se hodilo?",
+    starters: ["Chybí mi…", "Hodilo by se…", "Šlo by to jednodušeji, kdyby…"],
+  },
+  {
+    id: "chyba", emoji: "🐞", label: "Něco nefunguje", short: "Chyba",
+    question: "Co zlobí?",
+    starters: ["Když kliknu na…", "Nejde mi…", "Po uložení se…"],
+  },
+  {
+    id: "jidlo", emoji: "🍽️", label: "Jídlo a objednávání", short: "Jídlo",
+    question: "Co by ti objednávání usnadnilo?",
+    starters: ["V jídelníčku chybí…", "Šlo by si objednat…", "U příloh…"],
+  },
+  {
+    id: "ovladani", emoji: "🎨", label: "Vzhled a ovládání", short: "Vzhled",
+    question: "Co je nepřehledné?",
+    starters: ["Špatně se hledá…", "Špatně se čte…", "Moc klikání je u…"],
+  },
+  {
+    id: "mobil", emoji: "📱", label: "Na mobilu", short: "Mobil",
+    question: "Co na mobilu nejde?",
+    starters: ["Na mobilu nejde…", "Malé tlačítko je u…", "Mám telefon…"],
+  },
+  {
+    id: "pochvala", emoji: "🙌", label: "Pochvala", short: "Pochvala",
+    question: "Co se povedlo?",
+    starters: ["Líbí se mi…", "Super je…", "Díky za…"],
+  },
+  {
+    id: "jine", emoji: "💬", label: "Něco jiného", short: "Jiné",
+    question: "Co máš na srdci?",
+    starters: ["Napadlo mě…", "Chci říct…"],
+  },
 ] as const;
 
 export type FeedbackCategory = (typeof FEEDBACK_CATEGORIES)[number]["id"];

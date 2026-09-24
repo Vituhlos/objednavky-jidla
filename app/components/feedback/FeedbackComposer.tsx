@@ -1,0 +1,217 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { actionSubmitFeedback } from "@/app/actions";
+import { FEEDBACK_LIMITS, getCategoryMeta } from "@/lib/feedback-meta";
+import MIcon from "../MIcon";
+import { CategoryPicker } from "./CategoryPicker";
+import { FeedbackSuccess } from "./FeedbackSuccess";
+import { insertStarter } from "./feedback-utils";
+import { SignaturePicker } from "./SignaturePicker";
+import { useFeedbackDraft } from "./useFeedbackDraft";
+
+/** Odkud člověk na stránku přišel — jen cesta v rámci appky, nic jiného. */
+function getReferrerPath(): string {
+  try {
+    if (!document.referrer) return "";
+    const url = new URL(document.referrer);
+    if (url.origin !== window.location.origin || url.pathname === "/pripominky") return "";
+    return url.pathname;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Psaní připomínky, postupně odhalované:
+ * 1. dlaždice s kategorií,
+ * 2. otázka podle kategorie, rychlé začátky vět a text,
+ * 3. podpis a odeslání.
+ *
+ * Druhý a třetí krok se ukážou až po výběru kategorie — prázdný formulář
+ * se všemi poli najednou působí jako úřední tiskopis, ne jako „napište nám“.
+ */
+export function FeedbackComposer() {
+  const { category, setCategory, message, setMessage, name, setName, restored, clearDraft } = useFeedbackDraft();
+  const [anonymous, setAnonymous] = useState(false);
+  const [website, setWebsite] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sentAs, setSentAs] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Kam posadit kurzor po vložení začátku věty — až když React zapíše nový text
+  const pendingCursor = useRef<number | null>(null);
+
+  const meta = category ? getCategoryMeta(category) : null;
+  const length = message.trim().length;
+  const missing = Math.max(0, FEEDBACK_LIMITS.messageMin - length);
+  const canSend = !!category && missing === 0 && !isPending;
+
+  // Pole roste s textem — scrollovat uvnitř malého okýnka se píše špatně
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [message, category]);
+
+  const pickCategory = (id: NonNullable<typeof category>) => {
+    setCategory(id);
+    setError(null);
+    // Po výběru rovnou psát — ale až se pole vykreslí
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
+  };
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el || pendingCursor.current === null) return;
+    el.setSelectionRange(pendingCursor.current, pendingCursor.current);
+    pendingCursor.current = null;
+  }, [message]);
+
+  const applyStarter = (starter: string) => {
+    const next = insertStarter(message, starter);
+    // Fokus hned, ne až po překreslení — jinak první napsané písmeno skončí jinde
+    textareaRef.current?.focus();
+    pendingCursor.current = next.length;
+    setMessage(next);
+  };
+
+  const submit = () => {
+    if (!canSend || !category) return;
+    setError(null);
+    const signedAs = anonymous ? "" : name;
+    startTransition(async () => {
+      try {
+        const res = await actionSubmitFeedback({
+          category,
+          message,
+          authorName: signedAs,
+          page: getReferrerPath(),
+          website,
+        });
+        if (res.ok) {
+          clearDraft();
+          setSentAs(signedAs);
+        } else {
+          setError(res.error);
+        }
+      } catch {
+        setError("Nepodařilo se to odeslat. Zkus to znovu.");
+      }
+    });
+  };
+
+  if (sentAs !== null) {
+    return (
+      <section className="glass rounded-3xl overflow-hidden">
+        <FeedbackSuccess name={sentAs} onAgain={() => setSentAs(null)} />
+      </section>
+    );
+  }
+
+  return (
+    <section className="glass rounded-3xl overflow-hidden" aria-labelledby="fb-title">
+      <form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
+        <div className="p-4 md:p-5 flex flex-col gap-4">
+          <div>
+            <h1 id="fb-title" className="font-display font-bold text-[17px] md:text-[19px] text-stone-900 leading-tight">
+              Máš nápad, nebo tě něco štve?
+            </h1>
+            <p className="text-[12.5px] text-stone-500 mt-1">
+              Vyber, čeho se to týká, a napiš pár slov.
+            </p>
+          </div>
+
+          <CategoryPicker onChange={pickCategory} value={category} />
+
+          {meta && (
+            <div key={meta.id} className="flex flex-col gap-3 fade-up">
+              <div className="flex items-center gap-2">
+                <span aria-hidden="true" className="emoji text-[18px] leading-none">{meta.emoji}</span>
+                <label className="font-display font-bold text-[14px] text-stone-900" htmlFor="fb-message">{meta.question}</label>
+                {restored && message.trim() && (
+                  <span className="ml-auto text-[11px] text-stone-400 inline-flex items-center gap-1">
+                    <MIcon name="history" size={12} /> Rozepsáno z minula
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-1.5 flex-wrap" aria-label="Rychlé začátky vět">
+                {meta.starters.map((s) => (
+                  <button key={s} className="fb-starter" onClick={() => applyStarter(s)} type="button">
+                    <MIcon name="add" size={12} />
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  className="fb-textarea"
+                  id="fb-message"
+                  maxLength={FEEDBACK_LIMITS.messageMax}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); }
+                  }}
+                  placeholder="Klidně stručně, po svém."
+                  value={message}
+                />
+                {message.length > FEEDBACK_LIMITS.messageMax * 0.8 && (
+                  <span className="absolute right-3 bottom-2.5 text-[11px] text-amber-700">
+                    {message.length} / {FEEDBACK_LIMITS.messageMax}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="modal-label">Kdo píše</span>
+                <SignaturePicker
+                  anonymous={anonymous}
+                  name={name}
+                  onAnonymousChange={setAnonymous}
+                  onNameChange={setName}
+                />
+              </div>
+
+              {/* Past na roboty — člověk pole nevidí a nevyplní */}
+              <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+                <label>
+                  Web
+                  <input autoComplete="off" name="website" onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} type="text" value={website} />
+                </label>
+              </div>
+
+              {error && (
+                <div role="alert" className="px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
+                  style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+                  <MIcon name="warning" size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {meta && (
+          <div className="flex items-center gap-3 px-4 md:px-5 py-3 border-t border-white/50" style={{ background: "rgba(255,255,255,0.3)" }}>
+            <span className="text-[11.5px] text-stone-400 flex-1 min-w-0">
+              {missing > 0 && length > 0
+                ? "Ještě kousek…"
+                : <>
+                    <span className="hidden md:inline"><kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Ctrl</kbd> + <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Enter</kbd> odešle · </span>
+                    {anonymous || !name.trim() ? "pošle se bez jména" : `pod jménem ${name.trim()}`}
+                  </>}
+            </span>
+            <button className="modal-btn modal-btn--primary inline-flex items-center gap-1.5 !px-5" disabled={!canSend} type="submit">
+              <MIcon name="send" size={15} />
+              {isPending ? "Odesílám…" : "Odeslat"}
+            </button>
+          </div>
+        )}
+      </form>
+    </section>
+  );
+}

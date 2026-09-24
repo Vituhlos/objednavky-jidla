@@ -473,10 +473,10 @@ export async function actionSubmitFeedback(
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   if (!checkRateLimit(`feedback:${ip}`, FEEDBACK_PER_IP, FEEDBACK_PER_IP_WINDOW_MS)) {
-    return { ok: false, error: "Poslali jste teď hodně připomínek najednou. Zkuste to prosím za hodinu." };
+    return { ok: false, error: "Teď toho posíláš hodně najednou. Zkus to zase za hodinu." };
   }
   if (!checkRateLimit("feedback:global", FEEDBACK_GLOBAL, FEEDBACK_GLOBAL_WINDOW_MS)) {
-    return { ok: false, error: "Dnes už přišlo příliš mnoho připomínek. Zkuste to prosím zítra." };
+    return { ok: false, error: "Dneska už přišlo připomínek až moc. Zkus to zítra." };
   }
 
   const entry = addFeedback(parsed.data, detectDevice(hdrs.get("user-agent")));

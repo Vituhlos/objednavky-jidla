@@ -42,7 +42,9 @@ app/
     PizzaPage.tsx                  # Objednávky pizzy
     PizzaDetailPage.tsx            # Detail historické pizza objednávky
     SettingsPage.tsx               # Nastavení (PIN chráněno)
-    FeedbackPage.tsx               # Formulář připomínek + „Co jsme upravili“
+    FeedbackPage.tsx               # Stránka připomínek (skládá feedback/*)
+    feedback/                      # Composer, dlaždice kategorií, podpis, poděkování,
+                                   # „Jak to funguje“, časová osa změn, useFeedbackDraft
     settings/FeedbackSection.tsx   # Správa připomínek v Nastavení
 
   api/
