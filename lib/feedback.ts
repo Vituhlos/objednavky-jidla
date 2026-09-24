@@ -129,6 +129,8 @@ type DbRow = {
   votable: number;
   vote_title: string;
   votes: number;
+  github_issue: number | null;
+  github_issue_state: string;
 };
 
 function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]>): FeedbackEntry {
@@ -150,6 +152,8 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     votable: r.votable === 1,
     voteTitle: r.vote_title ?? "",
     votes: r.votes ?? 0,
+    githubIssue: r.github_issue ?? null,
+    githubIssueState: r.github_issue_state === "open" || r.github_issue_state === "closed" ? r.github_issue_state : "",
   };
 }
 

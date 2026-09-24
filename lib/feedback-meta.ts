@@ -106,6 +106,9 @@ export interface FeedbackEntry {
   votable: boolean;
   voteTitle: string;
   votes: number;
+  /** Číslo úkolu na GitHubu, nebo null, dokud žádný nevznikl. */
+  githubIssue: number | null;
+  githubIssueState: "open" | "closed" | "";
 }
 
 /**

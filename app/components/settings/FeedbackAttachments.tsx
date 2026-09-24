@@ -11,10 +11,19 @@ import MIcon from "../MIcon";
  * Obrázky nejsou veřejné: stahují se s PINem v hlavičce a zobrazují přes
  * blob: URL. Obyčejné <img src> by PIN poslat neumělo.
  */
-export function FeedbackAttachments({ attachments, getPin }: { attachments: FeedbackAttachment[]; getPin: () => string }) {
+export function FeedbackAttachments({
+  feedbackId,
+  attachments,
+  getPin,
+}: {
+  feedbackId: number;
+  attachments: FeedbackAttachment[];
+  getPin: () => string;
+}) {
   const [urls, setUrls] = useState<Record<number, string>>({});
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
   // Po uložení poznámky přijde nové pole se stejnými přílohami — stahovat
   // znovu jen když se opravdu změní, které to jsou.
   const idsKey = attachments.map((a) => a.id).join(",");
@@ -49,7 +58,27 @@ export function FeedbackAttachments({ attachments, getPin }: { attachments: Feed
 
   return (
     <div className="modal-field">
-      <span className="modal-label">Screenshoty</span>
+      <span className="modal-label flex items-center gap-2">
+        Screenshoty
+        {!failed && Object.keys(urls).length === attachments.length && (
+          <button
+            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-50"
+            disabled={downloading}
+            onClick={async () => {
+              setDownloading(true);
+              try {
+                await downloadAsPng(attachments.map((a) => urls[a.id]), feedbackId);
+              } finally {
+                setDownloading(false);
+              }
+            }}
+            type="button"
+          >
+            <MIcon name="download" size={13} />
+            {attachments.length === 1 ? "Stáhnout" : "Stáhnout vše"}
+          </button>
+        )}
+      </span>
       {failed ? (
         <p className="text-[12px] text-red-500">Obrázky se nepodařilo načíst.</p>
       ) : (
@@ -94,4 +123,33 @@ export function FeedbackAttachments({ attachments, getPin }: { attachments: Feed
       )}
     </div>
   );
+}
+
+/**
+ * Uloží screenshoty jako PNG. Na disku jsou ve WebP (menší, bez metadat), ale
+ * PNG vezme bez řečí GitHub, Claude Code, Codex i Malování. Převod dělá
+ * prohlížeč přes canvas, takže server se znovu neptá.
+ */
+async function downloadAsPng(urls: string[], feedbackId: number): Promise<void> {
+  for (const [i, url] of urls.entries()) {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext("2d")?.drawImage(img, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) continue;
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = urls.length === 1 ? `pripominka-${feedbackId}.png` : `pripominka-${feedbackId}-${i + 1}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Chrome potřebuje mezi stahováními chvilku, jinak pustí jen první soubor
+    await new Promise((r) => setTimeout(r, 250));
+    URL.revokeObjectURL(href);
+  }
 }

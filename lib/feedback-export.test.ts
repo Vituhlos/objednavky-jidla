@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAiPrompt, buildGithubIssueUrl, GITHUB_REPO_URL } from "./feedback-export";
+import { buildAiPrompt, buildGithubIssueUrl, feedbackIssueMarker, GITHUB_REPO_URL, parseFeedbackIssueMarker } from "./feedback-export";
 import type { FeedbackEntry } from "./feedback-meta";
 
 const entry: FeedbackEntry = {
@@ -20,6 +20,8 @@ const entry: FeedbackEntry = {
   votable: false,
   voteTitle: "",
   votes: 0,
+  githubIssue: null,
+  githubIssueState: "",
 };
 
 function issueParams(url: string) {
@@ -71,3 +73,18 @@ describe("buildGithubIssueUrl", () => {
     expect(title.endsWith("…")).toBe(true);
   });
 });
+
+describe("značka úkolu", () => {
+  it("je v textu úkolu a jde zpátky přečíst", () => {
+    const body = issueParams(buildGithubIssueUrl(entry)).get("body") ?? "";
+    expect(body).toContain(feedbackIssueMarker(entry));
+    expect(parseFeedbackIssueMarker(body)).toEqual({ id: 42, createdAt: "2026-09-24 07:15:00" });
+  });
+
+  it("přežije úpravu textu kolem a odmítne poškozenou značku", () => {
+    expect(parseFeedbackIssueMarker("Upraveno.\n<!--kantyna-feedback:7@2026-01-02T03:04:05-->")).toEqual({ id: 7, createdAt: "2026-01-02 03:04:05" });
+    expect(parseFeedbackIssueMarker("<!-- kantyna-feedback: 7 -->")).toBeNull();
+    expect(parseFeedbackIssueMarker(null)).toBeNull();
+  });
+});
+

@@ -1,7 +1,7 @@
 "use client";
 
-import { useOptimistic, useState, useTransition, type Dispatch, type SetStateAction } from "react";
-import { actionDeleteFeedback, actionUpdateFeedback } from "@/app/actions";
+import { useEffect, useOptimistic, useState, useTransition, type Dispatch, type SetStateAction } from "react";
+import { actionDeleteFeedback, actionSyncFeedbackIssues, actionUpdateFeedback } from "@/app/actions";
 import {
   FEEDBACK_LIMITS,
   FEEDBACK_STATUSES,
@@ -67,6 +67,7 @@ export function FeedbackSection({
 }) {
   const [filter, setFilter] = useState<Filter>("open");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  useGithubIssueSync(isActive && isLoaded, getPin, onChange);
 
   if (!isActive) return null;
 
@@ -138,6 +139,41 @@ export function FeedbackSection({
       )}
     </SettingsSection>
   );
+}
+
+/**
+ * Po otevření záložky a po každém návratu do okna (typicky z GitHubu, kde se
+ * právě založil úkol) se zeptá serveru na čísla úkolů. Přepíše jen ta dvě
+ * pole, ať se nepřemaže rozepsaná poznámka nebo čerstvě změněný stav.
+ */
+function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Dispatch<SetStateAction<FeedbackEntry[]>>) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const sync = () => {
+      if (document.visibilityState !== "visible") return;
+      actionSyncFeedbackIssues(getPin())
+        .then((fresh) => {
+          if (cancelled || !fresh) return;
+          const byId = new Map(fresh.map((e) => [e.id, e]));
+          onChange((prev) => prev.map((e) => {
+            const f = byId.get(e.id);
+            return f && (f.githubIssue !== e.githubIssue || f.githubIssueState !== e.githubIssueState)
+              ? { ...e, githubIssue: f.githubIssue, githubIssueState: f.githubIssueState }
+              : e;
+          }));
+        })
+        .catch(() => { /* GitHub je jen pohodlí; chyba se neukazuje */ });
+    };
+    sync();
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [enabled, getPin, onChange]);
 }
 
 function FeedbackItem({
@@ -231,6 +267,7 @@ function FeedbackItem({
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
             {entry.appVersion && <span>· v{entry.appVersion}</span>}
+            {entry.githubIssue && <span className="text-stone-500">· úkol #{entry.githubIssue}{entry.githubIssueState === "closed" ? " (uzavřený)" : ""}</span>}
             {(entry.votable || entry.votes > 0) && <span className="text-blue-700">· {pluralizeVotes(entry.votes)}</span>}
             {entry.attachments.length > 0 && (
               <span>· {entry.attachments.length} {entry.attachments.length === 1 ? "obrázek" : "obrázky"}</span>
@@ -248,7 +285,7 @@ function FeedbackItem({
               <code className="text-[11.5px] text-stone-600 px-2.5 py-1.5 rounded-lg break-all" style={{ background: "rgba(26,18,8,0.05)" }}>{entry.context}</code>
             </div>
           )}
-          <FeedbackAttachments attachments={entry.attachments} getPin={getPin} />
+          <FeedbackAttachments attachments={entry.attachments} feedbackId={entry.id} getPin={getPin} />
           <FeedbackHandoff entry={{ ...entry, adminNote, status }} />
 
           <div className="modal-field">

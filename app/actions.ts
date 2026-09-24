@@ -62,6 +62,7 @@ import {
   updateFeedback,
   type FeedbackEntry,
 } from "@/lib/feedback";
+import { syncFeedbackIssues } from "@/lib/feedback-github";
 import { verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
@@ -450,6 +451,16 @@ async function requireActionPin(pin: unknown): Promise<void> {
 export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {
   await requireActionPin(pin);
   return getFeedbackList();
+}
+
+/**
+ * Dohledá na GitHubu úkoly založené z připomínek (podle značky v textu).
+ * Vrací nový seznam, jen když se něco změnilo — jinak null a klient nic nepřekresluje.
+ */
+export async function actionSyncFeedbackIssues(pin: string): Promise<FeedbackEntry[] | null> {
+  await requireActionPin(pin);
+  const changed = await syncFeedbackIssues();
+  return changed > 0 ? getFeedbackList() : null;
 }
 
 export async function actionUpdateFeedback(

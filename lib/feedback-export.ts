@@ -7,7 +7,26 @@ import { getCategoryMeta, getStatusMeta, type FeedbackEntry } from "./feedback-m
  * veřejný. Interní poznámka jde jen do schránky, na GitHub ne.
  */
 
-export const GITHUB_REPO_URL = "https://github.com/Vituhlos/objednavky-jidla";
+export const GITHUB_REPO = "Vituhlos/objednavky-jidla";
+export const GITHUB_REPO_URL = `https://github.com/${GITHUB_REPO}`;
+
+/**
+ * Neviditelná značka v textu úkolu (HTML komentář GitHub nevykreslí). Podle ní
+ * appka úkol najde a sama si k připomínce zapíše jeho číslo. Kromě id nese
+ * i čas odeslání, aby se úkol nespároval s cizí připomínkou se stejným číslem
+ * (jiná instalace, obnova ze zálohy).
+ */
+export function feedbackIssueMarker(entry: Pick<FeedbackEntry, "id" | "createdAt">): string {
+  return `<!-- kantyna-feedback: ${entry.id}@${entry.createdAt.replace(" ", "T")} -->`;
+}
+
+const MARKER_RE = /<!--\s*kantyna-feedback:\s*(\d{1,9})@(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s*-->/;
+
+/** Id a čas připomínky ze značky v textu úkolu, nebo null. */
+export function parseFeedbackIssueMarker(body: string | null | undefined): { id: number; createdAt: string } | null {
+  const m = body ? MARKER_RE.exec(body) : null;
+  return m ? { id: Number(m[1]), createdAt: m[2].replace("T", " ") } : null;
+}
 
 // Prohlížeče i GitHub zvládají delší adresy, ale kolem 8 000 znaků už
 // některé proxy odmítají požadavek. Text připomínky se pak zkrátí.
@@ -68,6 +87,8 @@ export function buildGithubIssueUrl(entry: ExportableFeedback): string {
       "",
       "### Text",
       quote(message),
+      "",
+      feedbackIssueMarker(entry),
     ].join("\n");
     return `${GITHUB_REPO_URL}/issues/new?${new URLSearchParams({ title, body }).toString()}`;
   };

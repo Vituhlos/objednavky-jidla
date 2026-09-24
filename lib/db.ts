@@ -229,6 +229,9 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE feedback ADD COLUMN votable INTEGER NOT NULL DEFAULT 0"); } catch {}
   // Krátký název k hlasování — odpověď autorovi („Díky, podíváme se…“) se na to nehodí
   try { db.exec("ALTER TABLE feedback ADD COLUMN vote_title TEXT NOT NULL DEFAULT ''"); } catch {}
+  // Úkol na GitHubu, který k připomínce vznikl (dohledá se podle značky v textu úkolu)
+  try { db.exec("ALTER TABLE feedback ADD COLUMN github_issue INTEGER"); } catch {}
+  try { db.exec("ALTER TABLE feedback ADD COLUMN github_issue_state TEXT NOT NULL DEFAULT ''"); } catch {}
 
   // Hlasy „chci taky“. voter_hash = SHA-256 náhodného kódu z prohlížeče —
   // jeden hlas na prohlížeč a věc; IP se neukládá.

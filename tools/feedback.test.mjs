@@ -23,6 +23,8 @@ const telegram = await lib("telegram");
 const { saveSettings } = await lib("settings");
 const { verifySettingsPin } = await lib("api-auth");
 const { getDb } = await lib("db");
+const github = await lib("feedback-github");
+const exporter = await lib("feedback-export");
 
 const input = (overrides = {}) => {
   const r = feedback.validateFeedbackInput({ category: "napad", message: "Přidejte tmavý režim", ...overrides });
@@ -290,3 +292,38 @@ test("bez názvu se k hlasování nedá, odpověď autorovi se veřejně neuká�
   feedback.updateFeedback(entry.id, { voteTitle: "" });
   assert.equal(feedback.getFeedbackById(entry.id).votable, false);
 });
+
+test("úkol z GitHubu se spáruje podle značky jen od důvěryhodného autora a nepřepíše cizí úkol", () => {
+  const { entry } = feedback.addFeedback(input({ message: "Chybí tmavý režim" }), "počítač");
+  const body = decodeURIComponent(new URL(exporter.buildGithubIssueUrl(entry)).searchParams.get("body") ?? "");
+  const issues = [
+    // nejnovější první, jako v odpovědi GitHubu
+    { number: 9, state: "open", body, author_association: "NONE" },            // cizí člověk — ignorovat
+    { number: 8, state: "open", body, author_association: "OWNER", pull_request: {} }, // PR — ignorovat
+    { number: 7, state: "closed", body, author_association: "OWNER" },
+    { number: 5, state: "open", body: body.replace(/@[^ ]+ -->/, "@2000-01-01T00:00:00 -->"), author_association: "OWNER" }, // jiný čas
+  ];
+  const links = github.extractIssueLinks(issues);
+  assert.deepEqual(links.map((l) => l.issue), [5, 7]);
+
+  assert.equal(github.applyIssueLinks(links), 1);
+  let fresh = feedback.getFeedbackById(entry.id);
+  assert.equal(fresh.githubIssue, 7);
+  assert.equal(fresh.githubIssueState, "closed");
+
+  // Opakovaný běh bez změny nic nezapisuje; jiný úkol k téže připomínce ji nepřepíše
+  assert.equal(github.applyIssueLinks(links), 0);
+  assert.equal(github.applyIssueLinks([{ ...links[1], issue: 12 }]), 0);
+  // Změna stavu téhož úkolu se propíše
+  assert.equal(github.applyIssueLinks([{ ...links[1], state: "open" }]), 1);
+  fresh = feedback.getFeedbackById(entry.id);
+  assert.equal(fresh.githubIssue, 7);
+  assert.equal(fresh.githubIssueState, "open");
+});
+
+test("nesmyslná odpověď GitHubu nic nerozbije", () => {
+  assert.deepEqual(github.extractIssueLinks(null), []);
+  assert.deepEqual(github.extractIssueLinks({ message: "API rate limit exceeded" }), []);
+  assert.deepEqual(github.extractIssueLinks([null, 1, { number: -1 }, { number: 3, body: 42, author_association: "OWNER" }]), []);
+});
+

@@ -12,7 +12,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
   - „Zkopírovat pro AI“ dá do schránky hotové zadání pro Claude Code nebo Codex: kategorii, stav, stránku, zařízení, verzi aplikace, technický údaj, počet screenshotů, text, interní poznámku a pokyny k postupu (AGENTS.md, SemVer, CHANGELOG, nerozbít objednávky/PDF/e-mail). Na `http://` bez HTTPS, kde prohlížeč `navigator.clipboard` nepovolí, se kopíruje záložní cestou; když neprojde ani ta, zobrazí se text k ručnímu zkopírování.
   - „Založit úkol na GitHubu“ otevře předvyplněný nový issue. Nic se neodešle samo, GitHub formulář ukáže text k úpravě. Adresa se drží pod 7 500 znaky, delší text připomínky se zkrátí.
   - Jméno autora se nepředává nikam; interní poznámka jde jen do schránky, na veřejný GitHub ne. Screenshoty je potřeba přiložit ručně.
-- Testy: `lib/feedback-export.test.ts`.
+  - **Číslo úkolu se doplní samo.** Úkol nese neviditelnou značku (HTML komentář s id a časem připomínky). Po otevření záložky Připomínky a po každém návratu do okna appka přečte posledních 100 úkolů z GitHub API a k připomínce zapíše číslo a stav (otevřený/uzavřený). V seznamu je pak „úkol #15“ a v detailu odkaz místo „Založit úkol“; u uzavřeného úkolu připomene, že je čas označit připomínku jako Hotovo a odpovědět. Bez tokenu (repozitář je veřejný), nejvýš jednou za 90 s, při vyčerpaném limitu GitHubu počká na jeho obnovení a chyby sítě Nastavení neshodí. Páruje se jen úkol od vlastníka nebo spolupracovníka repozitáře se shodným id i časem připomínky a už spárovaný úkol se nepřepíše jiným. Pro soukromý repozitář jde nastavit env `GITHUB_TOKEN`; při odmítnutém tokenu se to zkusí bez něj.
+- **Stažení screenshotů** u připomínky v Nastavení („Stáhnout“ / „Stáhnout vše“). Prohlížeč je převede z WebP do PNG (`pripominka-42-1.png`), aby šly rovnou přetáhnout do úkolu na GitHubu nebo do AI.
+- Testy: `lib/feedback-export.test.ts` (zadání, odkaz, značka) a `tools/feedback.test.mjs` (párování s úkoly: jen důvěryhodní autoři, bez PR, shodný čas, nepřepíše cizí úkol, nesmyslná odpověď GitHubu).
+
+### Migration notes
+
+- Databáze se rozšíří sama při startu o sloupce `feedback.github_issue` a `feedback.github_issue_state`. Zpětně kompatibilní, bez ručního kroku.
+- Kontejner potřebuje odchozí HTTPS na `api.github.com` (jen pro párování úkolů; bez něj vše ostatní funguje dál).
 
 ## [1.5.0] - 2026-09-24
 

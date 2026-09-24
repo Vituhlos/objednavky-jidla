@@ -94,6 +94,8 @@ describe("formatFeedbackTelegram", () => {
     votable: false,
     voteTitle: "",
     votes: 0,
+    githubIssue: null,
+    githubIssueState: "",
   };
 
   it("escapuje vše od uživatele — jinak Telegram zprávu odmítne", () => {
