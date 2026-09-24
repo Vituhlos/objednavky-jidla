@@ -20,6 +20,9 @@ const TRUSTED_AUTHORS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 // Bez tokenu dovolí GitHub 60 požadavků za hodinu na IP. Nejvýš jednou za
 // 90 s = 40 za hodinu, s rezervou pro cokoli dalšího na stejné adrese.
 const MIN_INTERVAL_MS = 90_000;
+// Když správce právě zakládá úkol, ptát se častěji — klient to posílá jen
+// 10 minut po kliknutí na „Založit úkol“, takže je to nejvýš ~20 dotazů navíc.
+const EAGER_INTERVAL_MS = 30_000;
 const TIMEOUT_MS = 5_000;
 
 type GithubIssue = {
@@ -58,9 +61,9 @@ let running: Promise<number> | null = null;
  * Vrací počet změněných připomínek. Chyby sítě nebo limitu GitHubu tiše
  * spolkne — jde jen o pohodlí, Nastavení kvůli tomu nesmí spadnout.
  */
-export function syncFeedbackIssues(now = Date.now()): Promise<number> {
+export function syncFeedbackIssues({ eager = false, now = Date.now() }: { eager?: boolean; now?: number } = {}): Promise<number> {
   if (running) return running;
-  if (now - lastSync < MIN_INTERVAL_MS || now < blockedUntil) return Promise.resolve(0);
+  if (now - lastSync < (eager ? EAGER_INTERVAL_MS : MIN_INTERVAL_MS) || now < blockedUntil) return Promise.resolve(0);
   lastSync = now;
   running = fetchIssues()
     .then((issues) => applyIssueLinks(extractIssueLinks(issues)))

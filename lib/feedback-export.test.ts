@@ -21,6 +21,7 @@ const entry: FeedbackEntry = {
   isPublic: false,
   isProposal: false,
   hidden: false,
+  mergedInto: null,
   up: 0,
   down: 0,
   githubIssue: null,

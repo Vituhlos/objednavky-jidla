@@ -6,6 +6,9 @@ import type { FeedbackEntry } from "@/lib/feedback-meta";
 import MIcon from "../MIcon";
 import { copyText } from "./copy-text";
 
+/** Po kliknutí na „Založit úkol“ — Nastavení se pak pár minut ptá GitHubu častěji. */
+export const ISSUE_PENDING_EVENT = "kantyna:feedback-issue-pending";
+
 /**
  * Předání připomínky k řešení: zadání pro AI do schránky, nebo nový úkol na
  * GitHubu. Interní poznámka jde jen do schránky, na veřejný GitHub ne.
@@ -52,6 +55,7 @@ export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
           <a
             className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
             href={buildGithubIssueUrl(entry)}
+            onClick={() => window.dispatchEvent(new CustomEvent(ISSUE_PENDING_EVENT, { detail: entry.id }))}
             rel="noopener noreferrer"
             target="_blank"
           >

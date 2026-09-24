@@ -13,7 +13,8 @@ import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
 import { StatusBadge } from "../feedback/StatusBadge";
 import { ConfirmModal } from "../ConfirmModal";
 import { FeedbackAttachments } from "./FeedbackAttachments";
-import { FeedbackHandoff } from "./FeedbackHandoff";
+import { FeedbackHandoff, ISSUE_PENDING_EVENT } from "./FeedbackHandoff";
+import { MergePicker } from "./MergePicker";
 import { ProposalForm } from "./ProposalForm";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
@@ -22,11 +23,12 @@ type Filter = "open" | "new" | "planned" | "done" | "all";
 
 const OPEN_STATUSES: FeedbackStatus[] = ["new", "read", "planned"];
 
-const FILTERS: { id: Filter; label: string; matches: (s: FeedbackStatus) => boolean }[] = [
-  { id: "open",    label: "K vyřízení", matches: (s) => OPEN_STATUSES.includes(s) },
-  { id: "new",     label: "Nové",       matches: (s) => s === "new" },
-  { id: "planned", label: "V plánu",    matches: (s) => s === "planned" },
-  { id: "done",    label: "Hotovo",     matches: (s) => s === "done" },
+// Sloučené duplicity jsou vyřízené tím, že patří k jiné — ukazují se jen ve „Vše“
+const FILTERS: { id: Filter; label: string; matches: (e: FeedbackEntry) => boolean }[] = [
+  { id: "open",    label: "K vyřízení", matches: (e) => e.mergedInto === null && OPEN_STATUSES.includes(e.status) },
+  { id: "new",     label: "Nové",       matches: (e) => e.mergedInto === null && e.status === "new" },
+  { id: "planned", label: "V plánu",    matches: (e) => e.mergedInto === null && e.status === "planned" },
+  { id: "done",    label: "Hotovo",     matches: (e) => e.mergedInto === null && e.status === "done" },
   { id: "all",     label: "Vše",        matches: () => true },
 ];
 
@@ -74,7 +76,7 @@ export function FeedbackSection({
   const active = FILTERS.find((f) => f.id === filter)!;
   // Rozkliknutá připomínka zůstane vidět, i když ji změna stavu z filtru vyřadí —
   // jinak by po kliknutí na „Hotovo“ zmizela dřív, než se dopíše odpověď.
-  const visible = entries.filter((e) => active.matches(e.status) || e.id === expandedId);
+  const visible = entries.filter((e) => active.matches(e) || e.id === expandedId);
 
   return (
     <SettingsSection
@@ -93,7 +95,7 @@ export function FeedbackSection({
     >
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2" role="group" aria-label="Filtr podle stavu">
         {FILTERS.map((f) => {
-          const count = entries.filter((e) => f.matches(e.status)).length;
+          const count = entries.filter((e) => f.matches(e)).length;
           const on = f.id === filter;
           return (
             <button
@@ -132,6 +134,7 @@ export function FeedbackSection({
             <FeedbackItem
               key={entry.id}
               entry={entry}
+              entries={entries}
               expanded={expandedId === entry.id}
               getPin={getPin}
               onToggle={() => setExpandedId((id) => (id === entry.id ? null : entry.id))}
@@ -153,12 +156,26 @@ function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Di
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    // Připomínky, ke kterým se právě zakládá úkol, a do kdy na něj čekat
+    const pending = new Set<number>();
+    let pendingUntil = 0;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+    };
+
     const sync = () => {
       if (document.visibilityState !== "visible") return;
-      actionSyncFeedbackIssues(getPin())
+      const eager = pending.size > 0 && Date.now() < pendingUntil;
+      if (!eager) { pending.clear(); stopPolling(); }
+      actionSyncFeedbackIssues(getPin(), eager)
         .then((fresh) => {
           if (cancelled || !fresh) return;
           const byId = new Map(fresh.map((e) => [e.id, e]));
+          for (const id of pending) if (byId.get(id)?.githubIssue) pending.delete(id);
+          if (pending.size === 0) stopPolling();
           onChange((prev) => prev.map((e) => {
             const f = byId.get(e.id);
             return f && (f.githubIssue !== e.githubIssue || f.githubIssueState !== e.githubIssueState)
@@ -168,25 +185,40 @@ function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Di
         })
         .catch(() => { /* GitHub je jen pohodlí; chyba se neukazuje */ });
     };
+
+    const onPending = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (!Number.isInteger(id)) return;
+      pending.add(id);
+      pendingUntil = Date.now() + 10 * 60_000;
+      // Ptát se každých 15 s; server sám nepustí na GitHub víc než jednou za 30 s
+      timer ??= setInterval(sync, 15_000);
+    };
+
     sync();
     window.addEventListener("focus", sync);
     document.addEventListener("visibilitychange", sync);
+    window.addEventListener(ISSUE_PENDING_EVENT, onPending);
     return () => {
       cancelled = true;
+      stopPolling();
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener(ISSUE_PENDING_EVENT, onPending);
     };
   }, [enabled, getPin, onChange]);
 }
 
 function FeedbackItem({
   entry,
+  entries,
   expanded,
   getPin,
   onToggle,
   onChange,
 }: {
   entry: FeedbackEntry;
+  entries: FeedbackEntry[];
   expanded: boolean;
   getPin: () => string;
   onToggle: () => void;
@@ -267,7 +299,7 @@ function FeedbackItem({
           </span>
           <span className="flex items-center gap-1.5 mt-1.5 text-[11px] text-stone-400 flex-wrap">
             <span className={entry.hidden ? "text-stone-500" : entry.isProposal || entry.votable ? "text-blue-700" : entry.isPublic ? "text-amber-700" : undefined}>
-              {entry.isProposal ? "váš návrh" : entry.hidden ? "skrytá" : entry.votable ? "v Co chystáme" : entry.isPublic ? "veřejná" : "jen pro vás"}
+              {entry.mergedInto !== null ? `sloučeno do #${entry.mergedInto}` : entry.isProposal ? "váš návrh" : entry.hidden ? "skrytá" : entry.votable ? "v Co chystáme" : entry.isPublic ? "veřejná" : "jen pro vás"}
             </span>
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
@@ -341,7 +373,7 @@ function FeedbackItem({
 
             <div className="modal-field">
               <label className="modal-label" htmlFor={`fb-reply-${entry.id}`}>
-                Odpověď <span className="modal-label-price">autor ji uvidí hned, ostatní u stavu Hotovo</span>
+                Odpověď <span className="modal-label-price">autor ji uvidí hned, ostatní u stavu Hotovo nebo Zamítnuto</span>
               </label>
               <textarea
                 className="modal-note"
@@ -355,7 +387,7 @@ function FeedbackItem({
             </div>
           </div>
 
-          {status !== "done" && status !== "rejected" && (
+          {entry.mergedInto === null && status !== "done" && status !== "rejected" && (
             <div className="flex flex-col gap-2 p-3 rounded-2xl" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.12)" }}>
               <div className="modal-field">
                 <label className="modal-label" htmlFor={`fb-vote-${entry.id}`}>
@@ -387,7 +419,7 @@ function FeedbackItem({
             </div>
           )}
 
-          {(entry.isPublic || entry.votable || entry.isProposal) && (
+          {entry.mergedInto === null && (entry.isPublic || entry.votable || entry.isProposal) && (
             <Toggle
               checked={entry.hidden}
               disabled={isPending}
@@ -395,6 +427,15 @@ function FeedbackItem({
               label="Skrýt z veřejného seznamu"
               onChange={(v) => persist({ hidden: v })}
             />
+          )}
+
+          {entry.mergedInto !== null ? (
+            <p className="text-[11.5px] text-stone-500 inline-flex items-center gap-1.5">
+              <MIcon name="info" size={13} />
+              Sloučeno do #{entry.mergedInto}. Autor vidí její stav a odpověď, hlasy se přesunuly tam.
+            </p>
+          ) : !entry.isProposal && (
+            <MergePicker entry={entry} entries={entries} getPin={getPin} onChange={onChange} />
           )}
 
           {status === "done" && !publicReply.trim() && (

@@ -20,6 +20,7 @@ import {
   type VotableFeedback,
   type VoteValue,
   isPublicCategory,
+  WITHDRAWABLE_STATUSES,
   PUBLIC_CATEGORIES,
   FEEDBACK_ATTACHMENT_RETENTION_DAYS,
   VOTER_TOKEN_PATTERN,
@@ -128,6 +129,7 @@ type DbRow = {
   vote_title: string;
   hidden: number;
   is_proposal: number;
+  merged_into: number | null;
   up: number;
   down: number;
   github_issue: number | null;
@@ -158,6 +160,7 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     isPublic: isPublicCategory(r.category) && r.is_proposal !== 1,
     isProposal: r.is_proposal === 1,
     hidden: r.hidden === 1,
+    mergedInto: r.merged_into ?? null,
     up: r.up ?? 0,
     down: r.down ?? 0,
     githubIssue: r.github_issue ?? null,
@@ -199,6 +202,40 @@ export function addFeedback(
   return { entry: getFeedbackById(id)!, token };
 }
 
+/** Sedí tajný kód autora k uloženému otisku? Porovnání v konstantním čase. */
+function tokenMatches(secretHash: string, token: string): boolean {
+  if (!secretHash) return false;
+  const expected = Buffer.from(secretHash, "hex");
+  const actual = Buffer.from(hashSecret(token), "hex");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+
+export type WithdrawResult = "ok" | "not-found" | "closed";
+
+/**
+ * Autor stáhne svou připomínku: smaže se ze serveru i s hlasy a screenshoty,
+ * takže zmizí i z „Připomínek ostatních“. Oprávnění dokazuje jen tajný kód
+ * z odeslání — bez něj (cizí připomínka, špatný kód) vrací „not-found“,
+ * aby nešlo zjišťovat, která id existují.
+ */
+export function withdrawOwnFeedback(id: number, token: string): WithdrawResult {
+  const row = getDb().prepare("SELECT status, secret_hash FROM feedback WHERE id = ?").get(id) as
+    | { status: string; secret_hash: string }
+    | undefined;
+  if (!row || !tokenMatches(row.secret_hash, token)) return "not-found";
+  if (!(WITHDRAWABLE_STATUSES as readonly string[]).includes(row.status)) return "closed";
+  // Sloučily se do ní cizí připomínky i s hlasy — ty by stažením zmizely taky
+  if (getDb().prepare("SELECT 1 FROM feedback WHERE merged_into = ? LIMIT 1").get(id)) return "closed";
+  deleteFeedback(id);
+  return "ok";
+}
+
+export const withdrawRequestSchema = z.object({
+  id: z.number().int().positive(),
+  token: z.string().min(16).max(64),
+});
+
 export const ownFeedbackRequestSchema = z.object({
   items: z
     .array(z.object({ id: z.number().int().positive(), token: z.string().min(16).max(64) }))
@@ -213,20 +250,21 @@ export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedb
   if (items.length === 0) return [];
   const db = getDb();
   const find = db.prepare(
-    `SELECT id, created_at, category, message, status, public_reply, secret_hash,
-            (SELECT COUNT(*) FROM feedback_attachments a WHERE a.feedback_id = feedback.id) AS attachment_count
-     FROM feedback WHERE id = ?`,
+    `SELECT f.id, f.created_at, f.category, f.message, f.secret_hash,
+            COALESCE(t.status, f.status) AS status,
+            CASE WHEN t.id IS NOT NULL THEN t.public_reply ELSE f.public_reply END AS public_reply,
+            t.id IS NOT NULL AS merged,
+            (SELECT COUNT(*) FROM feedback_attachments a WHERE a.feedback_id = f.id) AS attachment_count
+     FROM feedback f LEFT JOIN feedback t ON t.id = f.merged_into
+     WHERE f.id = ?`,
   );
   const result: OwnFeedback[] = [];
   for (const { id, token } of items) {
     const row = find.get(id) as {
       id: number; created_at: string; category: string; message: string; status: string;
-      public_reply: string; secret_hash: string; attachment_count: number;
+      public_reply: string; secret_hash: string; attachment_count: number; merged: number;
     } | undefined;
-    if (!row || !row.secret_hash) continue;
-    const expected = Buffer.from(row.secret_hash, "hex");
-    const actual = Buffer.from(hashSecret(token), "hex");
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) continue;
+    if (!row || !tokenMatches(row.secret_hash, token)) continue;
     result.push({
       id: row.id,
       createdAt: row.created_at,
@@ -235,6 +273,7 @@ export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedb
       status: getStatusMeta(row.status).id,
       reply: row.public_reply,
       attachmentCount: row.attachment_count,
+      merged: row.merged === 1,
     });
   }
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
@@ -257,7 +296,7 @@ export function getFeedbackList(): FeedbackEntry[] {
 
 export function countNewFeedback(): number {
   const { cnt } = getDb()
-    .prepare("SELECT COUNT(*) AS cnt FROM feedback WHERE status = 'new'")
+    .prepare("SELECT COUNT(*) AS cnt FROM feedback WHERE status = 'new' AND merged_into IS NULL")
     .get() as { cnt: number };
   return cnt;
 }
@@ -292,7 +331,43 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
 
 export function deleteFeedback(id: number): boolean {
   deleteAttachmentFiles(id);
-  return getDb().prepare("DELETE FROM feedback WHERE id = ?").run(id).changes > 0;
+  const db = getDb();
+  // Připomínky sloučené do mazané zase stojí samy (jejich hlasy už ale patřily sem)
+  db.prepare("UPDATE feedback SET merged_into = NULL WHERE merged_into = ?").run(id);
+  return db.prepare("DELETE FROM feedback WHERE id = ?").run(id).changes > 0;
+}
+
+/**
+ * Sloučí duplicitu `sourceId` do `targetId`: hlasy se přesunou (stejný
+ * prohlížeč se nezapočítá dvakrát — platí jeho hlas u cílové), sloučená
+ * zmizí z veřejných seznamů a její autor v „Moje připomínky“ vidí stav
+ * a odpověď cílové. Připomínky sloučené dřív do `sourceId` jdou taky do cílové.
+ */
+export function mergeFeedback(sourceId: number, targetId: number): FeedbackEntry | null {
+  if (sourceId === targetId) throw new Error("Připomínku nejde sloučit samu se sebou.");
+  const db = getDb();
+  const source = getFeedbackById(sourceId);
+  const target = getFeedbackById(targetId);
+  if (!source || !target) return null;
+  if (source.mergedInto !== null) throw new Error("Tahle připomínka už je sloučená.");
+  if (target.mergedInto !== null) throw new Error("Do sloučené připomínky slučovat nejde.");
+  if (source.isProposal) throw new Error("Váš návrh nejde sloučit do jiné připomínky.");
+
+  db.transaction(() => {
+    db.prepare(
+      `INSERT OR IGNORE INTO feedback_votes (feedback_id, voter_hash, value, created_at)
+       SELECT ?, voter_hash, value, created_at FROM feedback_votes WHERE feedback_id = ?`,
+    ).run(targetId, sourceId);
+    db.prepare("DELETE FROM feedback_votes WHERE feedback_id = ?").run(sourceId);
+    db.prepare("UPDATE feedback SET merged_into = ? WHERE merged_into = ?").run(targetId, sourceId);
+    db.prepare("UPDATE feedback SET merged_into = ?, votable = 0 WHERE id = ?").run(targetId, sourceId);
+    // Správce u cílové uvidí, co se do ní sloučilo
+    const note = `Sloučeno #${sourceId}: ${source.message.replace(/\s+/g, " ").slice(0, 200)}`;
+    db.prepare(
+      `UPDATE feedback SET admin_note = CASE WHEN admin_note = '' THEN ? ELSE admin_note || char(10) || ? END WHERE id = ?`,
+    ).run(note, note, targetId);
+  })();
+  return getFeedbackById(targetId);
 }
 
 /**
@@ -341,12 +416,15 @@ export function getPublicFeedbackReplies(limit = 20): PublicFeedbackReply[] {
 
 // „Co chystáme“: vlastní návrhy správce a připomínky, které dal k hlasování
 // pod svým názvem. Hotové a zamítnuté se stáhnou samy.
-const VOTABLE_SQL = "votable = 1 AND vote_title != '' AND hidden = 0 AND status IN ('new', 'read', 'planned')";
+const VOTABLE_SQL = "votable = 1 AND vote_title != '' AND hidden = 0 AND merged_into IS NULL AND status IN ('new', 'read', 'planned')";
 
-// „Připomínky ostatních“: otevřené připomínky veřejných kategorií, které správce
-// neskryl ani nepřesunul do „Co chystáme“. Hotové jdou do „Změnili jsme díky vám“.
-const PUBLIC_SQL = `category IN (${PUBLIC_CATEGORIES.map((c) => `'${c}'`).join(", ")})
-  AND is_proposal = 0 AND votable = 0 AND hidden = 0 AND status IN ('new', 'read', 'planned')`;
+// „Připomínky ostatních“: veřejné kategorie, které správce neskryl, nesloučil
+// ani nepřesunul do „Co chystáme“. Hlasovat jde jen o otevřené; vyřízené
+// (Hotovo, Zamítnuto) se ukazují ještě 60 dní se stavem a odpovědí správce.
+const PUBLIC_BASE_SQL = `category IN (${PUBLIC_CATEGORIES.map((c) => `'${c}'`).join(", ")})
+  AND is_proposal = 0 AND votable = 0 AND hidden = 0 AND merged_into IS NULL`;
+const PUBLIC_SQL = `${PUBLIC_BASE_SQL} AND status IN ('new', 'read', 'planned')`;
+const PUBLIC_CLOSED_DAYS = 60;
 
 /** „Co chystáme“, nejlépe hodnocené první (👍 mínus 👎). */
 export function getVotableFeedback(limit = 30): VotableFeedback[] {
@@ -375,11 +453,15 @@ export function getVotableFeedback(limit = 30): VotableFeedback[] {
 export function getPublicFeedback(limit = 100): PublicFeedbackItem[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, category, status, message, created_at, ${VOTE_COLUMNS}
-       FROM feedback WHERE ${PUBLIC_SQL}
+      `SELECT id, category, status, message, created_at, ${VOTE_COLUMNS},
+              CASE WHEN status IN ('done', 'rejected') THEN public_reply ELSE '' END AS reply
+       FROM feedback
+       WHERE (${PUBLIC_SQL})
+          OR (${PUBLIC_BASE_SQL} AND status IN ('done', 'rejected')
+              AND COALESCE(status_changed_at, created_at) >= datetime('now', '-${PUBLIC_CLOSED_DAYS} days'))
        ORDER BY created_at DESC, id DESC LIMIT ?`,
     )
-    .all(limit) as { id: number; category: string; status: string; message: string; created_at: string; up: number; down: number }[];
+    .all(limit) as { id: number; category: string; status: string; message: string; created_at: string; up: number; down: number; reply: string }[];
   return rows.map((r) => ({
     id: r.id,
     category: getCategoryMeta(r.category).id,
@@ -388,6 +470,7 @@ export function getPublicFeedback(limit = 100): PublicFeedbackItem[] {
     createdAt: r.created_at,
     up: r.up,
     down: r.down,
+    reply: r.reply ?? "",
   }));
 }
 

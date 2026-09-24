@@ -212,7 +212,7 @@ test("autor vidí svou připomínku jen se správným kódem", () => {
   assert.equal(own[0].reply, "Chystáme to");
   // interní poznámka ani autor se ven nedostanou
   assert.ok(!JSON.stringify(own).includes("interní"));
-  assert.deepEqual(Object.keys(own[0]).sort(), ["attachmentCount", "category", "createdAt", "id", "message", "reply", "status"]);
+  assert.deepEqual(Object.keys(own[0]).sort(), ["attachmentCount", "category", "createdAt", "id", "merged", "message", "reply", "status"]);
 
   // v DB je jen hash kódu
   const row = getDb().prepare("SELECT secret_hash FROM feedback WHERE id = ?").get(entry.id);
@@ -357,9 +357,11 @@ test("„Připomínky ostatních“ ukážou jen otevřené veřejné kategorie 
 
   const ids = feedback.getPublicFeedback().map((i) => i.id);
   assert.ok(ids.includes(idea.id));
-  for (const other of [bug, food, hidden, done, promoted]) assert.ok(!ids.includes(other.id), `id ${other.id}`);
+  for (const other of [bug, food, hidden, promoted]) assert.ok(!ids.includes(other.id), `id ${other.id}`);
+  // Hotová zůstává vidět se stavem, ale hlasovat o ní nejde
+  assert.equal(feedback.getPublicFeedback().find((i) => i.id === done.id)?.status, "done");
   const item = feedback.getPublicFeedback().find((i) => i.id === idea.id);
-  assert.deepEqual(Object.keys(item).sort(), ["category", "createdAt", "down", "id", "status", "text", "up"]);
+  assert.deepEqual(Object.keys(item).sort(), ["category", "createdAt", "down", "id", "reply", "status", "text", "up"]);
 
   // Přesunutá do „Co chystáme“ je tam pod názvem správce
   assert.ok(feedback.getVotableFeedback().some((v) => v.id === promoted.id && v.summary === "Hezčí souhrn"));
@@ -385,5 +387,74 @@ test("vlastní návrh správce jde rovnou do „Co chystáme“ a hlasuje se �
   // Hotový návrh se z hlasování stáhne
   feedback.updateFeedback(entry.id, { status: "done" });
   assert.equal(feedback.setVote(entry.id, "c".repeat(24), 1), null);
+});
+
+test("GitHub se ptá nejvýš jednou za 90 s, při čekání na nový úkol jednou za 30 s", async () => {
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response("[]", { status: 200 }); };
+  try {
+    const t0 = Date.parse("2030-01-01T10:00:00Z");
+    await github.syncFeedbackIssues({ now: t0 });
+    await github.syncFeedbackIssues({ now: t0 + 20_000 });                // brzy → nic
+    await github.syncFeedbackIssues({ now: t0 + 40_000, eager: true });   // čeká se na úkol → dotaz
+    await github.syncFeedbackIssues({ now: t0 + 60_000, eager: true });   // < 30 s od minula → nic
+    await github.syncFeedbackIssues({ now: t0 + 100_000 });               // běžně < 90 s → nic
+    await github.syncFeedbackIssues({ now: t0 + 131_000 });               // ≥ 90 s → dotaz
+    assert.equal(calls, 3);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("sloučení duplicit: hlasy se sečtou, duplicita zmizí z nástěnky a autor vidí stav cílové", () => {
+  const { entry: target, token: targetToken } = feedback.addFeedback(input({ category: "napad", message: "Tmavý režim večer" }), "");
+  const { entry: dup, token: dupToken } = feedback.addFeedback(input({ category: "napad", message: "Chci dark mode" }), "");
+  const a = "m".repeat(24), b = "n".repeat(24), c = "o".repeat(24);
+  feedback.setVote(target.id, a, 1);
+  feedback.setVote(dup.id, a, -1);   // stejný prohlížeč u obou — platí hlas u cílové
+  feedback.setVote(dup.id, b, 1);
+  feedback.setVote(dup.id, c, 1);
+
+  const merged = feedback.mergeFeedback(dup.id, target.id);
+  assert.deepEqual([merged.up, merged.down], [3, 0]);
+  assert.match(merged.adminNote, new RegExp(`Sloučeno #${dup.id}: Chci dark mode`));
+  const ids = feedback.getPublicFeedback().map((i) => i.id);
+  assert.ok(ids.includes(target.id) && !ids.includes(dup.id));
+  assert.equal(feedback.setVote(dup.id, a, 1), null);
+
+  // Autor duplicity vidí stav a odpověď cílové
+  feedback.updateFeedback(target.id, { status: "planned", publicReply: "Chystáme to." });
+  const [own] = feedback.getOwnFeedback([{ id: dup.id, token: dupToken }]);
+  assert.deepEqual([own.merged, own.status, own.reply, own.message], [true, "planned", "Chystáme to.", "Chci dark mode"]);
+
+  // Cílovou už její autor stáhnout nemůže — nesla by s sebou cizí hlasy
+  assert.equal(feedback.withdrawOwnFeedback(target.id, targetToken), "closed");
+  assert.throws(() => feedback.mergeFeedback(dup.id, target.id), /už je sloučená/);
+  assert.throws(() => feedback.mergeFeedback(target.id, target.id), /samu se sebou/);
+
+  // Smazání cílové duplicitu zase osamostatní
+  feedback.deleteFeedback(target.id);
+  assert.equal(feedback.getFeedbackById(dup.id).mergedInto, null);
+});
+
+test("vyřízené připomínky zůstanou na nástěnce 60 dní se stavem a odpovědí, hlasovat o nich nejde", () => {
+  const { entry: done } = feedback.addFeedback(input({ category: "napad", message: "Hotová věc na nástěnce" }), "");
+  const { entry: rejected } = feedback.addFeedback(input({ category: "mobil", message: "Zamítnutá věc na nástěnce" }), "");
+  const { entry: old } = feedback.addFeedback(input({ category: "jine", message: "Stará vyřízená věc" }), "");
+  feedback.updateFeedback(done.id, { status: "done", publicReply: "Je venku ve verzi 1.7." });
+  feedback.updateFeedback(rejected.id, { status: "rejected", publicReply: "Na mobilu to nejde kvůli…" });
+  feedback.updateFeedback(old.id, { status: "done" });
+  getDb().prepare("UPDATE feedback SET status_changed_at = datetime('now', '-61 days') WHERE id = ?").run(old.id);
+
+  const board = feedback.getPublicFeedback();
+  assert.equal(board.find((i) => i.id === done.id).reply, "Je venku ve verzi 1.7.");
+  assert.equal(board.find((i) => i.id === rejected.id).status, "rejected");
+  assert.ok(!board.some((i) => i.id === old.id));
+  assert.equal(feedback.setVote(done.id, "p".repeat(24), 1), null);
+  // Otevřená připomínka odpověď veřejně neukazuje (tu vidí zatím jen autor)
+  const { entry: open } = feedback.addFeedback(input({ category: "napad", message: "Otevřená s odpovědí" }), "");
+  feedback.updateFeedback(open.id, { publicReply: "Díky, podíváme se." });
+  assert.equal(feedback.getPublicFeedback().find((i) => i.id === open.id).reply, "");
 });
 

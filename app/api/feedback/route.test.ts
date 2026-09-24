@@ -24,6 +24,7 @@ type Route = typeof import("./route");
 type MineRoute = typeof import("./mine/route");
 type VoteRoute = typeof import("./vote/route");
 let VOTE: VoteRoute["POST"];
+let WITHDRAW: typeof import("./withdraw/route")["POST"];
 let POST: Route["POST"];
 let MINE: MineRoute["POST"];
 let png: Buffer;
@@ -32,6 +33,7 @@ beforeAll(async () => {
   ({ POST } = await import("./route"));
   ({ POST: MINE } = await import("./mine/route"));
   ({ POST: VOTE } = await import("./vote/route"));
+  ({ POST: WITHDRAW } = await import("./withdraw/route"));
   png = await sharp({ create: { width: 64, height: 48, channels: 3, background: "#ea580c" } }).png().toBuffer();
 });
 
@@ -184,3 +186,50 @@ describe("POST /api/feedback/vote", () => {
     expect((await vote({ id: 1, voter: "w".repeat(24), vote: true })).status).toBe(400);
   });
 });
+
+async function withdraw(payload: unknown) {
+  const body = JSON.stringify(payload);
+  const res = await WITHDRAW(new Request("http://localhost/api/feedback/withdraw", {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json", "content-length": String(Buffer.byteLength(body)), "x-forwarded-for": freshIp() },
+  }) as never);
+  return { status: res.status, json: await res.json() as { ok: boolean; error?: string } };
+}
+
+describe("POST /api/feedback/withdraw", () => {
+  it("autor stáhne svou připomínku a zmizí i z Připomínek ostatních", async () => {
+    const created = (await send({ category: "napad", message: "Tohle si nakonec rozmyslím." })).json;
+    const { getPublicFeedback } = await import("@/lib/feedback");
+    expect(getPublicFeedback().some((i) => i.id === created.id)).toBe(true);
+
+    expect((await withdraw({ id: created.id, token: created.token })).json.ok).toBe(true);
+    expect(getPublicFeedback().some((i) => i.id === created.id)).toBe(false);
+    // Podruhé už není co stahovat
+    expect((await withdraw({ id: created.id, token: created.token })).status).toBe(404);
+  });
+
+  it("cizí nebo vymyšlený kód připomínku nesmaže a neprozradí, že existuje", async () => {
+    const mine = (await send({ category: "napad", message: "Moje připomínka, ne tvoje." })).json;
+    const other = (await send({ category: "napad", message: "Cizí připomínka se svým kódem." })).json;
+    expect((await withdraw({ id: mine.id, token: other.token })).status).toBe(404);
+    expect((await withdraw({ id: mine.id, token: "x".repeat(32) })).status).toBe(404);
+    expect((await withdraw({ id: 999999, token: mine.token })).status).toBe(404);
+    const { getFeedbackById } = await import("@/lib/feedback");
+    expect(getFeedbackById(mine.id!)).not.toBeNull();
+  });
+
+  it("vyřízenou připomínku stáhnout nejde — nese odpověď správce", async () => {
+    const created = (await send({ category: "napad", message: "Hotová věc s odpovědí." })).json;
+    const { updateFeedback, getFeedbackById } = await import("@/lib/feedback");
+    updateFeedback(created.id!, { status: "done", publicReply: "Hotovo." });
+    expect((await withdraw({ id: created.id, token: created.token })).status).toBe(409);
+    expect(getFeedbackById(created.id!)).not.toBeNull();
+  });
+
+  it("odmítne nesmyslný požadavek", async () => {
+    expect((await withdraw({ id: "1", token: "x".repeat(32) })).status).toBe(400);
+    expect((await withdraw({ id: 1 })).status).toBe(400);
+  });
+});
+

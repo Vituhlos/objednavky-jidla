@@ -19,6 +19,40 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.7.0",
+    date: "2026-09-24",
+    title: "Vyřízené připomínky, odpovědi a duplicity",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Na nástěnce Připomínky ostatních je záložka „Vyřízené“: hotové a zamítnuté připomínky se stavem a vaší odpovědí. Hlasovat o nich už nejde.",
+          "Když autorovi odpovíte nebo změníte stav, uvidí u Připomínek v menu tečku a v Mých připomínkách zvýraznění „Nová odpověď“.",
+          "Duplicity jde v Nastavení → Připomínky sloučit s podobnou připomínkou. Hlasy se sečtou a autor duplicity uvidí stav té druhé.",
+          "Autor může svou připomínku stáhnout křížkem v kartě „Moje připomínky“. Zmizí i z Připomínek ostatních a z Nastavení. Hotové a zamítnuté připomínky stáhnout nejde, ty se jen skryjí z jeho seznamu.",
+        ],
+      },
+      {
+        title: "Fixed",
+        items: [
+          "Emoji na iPhonu a iPadu už nejsou rozkostičkovaná. Apple zařízení kreslí svoje vlastní emoji.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Po založení úkolu na GitHubu se jeho číslo u připomínky objeví do půl minuty, ne až po několika minutách.",
+        ],
+      },
+    ],
+    forEveryone: [
+      "U Připomínek v menu se objeví tečka, když na tvou připomínku přijde odpověď.",
+      "Emoji na iPhonu už nejsou rozkostičkovaná.",
+      "Na nástěnce je záložka „Vyřízené“: co se udělalo a co ne, i s odpovědí.",
+      "Vlastní připomínku jde stáhnout křížkem v kartě „Moje připomínky“. Zmizí i u ostatních.",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-09-24",
     title: "Hlasování o nápadech",

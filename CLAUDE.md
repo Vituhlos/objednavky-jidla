@@ -152,11 +152,11 @@ page (cesta, odkud přišel) | device ("mobil"|"počítač"|"")
 status ("new"|"read"|"planned"|"done"|"rejected")
 admin_note | public_reply | resolved_at (první přechod do "done")
 secret_hash (SHA-256 kódu autora) | context | app_version | status_changed_at
-votable (0/1) | vote_title | hidden (0/1) | is_proposal (0/1)
+votable (0/1) | vote_title | hidden (0/1) | is_proposal (0/1) | merged_into (id cílové, sloučená duplicita)
 github_issue | github_issue_state ("open"|"closed"|"")
 ```
 Veřejně jdou tři věci:
-- `getPublicFeedback` („Připomínky ostatních“): `message` otevřených připomínek z `PUBLIC_CATEGORIES` (napad, ovladani, mobil, jine), které nejsou `hidden`, `votable` ani `is_proposal` — jen text, kategorie, stav, datum, hlasy. Nikdy stránka, zařízení, context, screenshoty ani admin_note.
+- `getPublicFeedback` („Připomínky ostatních“): `message` připomínek z `PUBLIC_CATEGORIES` (napad, ovladani, mobil, jine), které nejsou `hidden`, `votable`, `is_proposal` ani sloučené — otevřené a 60 dní i vyřízené (done/rejected, u nich i `public_reply`). Jen text, kategorie, stav, datum, hlasy. Nikdy stránka, zařízení, context, screenshoty ani admin_note. Hlasovat jde jen o otevřené.
 - `getVotableFeedback` („Co chystáme“): jen `vote_title` (návrhy správce `is_proposal = 1` a připomínky, které dal k hlasování).
 - `getPublicFeedbackReplies` („Změnili jsme díky vám“): jen `public_reply` hotových připomínek.
 
@@ -207,7 +207,9 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - Screenshoty pro správce: `GET /api/feedback/attachments/[id]` s hlavičkou `x-settings-pin`
 - Moje připomínky: `POST /api/feedback/mine` s tajnými kódy z localStorage (`myFeedback`)
 - Hlasování: `POST /api/feedback/vote` `{ id, voter, value: 1|-1|0 }` (kód hlasujícího `feedbackVoter`, vlastní hlasy `feedbackVotes` v localStorage)
-- Vlastní návrh správce: `actionAddProposal(pin, { title, category })`; skrytí: `actionUpdateFeedback(pin, id, { hidden })`
+- Vlastní návrh správce: `actionAddProposal(pin, { title, category })`; skrytí: `actionUpdateFeedback(pin, id, { hidden })`; sloučení duplicit: `actionMergeFeedback(pin, sourceId, targetId)`
+- Stažení vlastní připomínky: `POST /api/feedback/withdraw` `{ id, token }` (jen new/read/planned a ne cílová sloučení)
+- Odznak nové odpovědi v menu: `feedback/useFeedbackBadge.ts` + `feedback-seen.ts` (localStorage `feedbackSeen`, cache `feedbackMineCache` v sessionStorage)
 - Předání k řešení: `lib/feedback-export.ts` (zadání pro AI, odkaz na nový GitHub issue se značkou), `lib/feedback-github.ts` (párování s úkoly přes GitHub API, `actionSyncFeedbackIssues`)
 - Pozvánka na objednávkové stránce: `order/FeedbackNudge.tsx` (skrytí na 14 dní v localStorage)
 - Úklid: `cleanupOldAttachments()` ve scheduleru ve 3:30 — screenshoty 90 dní po vyřízení

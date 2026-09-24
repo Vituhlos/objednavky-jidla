@@ -32,6 +32,12 @@ export default function FeedbackPage({
     own.remember(id, token);
     router.refresh();
   };
+  // Stažená připomínka zmizí i z nástěnky — ta je ze serveru, proto refresh
+  const onWithdraw = async (id: number) => {
+    const problem = await own.withdraw(id);
+    if (!problem) router.refresh();
+    return problem;
+  };
   const ownIds = new Set(own.items.map((i) => i.id));
 
   return (
@@ -58,7 +64,7 @@ export default function FeedbackPage({
           </div>
           <div className="flex flex-col gap-4">
             <HowItWorks />
-            <MyFeedback items={own.items} onForget={own.forget} />
+            <MyFeedback items={own.items} onForget={own.forget} onWithdraw={onWithdraw} updates={own.updates} />
             <VotingBoard items={votable} />
             <ChangesTimeline replies={replies} />
             <WhatsNew notes={releaseNotes} />
