@@ -759,6 +759,25 @@ body {
   background: rgba(255,255,255,0.95); border: 1px solid rgba(21,128,61,0.22);
 }
 
+/* „Co je nového“ — tenká osa, verze jako malé body; rozbalená jen jedna. */
+.fb-news { position: relative; padding: 6px 0; }
+.fb-news::before {
+  content: ""; position: absolute; left: 21px; top: 22px; bottom: 22px;
+  border-left: 1.5px solid rgba(217,119,6,0.18);
+}
+.fb-news__row {
+  position: relative; width: 100%; display: flex; align-items: baseline; gap: 12px;
+  padding: 8px 16px 8px 36px; text-align: left; border-radius: 14px;
+  transition: background .15s;
+}
+.fb-news__row:hover { background: rgba(255,255,255,0.45); }
+.fb-news__row::before {
+  content: ""; position: absolute; left: 17px; top: 13px; width: 10px; height: 10px; border-radius: 999px;
+  background: #fff; border: 1.5px solid rgba(217,119,6,0.45);
+}
+.fb-news__row[aria-expanded="true"]::before { background: #F59E0B; border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,0.16); }
+.fb-news__body { padding: 0 16px 10px 36px; }
+
 .fb-stat {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   padding: 10px 12px; border-radius: 16px; text-align: left;
