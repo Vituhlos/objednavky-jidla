@@ -22,7 +22,7 @@ export const FEEDBACK_CATEGORIES = [
   {
     id: "ovladani", emoji: "🎨", label: "Vzhled a ovládání", short: "Vzhled",
     question: "Co je nepřehledné?",
-    starters: ["Špatně se hledá…", "Špatně se čte…", "Moc klikání je u…"],
+    starters: ["Špatně se hledá…", "Špatně se čte…", "Zbytečně hodně klikání je u…"],
   },
   {
     id: "mobil", emoji: "📱", label: "Na mobilu", short: "Mobil",
@@ -32,7 +32,7 @@ export const FEEDBACK_CATEGORIES = [
   {
     id: "pochvala", emoji: "🙌", label: "Pochvala", short: "Pochvala",
     question: "Co se povedlo?",
-    starters: ["Líbí se mi…", "Super je…", "Díky za…"],
+    starters: ["Líbí se mi…", "Skvělé je…", "Díky za…"],
   },
   {
     id: "jine", emoji: "💬", label: "Něco jiného", short: "Jiné",

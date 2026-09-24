@@ -132,7 +132,7 @@ export function FeedbackComposer() {
                 <label className="font-display font-bold text-[14px] text-stone-900" htmlFor="fb-message">{meta.question}</label>
                 {restored && message.trim() && (
                   <span className="ml-auto text-[11px] text-stone-400 inline-flex items-center gap-1">
-                    <MIcon name="history" size={12} /> Rozepsáno z minula
+                    <MIcon name="history" size={12} /> Máš tu rozepsaný text
                   </span>
                 )}
               </div>
@@ -201,8 +201,8 @@ export function FeedbackComposer() {
               {missing > 0 && length > 0
                 ? "Ještě kousek…"
                 : <>
-                    <span className="hidden md:inline"><kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Ctrl</kbd> + <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Enter</kbd> odešle · </span>
-                    {anonymous || !name.trim() ? "pošle se bez jména" : `pod jménem ${name.trim()}`}
+                    {anonymous || !name.trim() ? "Odešle se bez jména." : `Odešle se pod jménem ${name.trim()}.`}
+                    <span className="hidden md:inline"> Zkratka: <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Ctrl</kbd> + <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Enter</kbd></span>
                   </>}
             </span>
             <button className="modal-btn modal-btn--primary inline-flex items-center gap-1.5 !px-5" disabled={!canSend} type="submit">

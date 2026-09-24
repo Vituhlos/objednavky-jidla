@@ -476,7 +476,7 @@ export async function actionSubmitFeedback(
     return { ok: false, error: "Teď toho posíláš hodně najednou. Zkus to zase za hodinu." };
   }
   if (!checkRateLimit("feedback:global", FEEDBACK_GLOBAL, FEEDBACK_GLOBAL_WINDOW_MS)) {
-    return { ok: false, error: "Dneska už přišlo připomínek až moc. Zkus to zítra." };
+    return { ok: false, error: "Dnes už přišlo připomínek příliš mnoho. Zkus to zítra." };
   }
 
   const entry = addFeedback(parsed.data, detectDevice(hdrs.get("user-agent")));

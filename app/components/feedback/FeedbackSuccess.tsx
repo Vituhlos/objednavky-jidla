@@ -30,7 +30,7 @@ export function FeedbackSuccess({ name, onAgain }: { name: string; onAgain: () =
       <h2 className="font-display font-bold text-[20px] text-stone-900">
         Díky, dorazilo to!
       </h2>
-      <p className="text-[12px] text-stone-400 -mt-2">{name.trim() ? `Pod jménem ${name.trim()}` : "Bez jména"}</p>
+      <p className="text-[12px] text-stone-400 -mt-2">{name.trim() ? `Odesláno pod jménem ${name.trim()}` : "Odesláno bez jména"}</p>
       <p className="text-[13px] text-stone-500 max-w-[340px] leading-relaxed">
         Správce si to přečte. Až se podle toho něco změní, objeví se to v seznamu změn.
       </p>
