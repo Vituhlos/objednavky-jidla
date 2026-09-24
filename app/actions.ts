@@ -453,9 +453,9 @@ export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {
  * Dohledá na GitHubu úkoly založené z připomínek (podle značky v textu).
  * Vrací nový seznam, jen když se něco změnilo — jinak null a klient nic nepřekresluje.
  */
-export async function actionSyncFeedbackIssues(pin: string): Promise<FeedbackEntry[] | null> {
+export async function actionSyncFeedbackIssues(pin: string, eager = false): Promise<FeedbackEntry[] | null> {
   await requireActionPin(pin);
-  const changed = await syncFeedbackIssues();
+  const changed = await syncFeedbackIssues({ eager: eager === true });
   return changed > 0 ? getFeedbackList() : null;
 }
 

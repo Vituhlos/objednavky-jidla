@@ -387,3 +387,21 @@ test("vlastní návrh správce jde rovnou do „Co chystáme“ a hlasuje se �
   assert.equal(feedback.setVote(entry.id, "c".repeat(24), 1), null);
 });
 
+test("GitHub se ptá nejvýš jednou za 90 s, při čekání na nový úkol jednou za 30 s", async () => {
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response("[]", { status: 200 }); };
+  try {
+    const t0 = Date.parse("2030-01-01T10:00:00Z");
+    await github.syncFeedbackIssues({ now: t0 });
+    await github.syncFeedbackIssues({ now: t0 + 20_000 });                // brzy → nic
+    await github.syncFeedbackIssues({ now: t0 + 40_000, eager: true });   // čeká se na úkol → dotaz
+    await github.syncFeedbackIssues({ now: t0 + 60_000, eager: true });   // < 30 s od minula → nic
+    await github.syncFeedbackIssues({ now: t0 + 100_000 });               // běžně < 90 s → nic
+    await github.syncFeedbackIssues({ now: t0 + 131_000 });               // ≥ 90 s → dotaz
+    assert.equal(calls, 3);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+

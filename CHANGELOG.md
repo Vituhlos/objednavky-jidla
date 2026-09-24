@@ -6,6 +6,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-24
+
+### Added
+
+- **Stažení vlastní připomínky.** Křížek v kartě „Moje připomínky“ u otevřené připomínky (Čeká na přečtení, Přečteno, V plánu) se zeptá „Stáhnout? Zmizí i u ostatních.“ a připomínku smaže ze serveru i s hlasy a screenshoty — zmizí i z „Připomínek ostatních“ a z Nastavení. Oprávnění dokazuje tajný kód z odeslání, který má jen prohlížeč autora (`POST /api/feedback/withdraw`, limit 30/h na IP); cizí nebo vymyšlený kód dostane stejnou odpověď jako neexistující připomínka. Hotovou a zamítnutou připomínku stáhnout nejde (nese odpověď správce), křížek ji jako dřív jen skryje z vlastního seznamu. Testy v `app/api/feedback/route.test.ts`.
+
+### Changed
+
+- **Číslo úkolu z GitHubu naskočí rychleji.** Po kliknutí na „Založit úkol na GitHubu“ se Nastavení 10 minut ptá každých 15 s a server se GitHubu v tu dobu zeptá nejvýš jednou za 30 s (jinak dál jednou za 90 s). Dřív se číslo ukázalo až při dalším návratu do okna po uplynutí 90 s, takže to mohlo trvat i několik minut. Test v `tools/feedback.test.mjs`.
+
 ## [1.6.0] - 2026-09-24
 
 ### Added

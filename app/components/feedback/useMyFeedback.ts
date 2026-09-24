@@ -60,5 +60,24 @@ export function useMyFeedback() {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  return { items, loaded, remember, forget };
+  /** Stáhne připomínku ze serveru (i u ostatních). Vrací chybovou hlášku, nebo null. */
+  const withdraw = useCallback(async (id: number): Promise<string | null> => {
+    const key = readKeys().find((k) => k.id === id);
+    if (!key) return "Tuhle připomínku už stáhnout nejde.";
+    try {
+      const res = await fetch("/api/feedback/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, token: key.token }),
+      });
+      const data = await res.json() as { ok: boolean; error?: string };
+      if (!data.ok) return data.error ?? "Stáhnout se nepodařilo.";
+      forget(id);
+      return null;
+    } catch {
+      return "Stáhnout se nepodařilo. Zkus to znovu.";
+    }
+  }, [forget]);
+
+  return { items, loaded, remember, forget, withdraw };
 }

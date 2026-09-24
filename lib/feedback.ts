@@ -20,6 +20,7 @@ import {
   type VotableFeedback,
   type VoteValue,
   isPublicCategory,
+  WITHDRAWABLE_STATUSES,
   PUBLIC_CATEGORIES,
   FEEDBACK_ATTACHMENT_RETENTION_DAYS,
   VOTER_TOKEN_PATTERN,
@@ -199,6 +200,38 @@ export function addFeedback(
   return { entry: getFeedbackById(id)!, token };
 }
 
+/** Sedí tajný kód autora k uloženému otisku? Porovnání v konstantním čase. */
+function tokenMatches(secretHash: string, token: string): boolean {
+  if (!secretHash) return false;
+  const expected = Buffer.from(secretHash, "hex");
+  const actual = Buffer.from(hashSecret(token), "hex");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+
+export type WithdrawResult = "ok" | "not-found" | "closed";
+
+/**
+ * Autor stáhne svou připomínku: smaže se ze serveru i s hlasy a screenshoty,
+ * takže zmizí i z „Připomínek ostatních“. Oprávnění dokazuje jen tajný kód
+ * z odeslání — bez něj (cizí připomínka, špatný kód) vrací „not-found“,
+ * aby nešlo zjišťovat, která id existují.
+ */
+export function withdrawOwnFeedback(id: number, token: string): WithdrawResult {
+  const row = getDb().prepare("SELECT status, secret_hash FROM feedback WHERE id = ?").get(id) as
+    | { status: string; secret_hash: string }
+    | undefined;
+  if (!row || !tokenMatches(row.secret_hash, token)) return "not-found";
+  if (!(WITHDRAWABLE_STATUSES as readonly string[]).includes(row.status)) return "closed";
+  deleteFeedback(id);
+  return "ok";
+}
+
+export const withdrawRequestSchema = z.object({
+  id: z.number().int().positive(),
+  token: z.string().min(16).max(64),
+});
+
 export const ownFeedbackRequestSchema = z.object({
   items: z
     .array(z.object({ id: z.number().int().positive(), token: z.string().min(16).max(64) }))
@@ -223,10 +256,7 @@ export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedb
       id: number; created_at: string; category: string; message: string; status: string;
       public_reply: string; secret_hash: string; attachment_count: number;
     } | undefined;
-    if (!row || !row.secret_hash) continue;
-    const expected = Buffer.from(row.secret_hash, "hex");
-    const actual = Buffer.from(hashSecret(token), "hex");
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) continue;
+    if (!row || !tokenMatches(row.secret_hash, token)) continue;
     result.push({
       id: row.id,
       createdAt: row.created_at,

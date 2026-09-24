@@ -19,6 +19,28 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.7.0",
+    date: "2026-09-24",
+    title: "Stažení vlastní připomínky",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Autor může svou připomínku stáhnout křížkem v kartě „Moje připomínky“. Zmizí i z Připomínek ostatních a z Nastavení. Hotové a zamítnuté připomínky stáhnout nejde, ty se jen skryjí z jeho seznamu.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Po založení úkolu na GitHubu se jeho číslo u připomínky objeví do půl minuty, ne až po několika minutách.",
+        ],
+      },
+    ],
+    forEveryone: [
+      "Vlastní připomínku jde stáhnout křížkem v kartě „Moje připomínky“. Zmizí i u ostatních.",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-09-24",
     title: "Hlasování o nápadech",

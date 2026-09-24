@@ -131,6 +131,12 @@ export interface OwnFeedback {
   attachmentCount: number;
 }
 
+/**
+ * Stavy, ve kterých autor může svou připomínku stáhnout. Hotová a zamítnutá
+ * nese odpověď správce a patří do historie — tu jde jen skrýt z vlastního seznamu.
+ */
+export const WITHDRAWABLE_STATUSES: readonly FeedbackStatus[] = ["new", "read", "planned"];
+
 /** Po kolika dnech od vyřízení (Hotovo, Zamítnuto) se mažou screenshoty. */
 export const FEEDBACK_ATTACHMENT_RETENTION_DAYS = 90;
 

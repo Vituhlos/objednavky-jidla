@@ -13,7 +13,7 @@ import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
 import { StatusBadge } from "../feedback/StatusBadge";
 import { ConfirmModal } from "../ConfirmModal";
 import { FeedbackAttachments } from "./FeedbackAttachments";
-import { FeedbackHandoff } from "./FeedbackHandoff";
+import { FeedbackHandoff, ISSUE_PENDING_EVENT } from "./FeedbackHandoff";
 import { ProposalForm } from "./ProposalForm";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
@@ -153,12 +153,26 @@ function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Di
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    // Připomínky, ke kterým se právě zakládá úkol, a do kdy na něj čekat
+    const pending = new Set<number>();
+    let pendingUntil = 0;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+    };
+
     const sync = () => {
       if (document.visibilityState !== "visible") return;
-      actionSyncFeedbackIssues(getPin())
+      const eager = pending.size > 0 && Date.now() < pendingUntil;
+      if (!eager) { pending.clear(); stopPolling(); }
+      actionSyncFeedbackIssues(getPin(), eager)
         .then((fresh) => {
           if (cancelled || !fresh) return;
           const byId = new Map(fresh.map((e) => [e.id, e]));
+          for (const id of pending) if (byId.get(id)?.githubIssue) pending.delete(id);
+          if (pending.size === 0) stopPolling();
           onChange((prev) => prev.map((e) => {
             const f = byId.get(e.id);
             return f && (f.githubIssue !== e.githubIssue || f.githubIssueState !== e.githubIssueState)
@@ -168,13 +182,26 @@ function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Di
         })
         .catch(() => { /* GitHub je jen pohodlí; chyba se neukazuje */ });
     };
+
+    const onPending = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (!Number.isInteger(id)) return;
+      pending.add(id);
+      pendingUntil = Date.now() + 10 * 60_000;
+      // Ptát se každých 15 s; server sám nepustí na GitHub víc než jednou za 30 s
+      timer ??= setInterval(sync, 15_000);
+    };
+
     sync();
     window.addEventListener("focus", sync);
     document.addEventListener("visibilitychange", sync);
+    window.addEventListener(ISSUE_PENDING_EVENT, onPending);
     return () => {
       cancelled = true;
+      stopPolling();
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener(ISSUE_PENDING_EVENT, onPending);
     };
   }, [enabled, getPin, onChange]);
 }

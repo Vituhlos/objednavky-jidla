@@ -1,6 +1,7 @@
 "use client";
 
-import { getCategoryMeta, type FeedbackStatus, type OwnFeedback } from "@/lib/feedback-meta";
+import { useState } from "react";
+import { getCategoryMeta, WITHDRAWABLE_STATUSES, type FeedbackStatus, type OwnFeedback } from "@/lib/feedback-meta";
 import MIcon from "../MIcon";
 import { formatFeedbackDate } from "./feedback-utils";
 import { StatusBadge } from "./StatusBadge";
@@ -17,9 +18,33 @@ const OWN_STATUS_LABELS: Record<FeedbackStatus, string> = {
 /**
  * Připomínky odeslané z tohoto prohlížeče: vlastní text, stav a odpověď správce.
  * Karta se ukáže, až když nějaká je — prázdná by jen zabírala místo.
+ *
+ * Křížek u otevřené připomínky ji po potvrzení opravdu stáhne (zmizí i u
+ * ostatních). U vyřízené jen skryje z vlastního seznamu — ta patří do historie.
  */
-export function MyFeedback({ items, onForget }: { items: OwnFeedback[]; onForget: (id: number) => void }) {
+export function MyFeedback({
+  items,
+  onForget,
+  onWithdraw,
+}: {
+  items: OwnFeedback[];
+  onForget: (id: number) => void;
+  onWithdraw: (id: number) => Promise<string | null>;
+}) {
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ id: number; text: string } | null>(null);
+
   if (items.length === 0) return null;
+
+  const withdraw = async (id: number) => {
+    setBusy(true);
+    setError(null);
+    const problem = await onWithdraw(id);
+    setBusy(false);
+    if (problem) setError({ id, text: problem });
+    else setConfirmId(null);
+  };
 
   return (
     <section className="glass rounded-3xl overflow-hidden fade-up">
@@ -31,6 +56,8 @@ export function MyFeedback({ items, onForget }: { items: OwnFeedback[]; onForget
       <ul className="divide-y divide-white/50">
         {items.map((item) => {
           const cat = getCategoryMeta(item.category);
+          const canWithdraw = WITHDRAWABLE_STATUSES.includes(item.status);
+          const label = canWithdraw ? "Stáhnout připomínku" : "Skrýt z mého seznamu";
           return (
             <li key={item.id} className="group px-4 py-3 flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
@@ -38,10 +65,10 @@ export function MyFeedback({ items, onForget }: { items: OwnFeedback[]; onForget
                 <StatusBadge label={OWN_STATUS_LABELS[item.status]} status={item.status} />
                 <span className="text-[11px] text-stone-400 ml-auto">{formatFeedbackDate(item.createdAt)}</span>
                 <button
-                  aria-label="Skrýt z mého seznamu"
+                  aria-label={label}
                   className="w-6 h-6 -mr-1 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-black/5 transition"
-                  onClick={() => onForget(item.id)}
-                  title="Skrýt z mého seznamu"
+                  onClick={() => (canWithdraw ? setConfirmId(item.id) : onForget(item.id))}
+                  title={label}
                   type="button"
                 >
                   <MIcon name="close" size={13} />
@@ -53,6 +80,27 @@ export function MyFeedback({ items, onForget }: { items: OwnFeedback[]; onForget
                   <span className="font-semibold">Odpověď: </span>{item.reply}
                 </p>
               )}
+              {confirmId === item.id && (
+                <div className="flex items-center gap-2 mt-0.5 pl-3 pr-1.5 py-1.5 rounded-xl fade-up" role="alert"
+                  style={{ background: "rgba(26,18,8,0.04)", border: "1px solid rgba(26,18,8,0.07)" }}>
+                  <span className="text-[12px] text-stone-600 flex-1 min-w-0">Stáhnout? Zmizí i u ostatních.</span>
+                  <div className="flex items-center gap-1 ml-auto shrink-0">
+                    <button className="text-[12px] font-semibold px-2.5 py-1.5 text-stone-500" onClick={() => { setConfirmId(null); setError(null); }} type="button">
+                      Nechat
+                    </button>
+                    <button
+                      className="text-[12px] font-semibold px-3 py-1.5 rounded-xl text-red-600 disabled:opacity-50"
+                      disabled={busy}
+                      onClick={() => void withdraw(item.id)}
+                      style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}
+                      type="button"
+                    >
+                      {busy ? "Stahuji…" : "Stáhnout"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {error?.id === item.id && <p className="text-[11.5px] text-red-600">{error.text}</p>}
             </li>
           );
         })}
