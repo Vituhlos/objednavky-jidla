@@ -8,9 +8,32 @@ export type ReleaseNote = {
   date: string;
   title: string;
   sections: ReleaseNoteSection[];
+  /**
+   * Krátce pro lidi, kteří si objednávají — ukazuje se veřejně na stránce
+   * Připomínky. Jen to, čeho si při objednávání všimnou; správa, zabezpečení
+   * a nasazení sem nepatří. Neosobně (bez „vy“ i „ty“), protože stránka tyká,
+   * zbytek appky vyká. Prázdné pole = verze se veřejně neukáže.
+   */
+  forEveryone: string[];
 };
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "1.5.0",
+    date: "2026-09-24",
+    title: "Co je nového pro všechny",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Na stránce Připomínky přibyla karta „Co je nového“. Novinky tak uvidí i ti, kdo nemají PIN do Nastavení. Ukazuje se jen to, čeho si všimnou při objednávání; technické věci zůstávají tady.",
+        ],
+      },
+    ],
+    forEveryone: [
+      "Na stránce Připomínky přibyla karta „Co je nového“ se změnami v aplikaci.",
+    ],
+  },
   {
     version: "1.4.0",
     date: "2026-09-24",
@@ -50,6 +73,12 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [
+      "Nová stránka Připomínky: nápad, chyba nebo pochvala, klidně i se screenshotem.",
+      "V kartě „Moje připomínky“ je vidět, jak to s připomínkou vypadá a co na ni správce odpověděl.",
+      "Nápadům v kartě „Co chystáme“ jde dát 👍. Nahoře jsou ty, které chce nejvíc lidí.",
+      "Texty v celé aplikaci prošly jazykovou kontrolou.",
+    ],
   },
   {
     version: "1.3.4",
@@ -69,6 +98,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
   {
     version: "1.3.3",
@@ -96,6 +126,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
   {
     version: "1.3.2",
@@ -117,6 +148,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [
+      "Záhlaví objednávky ukazuje datum vybraného dne. Dřív tam po uzávěrce svítilo dnešní datum, i když se už upravoval zítřek.",
+    ],
   },
   {
     version: "1.3.1",
@@ -137,6 +171,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Aktualizace nevyžaduje žádné kroky navíc. Už odeslané objednávky si nechávají původní PDF — opravené dostanou po opětovném otevření a odeslání, nebo přes „Znovu odeslat email“.",
         ],
       },
+    ],
+    forEveryone: [
+      "PDF s objednávkou pro LIMU se u velkých oddělení už nerozpadá na útržky.",
     ],
   },
   {
@@ -167,6 +204,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [
+      "Když se nevaří, objednávková stránka ukáže přehlednou kartu: od kdy do kdy je zavřeno a odkdy se zase vaří.",
+    ],
   },
   {
     version: "1.2.1",
@@ -181,6 +221,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
   {
     version: "1.2.0",
@@ -221,6 +262,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [
+      "Objednávková stránka s předstihem upozorní, kdy je poslední oběd před dovolenou a odkdy se zase vaří.",
+      "Telegram bot v přehledu objednávky ukazuje i druhé polévky, další jídla, počty porcí a přílohy.",
+    ],
   },
   {
     version: "1.1.1",
@@ -236,6 +281,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
   {
     version: "1.1.0",
@@ -261,6 +307,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
   {
     version: "1.0.2",
@@ -280,5 +327,21 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
+    forEveryone: [],
   },
 ];
+
+export type PublicReleaseNote = Pick<ReleaseNote, "version" | "date" | "title" | "forEveryone">;
+
+/** Vydané verze, které mají co říct lidem, co si objednávají; nejnovější první. */
+export function getPublicReleaseNotes(notes: ReleaseNote[] = RELEASE_NOTES): PublicReleaseNote[] {
+  return notes
+    .filter((note) => note.version !== "Unreleased" && note.forEveryone.length > 0)
+    .map(({ version, date, title, forEveryone }) => ({ version, date, title, forEveryone }));
+}
+
+/** „2026-09-24“ → „24. 9. 2026“. Bez Date, ať nerozhoduje časové pásmo. */
+export function formatReleaseDate(date: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return m ? `${Number(m[3])}. ${Number(m[2])}. ${m[1]}` : date;
+}

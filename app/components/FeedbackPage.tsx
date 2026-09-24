@@ -1,20 +1,24 @@
 "use client";
 
 import type { PublicFeedbackReply, VotableFeedback } from "@/lib/feedback-meta";
+import type { PublicReleaseNote } from "@/lib/release-notes";
 import { ChangesTimeline } from "./feedback/ChangesTimeline";
 import { FeedbackComposer, type FeedbackPrefill } from "./feedback/FeedbackComposer";
 import { HowItWorks } from "./feedback/HowItWorks";
 import { MyFeedback } from "./feedback/MyFeedback";
 import { useMyFeedback } from "./feedback/useMyFeedback";
 import { VotingBoard } from "./feedback/VotingBoard";
+import { WhatsNew } from "./feedback/WhatsNew";
 
 export default function FeedbackPage({
   replies,
   votable,
+  releaseNotes,
   prefill,
 }: {
   replies: PublicFeedbackReply[];
   votable: VotableFeedback[];
+  releaseNotes: PublicReleaseNote[];
   prefill: FeedbackPrefill;
 }) {
   const own = useMyFeedback();
@@ -43,6 +47,7 @@ export default function FeedbackPage({
             <MyFeedback items={own.items} onForget={own.forget} />
             <VotingBoard items={votable} />
             <ChangesTimeline replies={replies} />
+            <WhatsNew notes={releaseNotes} />
           </div>
         </div>
       </main>
