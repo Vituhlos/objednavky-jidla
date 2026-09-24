@@ -16,7 +16,11 @@ import {
   type FeedbackStatus,
   type OwnFeedback,
   type PublicFeedbackReply,
+  type PublicFeedbackItem,
   type VotableFeedback,
+  type VoteValue,
+  isPublicCategory,
+  PUBLIC_CATEGORIES,
   FEEDBACK_ATTACHMENT_RETENTION_DAYS,
   VOTER_TOKEN_PATTERN,
 } from "./feedback-meta";
@@ -56,12 +60,6 @@ export const feedbackInputSchema = z.object({
         .min(FEEDBACK_LIMITS.messageMin, `Napiš aspoň pár slov (nejméně ${FEEDBACK_LIMITS.messageMin} znaků).`)
         .max(FEEDBACK_LIMITS.messageMax, `Text je příliš dlouhý, může mít nejvýš ${FEEDBACK_LIMITS.messageMax} znaků.`),
     ),
-  authorName: z
-    .string()
-    .optional()
-    .default("")
-    .transform(cleanText)
-    .pipe(z.string().max(FEEDBACK_LIMITS.nameMax, `Jméno je příliš dlouhé, může mít nejvýš ${FEEDBACK_LIMITS.nameMax} znaků.`)),
   page: z
     .string()
     .optional()
@@ -91,6 +89,7 @@ export const feedbackUpdateSchema = z.object({
   adminNote: z.string().transform(cleanText).pipe(z.string().max(FEEDBACK_LIMITS.adminNoteMax)).optional(),
   publicReply: z.string().transform(cleanText).pipe(z.string().max(FEEDBACK_LIMITS.publicReplyMax)).optional(),
   votable: z.boolean().optional(),
+  hidden: z.boolean().optional(),
   voteTitle: z.string().transform((v) => cleanText(v).replace(/\s+/g, " ")).pipe(z.string().max(FEEDBACK_LIMITS.voteTitleMax)).optional(),
 });
 
@@ -117,7 +116,6 @@ type DbRow = {
   created_at: string;
   category: string;
   message: string;
-  author_name: string;
   page: string;
   device: string;
   status: string;
@@ -128,8 +126,17 @@ type DbRow = {
   app_version: string;
   votable: number;
   vote_title: string;
-  votes: number;
+  hidden: number;
+  is_proposal: number;
+  up: number;
+  down: number;
+  github_issue: number | null;
+  github_issue_state: string;
 };
+
+const VOTE_COLUMNS = `
+  (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id AND v.value > 0) AS up,
+  (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id AND v.value < 0) AS down`;
 
 function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]>): FeedbackEntry {
   return {
@@ -137,7 +144,6 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     createdAt: r.created_at,
     category: getCategoryMeta(r.category).id,
     message: r.message,
-    authorName: r.author_name,
     page: r.page,
     device: (r.device === "mobil" || r.device === "počítač" ? r.device : "") as FeedbackDevice,
     status: getStatusMeta(r.status).id,
@@ -149,7 +155,13 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     appVersion: r.app_version ?? "",
     votable: r.votable === 1,
     voteTitle: r.vote_title ?? "",
-    votes: r.votes ?? 0,
+    isPublic: isPublicCategory(r.category) && r.is_proposal !== 1,
+    isProposal: r.is_proposal === 1,
+    hidden: r.hidden === 1,
+    up: r.up ?? 0,
+    down: r.down ?? 0,
+    githubIssue: r.github_issue ?? null,
+    githubIssueState: r.github_issue_state === "open" || r.github_issue_state === "closed" ? r.github_issue_state : "",
   };
 }
 
@@ -175,10 +187,10 @@ export function addFeedback(
   const id = db.transaction(() => {
     const r = db
       .prepare(
-        `INSERT INTO feedback (category, message, author_name, page, device, context, app_version, secret_hash, status_changed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        `INSERT INTO feedback (category, message, page, device, context, app_version, secret_hash, status_changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       )
-      .run(input.category, input.message, input.authorName, input.page, device,
+      .run(input.category, input.message, input.page, device,
         input.context, input.appVersion, hashSecret(token));
     const feedbackId = Number(r.lastInsertRowid);
     storeAttachments(feedbackId, images);
@@ -229,14 +241,14 @@ export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedb
 }
 
 export function getFeedbackById(id: number): FeedbackEntry | null {
-  const row = getDb().prepare(`SELECT *, (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+  const row = getDb().prepare(`SELECT *, ${VOTE_COLUMNS}
        FROM feedback WHERE id = ?`).get(id) as DbRow | undefined;
   return row ? toEntry(row, getAttachmentsByFeedback()) : null;
 }
 
 export function getFeedbackList(): FeedbackEntry[] {
   const rows = getDb()
-    .prepare(`SELECT *, (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+    .prepare(`SELECT *, ${VOTE_COLUMNS}
        FROM feedback ORDER BY created_at DESC, id DESC`)
     .all() as DbRow[];
   const attachments = getAttachmentsByFeedback();
@@ -260,7 +272,9 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
   // Název jde ven všem — i mimo validaci ve Server Action ho uklidit
   const voteTitle = cleanText(updates.voteTitle ?? current.voteTitle).replace(/\s+/g, " ").slice(0, FEEDBACK_LIMITS.voteTitleMax);
   // Bez názvu se hlasovat nedá — vymazáním názvu se hlasování samo vypne
-  const votable = (updates.votable ?? current.votable) && voteTitle !== "";
+  // Vlastní návrh správce je k hlasování vždycky — nic jiného než hlasování nemá
+  const votable = current.isProposal || ((updates.votable ?? current.votable) && voteTitle !== "");
+  const hidden = updates.hidden ?? current.hidden;
   // Datum vyřízení drží první přechod do „Hotovo“, ať seznam změn neskáče
   // při každé opravě překlepu v odpovědi. Návrat z „Hotovo“ ho maže.
   const resolvedAt =
@@ -268,11 +282,11 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
 
   getDb()
     .prepare(
-      `UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ?, votable = ?, vote_title = ?,
+      `UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ?, votable = ?, vote_title = ?, hidden = ?,
          status_changed_at = CASE WHEN status = ? THEN status_changed_at ELSE datetime('now') END
        WHERE id = ?`,
     )
-    .run(status, adminNote, publicReply, resolvedAt, votable ? 1 : 0, voteTitle, status, id);
+    .run(status, adminNote, publicReply, resolvedAt, votable ? 1 : 0, voteTitle, hidden ? 1 : 0, status, id);
   return getFeedbackById(id);
 }
 
@@ -310,7 +324,7 @@ export function getPublicFeedbackReplies(limit = 20): PublicFeedbackReply[] {
   const rows = getDb()
     .prepare(
       `SELECT id, category, public_reply, resolved_at,
-              (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+              (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id AND v.value > 0) AS votes
        FROM feedback
        WHERE status = 'done' AND public_reply != '' AND resolved_at IS NOT NULL
        ORDER BY resolved_at DESC, id DESC LIMIT ?`,
@@ -325,46 +339,102 @@ export function getPublicFeedbackReplies(limit = 20): PublicFeedbackReply[] {
   }));
 }
 
-// Hlasovat jde jen o otevřených věcech; hotové a zamítnuté se uzavřou samy
-const VOTABLE_SQL = "votable = 1 AND vote_title != '' AND status IN ('new', 'read', 'planned')";
+// „Co chystáme“: vlastní návrhy správce a připomínky, které dal k hlasování
+// pod svým názvem. Hotové a zamítnuté se stáhnou samy.
+const VOTABLE_SQL = "votable = 1 AND vote_title != '' AND hidden = 0 AND status IN ('new', 'read', 'planned')";
 
-/** Připomínky zveřejněné k hlasování, nejžádanější první. */
+// „Připomínky ostatních“: otevřené připomínky veřejných kategorií, které správce
+// neskryl ani nepřesunul do „Co chystáme“. Hotové jdou do „Změnili jsme díky vám“.
+const PUBLIC_SQL = `category IN (${PUBLIC_CATEGORIES.map((c) => `'${c}'`).join(", ")})
+  AND is_proposal = 0 AND votable = 0 AND hidden = 0 AND status IN ('new', 'read', 'planned')`;
+
+/** „Co chystáme“, nejlépe hodnocené první (👍 mínus 👎). */
 export function getVotableFeedback(limit = 30): VotableFeedback[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, category, status, vote_title,
-              (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+      `SELECT id, category, status, vote_title, ${VOTE_COLUMNS}
        FROM feedback WHERE ${VOTABLE_SQL}
-       ORDER BY votes DESC, id DESC LIMIT ?`,
+       ORDER BY (up - down) DESC, up DESC, id DESC LIMIT ?`,
     )
-    .all(limit) as { id: number; category: string; status: string; vote_title: string; votes: number }[];
+    .all(limit) as { id: number; category: string; status: string; vote_title: string; up: number; down: number }[];
   return rows.map((r) => ({
     id: r.id,
     category: getCategoryMeta(r.category).id,
     status: getStatusMeta(r.status).id,
     summary: r.vote_title,
-    votes: r.votes,
+    up: r.up,
+    down: r.down,
   }));
 }
 
 /**
- * Přidá nebo odebere hlas. `null` = o téhle připomínce se hlasovat nedá
- * (neexistuje, není zveřejněná, nebo je už vyřízená).
+ * „Připomínky ostatních“: text, kategorie, stav, datum a hlasy. Nikdy stránka,
+ * zařízení, technický údaj, screenshoty ani poznámka správce. Jméno se vůbec
+ * nesbírá — kdo chce, podepíše se do textu.
+ */
+export function getPublicFeedback(limit = 100): PublicFeedbackItem[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, category, status, message, created_at, ${VOTE_COLUMNS}
+       FROM feedback WHERE ${PUBLIC_SQL}
+       ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(limit) as { id: number; category: string; status: string; message: string; created_at: string; up: number; down: number }[];
+  return rows.map((r) => ({
+    id: r.id,
+    category: getCategoryMeta(r.category).id,
+    status: getStatusMeta(r.status).id,
+    text: r.message,
+    createdAt: r.created_at,
+    up: r.up,
+    down: r.down,
+  }));
+}
+
+export const proposalSchema = z.object({
+  title: z.string().transform((v) => cleanText(v).replace(/\s+/g, " "))
+    .pipe(z.string().min(3, "Napište aspoň pár slov.").max(FEEDBACK_LIMITS.voteTitleMax, `Název může mít nejvýš ${FEEDBACK_LIMITS.voteTitleMax} znaků.`)),
+  category: z.enum(categoryIds),
+});
+
+/** Vlastní návrh správce rovnou do „Co chystáme“. Text je zároveň název k hlasování. */
+export function addProposal(input: z.infer<typeof proposalSchema>): FeedbackEntry {
+  const r = getDb()
+    .prepare(
+      `INSERT INTO feedback (category, message, status, votable, vote_title, is_proposal, status_changed_at)
+       VALUES (?, ?, 'planned', 1, ?, 1, datetime('now'))`,
+    )
+    .run(input.category, input.title, input.title);
+  return getFeedbackById(Number(r.lastInsertRowid))!;
+}
+
+/**
+ * Nastaví hlas prohlížeče: 1 = 👍, -1 = 👎, 0 = vzít zpět. Vrací nové součty,
+ * nebo `null`, když o připomínce hlasovat nejde (neexistuje, není veřejná,
+ * je skrytá nebo vyřízená).
  *
  * Hlas je vázaný na náhodný kód prohlížeče, ne na člověka — kdo si smaže
- * data prohlížeče, může hlasovat znovu. Bez účtů to jinak nejde; hlasování
- * je proto orientační a správce to ví (stojí to v nápovědě v Nastavení).
+ * data prohlížeče, může hlasovat znovu. Bez účtů to jinak nejde; počty jsou
+ * proto orientační a správce to ví (stojí to v nápovědě v Nastavení).
  */
-export function setVote(id: number, voterToken: string, vote: boolean): number | null {
+export function setVote(id: number, voterToken: string, value: VoteValue): { up: number; down: number } | null {
   if (!VOTER_TOKEN_PATTERN.test(voterToken)) return null;
   const db = getDb();
-  const open = db.prepare(`SELECT id FROM feedback WHERE id = ? AND ${VOTABLE_SQL}`).get(id);
+  const open = db.prepare(`SELECT id FROM feedback WHERE id = ? AND ((${VOTABLE_SQL}) OR (${PUBLIC_SQL}))`).get(id);
   if (!open) return null;
   const voter = hashSecret(`vote:${voterToken}`);
-  if (vote) db.prepare("INSERT OR IGNORE INTO feedback_votes (feedback_id, voter_hash) VALUES (?, ?)").run(id, voter);
-  else db.prepare("DELETE FROM feedback_votes WHERE feedback_id = ? AND voter_hash = ?").run(id, voter);
-  const { cnt } = db.prepare("SELECT COUNT(*) AS cnt FROM feedback_votes WHERE feedback_id = ?").get(id) as { cnt: number };
-  return cnt;
+  if (value === 0) {
+    db.prepare("DELETE FROM feedback_votes WHERE feedback_id = ? AND voter_hash = ?").run(id, voter);
+  } else {
+    db.prepare(
+      `INSERT INTO feedback_votes (feedback_id, voter_hash, value) VALUES (?, ?, ?)
+       ON CONFLICT (feedback_id, voter_hash) DO UPDATE SET value = excluded.value`,
+    ).run(id, voter, value);
+  }
+  return db
+    .prepare(`SELECT COUNT(CASE WHEN value > 0 THEN 1 END) AS up, COUNT(CASE WHEN value < 0 THEN 1 END) AS down
+              FROM feedback_votes WHERE feedback_id = ?`)
+    .get(id) as { up: number; down: number };
 }
 
 const TELEGRAM_PREVIEW_MAX = 600;
@@ -375,7 +445,7 @@ export function formatFeedbackTelegram(entry: FeedbackEntry): string {
   const text = entry.message.length > TELEGRAM_PREVIEW_MAX
     ? `${entry.message.slice(0, TELEGRAM_PREVIEW_MAX)}…`
     : entry.message;
-  const author = entry.authorName ? escapeHtml(entry.authorName) : "<i>anonymně</i>";
+  const visibility = entry.isProposal ? "🗳️ váš návrh" : entry.isPublic ? "🌐 hned vidí i ostatní" : "🔒 jen pro správce";
   const where = [
     entry.page ? `📍 ${escapeHtml(entry.page)}` : "",
     entry.device ? `${entry.device === "mobil" ? "📱" : "💻"} ${entry.device}` : "",
@@ -385,7 +455,7 @@ export function formatFeedbackTelegram(entry: FeedbackEntry): string {
 
   return [
     `💬 <b>Nová připomínka</b>`,
-    `${cat.emoji} ${escapeHtml(cat.label)} · ${author}`,
+    `${cat.emoji} ${escapeHtml(cat.label)} · ${visibility}`,
     "",
     escapeHtml(text),
     ...(entry.context ? ["", `<code>${escapeHtml(entry.context)}</code>`] : []),

@@ -11,11 +11,12 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   id: z.number().int().positive(),
   voter: z.string().regex(VOTER_TOKEN_PATTERN),
-  vote: z.boolean(),
+  // 1 = 👍, -1 = 👎, 0 = vzít zpět
+  value: z.union([z.literal(1), z.literal(-1), z.literal(0)]),
 });
 
 /**
- * Hlas „chci taky“ u připomínky zveřejněné k hlasování.
+ * Hlas 👍 / 👎 u připomínky v „Co chystáme“ nebo v „Připomínkách ostatních“.
  *
  * Limit na IP je velkorysý schválně: celá firma často chodí ven přes jednu
  * adresu. Zastaví skript, ne kolegy. Jeden hlas na prohlížeč hlídá databáze.
@@ -38,10 +39,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return Response.json({ ok: false, error: "Neplatný požadavek." }, { status: 400 });
 
-  const votes = setVote(parsed.data.id, parsed.data.voter, parsed.data.vote);
+  const votes = setVote(parsed.data.id, parsed.data.voter, parsed.data.value);
   if (votes === null) {
     return Response.json({ ok: false, error: "O tomhle se už hlasovat nedá." }, { status: 404 });
   }
   revalidatePath("/pripominky");
-  return Response.json({ ok: true, votes });
+  return Response.json({ ok: true, up: votes.up, down: votes.down });
 }

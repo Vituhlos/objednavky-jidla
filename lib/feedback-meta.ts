@@ -93,7 +93,6 @@ export interface FeedbackEntry {
   createdAt: string;
   category: FeedbackCategory;
   message: string;
-  authorName: string;
   page: string;
   device: FeedbackDevice;
   status: FeedbackStatus;
@@ -105,7 +104,17 @@ export interface FeedbackEntry {
   appVersion: string;
   votable: boolean;
   voteTitle: string;
-  votes: number;
+  /** Kategorie se ukazuje v „Připomínkách ostatních“ (bez ohledu na skrytí). */
+  isPublic: boolean;
+  /** Návrh, který napsal správce sám (jde rovnou do „Co chystáme“). */
+  isProposal: boolean;
+  /** Správce ji z veřejného seznamu skryl. */
+  hidden: boolean;
+  up: number;
+  down: number;
+  /** Číslo úkolu na GitHubu, nebo null, dokud žádný nevznikl. */
+  githubIssue: number | null;
+  githubIssueState: "open" | "closed" | "";
 }
 
 /**
@@ -125,7 +134,7 @@ export interface OwnFeedback {
 /** Po kolika dnech od vyřízení (Hotovo, Zamítnuto) se mažou screenshoty. */
 export const FEEDBACK_ATTACHMENT_RETENTION_DAYS = 90;
 
-/** Co z připomínky smí vidět kdokoli: jen odpověď správce, nikdy původní text ani autor. */
+/** Položka „Změnili jsme díky vám“: jen odpověď správce, ne původní text. */
 export interface PublicFeedbackReply {
   id: number;
   category: FeedbackCategory;
@@ -135,13 +144,39 @@ export interface PublicFeedbackReply {
 }
 
 /** Připomínka zveřejněná k hlasování — jen shrnutí od správce, nikdy text autora. */
+/**
+ * Kategorie, jejichž připomínky se hned ukážou ostatním v „Připomínkách
+ * ostatních“ (bez jména) a jde o nich hlasovat. Chyba se opravuje, ne hlasuje;
+ * Jídlo bývá stížnost na kuchyň nebo konkrétní lidi; Pochvala patří správci.
+ */
+export const PUBLIC_CATEGORIES: readonly FeedbackCategory[] = ["napad", "ovladani", "mobil", "jine"];
+
+export function isPublicCategory(category: string): boolean {
+  return (PUBLIC_CATEGORIES as readonly string[]).includes(category);
+}
+
+/** Připomínka v „Připomínkách ostatních“ — jen text, kategorie, stav, datum a hlasy. */
+export interface PublicFeedbackItem {
+  id: number;
+  category: FeedbackCategory;
+  status: FeedbackStatus;
+  text: string;
+  createdAt: string;
+  up: number;
+  down: number;
+}
+
+/** Položka v „Co chystáme“: návrh správce, nebo připomínka, kterou dal k hlasování (pod svým názvem). */
 export interface VotableFeedback {
   id: number;
   category: FeedbackCategory;
   status: FeedbackStatus;
   summary: string;
-  votes: number;
+  up: number;
+  down: number;
 }
+
+export type VoteValue = -1 | 0 | 1;
 
 /** „1 hlas“, „2 hlasy“, „5 hlasů“. */
 export function pluralizeVotes(count: number): string {

@@ -15,9 +15,9 @@ import {
 describe("validateFeedbackInput", () => {
   const valid = { category: "napad", message: "Chtěl bych tmavý režim." };
 
-  it("přijme platnou připomínku a doplní prázdné jméno i stránku", () => {
-    const r = validateFeedbackInput(valid);
-    expect(r).toEqual({ ok: true, data: { ...valid, authorName: "", page: "", context: "", appVersion: "" } });
+  it("přijme platnou připomínku, doplní prázdnou stránku a jméno zahodí — připomínky jsou anonymní", () => {
+    const r = validateFeedbackInput({ ...valid, authorName: "Jan Novák" });
+    expect(r).toEqual({ ok: true, data: { ...valid, page: "", context: "", appVersion: "" } });
   });
 
   it("odmítne neznámou kategorii", () => {
@@ -30,9 +30,8 @@ describe("validateFeedbackInput", () => {
     if (!r.ok) expect(r.error).toContain(String(FEEDBACK_LIMITS.messageMin));
   });
 
-  it("odmítne příliš dlouhý text a jméno", () => {
+  it("odmítne příliš dlouhý text", () => {
     expect(validateFeedbackInput({ ...valid, message: "a".repeat(FEEDBACK_LIMITS.messageMax + 1) }).ok).toBe(false);
-    expect(validateFeedbackInput({ ...valid, authorName: "a".repeat(FEEDBACK_LIMITS.nameMax + 1) }).ok).toBe(false);
   });
 
   it("odmítne jiný typ než objekt s řetězci", () => {
@@ -81,7 +80,6 @@ describe("formatFeedbackTelegram", () => {
     createdAt: "2026-09-24 08:00:00",
     category: "chyba",
     message: "Tlačítko <b>Uložit</b> & nic",
-    authorName: "Jan <script>",
     page: "/jidelnicek",
     device: "mobil",
     status: "new",
@@ -93,18 +91,24 @@ describe("formatFeedbackTelegram", () => {
     appVersion: "",
     votable: false,
     voteTitle: "",
-    votes: 0,
+    isPublic: false,
+    isProposal: false,
+    hidden: false,
+    up: 0,
+    down: 0,
+    githubIssue: null,
+    githubIssueState: "",
   };
 
   it("escapuje vše od uživatele — jinak Telegram zprávu odmítne", () => {
     const text = formatFeedbackTelegram(entry);
     expect(text).toContain("Tlačítko &lt;b&gt;Uložit&lt;/b&gt; &amp; nic");
-    expect(text).toContain("Jan &lt;script&gt;");
     expect(text).not.toContain("<script>");
   });
 
-  it("u anonymní připomínky napíše „anonymně“", () => {
-    expect(formatFeedbackTelegram({ ...entry, authorName: "" })).toContain("anonymně");
+  it("řekne, jestli připomínku hned vidí i ostatní", () => {
+    expect(formatFeedbackTelegram(entry)).toContain("jen pro správce");
+    expect(formatFeedbackTelegram({ ...entry, category: "napad", isPublic: true })).toContain("vidí i ostatní");
   });
 
   it("dlouhý text zkrátí", () => {

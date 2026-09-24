@@ -3,7 +3,6 @@
 import { countWord } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
@@ -56,13 +55,16 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import {
+  addProposal,
   deleteFeedback,
   feedbackUpdateSchema,
+  proposalSchema,
   getFeedbackList,
   updateFeedback,
   type FeedbackEntry,
 } from "@/lib/feedback";
-import { verifySettingsPin } from "@/lib/api-auth";
+import { syncFeedbackIssues } from "@/lib/feedback-github";
+import { checkSettingsPinAttempt, getClientIpFromHeaders, verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -342,17 +344,12 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
   revalidatePath("/nastaveni");
 }
 
-// A blocked attempt used to be indistinguishable from a wrong PIN — the screen said
-// "nesprávný PIN" while the user was typing the right one. Report the two apart.
+// Zablokovaný pokus se dřív nedal rozeznat od špatného PINu — obrazovka psala
+// „nesprávný PIN“, i když člověk psal správný. Proto se vrací `lockedUntil`.
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  const key = `pin:${ip}`;
-  if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
-    return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
-  }
-  return { ok: checkPin(pin) };
+  return checkSettingsPinAttempt(getClientIpFromHeaders(await headers()), typeof pin === "string" ? pin : null);
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {
@@ -436,7 +433,7 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 // ─── Připomínky k aplikaci ────────────────────────────────────────────────────
 
 async function getActionIp(): Promise<string> {
-  return (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  return getClientIpFromHeaders(await headers());
 }
 
 // Server Actions jsou veřejné POST endpointy — PIN se ověřuje uvnitř každé z nich,
@@ -452,6 +449,16 @@ export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {
   return getFeedbackList();
 }
 
+/**
+ * Dohledá na GitHubu úkoly založené z připomínek (podle značky v textu).
+ * Vrací nový seznam, jen když se něco změnilo — jinak null a klient nic nepřekresluje.
+ */
+export async function actionSyncFeedbackIssues(pin: string): Promise<FeedbackEntry[] | null> {
+  await requireActionPin(pin);
+  const changed = await syncFeedbackIssues();
+  return changed > 0 ? getFeedbackList() : null;
+}
+
 export async function actionUpdateFeedback(
   pin: string,
   id: number,
@@ -463,6 +470,16 @@ export async function actionUpdateFeedback(
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatná úprava.");
   const entry = updateFeedback(id, parsed.data);
   if (!entry) throw new Error("Připomínka už neexistuje.");
+  revalidatePath("/pripominky");
+  return entry;
+}
+
+/** Vlastní návrh správce rovnou do „Co chystáme“. */
+export async function actionAddProposal(pin: string, input: unknown): Promise<FeedbackEntry> {
+  await requireActionPin(pin);
+  const parsed = proposalSchema.safeParse(input);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatný návrh.");
+  const entry = addProposal(parsed.data);
   revalidatePath("/pripominky");
   return entry;
 }

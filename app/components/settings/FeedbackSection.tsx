@@ -1,11 +1,10 @@
 "use client";
 
-import { useOptimistic, useState, useTransition, type Dispatch, type SetStateAction } from "react";
-import { actionDeleteFeedback, actionUpdateFeedback } from "@/app/actions";
+import { useEffect, useOptimistic, useState, useTransition, type Dispatch, type SetStateAction } from "react";
+import { actionDeleteFeedback, actionSyncFeedbackIssues, actionUpdateFeedback } from "@/app/actions";
 import {
   FEEDBACK_LIMITS,
   FEEDBACK_STATUSES,
-  pluralizeVotes,
   getCategoryMeta,
   type FeedbackEntry,
   type FeedbackStatus,
@@ -14,6 +13,8 @@ import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
 import { StatusBadge } from "../feedback/StatusBadge";
 import { ConfirmModal } from "../ConfirmModal";
 import { FeedbackAttachments } from "./FeedbackAttachments";
+import { FeedbackHandoff } from "./FeedbackHandoff";
+import { ProposalForm } from "./ProposalForm";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
 
@@ -66,6 +67,7 @@ export function FeedbackSection({
 }) {
   const [filter, setFilter] = useState<Filter>("open");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  useGithubIssueSync(isActive && isLoaded, getPin, onChange);
 
   if (!isActive) return null;
 
@@ -81,8 +83,9 @@ export function FeedbackSection({
       helpContent={
         <div className="text-[12px] text-stone-500 leading-relaxed pb-2 flex flex-col gap-1.5">
           <p>Připomínka se po rozkliknutí sama označí jako přečtená. Stav se mění jedním klikem.</p>
-          <p><b>Odpověď</b> uvidí autor hned v kartě „Moje připomínky“ (jen ve svém prohlížeči). Když připomínku označíte jako <b>Hotovo</b>, objeví se odpověď i veřejně v seznamu „Změnili jsme díky vám“. Původní text ani autor se veřejně nikdy neukazují.</p>
-          <p><b>Hlasování:</b> otevřené připomínce dejte krátký název (třeba „Tmavý režim“) a zapněte „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Hlas je vázaný na prohlížeč, ne na člověka – kdo si smaže data prohlížeče, může hlasovat znovu. Berte počty jako orientační.</p>
+          <p><b>Odpověď</b> uvidí autor hned v kartě „Moje připomínky“ (jen ve svém prohlížeči). Když připomínku označíte jako <b>Hotovo</b>, objeví se odpověď i veřejně v seznamu „Změnili jsme díky vám“. V tom seznamu je jen vaše odpověď, ne původní text.</p>
+          <p>Připomínky jsou <b>anonymní</b>, jméno se nesbírá. Nápady, vzhled, mobil a jiné se hned ukážou v „Připomínkách ostatních“ a lidé u nich dávají 👍 nebo 👎. Chyby, jídlo a pochvaly vidíte jen vy. Nevhodný text skryjete přepínačem „Skrýt z veřejného seznamu“.</p>
+          <p><b>Co chystáme:</b> napište vlastní návrh tlačítkem „Vlastní návrh k hlasování“, nebo připomínce dejte krátký název a zapněte „Dát do Co chystáme“. Hlas je vázaný na prohlížeč, ne na člověka – kdo si smaže data prohlížeče, může hlasovat znovu. Berte počty jako orientační.</p>
           <p>Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se po 90 dnech samy smažou, text zůstává.</p>
           <p>Upozornění na Telegram si admin zapne v botovi: <code className="bg-black/5 px-1 rounded">/nastaveni</code> → 💬 Nové připomínky.</p>
         </div>
@@ -108,6 +111,8 @@ export function FeedbackSection({
           );
         })}
       </div>
+
+      {isLoaded && !loadError && <ProposalForm getPin={getPin} onChange={onChange} />}
 
       {loadError ? (
         <p className="text-[12.5px] text-red-600">{loadError}</p>
@@ -139,6 +144,41 @@ export function FeedbackSection({
   );
 }
 
+/**
+ * Po otevření záložky a po každém návratu do okna (typicky z GitHubu, kde se
+ * právě založil úkol) se zeptá serveru na čísla úkolů. Přepíše jen ta dvě
+ * pole, ať se nepřemaže rozepsaná poznámka nebo čerstvě změněný stav.
+ */
+function useGithubIssueSync(enabled: boolean, getPin: () => string, onChange: Dispatch<SetStateAction<FeedbackEntry[]>>) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const sync = () => {
+      if (document.visibilityState !== "visible") return;
+      actionSyncFeedbackIssues(getPin())
+        .then((fresh) => {
+          if (cancelled || !fresh) return;
+          const byId = new Map(fresh.map((e) => [e.id, e]));
+          onChange((prev) => prev.map((e) => {
+            const f = byId.get(e.id);
+            return f && (f.githubIssue !== e.githubIssue || f.githubIssueState !== e.githubIssueState)
+              ? { ...e, githubIssue: f.githubIssue, githubIssueState: f.githubIssueState }
+              : e;
+          }));
+        })
+        .catch(() => { /* GitHub je jen pohodlí; chyba se neukazuje */ });
+    };
+    sync();
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [enabled, getPin, onChange]);
+}
+
 function FeedbackItem({
   entry,
   expanded,
@@ -165,7 +205,7 @@ function FeedbackItem({
 
   const textsDirty = adminNote !== entry.adminNote || publicReply !== entry.publicReply || voteTitle !== entry.voteTitle;
 
-  const persist = (updates: { status?: FeedbackStatus; adminNote?: string; publicReply?: string; voteTitle?: string; votable?: boolean }) => {
+  const persist = (updates: { status?: FeedbackStatus; adminNote?: string; publicReply?: string; voteTitle?: string; votable?: boolean; hidden?: boolean }) => {
     setError(null);
     startTransition(async () => {
       if (updates.status) setOptimisticStatus(updates.status);
@@ -226,11 +266,14 @@ function FeedbackItem({
             {entry.message}
           </span>
           <span className="flex items-center gap-1.5 mt-1.5 text-[11px] text-stone-400 flex-wrap">
-            <span>{entry.authorName || "bez jména"}</span>
+            <span className={entry.hidden ? "text-stone-500" : entry.isProposal || entry.votable ? "text-blue-700" : entry.isPublic ? "text-amber-700" : undefined}>
+              {entry.isProposal ? "váš návrh" : entry.hidden ? "skrytá" : entry.votable ? "v Co chystáme" : entry.isPublic ? "veřejná" : "jen pro vás"}
+            </span>
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
             {entry.appVersion && <span>· v{entry.appVersion}</span>}
-            {(entry.votable || entry.votes > 0) && <span className="text-blue-700">· {pluralizeVotes(entry.votes)}</span>}
+            {entry.githubIssue && <span className="text-stone-500">· úkol #{entry.githubIssue}{entry.githubIssueState === "closed" ? " (uzavřený)" : ""}</span>}
+            {(entry.up > 0 || entry.down > 0) && <span className="tabular-nums">· 👍 {entry.up} · 👎 {entry.down}</span>}
             {entry.attachments.length > 0 && (
               <span>· {entry.attachments.length} {entry.attachments.length === 1 ? "obrázek" : "obrázky"}</span>
             )}
@@ -247,7 +290,8 @@ function FeedbackItem({
               <code className="text-[11.5px] text-stone-600 px-2.5 py-1.5 rounded-lg break-all" style={{ background: "rgba(26,18,8,0.05)" }}>{entry.context}</code>
             </div>
           )}
-          <FeedbackAttachments attachments={entry.attachments} getPin={getPin} />
+          <FeedbackAttachments attachments={entry.attachments} feedbackId={entry.id} getPin={getPin} />
+          <FeedbackHandoff entry={{ ...entry, adminNote, status }} />
 
           <div className="modal-field">
             <span className="modal-label">Stav</span>
@@ -327,28 +371,30 @@ function FeedbackItem({
                   value={voteTitle}
                 />
               </div>
-              <label className={`flex items-start gap-2.5 select-none ${entry.voteTitle.trim() ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
-                <div className="relative shrink-0 mt-0.5">
-                  <input
-                    checked={entry.votable}
-                    className="peer sr-only"
-                    disabled={!entry.voteTitle.trim() || isPending}
-                    onChange={(e) => persist({ votable: e.target.checked })}
-                    type="checkbox"
-                  />
-                  <div className="w-9 h-5 rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-500/60" />
-                  <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-                </div>
-                <span className="text-[12.5px] text-stone-700 leading-snug">
-                  Dát k hlasování
-                  <span className="block text-[11px] text-stone-400">
-                    {entry.voteTitle.trim()
-                      ? "Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Text autora ne."
-                      : "Nejdřív napište a uložte název."}
-                  </span>
-                </span>
-              </label>
+              {entry.isProposal ? (
+                <p className="text-[11px] text-stone-400">Váš návrh je v kartě „Co chystáme“, dokud ho neoznačíte jako Hotovo nebo Zamítnuto.</p>
+              ) : (
+                <Toggle
+                  checked={entry.votable}
+                  disabled={!entry.voteTitle.trim() || isPending}
+                  hint={entry.voteTitle.trim()
+                    ? "Přesune se do karty „Co chystáme“ pod tímhle názvem, i s hlasy. Z Připomínek ostatních zmizí."
+                    : "Nejdřív napište a uložte název."}
+                  label="Dát do „Co chystáme“"
+                  onChange={(v) => persist({ votable: v })}
+                />
+              )}
             </div>
+          )}
+
+          {(entry.isPublic || entry.votable || entry.isProposal) && (
+            <Toggle
+              checked={entry.hidden}
+              disabled={isPending}
+              hint="Nevhodný text nebo duplicita. Ze stránky zmizí i s hlasováním; tady zůstane."
+              label="Skrýt z veřejného seznamu"
+              onChange={(v) => persist({ hidden: v })}
+            />
           )}
 
           {status === "done" && !publicReply.trim() && (
@@ -401,3 +447,38 @@ function FeedbackItem({
     </li>
   );
 }
+
+function Toggle({
+  checked,
+  disabled,
+  label,
+  hint,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  label: string;
+  hint: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className={`flex items-start gap-2.5 select-none ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+      <div className="relative shrink-0 mt-0.5">
+        <input
+          checked={checked}
+          className="peer sr-only"
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          type="checkbox"
+        />
+        <div className="w-9 h-5 rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-500/60" />
+        <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+      </div>
+      <span className="text-[12.5px] text-stone-700 leading-snug">
+        {label}
+        <span className="block text-[11px] text-stone-400">{hint}</span>
+      </span>
+    </label>
+  );
+}
+

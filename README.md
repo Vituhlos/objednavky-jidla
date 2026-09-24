@@ -151,6 +151,7 @@ Pro běžné produkční nasazení na Unraidu používejte tag `:stable`. Při a
 | `ORDER_EMAIL_TO` | Výchozí příjemce objednávky | — |
 | `SETTINGS_PIN` | PIN pro stránku Nastavení | `1234` |
 | `DB_PATH` | Cesta k SQLite souboru | `/app/data/stros.db` |
+| `GITHUB_TOKEN` | Jen pro soukromý repozitář: token se čtením issues, podle kterého appka páruje připomínky s úkoly. U veřejného repozitáře není potřeba. | — |
 
 > Nastavení lze měnit také přímo v aplikaci přes `/nastaveni` (chráněno PINem). Hodnoty uložené v aplikaci mají přednost před env proměnnými.
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import MIcon from "../MIcon";
 
-export function FeedbackSuccess({ name, onAgain }: { name: string; onAgain: () => void }) {
+export function FeedbackSuccess({ isPublic, onAgain }: { isPublic: boolean; onAgain: () => void }) {
   return (
     <div className="flex flex-col items-center text-center px-6 py-10 gap-3 fade-up" role="status">
       <div className="mb-2">
@@ -12,7 +12,7 @@ export function FeedbackSuccess({ name, onAgain }: { name: string; onAgain: () =
       <h2 className="font-display font-bold text-[20px] text-stone-900">
         Díky, dorazilo to!
       </h2>
-      <p className="text-[12px] text-stone-400 -mt-2">{name.trim() ? `Odesláno pod jménem ${name.trim()}` : "Odesláno bez jména"}</p>
+      <p className="text-[12px] text-stone-400 -mt-2">{isPublic ? "Bez jména, v Připomínkách ostatních" : "Bez jména, jen pro správce"}</p>
       <p className="text-[13px] text-stone-500 max-w-[340px] leading-relaxed">
         Jak to s ní vypadá a co na to správce, uvidíš v kartě Moje připomínky.
       </p>

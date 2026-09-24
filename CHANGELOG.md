@@ -6,6 +6,44 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-24
+
+### Added
+
+- **Připomínky ostatních.** Nápady, vzhled, mobil a jiné se po odeslání hned ukážou všem v nové kartě na stránce Připomínky, bez jména. Kdokoli jim může dát 👍 nebo 👎; druhý klik na stejný palec hlas vezme zpět, klik na druhý palec ho změní. Řazení „Nejnovější“ / „Nejlepší“ (👍 mínus 👎), dlouhý text se rozbalí. U vlastních připomínek (podle „Moje připomínky“ v prohlížeči) se místo palců ukáže „Tvoje“. Chyby, jídlo a pochvaly dál vidí jen správce. Veřejně jde jen text, kategorie, stav a datum — nikdy stránka, zařízení, technický údaj, screenshoty ani poznámka správce.
+- **Vlastní návrh do „Co chystáme“.** V Nastavení → Připomínky tlačítko „Vlastní návrh k hlasování“: správce napíše nápad a lidé na něj dají 👍 nebo 👎. Návrh je k hlasování, dokud není Hotovo nebo Zamítnuto. U „Co chystáme“ je tenký proužek s podílem 👍.
+- **Skrytí z veřejného seznamu** u každé veřejné připomínky i návrhu (nevhodný text, duplicita). Ze stránky zmizí i s hlasováním, v Nastavení zůstane. Upozornění na Telegramu nově říká, jestli připomínku hned vidí i ostatní.
+- Animace u hlasování: palec po kliknutí krátce „cvrnkne“, číslo přijede zespodu, a když se kvůli hlasům změní pořadí v „Co chystáme“ nebo se přepne řazení, položky se na nové místo plynule přesunou (FLIP, s krátkým zpožděním, ať tlačítko neuteče zpod prstu). Rozbalení dlouhého textu plynule změní výšku. Při `prefers-reduced-motion` bez pohybu.
+- **Předání připomínky k řešení** (Nastavení → Připomínky, v detailu připomínky):
+  - „Zkopírovat pro AI“ dá do schránky hotové zadání pro Claude Code nebo Codex: kategorii, stav, stránku, zařízení, verzi aplikace, technický údaj, počet screenshotů, text, interní poznámku a pokyny k postupu (AGENTS.md, SemVer, CHANGELOG, nerozbít objednávky/PDF/e-mail). Na `http://` bez HTTPS, kde prohlížeč `navigator.clipboard` nepovolí, se kopíruje záložní cestou; když neprojde ani ta, zobrazí se text k ručnímu zkopírování.
+  - „Založit úkol na GitHubu“ otevře předvyplněný nový issue. Nic se neodešle samo, GitHub formulář ukáže text k úpravě. Adresa se drží pod 7 500 znaky, delší text připomínky se zkrátí.
+  - Interní poznámka jde jen do schránky, na veřejný GitHub ne. Screenshoty je potřeba přiložit ručně.
+  - **Číslo úkolu se doplní samo.** Úkol nese neviditelnou značku (HTML komentář s id a časem připomínky). Po otevření záložky Připomínky a po každém návratu do okna appka přečte posledních 100 úkolů z GitHub API a k připomínce zapíše číslo a stav (otevřený/uzavřený). V seznamu je pak „úkol #15“ a v detailu odkaz místo „Založit úkol“; u uzavřeného úkolu připomene, že je čas označit připomínku jako Hotovo a odpovědět. Bez tokenu (repozitář je veřejný), nejvýš jednou za 90 s, při vyčerpaném limitu GitHubu počká na jeho obnovení a chyby sítě Nastavení neshodí. Páruje se jen úkol od vlastníka nebo spolupracovníka repozitáře se shodným id i časem připomínky a už spárovaný úkol se nepřepíše jiným. Pro soukromý repozitář jde nastavit env `GITHUB_TOKEN`; při odmítnutém tokenu se to zkusí bez něj.
+- **Stažení screenshotů** u připomínky v Nastavení („Stáhnout“ / „Stáhnout vše“). Prohlížeč je převede z WebP do PNG (`pripominka-42-1.png`), aby šly rovnou přetáhnout do úkolu na GitHubu nebo do AI.
+- Testy: `lib/feedback-export.test.ts` (zadání, odkaz, značka), `tools/feedback.test.mjs` (párování s úkoly; Připomínky ostatních jen s veřejnými kategoriemi a bez citlivých polí; návrhy správce; 👍/👎 a změna hlasu) a `app/api/feedback/route.test.ts` (hlasování 👍/👎, skrytá připomínka, neplatné hodnoty).
+
+### Changed
+
+- **Připomínky jsou anonymní.** Z formuláře zmizel výběr podpisu i předvyplnění jména z objednávky; server jméno nepřijme ani neuloží. Kdo chce, podepíše se do textu. Formulář pod textem říká, jestli připomínku uvidí i ostatní, nebo jen správce.
+- **Hlasování má 👍 i 👎** (dřív jen „chci taky“). „Co chystáme“ se řadí podle 👍 mínus 👎. `POST /api/feedback/vote` přijímá `value: 1 | -1 | 0` a vrací `{ up, down }`. Dřívější hlasy zůstávají jako 👍; seznam vlastních hlasů v prohlížeči se převede sám.
+- Připomínka dána do „Co chystáme“ (přepínač „Dát do Co chystáme“) z Připomínek ostatních zmizí a hlasy si vezme s sebou.
+
+### Fixed
+
+- **Obnova ze zálohy vrací připomínky celé.** Dřív obnovila jen text, kategorii, stav, poznámku a odpověď — skrytá připomínka by se po obnově znovu ukázala na veřejné nástěnce, návrh správce by se změnil v obyčejnou připomínku a ztratila by se čísla úkolů na GitHubu. Nově se obnoví i skrytí, „Co chystáme“, verze appky, technický údaj, kód pro „Moje připomínky“ a úkol na GitHubu. Záloha nově obsahuje i hlasy (`feedback_votes`, jen otisk kódu prohlížeče) a obnova je přiřadí ke správným připomínkám; opakovaná obnova nic nezdvojí. Test `app/api/restore/route.test.ts` (záloha → smazání → obnova).
+
+### Security
+
+- **Odemčení Nastavení počítá jen špatné PINy.** Obrazovka s PINem měla vlastní limit 5 pokusů za 10 minut, který počítal i správná odemčení — správce se tak po pěti otevřeních Nastavení zamkl sám. Nově používá stejný zámek jako Server Actions a API routy (`checkSettingsPinAttempt()` v `lib/api-auth.ts`): 10 špatných PINů z jedné adresy = zámek na 15 minut, sdílený pro celou appku, a obrazovka dál odpočítává zbývající čas. Test v `tools/feedback.test.mjs`.
+- **IP návštěvníka za Cloudflarem.** Rate limity a zámek PINu braly první položku `X-Forwarded-For`, kterou si návštěvník vyplní sám (Cloudflare i Next.js k ní jen připisují) — s jinou vymyšlenou adresou u každého pokusu šel zámek PINu po 10 chybách i limity připomínek obejít. Nově `getClientIpFromHeaders()` v `lib/api-auth.ts` bere `CF-Connecting-IP`, kterou nastavuje Cloudflare a podvrhnout nejde (Cloudflare Tunnel ji doporučuje přesně k tomu), a bez Cloudflaru poslední položku `X-Forwarded-For`. Platí pro všechna místa: Server Actions, odemčení Nastavení, připomínky, hlasování, záloha, SMTP test, import PDF. Test `lib/client-ip.test.ts`.
+
+### Migration notes
+
+- Databáze se rozšíří sama při startu o sloupce `feedback.hidden`, `feedback.is_proposal` a `feedback_votes.value` (výchozí 1 = 👍). Sloupec `feedback.author_name` zůstává kvůli starším zálohám, nové připomínky ho nechávají prázdný.
+
+- Databáze se rozšíří sama při startu o sloupce `feedback.github_issue` a `feedback.github_issue_state`. Zpětně kompatibilní, bez ručního kroku.
+- Kontejner potřebuje odchozí HTTPS na `api.github.com` (jen pro párování úkolů; bez něj vše ostatní funguje dál).
+
 ## [1.5.0] - 2026-09-24
 
 ### Added

@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { FEEDBACK_LIMITS, getCategoryMeta, type FeedbackCategory } from "@/lib/feedback-meta";
+import { FEEDBACK_LIMITS, getCategoryMeta, isPublicCategory, type FeedbackCategory } from "@/lib/feedback-meta";
 import { getAppVersionInfo } from "@/lib/version";
 import MIcon from "../MIcon";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { CategoryPicker } from "./CategoryPicker";
 import { FeedbackSuccess } from "./FeedbackSuccess";
 import { insertStarter } from "./feedback-utils";
-import { SignaturePicker } from "./SignaturePicker";
 import { useAttachments } from "./useAttachments";
 import { useFeedbackDraft } from "./useFeedbackDraft";
 
@@ -38,7 +37,7 @@ function imageFiles(list: DataTransferItemList | FileList | null | undefined): F
  * Psaní připomínky, postupně odhalované:
  * 1. dlaždice s kategorií,
  * 2. otázka podle kategorie, rychlé začátky vět a text,
- * 3. podpis a odeslání.
+ * 3. odeslání. Připomínky jsou anonymní — kdo chce, podepíše se do textu.
  *
  * Druhý a třetí krok se ukážou až po výběru kategorie — prázdný formulář
  * se všemi poli najednou působí jako úřední tiskopis, ne jako „napište nám“.
@@ -60,12 +59,12 @@ export function FeedbackComposer({
   prefill: FeedbackPrefill;
   onSent: (id: number, token: string) => void;
 }) {
-  const { category, setCategory, message, setMessage, name, setName, restored, clearDraft } = useFeedbackDraft(prefill.category);
+  const { category, setCategory, message, setMessage, restored, clearDraft } = useFeedbackDraft(prefill.category);
   const [context, setContext] = useState(prefill.context);
-  const [anonymous, setAnonymous] = useState(false);
   const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sentAs, setSentAs] = useState<string | null>(null);
+  // Kategorie odeslané připomínky — poděkování podle ní řekne, jestli ji uvidí i ostatní
+  const [sentAs, setSentAs] = useState<FeedbackCategory | null>(null);
   const [isPending, startTransition] = useTransition();
   const attachments = useAttachments();
   const [dragging, setDragging] = useState(false);
@@ -159,13 +158,11 @@ export function FeedbackComposer({
   const submit = () => {
     if (!canSend || !category) return;
     setError(null);
-    const signedAs = anonymous ? "" : name;
     startTransition(async () => {
       try {
         const body = new FormData();
         body.set("category", category);
         body.set("message", message);
-        body.set("authorName", signedAs);
         body.set("page", prefill.page || getReferrerPath());
         body.set("context", context);
         body.set("appVersion", APP_VERSION);
@@ -178,7 +175,7 @@ export function FeedbackComposer({
           setContext("");
           clearDraft();
           attachments.clear();
-          setSentAs(signedAs);
+          setSentAs(category);
         } else {
           setError(res.error);
         }
@@ -191,7 +188,7 @@ export function FeedbackComposer({
   if (sentAs !== null) {
     return (
       <section className="glass rounded-3xl overflow-hidden">
-        <FeedbackSuccess name={sentAs} onAgain={() => setSentAs(null)} />
+        <FeedbackSuccess isPublic={isPublicCategory(sentAs)} onAgain={() => setSentAs(null)} />
       </section>
     );
   }
@@ -282,16 +279,6 @@ export function FeedbackComposer({
                 onRemove={attachments.remove}
               />
 
-              <div className="flex flex-col gap-1.5">
-                <span className="modal-label">Kdo píše</span>
-                <SignaturePicker
-                  anonymous={anonymous}
-                  name={name}
-                  onAnonymousChange={setAnonymous}
-                  onNameChange={setName}
-                />
-              </div>
-
               {/* Past na roboty — člověk pole nevidí a nevyplní */}
               <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
                 <label>
@@ -317,7 +304,9 @@ export function FeedbackComposer({
               {missing > 0 && length > 0
                 ? "Ještě kousek…"
                 : <>
-                    {anonymous || !name.trim() ? "Odešle se bez jména." : `Odešle se pod jménem ${name.trim()}.`}
+                    {isPublicCategory(meta.id)
+                      ? "Bez jména. Uvidí ji i ostatní a můžou dát palec."
+                      : "Bez jména. Uvidí ji jen správce."}
                     <span className="hidden md:inline"> Zkratka: <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Ctrl</kbd> + <kbd className="font-sans px-1.5 py-0.5 rounded-md bg-black/5 text-stone-500">Enter</kbd></span>
                   </>}
             </span>

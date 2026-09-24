@@ -147,14 +147,18 @@ Akce: `row_add`, `row_update`, `row_delete`, `order_send`, `order_reopen`, `orde
 ### `feedback`
 Připomínky k aplikaci. Záměrně bez IP adresy a user-agentu.
 ```
-id | created_at (UTC) | category | message | author_name (nepovinné)
+id | created_at (UTC) | category | message | author_name (od 1.6.0 vždy prázdné — anonymní)
 page (cesta, odkud přišel) | device ("mobil"|"počítač"|"")
 status ("new"|"read"|"planned"|"done"|"rejected")
 admin_note | public_reply | resolved_at (první přechod do "done")
 secret_hash (SHA-256 kódu autora) | context | app_version | status_changed_at
-votable (0/1) | vote_title
+votable (0/1) | vote_title | hidden (0/1) | is_proposal (0/1)
+github_issue | github_issue_state ("open"|"closed"|"")
 ```
-Veřejně (`getPublicFeedbackReplies`) jde jen `public_reply` hotových připomínek — nikdy `message` ani `author_name`.
+Veřejně jdou tři věci:
+- `getPublicFeedback` („Připomínky ostatních“): `message` otevřených připomínek z `PUBLIC_CATEGORIES` (napad, ovladani, mobil, jine), které nejsou `hidden`, `votable` ani `is_proposal` — jen text, kategorie, stav, datum, hlasy. Nikdy stránka, zařízení, context, screenshoty ani admin_note.
+- `getVotableFeedback` („Co chystáme“): jen `vote_title` (návrhy správce `is_proposal = 1` a připomínky, které dal k hlasování).
+- `getPublicFeedbackReplies` („Změnili jsme díky vám“): jen `public_reply` hotových připomínek.
 
 ### `feedback_attachments`
 ```
@@ -164,10 +168,10 @@ Soubory v `<data>/feedback-attachments/`; při mazání připomínky je maže `d
 
 ### `feedback_votes`
 ```
-feedback_id (FK, ON DELETE CASCADE) | voter_hash (SHA-256 kódu z prohlížeče) | created_at
+feedback_id (FK, ON DELETE CASCADE) | voter_hash (SHA-256 kódu z prohlížeče) | created_at | value (1 = 👍, -1 = 👎)
 PRIMARY KEY (feedback_id, voter_hash)
 ```
-Hlasovat jde jen o `feedback.votable = 1` s vyplněným `vote_title` a stavem new/read/planned.
+Hlasovat jde o položky „Co chystáme“ a „Připomínek ostatních“ (ne skryté, jen new/read/planned).
 
 ### `pizza_orders`, `pizza_order_rows`, `pizza_items`
 Analogická struktura k oběd objednávkám, bez oddělení.
@@ -202,7 +206,9 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - `/pripominky` → `POST /api/feedback` (multipart, veřejné): honeypot `website`, zod validace, rate limit 5/h na IP + 100/den globálně, screenshoty přes `processImage()` (sharp → WebP bez metadat)
 - Screenshoty pro správce: `GET /api/feedback/attachments/[id]` s hlavičkou `x-settings-pin`
 - Moje připomínky: `POST /api/feedback/mine` s tajnými kódy z localStorage (`myFeedback`)
-- Hlasování: `POST /api/feedback/vote` (kód hlasujícího `feedbackVoter` v localStorage)
+- Hlasování: `POST /api/feedback/vote` `{ id, voter, value: 1|-1|0 }` (kód hlasujícího `feedbackVoter`, vlastní hlasy `feedbackVotes` v localStorage)
+- Vlastní návrh správce: `actionAddProposal(pin, { title, category })`; skrytí: `actionUpdateFeedback(pin, id, { hidden })`
+- Předání k řešení: `lib/feedback-export.ts` (zadání pro AI, odkaz na nový GitHub issue se značkou), `lib/feedback-github.ts` (párování s úkoly přes GitHub API, `actionSyncFeedbackIssues`)
 - Pozvánka na objednávkové stránce: `order/FeedbackNudge.tsx` (skrytí na 14 dní v localStorage)
 - Úklid: `cleanupOldAttachments()` ve scheduleru ve 3:30 — screenshoty 90 dní po vyřízení
 - Upozornění: `sendTelegramFeedbackNotification()` — jen admini s `notify_feedback = 1` (opt-in, výchozí 0)

@@ -150,26 +150,37 @@ async function vote(payload: unknown) {
     body,
     headers: { "content-type": "application/json", "content-length": String(Buffer.byteLength(body)), "x-forwarded-for": freshIp() },
   }) as never);
-  return { status: res.status, json: await res.json() as { ok: boolean; votes?: number } };
+  return { status: res.status, json: await res.json() as { ok: boolean; up?: number; down?: number } };
 }
 
 describe("POST /api/feedback/vote", () => {
-  it("o nezveřejněné připomínce hlasovat nejde", async () => {
+  it("o chybě (neveřejná kategorie) hlasovat nejde", async () => {
     const created = (await send(valid)).json;
-    expect((await vote({ id: created.id, voter: "v".repeat(24), vote: true })).status).toBe(404);
+    expect((await vote({ id: created.id, voter: "v".repeat(24), value: 1 })).status).toBe(404);
   });
 
-  it("zveřejněná připomínka hlas přijme, druhý hlas stejného prohlížeče ne", async () => {
-    const created = (await send(valid)).json;
+  it("nápad je hned v „Připomínkách ostatních“ a jde o něm hlasovat 👍 i 👎", async () => {
+    const created = (await send({ category: "napad", message: "Tmavý režim by se hodil." })).json;
+    const w = "w".repeat(24);
+    expect((await vote({ id: created.id, voter: w, value: 1 })).json).toMatchObject({ up: 1, down: 0 });
+    // Stejný prohlížeč znovu: hlas se nezdvojí, jen změní
+    expect((await vote({ id: created.id, voter: w, value: 1 })).json).toMatchObject({ up: 1, down: 0 });
+    expect((await vote({ id: created.id, voter: w, value: -1 })).json).toMatchObject({ up: 0, down: 1 });
+    expect((await vote({ id: created.id, voter: "x".repeat(24), value: -1 })).json).toMatchObject({ up: 0, down: 2 });
+    expect((await vote({ id: created.id, voter: w, value: 0 })).json).toMatchObject({ up: 0, down: 1 });
+  });
+
+  it("skrytá připomínka hlas nepřijme", async () => {
+    const created = (await send({ category: "napad", message: "Nevhodný text k skrytí." })).json;
     const { updateFeedback } = await import("@/lib/feedback");
-    updateFeedback(created.id!, { status: "planned", voteTitle: "Shrnutí", votable: true });
-    expect((await vote({ id: created.id, voter: "w".repeat(24), vote: true })).json.votes).toBe(1);
-    expect((await vote({ id: created.id, voter: "w".repeat(24), vote: true })).json.votes).toBe(1);
-    expect((await vote({ id: created.id, voter: "x".repeat(24), vote: true })).json.votes).toBe(2);
+    updateFeedback(created.id!, { hidden: true });
+    expect((await vote({ id: created.id, voter: "y".repeat(24), value: 1 })).status).toBe(404);
   });
 
   it("odmítne nesmyslný požadavek", async () => {
-    expect((await vote({ id: "1", voter: "w".repeat(24), vote: true })).status).toBe(400);
-    expect((await vote({ id: 1, voter: "krátký", vote: true })).status).toBe(400);
+    expect((await vote({ id: "1", voter: "w".repeat(24), value: 1 })).status).toBe(400);
+    expect((await vote({ id: 1, voter: "krátký", value: 1 })).status).toBe(400);
+    expect((await vote({ id: 1, voter: "w".repeat(24), value: 2 })).status).toBe(400);
+    expect((await vote({ id: 1, voter: "w".repeat(24), vote: true })).status).toBe(400);
   });
 });
