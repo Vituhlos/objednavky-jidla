@@ -30,9 +30,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
     ],
-    forEveryone: [
-      "Na stránce Připomínky přibyla karta „Co je nového“ se změnami v aplikaci.",
-    ],
+    // Karta sama sebe ohlašovat nemusí.
+    forEveryone: [],
   },
   {
     version: "1.4.0",
