@@ -40,7 +40,6 @@ import {
   setTelegramAdmin,
   getTelegramBotInfo,
   getTelegramWebhookStatus,
-  sendTelegramFeedbackNotification,
 } from "@/lib/telegram";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
@@ -56,14 +55,10 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import {
-  addFeedback,
   deleteFeedback,
-  detectDevice,
   feedbackUpdateSchema,
-  formatFeedbackTelegram,
   getFeedbackList,
   updateFeedback,
-  validateFeedbackInput,
   type FeedbackEntry,
 } from "@/lib/feedback";
 import { verifySettingsPin } from "@/lib/api-auth";
@@ -449,45 +444,6 @@ async function requireActionPin(pin: unknown): Promise<void> {
   const result = verifySettingsPin(await getActionIp(), typeof pin === "string" ? pin : null);
   if (result === "locked") throw new Error("Příliš mnoho pokusů. Zkuste to za 15 minut.");
   if (result === "denied") throw new Error("Neplatný PIN.");
-}
-
-const FEEDBACK_PER_IP = 5;
-const FEEDBACK_PER_IP_WINDOW_MS = 60 * 60 * 1000;
-// Strop pro celou appku: IP z x-forwarded-for jde podvrhnout, tak ať spam
-// nezaplní databázi ani Telegram adminů, ani když se IP střídají.
-const FEEDBACK_GLOBAL = 100;
-const FEEDBACK_GLOBAL_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-export async function actionSubmitFeedback(
-  raw: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  // Past na roboty: pole `website` je pro člověka neviditelné. Kdo ho vyplní,
-  // dostane stejnou odpověď jako úspěch, ať nepozná, že byl odhalen.
-  if (raw && typeof raw === "object" && "website" in raw && (raw as { website?: unknown }).website) {
-    return { ok: true };
-  }
-
-  const parsed = validateFeedbackInput(raw);
-  if (!parsed.ok) return parsed;
-
-  const hdrs = await headers();
-  const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  if (!checkRateLimit(`feedback:${ip}`, FEEDBACK_PER_IP, FEEDBACK_PER_IP_WINDOW_MS)) {
-    return { ok: false, error: "Teď toho posíláš hodně najednou. Zkus to zase za hodinu." };
-  }
-  if (!checkRateLimit("feedback:global", FEEDBACK_GLOBAL, FEEDBACK_GLOBAL_WINDOW_MS)) {
-    return { ok: false, error: "Dnes už přišlo připomínek příliš mnoho. Zkus to zítra." };
-  }
-
-  const entry = addFeedback(parsed.data, detectDevice(hdrs.get("user-agent")));
-
-  // Upozornění nesmí zdržet ani shodit odeslání formuláře
-  void sendTelegramFeedbackNotification(formatFeedbackTelegram(entry)).catch((err) =>
-    console.error("[feedback] Telegram upozornění selhalo:", err),
-  );
-
-  revalidatePath("/pripominky");
-  return { ok: true };
 }
 
 export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {

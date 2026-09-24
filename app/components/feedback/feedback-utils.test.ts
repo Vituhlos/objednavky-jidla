@@ -43,3 +43,25 @@ describe("formatFeedbackDate", () => {
     expect(formatFeedbackDate("2026-12-31 23:30:00")).toBe("1. 1. 2027");
   });
 });
+
+import { fitWithin, isAcceptedImage } from "./image-utils";
+
+describe("fitWithin", () => {
+  it("zmenší delší stranu na limit a zachová poměr", () => {
+    expect(fitWithin(3840, 2160, 2000)).toEqual({ width: 2000, height: 1125 });
+    expect(fitWithin(1170, 2532, 2000)).toEqual({ width: 924, height: 2000 });
+  });
+
+  it("malý obrázek nezvětšuje", () => {
+    expect(fitWithin(800, 600, 2000)).toEqual({ width: 800, height: 600 });
+  });
+});
+
+describe("isAcceptedImage", () => {
+  it("pustí jen obrázky, které server umí", () => {
+    expect(isAcceptedImage({ type: "image/png" })).toBe(true);
+    expect(isAcceptedImage({ type: "image/jpeg" })).toBe(true);
+    expect(isAcceptedImage({ type: "image/svg+xml" })).toBe(false);
+    expect(isAcceptedImage({ type: "application/pdf" })).toBe(false);
+  });
+});

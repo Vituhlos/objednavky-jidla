@@ -88,6 +88,7 @@ describe("formatFeedbackTelegram", () => {
     adminNote: "",
     publicReply: "",
     resolvedAt: null,
+    attachments: [],
   };
 
   it("escapuje vše od uživatele — jinak Telegram zprávu odmítne", () => {

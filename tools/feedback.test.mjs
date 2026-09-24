@@ -127,3 +127,51 @@ test("upozornění na Telegram dostane jen admin, který si ho zapnul", async ()
     globalThis.fetch = realFetch;
   }
 });
+
+// ── Screenshoty ──────────────────────────────────────────────────────────────
+
+const attachmentsLib = await lib("feedback-attachments");
+const { default: sharp } = await import(path.resolve("node_modules/sharp/lib/index.js"));
+
+const png = (w, h) => sharp({ create: { width: w, height: h, channels: 3, background: "#ea580c" } }).png().toBuffer();
+
+test("obrázek se znovu zakóduje do WebP, zmenší a zahodí metadata", async () => {
+  const input = await sharp({ create: { width: 4000, height: 1000, channels: 3, background: "#fff" } })
+    .jpeg()
+    .withMetadata({ exif: { IFD0: { Copyright: "tajne" } } })
+    .toBuffer();
+  const out = await attachmentsLib.processImage(input);
+  assert.equal(out.width, 2000);
+  assert.equal(out.height, 500);
+  const meta = await sharp(out.buffer).metadata();
+  assert.equal(meta.format, "webp");
+  assert.equal(meta.exif, undefined);
+});
+
+test("soubor, který není obrázek, neprojde — ani s koncovkou nebo hlavičkou PNG", async () => {
+  await assert.rejects(attachmentsLib.processImage(Buffer.from("<script>alert(1)</script>")), attachmentsLib.AttachmentError);
+  const fakePng = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("<html>")]);
+  await assert.rejects(attachmentsLib.processImage(fakePng), attachmentsLib.AttachmentError);
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><script>x</script></svg>');
+  await assert.rejects(attachmentsLib.processImage(svg), attachmentsLib.AttachmentError);
+});
+
+test("přílohy se uloží s připomínkou a se smazáním zmizí i z disku", async () => {
+  const img = await attachmentsLib.processImage(await png(300, 200));
+  const entry = feedback.addFeedback(input({ message: "S obrázkem" }), "", [img, img]);
+  assert.equal(entry.attachments.length, 2);
+  const files = entry.attachments.map((a) => attachmentsLib.getAttachmentFile(a.id).filePath);
+  assert.ok(files.every((f) => fs.existsSync(f)));
+
+  feedback.deleteFeedback(entry.id);
+  assert.ok(files.every((f) => !fs.existsSync(f)));
+  assert.equal(attachmentsLib.getAttachmentFile(entry.attachments[0].id), null);
+});
+
+test("veřejný seznam přílohy nevydá", async () => {
+  const img = await attachmentsLib.processImage(await png(50, 50));
+  const entry = feedback.addFeedback(input({ message: "Veřejná s obrázkem" }), "", [img]);
+  feedback.updateFeedback(entry.id, { status: "done", publicReply: "Hotovo" });
+  const pub = feedback.getPublicFeedbackReplies().find((r) => r.id === entry.id);
+  assert.deepEqual(Object.keys(pub).sort(), ["category", "id", "publicReply", "resolvedAt"]);
+});

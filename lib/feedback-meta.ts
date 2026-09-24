@@ -64,6 +64,26 @@ export const FEEDBACK_LIMITS = {
   publicReplyMax: 500,
 } as const;
 
+export const FEEDBACK_ATTACHMENT_LIMITS = {
+  /** Obrázků k jedné připomínce. */
+  maxFiles: 3,
+  /** Jeden soubor tak, jak dorazí na server (prohlížeč ho předtím zmenšuje). */
+  maxInputBytes: 10 * 1024 * 1024,
+  /** Delší strana po zpracování. Screenshot 4K se zmenší, telefon zůstane čitelný. */
+  maxDimension: 2000,
+  /** Všechny přílohy dohromady na disku. */
+  maxStoredBytes: 500 * 1024 * 1024,
+} as const;
+
+export const FEEDBACK_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
+
+export interface FeedbackAttachment {
+  id: number;
+  width: number;
+  height: number;
+  size: number;
+}
+
 export interface FeedbackEntry {
   id: number;
   createdAt: string;
@@ -76,6 +96,7 @@ export interface FeedbackEntry {
   adminNote: string;
   publicReply: string;
   resolvedAt: string | null;
+  attachments: FeedbackAttachment[];
 }
 
 /** Co z připomínky smí vidět kdokoli: jen odpověď správce, nikdy původní text ani autor. */

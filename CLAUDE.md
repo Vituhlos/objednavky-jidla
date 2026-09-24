@@ -87,6 +87,7 @@ lib/
   pizza-utils.ts  # Utility pro pizzu
   feedback.ts     # Připomínky: validace (zod), CRUD, veřejné odpovědi, text pro Telegram
   feedback-meta.ts # Kategorie/stavy/typy připomínek — bez DB, importuje i klient
+  feedback-attachments.ts # Screenshoty: sharp re-encode do WebP, úložiště, limity
 
 instrumentation.ts  # Next.js hook — startScheduler() při startu Node.js procesu
 ```
@@ -153,6 +154,12 @@ admin_note | public_reply | resolved_at (první přechod do "done")
 ```
 Veřejně (`getPublicFeedbackReplies`) jde jen `public_reply` hotových připomínek — nikdy `message` ani `author_name`.
 
+### `feedback_attachments`
+```
+id | feedback_id (FK, ON DELETE CASCADE) | file_name (UUID.webp) | mime | size | width | height
+```
+Soubory v `<data>/feedback-attachments/`; při mazání připomínky je maže `deleteAttachmentFiles()`.
+
 ### `pizza_orders`, `pizza_order_rows`, `pizza_items`
 Analogická struktura k oběd objednávkám, bez oddělení.
 
@@ -183,7 +190,8 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - `sendOrder(id, email, "auto")` → loguje `auto_send`
 
 ### Připomínky
-- `/pripominky` → `actionSubmitFeedback` (veřejná): honeypot `website`, zod validace, rate limit 5/h na IP + 100/den globálně
+- `/pripominky` → `POST /api/feedback` (multipart, veřejné): honeypot `website`, zod validace, rate limit 5/h na IP + 100/den globálně, screenshoty přes `processImage()` (sharp → WebP bez metadat)
+- Screenshoty pro správce: `GET /api/feedback/attachments/[id]` s hlavičkou `x-settings-pin`
 - Upozornění: `sendTelegramFeedbackNotification()` — jen admini s `notify_feedback = 1` (opt-in, výchozí 0)
 - Správa: Nastavení → Připomínky; `actionGetFeedback/UpdateFeedback/DeleteFeedback(pin, …)` ověřují PIN přes `verifySettingsPin()` se zámkem po 10 chybách
 

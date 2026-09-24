@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { actionSubmitFeedback } from "@/app/actions";
 import { FEEDBACK_LIMITS, getCategoryMeta } from "@/lib/feedback-meta";
 import MIcon from "../MIcon";
+import { AttachmentPicker } from "./AttachmentPicker";
 import { CategoryPicker } from "./CategoryPicker";
 import { FeedbackSuccess } from "./FeedbackSuccess";
 import { insertStarter } from "./feedback-utils";
 import { SignaturePicker } from "./SignaturePicker";
+import { useAttachments } from "./useAttachments";
 import { useFeedbackDraft } from "./useFeedbackDraft";
 
 /** Odkud člověk na stránku přišel — jen cesta v rámci appky, nic jiného. */
@@ -20,6 +21,16 @@ function getReferrerPath(): string {
   } catch {
     return "";
   }
+}
+
+/** Obrázky ze schránky nebo z přetažení — jen soubory, text se ignoruje. */
+function imageFiles(list: DataTransferItemList | FileList | null | undefined): File[] {
+  if (!list) return [];
+  if (list instanceof FileList) return Array.from(list);
+  return Array.from(list)
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((f): f is File => !!f);
 }
 
 /**
@@ -38,6 +49,8 @@ export function FeedbackComposer() {
   const [error, setError] = useState<string | null>(null);
   const [sentAs, setSentAs] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const attachments = useAttachments();
+  const [dragging, setDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Kam posadit kurzor po vložení začátku věty — až když React zapíše nový text
   const pendingCursor = useRef<number | null>(null);
@@ -45,7 +58,55 @@ export function FeedbackComposer() {
   const meta = category ? getCategoryMeta(category) : null;
   const length = message.trim().length;
   const missing = Math.max(0, FEEDBACK_LIMITS.messageMin - length);
-  const canSend = !!category && missing === 0 && !isPending;
+  const canSend = !!category && missing === 0 && !isPending && !attachments.busy;
+
+  // Obrázek přetažený nebo vložený dřív, než je vybraná kategorie, je skoro
+  // vždycky hlášení chyby — kategorie se předvybere, jde ji změnit.
+  const addFiles = attachments.add;
+  const acceptFiles = useRef<(files: File[]) => void>(() => {});
+  useEffect(() => {
+    acceptFiles.current = (files: File[]) => {
+      if (files.length === 0) return;
+      if (!category) setCategory("chyba");
+      void addFiles(files);
+    };
+  }, [addFiles, category, setCategory]);
+
+  // Přetažení kamkoli na stránku a vložení přes Ctrl+V. Počítadlo, protože
+  // dragenter/dragleave chodí i při přechodu mezi potomky.
+  useEffect(() => {
+    if (sentAs !== null) return;
+    let depth = 0;
+    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const onEnter = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; setDragging(true); };
+    const onOver = (e: DragEvent) => { if (hasFiles(e)) e.preventDefault(); };
+    const onLeave = (e: DragEvent) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (depth === 0) setDragging(false); };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragging(false);
+      acceptFiles.current(imageFiles(e.dataTransfer?.files));
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      const files = imageFiles(e.clipboardData?.items);
+      if (files.length === 0) return;
+      e.preventDefault();
+      acceptFiles.current(files);
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("paste", onPaste);
+    };
+  }, [sentAs]);
 
   // Pole roste s textem — scrollovat uvnitř malého okýnka se píše špatně
   useEffect(() => {
@@ -83,15 +144,18 @@ export function FeedbackComposer() {
     const signedAs = anonymous ? "" : name;
     startTransition(async () => {
       try {
-        const res = await actionSubmitFeedback({
-          category,
-          message,
-          authorName: signedAs,
-          page: getReferrerPath(),
-          website,
-        });
+        const body = new FormData();
+        body.set("category", category);
+        body.set("message", message);
+        body.set("authorName", signedAs);
+        body.set("page", getReferrerPath());
+        body.set("website", website);
+        attachments.items.forEach((a, i) => body.append("attachments", a.blob, `obrazek-${i + 1}`));
+        const res = await fetch("/api/feedback", { method: "POST", body })
+          .then((r) => r.json() as Promise<{ ok: true } | { ok: false; error: string }>);
         if (res.ok) {
           clearDraft();
+          attachments.clear();
           setSentAs(signedAs);
         } else {
           setError(res.error);
@@ -111,6 +175,16 @@ export function FeedbackComposer() {
   }
 
   return (
+    <>
+    {dragging && (
+      <div aria-hidden="true" className="fb-dropzone-overlay">
+        <div className="fb-dropzone-overlay__box">
+          <span className="emoji text-[40px] leading-none">📸</span>
+          <span className="font-display font-bold text-[16px] text-stone-900">Pusť obrázek sem</span>
+          <span className="text-[12px] text-stone-500">Přidá se k připomínce</span>
+        </div>
+      </div>
+    )}
     <section className="glass rounded-3xl overflow-hidden" aria-labelledby="fb-title">
       <form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
         <div className="p-4 md:p-5 flex flex-col gap-4">
@@ -166,6 +240,14 @@ export function FeedbackComposer() {
                 )}
               </div>
 
+              <AttachmentPicker
+                busy={attachments.busy}
+                items={attachments.items}
+                notice={attachments.notice}
+                onAdd={(files) => void attachments.add(files)}
+                onRemove={attachments.remove}
+              />
+
               <div className="flex flex-col gap-1.5">
                 <span className="modal-label">Kdo píše</span>
                 <SignaturePicker
@@ -213,5 +295,6 @@ export function FeedbackComposer() {
         )}
       </form>
     </section>
+    </>
   );
 }

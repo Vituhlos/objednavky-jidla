@@ -7,6 +7,11 @@ const DB_PATH =
 
 let instance: Database.Database | null = null;
 
+/** Složka s databází — v Dockeru mountovaný volume, patří sem i další trvalá data. */
+export function getDataDir(): string {
+  return path.dirname(DB_PATH);
+}
+
 export function getDb(): Database.Database {
   if (!instance) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -211,6 +216,22 @@ function migrate(db: Database.Database): void {
       resolved_at  TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
+  `);
+
+  // Screenshoty k připomínkám. Soubory leží v <data>/feedback-attachments,
+  // tady je jen evidence. Řádky mizí s připomínkou (CASCADE), soubory maže kód.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback_attachments (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+      file_name   TEXT    NOT NULL UNIQUE,
+      mime        TEXT    NOT NULL,
+      size        INTEGER NOT NULL,
+      width       INTEGER NOT NULL,
+      height      INTEGER NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_attachments_feedback ON feedback_attachments(feedback_id);
   `);
 
   // Performance indexes

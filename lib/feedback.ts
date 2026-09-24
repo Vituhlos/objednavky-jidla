@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getDb } from "./db";
 import { escapeHtml } from "./telegram";
+import { deleteAttachmentFiles, getAttachmentsByFeedback, storeAttachments, type ProcessedImage } from "./feedback-attachments";
 
 import {
   FEEDBACK_CATEGORIES,
@@ -106,7 +107,7 @@ type DbRow = {
   resolved_at: string | null;
 };
 
-function toEntry(r: DbRow): FeedbackEntry {
+function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]>): FeedbackEntry {
   return {
     id: r.id,
     createdAt: r.created_at,
@@ -119,29 +120,37 @@ function toEntry(r: DbRow): FeedbackEntry {
     adminNote: r.admin_note,
     publicReply: r.public_reply,
     resolvedAt: r.resolved_at,
+    attachments: attachments.get(r.id) ?? [],
   };
 }
 
-export function addFeedback(input: FeedbackInput, device: FeedbackDevice): FeedbackEntry {
+export function addFeedback(input: FeedbackInput, device: FeedbackDevice, images: ProcessedImage[] = []): FeedbackEntry {
   const db = getDb();
-  const r = db
-    .prepare(
-      "INSERT INTO feedback (category, message, author_name, page, device) VALUES (?, ?, ?, ?, ?)",
-    )
-    .run(input.category, input.message, input.authorName, input.page, device);
-  return getFeedbackById(Number(r.lastInsertRowid))!;
+  // Připomínka i přílohy vzniknou spolu, nebo vůbec — bez sirotků v DB ani na disku
+  const id = db.transaction(() => {
+    const r = db
+      .prepare(
+        "INSERT INTO feedback (category, message, author_name, page, device) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(input.category, input.message, input.authorName, input.page, device);
+    const feedbackId = Number(r.lastInsertRowid);
+    storeAttachments(feedbackId, images);
+    return feedbackId;
+  })();
+  return getFeedbackById(id)!;
 }
 
 export function getFeedbackById(id: number): FeedbackEntry | null {
   const row = getDb().prepare("SELECT * FROM feedback WHERE id = ?").get(id) as DbRow | undefined;
-  return row ? toEntry(row) : null;
+  return row ? toEntry(row, getAttachmentsByFeedback()) : null;
 }
 
 export function getFeedbackList(): FeedbackEntry[] {
   const rows = getDb()
     .prepare("SELECT * FROM feedback ORDER BY created_at DESC, id DESC")
     .all() as DbRow[];
-  return rows.map(toEntry);
+  const attachments = getAttachmentsByFeedback();
+  return rows.map((r) => toEntry(r, attachments));
 }
 
 export function countNewFeedback(): number {
@@ -172,6 +181,7 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
 }
 
 export function deleteFeedback(id: number): boolean {
+  deleteAttachmentFiles(id);
   return getDb().prepare("DELETE FROM feedback WHERE id = ?").run(id).changes > 0;
 }
 
@@ -204,6 +214,7 @@ export function formatFeedbackTelegram(entry: FeedbackEntry): string {
   const where = [
     entry.page ? `📍 ${escapeHtml(entry.page)}` : "",
     entry.device ? `${entry.device === "mobil" ? "📱" : "💻"} ${entry.device}` : "",
+    entry.attachments.length ? `📎 ${entry.attachments.length} ${entry.attachments.length === 1 ? "obrázek" : "obrázky"}` : "",
   ].filter(Boolean).join(" · ");
 
   return [

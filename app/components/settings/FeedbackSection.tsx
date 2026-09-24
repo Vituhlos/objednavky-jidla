@@ -12,6 +12,7 @@ import {
 } from "@/lib/feedback-meta";
 import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
 import { ConfirmModal } from "../ConfirmModal";
+import { FeedbackAttachments } from "./FeedbackAttachments";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
 
@@ -244,6 +245,9 @@ function FeedbackItem({
             </span>
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
+            {entry.attachments.length > 0 && (
+              <span className="inline-flex items-center gap-1">· <span className="emoji" aria-hidden="true">📎</span>{entry.attachments.length}</span>
+            )}
           </span>
         </span>
         <MIcon name={expanded ? "expand_less" : "expand_more"} size={18} className="text-stone-400 shrink-0 mt-1.5" />
@@ -251,6 +255,8 @@ function FeedbackItem({
 
       {expanded && (
         <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-white/50 fade-up">
+          <FeedbackAttachments attachments={entry.attachments} getPin={getPin} />
+
           <div className="modal-field">
             <span className="modal-label">Stav</span>
             <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
