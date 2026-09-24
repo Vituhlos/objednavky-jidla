@@ -55,6 +55,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     message: text("message"),
     authorName: text("authorName"),
     page: text("page"),
+    context: text("context"),
+    appVersion: text("appVersion"),
   });
   if (!parsed.ok) return fail(parsed.error);
 
@@ -83,9 +85,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     return fail(err instanceof AttachmentError ? err.message : "Obrázek se nepodařilo zpracovat.");
   }
 
-  let entry;
+  let created;
   try {
-    entry = addFeedback(parsed.data, detectDevice(req.headers.get("user-agent")), images);
+    created = addFeedback(parsed.data, detectDevice(req.headers.get("user-agent")), images);
   } catch (err) {
     if (err instanceof AttachmentError) return fail(err.message, 507);
     console.error("[feedback] Uložení selhalo:", err);
@@ -93,10 +95,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Upozornění nesmí zdržet ani shodit odeslání formuláře
-  void sendTelegramFeedbackNotification(formatFeedbackTelegram(entry)).catch((err) =>
+  void sendTelegramFeedbackNotification(formatFeedbackTelegram(created.entry)).catch((err) =>
     console.error("[feedback] Telegram upozornění selhalo:", err),
   );
 
   revalidatePath("/pripominky");
-  return Response.json({ ok: true });
+  // Tajný kód dostane jen autor — prohlížeč si ho uloží a přes /api/feedback/mine
+  // pak uvidí stav a odpověď. V DB je jen jeho hash.
+  return Response.json({ ok: true, id: created.entry.id, token: created.token });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import MIcon from "../MIcon";
 
@@ -101,6 +102,15 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           )}
+
+          <Link
+            className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-[12.5px] font-semibold text-stone-600 hover:bg-white/60 transition"
+            href="/pripominky?kategorie=chyba&odkud=/"
+          >
+            <MIcon name="feedback" size={17} style={{ color: "#D97706" }} />
+            Něco nefunguje? Napiš nám
+            <MIcon name="chevron_right" size={16} className="ml-auto text-stone-400" />
+          </Link>
         </div>
       </div>
     </div>

@@ -6,11 +6,11 @@ import {
   FEEDBACK_LIMITS,
   FEEDBACK_STATUSES,
   getCategoryMeta,
-  getStatusMeta,
   type FeedbackEntry,
   type FeedbackStatus,
 } from "@/lib/feedback-meta";
 import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
+import { StatusBadge } from "../feedback/StatusBadge";
 import { ConfirmModal } from "../ConfirmModal";
 import { FeedbackAttachments } from "./FeedbackAttachments";
 import MIcon from "../MIcon";
@@ -27,23 +27,6 @@ const FILTERS: { id: Filter; label: string; matches: (s: FeedbackStatus) => bool
   { id: "done",    label: "Hotovo",     matches: (s) => s === "done" },
   { id: "all",     label: "Vše",        matches: () => true },
 ];
-
-// Stejná řeč barev jako štítky v historii: tlumené pozadí, sytý text.
-const STATUS_STYLES: Record<FeedbackStatus, React.CSSProperties> = {
-  new: { background: "rgba(234,88,12,0.12)", color: "#c2410c" },
-  read: { background: "rgba(26,18,8,0.07)", color: "#7a6552" },
-  planned: { background: "rgba(59,130,246,0.12)", color: "#1d4ed8" },
-  done: { background: "rgba(21,128,61,0.12)", color: "#15803d" },
-  rejected: { background: "rgba(26,18,8,0.05)", color: "#a8a29e" },
-};
-
-function StatusBadge({ status }: { status: FeedbackStatus }) {
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style={STATUS_STYLES[status]}>
-      {getStatusMeta(status).label}
-    </span>
-  );
-}
 
 function formatRelative(value: string): string {
   const date = parseDbDate(value);
@@ -97,7 +80,8 @@ export function FeedbackSection({
       helpContent={
         <div className="text-[12px] text-stone-500 leading-relaxed pb-2 flex flex-col gap-1.5">
           <p>Připomínka se po rozkliknutí sama označí jako přečtená. Stav se mění jedním klikem.</p>
-          <p>Když ji označíte jako <b>Hotovo</b> a vyplníte <b>veřejnou odpověď</b>, objeví se na stránce Připomínky v seznamu „Změnili jsme díky vám“. Původní text ani autor se veřejně nikdy neukazují.</p>
+          <p><b>Odpověď</b> uvidí autor hned v kartě „Moje připomínky“ (jen ve svém prohlížeči). Když připomínku označíte jako <b>Hotovo</b>, objeví se odpověď i veřejně v seznamu „Změnili jsme díky vám“. Původní text ani autor se veřejně nikdy neukazují.</p>
+          <p>Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se po 90 dnech samy smažou, text zůstává.</p>
           <p>Upozornění na Telegram si admin zapne v botovi: <code className="bg-black/5 px-1 rounded">/nastaveni</code> → 💬 Nové připomínky.</p>
         </div>
       }
@@ -242,6 +226,7 @@ function FeedbackItem({
             <span>{entry.authorName || "bez jména"}</span>
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
+            {entry.appVersion && <span>· v{entry.appVersion}</span>}
             {entry.attachments.length > 0 && (
               <span>· {entry.attachments.length} {entry.attachments.length === 1 ? "obrázek" : "obrázky"}</span>
             )}
@@ -252,6 +237,12 @@ function FeedbackItem({
 
       {expanded && (
         <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-white/50 fade-up">
+          {entry.context && (
+            <div className="modal-field">
+              <span className="modal-label">Technický údaj</span>
+              <code className="text-[11.5px] text-stone-600 px-2.5 py-1.5 rounded-lg break-all" style={{ background: "rgba(26,18,8,0.05)" }}>{entry.context}</code>
+            </div>
+          )}
           <FeedbackAttachments attachments={entry.attachments} getPin={getPin} />
 
           <div className="modal-field">
@@ -302,7 +293,7 @@ function FeedbackItem({
 
             <div className="modal-field">
               <label className="modal-label" htmlFor={`fb-reply-${entry.id}`}>
-                Veřejná odpověď <span className="modal-label-price">ukáže se u stavu Hotovo</span>
+                Odpověď <span className="modal-label-price">autor ji uvidí hned, ostatní u stavu Hotovo</span>
               </label>
               <textarea
                 className="modal-note"
@@ -319,7 +310,7 @@ function FeedbackItem({
           {status === "done" && !publicReply.trim() && (
             <p className="text-[11.5px] text-amber-700 inline-flex items-center gap-1.5">
               <MIcon name="info" size={13} />
-              Bez veřejné odpovědi se hotová připomínka na stránce Připomínky neukáže.
+              Bez odpovědi se hotová připomínka v seznamu změn neukáže.
             </p>
           )}
 

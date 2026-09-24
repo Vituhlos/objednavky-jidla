@@ -31,7 +31,7 @@ const input = (overrides = {}) => {
 };
 
 test("uloží připomínku jako novou a bez IP adresy", () => {
-  const entry = feedback.addFeedback(input({ authorName: "Jana" }), "mobil");
+  const { entry } = feedback.addFeedback(input({ authorName: "Jana" }), "mobil");
   assert.equal(entry.status, "new");
   assert.equal(entry.authorName, "Jana");
   assert.equal(entry.device, "mobil");
@@ -43,16 +43,16 @@ test("uloží připomínku jako novou a bez IP adresy", () => {
 
 test("počítá jen nové připomínky", () => {
   const before = feedback.countNewFeedback();
-  const entry = feedback.addFeedback(input(), "");
+  const { entry } = feedback.addFeedback(input(), "");
   assert.equal(feedback.countNewFeedback(), before + 1);
   feedback.updateFeedback(entry.id, { status: "read" });
   assert.equal(feedback.countNewFeedback(), before);
 });
 
 test("veřejný seznam ukáže jen hotové s odpovědí — nikdy text ani autora", () => {
-  const secret = feedback.addFeedback(input({ message: "Kuchař Novák je hrozný", authorName: "Tajný" }), "");
-  const noReply = feedback.addFeedback(input({ message: "Hotovo bez odpovědi" }), "");
-  const planned = feedback.addFeedback(input({ message: "V plánu s odpovědí" }), "");
+  const { entry: secret } = feedback.addFeedback(input({ message: "Kuchař Novák je hrozný", authorName: "Tajný" }), "");
+  const { entry: noReply } = feedback.addFeedback(input({ message: "Hotovo bez odpovědi" }), "");
+  const { entry: planned } = feedback.addFeedback(input({ message: "V plánu s odpovědí" }), "");
 
   feedback.updateFeedback(secret.id, { status: "done", publicReply: "Upravili jsme ceník." });
   feedback.updateFeedback(noReply.id, { status: "done" });
@@ -66,7 +66,7 @@ test("veřejný seznam ukáže jen hotové s odpovědí — nikdy text ani autor
 });
 
 test("datum vyřízení drží první přechod do Hotovo a návrat ho smaže", () => {
-  const entry = feedback.addFeedback(input(), "");
+  const { entry } = feedback.addFeedback(input(), "");
   const done = feedback.updateFeedback(entry.id, { status: "done", publicReply: "Ano" });
   assert.match(done.resolvedAt, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 
@@ -84,7 +84,7 @@ test("úprava a smazání neexistující připomínky nic nerozbije", () => {
 });
 
 test("smazání připomínku odstraní", () => {
-  const entry = feedback.addFeedback(input(), "");
+  const { entry } = feedback.addFeedback(input(), "");
   assert.equal(feedback.deleteFeedback(entry.id), true);
   assert.equal(feedback.getFeedbackById(entry.id), null);
 });
@@ -158,7 +158,7 @@ test("soubor, který není obrázek, neprojde — ani s koncovkou nebo hlavičko
 
 test("přílohy se uloží s připomínkou a se smazáním zmizí i z disku", async () => {
   const img = await attachmentsLib.processImage(await png(300, 200));
-  const entry = feedback.addFeedback(input({ message: "S obrázkem" }), "", [img, img]);
+  const { entry } = feedback.addFeedback(input({ message: "S obrázkem" }), "", [img, img]);
   assert.equal(entry.attachments.length, 2);
   const files = entry.attachments.map((a) => attachmentsLib.getAttachmentFile(a.id).filePath);
   assert.ok(files.every((f) => fs.existsSync(f)));
@@ -170,8 +170,73 @@ test("přílohy se uloží s připomínkou a se smazáním zmizí i z disku", as
 
 test("veřejný seznam přílohy nevydá", async () => {
   const img = await attachmentsLib.processImage(await png(50, 50));
-  const entry = feedback.addFeedback(input({ message: "Veřejná s obrázkem" }), "", [img]);
+  const { entry } = feedback.addFeedback(input({ message: "Veřejná s obrázkem" }), "", [img]);
   feedback.updateFeedback(entry.id, { status: "done", publicReply: "Hotovo" });
   const pub = feedback.getPublicFeedbackReplies().find((r) => r.id === entry.id);
   assert.deepEqual(Object.keys(pub).sort(), ["category", "id", "publicReply", "resolvedAt"]);
+});
+
+// ── Moje připomínky, kontext, úklid ──────────────────────────────────────────
+
+test("autor vidí svou připomínku jen se správným kódem", () => {
+  const { entry, token } = feedback.addFeedback(input({ message: "Moje vlastní" }), "");
+  const other = feedback.addFeedback(input({ message: "Cizí připomínka" }), "");
+  feedback.updateFeedback(entry.id, { status: "planned", publicReply: "Chystáme to", adminNote: "interní" });
+
+  const own = feedback.getOwnFeedback([
+    { id: entry.id, token },
+    { id: other.entry.id, token },            // cizí id s mým kódem
+    { id: 999999, token },                    // neexistuje
+  ]);
+  assert.equal(own.length, 1);
+  assert.equal(own[0].id, entry.id);
+  assert.equal(own[0].status, "planned");
+  assert.equal(own[0].reply, "Chystáme to");
+  // interní poznámka ani autor se ven nedostanou
+  assert.ok(!JSON.stringify(own).includes("interní"));
+  assert.deepEqual(Object.keys(own[0]).sort(), ["attachmentCount", "category", "createdAt", "id", "message", "reply", "status"]);
+
+  // v DB je jen hash kódu
+  const row = getDb().prepare("SELECT secret_hash FROM feedback WHERE id = ?").get(entry.id);
+  assert.notEqual(row.secret_hash, token);
+  assert.match(row.secret_hash, /^[0-9a-f]{64}$/);
+});
+
+test("kontext z chybové stránky a verze se uloží, nesmysly se zahodí", () => {
+  const ok = feedback.addFeedback(input({ context: "Kód chyby:\u0000 123abc", appVersion: "1.4.0" }), "").entry;
+  assert.equal(ok.context, "Kód chyby: 123abc");
+  assert.equal(ok.appVersion, "1.4.0");
+  const bad = feedback.addFeedback(input({ context: "x".repeat(1000), appVersion: "<b>1</b>" }), "").entry;
+  assert.equal(bad.context.length, 300);
+  assert.equal(bad.appVersion, "");
+});
+
+test("screenshoty vyřízených připomínek se po 90 dnech smažou, text zůstane", async () => {
+  const img = await attachmentsLib.processImage(await png(40, 40));
+  const oldDone = feedback.addFeedback(input({ message: "Stará hotová" }), "", [img]).entry;
+  const oldOpen = feedback.addFeedback(input({ message: "Stará otevřená" }), "", [img]).entry;
+  const freshDone = feedback.addFeedback(input({ message: "Čerstvě hotová" }), "", [img]).entry;
+  feedback.updateFeedback(oldDone.id, { status: "done" });
+  feedback.updateFeedback(freshDone.id, { status: "done" });
+  const setAge = getDb().prepare("UPDATE feedback SET status_changed_at = datetime('now', '-91 days') WHERE id = ?");
+  setAge.run(oldDone.id);
+  setAge.run(oldOpen.id);
+  const oldFile = attachmentsLib.getAttachmentFile(oldDone.attachments[0].id).filePath;
+
+  const removed = feedback.cleanupOldAttachments();
+  assert.equal(removed, 1);
+  assert.ok(!fs.existsSync(oldFile));
+  assert.equal(feedback.getFeedbackById(oldDone.id).attachments.length, 0);
+  assert.equal(feedback.getFeedbackById(oldDone.id).message, "Stará hotová");
+  assert.equal(feedback.getFeedbackById(oldOpen.id).attachments.length, 1);   // není vyřízená
+  assert.equal(feedback.getFeedbackById(freshDone.id).attachments.length, 1); // ještě ne 90 dní
+});
+
+test("změna stavu posune datum změny, úprava textu ne", () => {
+  const { entry } = feedback.addFeedback(input(), "");
+  getDb().prepare("UPDATE feedback SET status_changed_at = '2020-01-01 00:00:00' WHERE id = ?").run(entry.id);
+  feedback.updateFeedback(entry.id, { adminNote: "jen poznámka" });
+  assert.equal(getDb().prepare("SELECT status_changed_at AS t FROM feedback WHERE id = ?").get(entry.id).t, "2020-01-01 00:00:00");
+  feedback.updateFeedback(entry.id, { status: "rejected" });
+  assert.notEqual(getDb().prepare("SELECT status_changed_at AS t FROM feedback WHERE id = ?").get(entry.id).t, "2020-01-01 00:00:00");
 });

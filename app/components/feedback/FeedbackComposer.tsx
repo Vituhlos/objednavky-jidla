@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { FEEDBACK_LIMITS, getCategoryMeta } from "@/lib/feedback-meta";
+import { FEEDBACK_LIMITS, getCategoryMeta, type FeedbackCategory } from "@/lib/feedback-meta";
+import { getAppVersionInfo } from "@/lib/version";
 import MIcon from "../MIcon";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { CategoryPicker } from "./CategoryPicker";
@@ -42,8 +43,25 @@ function imageFiles(list: DataTransferItemList | FileList | null | undefined): F
  * Druhý a třetí krok se ukážou až po výběru kategorie — prázdný formulář
  * se všemi poli najednou působí jako úřední tiskopis, ne jako „napište nám“.
  */
-export function FeedbackComposer() {
-  const { category, setCategory, message, setMessage, name, setName, restored, clearDraft } = useFeedbackDraft();
+export type FeedbackPrefill = {
+  category: FeedbackCategory | null;
+  /** Stránka, kde problém vznikl — přebije referrer. */
+  page: string;
+  /** Technický údaj z chybové stránky (kód chyby). Uživatel ho vidí a může ho odebrat. */
+  context: string;
+};
+
+const APP_VERSION = getAppVersionInfo().version;
+
+export function FeedbackComposer({
+  prefill,
+  onSent,
+}: {
+  prefill: FeedbackPrefill;
+  onSent: (id: number, token: string) => void;
+}) {
+  const { category, setCategory, message, setMessage, name, setName, restored, clearDraft } = useFeedbackDraft(prefill.category);
+  const [context, setContext] = useState(prefill.context);
   const [anonymous, setAnonymous] = useState(false);
   const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -148,12 +166,16 @@ export function FeedbackComposer() {
         body.set("category", category);
         body.set("message", message);
         body.set("authorName", signedAs);
-        body.set("page", getReferrerPath());
+        body.set("page", prefill.page || getReferrerPath());
+        body.set("context", context);
+        body.set("appVersion", APP_VERSION);
         body.set("website", website);
         attachments.items.forEach((a, i) => body.append("attachments", a.blob, `obrazek-${i + 1}`));
         const res = await fetch("/api/feedback", { method: "POST", body })
-          .then((r) => r.json() as Promise<{ ok: true } | { ok: false; error: string }>);
+          .then((r) => r.json() as Promise<{ ok: true; id?: number; token?: string } | { ok: false; error: string }>);
         if (res.ok) {
+          if (res.id && res.token) onSent(res.id, res.token);
+          setContext("");
           clearDraft();
           attachments.clear();
           setSentAs(signedAs);
@@ -238,6 +260,19 @@ export function FeedbackComposer() {
                   </span>
                 )}
               </div>
+
+              {context && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl text-[12px] text-stone-600"
+                  style={{ background: "rgba(26,18,8,0.04)", border: "1px solid rgba(26,18,8,0.06)" }}>
+                  <MIcon name="info" size={14} style={{ color: "#a8a29e", flexShrink: 0, marginTop: 1 }} />
+                  <span className="flex-1 min-w-0">
+                    Přiloží se i technický údaj o chybě: <code className="text-[11.5px] break-all">{context}</code>
+                  </span>
+                  <button aria-label="Nepřikládat technický údaj" className="text-stone-400 hover:text-stone-600" onClick={() => setContext("")} type="button">
+                    <MIcon name="close" size={14} />
+                  </button>
+                </div>
+              )}
 
               <AttachmentPicker
                 busy={attachments.busy}

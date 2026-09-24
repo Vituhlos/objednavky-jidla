@@ -17,7 +17,7 @@ describe("validateFeedbackInput", () => {
 
   it("přijme platnou připomínku a doplní prázdné jméno i stránku", () => {
     const r = validateFeedbackInput(valid);
-    expect(r).toEqual({ ok: true, data: { ...valid, authorName: "", page: "" } });
+    expect(r).toEqual({ ok: true, data: { ...valid, authorName: "", page: "", context: "", appVersion: "" } });
   });
 
   it("odmítne neznámou kategorii", () => {
@@ -89,6 +89,8 @@ describe("formatFeedbackTelegram", () => {
     publicReply: "",
     resolvedAt: null,
     attachments: [],
+    context: "",
+    appVersion: "",
   };
 
   it("escapuje vše od uživatele — jinak Telegram zprávu odmítne", () => {

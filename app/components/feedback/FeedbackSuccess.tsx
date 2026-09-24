@@ -14,7 +14,7 @@ export function FeedbackSuccess({ name, onAgain }: { name: string; onAgain: () =
       </h2>
       <p className="text-[12px] text-stone-400 -mt-2">{name.trim() ? `Odesláno pod jménem ${name.trim()}` : "Odesláno bez jména"}</p>
       <p className="text-[13px] text-stone-500 max-w-[340px] leading-relaxed">
-        Správce si to přečte. Až se podle toho něco změní, objeví se to v seznamu změn.
+        Jak to s ní vypadá a co na to správce, uvidíš v kartě Moje připomínky.
       </p>
       <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
         <button className="modal-btn modal-btn--secondary" onClick={onAgain} type="button">Napsat další</button>

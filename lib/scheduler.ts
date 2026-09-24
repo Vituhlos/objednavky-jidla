@@ -16,6 +16,7 @@ import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
 import webpush from "web-push";
+import { cleanupOldAttachments } from "./feedback";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -421,6 +422,10 @@ export function startScheduler(): void {
       await checkTelegramReminder(s, currentTime, jsDay);
       await checkPersonalReminders(currentTime, jsDay);
       await checkPersonalMorningMenu(currentTime, jsDay);
+      if (currentTime === "03:30") {
+        const removed = cleanupOldAttachments();
+        if (removed > 0) console.log(`[scheduler] Smazáno ${removed} starých screenshotů k připomínkám.`);
+      }
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }

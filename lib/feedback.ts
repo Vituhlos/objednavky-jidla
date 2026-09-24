@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { getDb } from "./db";
 import { escapeHtml } from "./telegram";
@@ -13,7 +14,9 @@ import {
   type FeedbackDevice,
   type FeedbackEntry,
   type FeedbackStatus,
+  type OwnFeedback,
   type PublicFeedbackReply,
+  FEEDBACK_ATTACHMENT_RETENTION_DAYS,
 } from "./feedback-meta";
 
 export * from "./feedback-meta";
@@ -65,6 +68,18 @@ export const feedbackInputSchema = z.object({
       const p = v.trim();
       return p.length <= FEEDBACK_LIMITS.pageMax && PAGE_PATTERN.test(p) ? p : "";
     }),
+  // Technický údaj z chybové stránky. Jen pomocný — příliš dlouhý se ořízne, ne odmítne.
+  context: z
+    .string()
+    .optional()
+    .default("")
+    .transform((v) => cleanText(v).replace(/\s+/g, " ").slice(0, FEEDBACK_LIMITS.contextMax)),
+  // Verze, kterou má autor načtenou. Cokoli jiného než číslo verze se zahodí.
+  appVersion: z
+    .string()
+    .optional()
+    .default("")
+    .transform((v) => (/^[0-9A-Za-z.+-]{1,40}$/.test(v.trim()) ? v.trim() : "")),
 });
 
 export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
@@ -105,6 +120,8 @@ type DbRow = {
   admin_note: string;
   public_reply: string;
   resolved_at: string | null;
+  context: string;
+  app_version: string;
 };
 
 function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]>): FeedbackEntry {
@@ -121,23 +138,84 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     publicReply: r.public_reply,
     resolvedAt: r.resolved_at,
     attachments: attachments.get(r.id) ?? [],
+    context: r.context ?? "",
+    appVersion: r.app_version ?? "",
   };
 }
 
-export function addFeedback(input: FeedbackInput, device: FeedbackDevice, images: ProcessedImage[] = []): FeedbackEntry {
+function hashSecret(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Založí připomínku a vrátí ji spolu s tajným kódem pro autora.
+ *
+ * Kód se ukládá jen jako SHA-256 — kdo získá databázi nebo zálohu, stav cizích
+ * připomínek přes „Moje připomínky“ číst nemůže. Samotný kód dostane jen autor
+ * v odpovědi a zůstane v jeho prohlížeči.
+ */
+export function addFeedback(
+  input: FeedbackInput,
+  device: FeedbackDevice,
+  images: ProcessedImage[] = [],
+): { entry: FeedbackEntry; token: string } {
   const db = getDb();
+  const token = randomBytes(24).toString("base64url");
   // Připomínka i přílohy vzniknou spolu, nebo vůbec — bez sirotků v DB ani na disku
   const id = db.transaction(() => {
     const r = db
       .prepare(
-        "INSERT INTO feedback (category, message, author_name, page, device) VALUES (?, ?, ?, ?, ?)",
+        `INSERT INTO feedback (category, message, author_name, page, device, context, app_version, secret_hash, status_changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       )
-      .run(input.category, input.message, input.authorName, input.page, device);
+      .run(input.category, input.message, input.authorName, input.page, device,
+        input.context, input.appVersion, hashSecret(token));
     const feedbackId = Number(r.lastInsertRowid);
     storeAttachments(feedbackId, images);
     return feedbackId;
   })();
-  return getFeedbackById(id)!;
+  return { entry: getFeedbackById(id)!, token };
+}
+
+export const ownFeedbackRequestSchema = z.object({
+  items: z
+    .array(z.object({ id: z.number().int().positive(), token: z.string().min(16).max(64) }))
+    .max(FEEDBACK_LIMITS.ownMax),
+});
+
+/**
+ * Připomínky, ke kterým má volající tajný kód. Neplatné páry se tiše vynechají —
+ * klient podle toho pozná smazané připomínky a zapomene je.
+ */
+export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedback[] {
+  if (items.length === 0) return [];
+  const db = getDb();
+  const find = db.prepare(
+    `SELECT id, created_at, category, message, status, public_reply, secret_hash,
+            (SELECT COUNT(*) FROM feedback_attachments a WHERE a.feedback_id = feedback.id) AS attachment_count
+     FROM feedback WHERE id = ?`,
+  );
+  const result: OwnFeedback[] = [];
+  for (const { id, token } of items) {
+    const row = find.get(id) as {
+      id: number; created_at: string; category: string; message: string; status: string;
+      public_reply: string; secret_hash: string; attachment_count: number;
+    } | undefined;
+    if (!row || !row.secret_hash) continue;
+    const expected = Buffer.from(row.secret_hash, "hex");
+    const actual = Buffer.from(hashSecret(token), "hex");
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) continue;
+    result.push({
+      id: row.id,
+      createdAt: row.created_at,
+      category: getCategoryMeta(row.category).id,
+      message: row.message,
+      status: getStatusMeta(row.status).id,
+      reply: row.public_reply,
+      attachmentCount: row.attachment_count,
+    });
+  }
+  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
 }
 
 export function getFeedbackById(id: number): FeedbackEntry | null {
@@ -174,15 +252,41 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
 
   getDb()
     .prepare(
-      "UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ? WHERE id = ?",
+      `UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ?,
+         status_changed_at = CASE WHEN status = ? THEN status_changed_at ELSE datetime('now') END
+       WHERE id = ?`,
     )
-    .run(status, adminNote, publicReply, resolvedAt, id);
+    .run(status, adminNote, publicReply, resolvedAt, status, id);
   return getFeedbackById(id);
 }
 
 export function deleteFeedback(id: number): boolean {
   deleteAttachmentFiles(id);
   return getDb().prepare("DELETE FROM feedback WHERE id = ?").run(id).changes > 0;
+}
+
+/**
+ * Smaže screenshoty připomínek, které jsou vyřízené (Hotovo, Zamítnuto) déle
+ * než `days` dní. Text připomínky zůstává — mizí jen cizí obrazovky, které už
+ * k ničemu nejsou. Volá se jednou denně ze scheduleru. Vrací počet smazaných.
+ */
+export function cleanupOldAttachments(days = FEEDBACK_ATTACHMENT_RETENTION_DAYS): number {
+  const db = getDb();
+  const ids = (db
+    .prepare(
+      `SELECT DISTINCT f.id FROM feedback f
+       JOIN feedback_attachments a ON a.feedback_id = f.id
+       WHERE f.status IN ('done', 'rejected')
+         AND f.status_changed_at IS NOT NULL
+         AND f.status_changed_at <= datetime('now', ?)`,
+    )
+    .all(`-${Math.max(0, Math.floor(days))} days`) as { id: number }[]).map((r) => r.id);
+  let removed = 0;
+  for (const id of ids) {
+    deleteAttachmentFiles(id);
+    removed += db.prepare("DELETE FROM feedback_attachments WHERE feedback_id = ?").run(id).changes;
+  }
+  return removed;
 }
 
 /** Veřejný seznam „co jsme upravili“ — hotové připomínky s odpovědí správce. */
@@ -215,6 +319,7 @@ export function formatFeedbackTelegram(entry: FeedbackEntry): string {
     entry.page ? `📍 ${escapeHtml(entry.page)}` : "",
     entry.device ? `${entry.device === "mobil" ? "📱" : "💻"} ${entry.device}` : "",
     entry.attachments.length ? `📎 ${entry.attachments.length} ${entry.attachments.length === 1 ? "obrázek" : "obrázky"}` : "",
+    entry.appVersion ? `v${escapeHtml(entry.appVersion)}` : "",
   ].filter(Boolean).join(" · ");
 
   return [
@@ -222,6 +327,7 @@ export function formatFeedbackTelegram(entry: FeedbackEntry): string {
     `${cat.emoji} ${escapeHtml(cat.label)} · ${author}`,
     "",
     escapeHtml(text),
+    ...(entry.context ? ["", `<code>${escapeHtml(entry.context)}</code>`] : []),
     ...(where ? ["", where] : []),
     "",
     `<i>Spravovat: Nastavení → Připomínky</i>`,

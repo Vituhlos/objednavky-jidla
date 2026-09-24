@@ -9,12 +9,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 ### Added
 
 - **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kam lidé píšou nápady, chyby, výtky i pochvaly. Kategorie se vybírá emoji dlaždicí (💡 nápad, 🐞 chyba, 🍽️ jídlo, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné); teprve pak se ukáže otázka ušitá na kategorii, rychlé začátky vět na klik a pole, které roste s textem. Podpis jménem (předvyplní se z posledního objednávání), nebo bez jména. Rozepsaný text se průběžně ukládá v prohlížeči a po odchodu ze stránky se neztratí. Odeslání i přes Ctrl+Enter. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
+- **Moje připomínky.** Kdo pošle připomínku, vidí na stránce její stav (Čeká na přečtení, Přečteno, V plánu, Hotovo, Nebude se dělat) a odpověď správce. Bez účtů: server při odeslání vrátí náhodný tajný kód (192 bitů), prohlížeč si ho uloží do localStorage a stav si žádá přes `POST /api/feedback/mine`. V databázi je jen SHA-256 kódu a porovnává se v konstantním čase. Seznam platí jen pro daný prohlížeč.
+- **„Nahlásit problém“ tam, kde problém vzniká.** Chybová stránka appky má tlačítko, které otevře připomínky s předvyplněnou kategorií Chyba, stránkou a kódem chyby (digest z Next.js, dohledatelný v logu serveru). Technický údaj uživatel vidí a může ho před odesláním odebrat. V nápovědě objednávky přibyl odkaz „Něco nefunguje? Napiš nám“.
+- U připomínky se ukládá verze appky, kterou měl autor načtenou. Správce ji vidí v Nastavení i v upozornění na Telegramu.
+- Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se 90 dní po poslední změně stavu samy smažou (scheduler, denně ve 3:30). Text připomínky zůstává.
 - **Screenshoty k připomínce** (nejvýš 3). Obrázek jde přetáhnout kamkoli na stránku, vložit přes Ctrl+V nebo vybrat souborem (na mobilu i z galerie). Prohlížeč ho před odesláním zmenší. Obrázek přetažený ještě před výběrem kategorie ji předvybere jako „Chyba“. Správce je vidí u připomínky v Nastavení a může je zvětšit; v upozornění na Telegramu je jen jejich počet.
 - Nastavení → **Připomínky** (za PINem): velká čísla K vyřízení / Nové / V plánu / Hotovo / Vše zároveň filtrují seznam. Stav (Nová, Přečteno, V plánu, Hotovo, Zamítnuto) se mění jedním klikem a projeví se hned; rozkliknutím se nová připomínka označí jako přečtená. K tomu interní poznámka, veřejná odpověď a mazání. Počet nových ukazuje odznak u záložky.
 - Seznam „Změnili jsme díky vám“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
 - Telegram: upozornění na novou připomínku. Posílá se **jen adminům bota** a jen těm, kdo si ho sami zapnou v `/nastaveni` → 💬 Nové připomínky. Ve výchozím stavu je vypnuté; běžným uživatelům se přepínač nenabízí a webhook ho od nich nepřijme ani při podvrženém `callback_data`.
 - Záloha (`/api/backup`) a obnova (`/api/restore`) zahrnují připomínky; obnova přeskakuje ty, které už v databázi jsou (stejný čas i text).
-- `lib/feedback.test.ts` (12 testů validace a textu pro Telegram), `app/components/feedback/feedback-utils.test.ts` (7 testů konceptu, vkládání začátků vět a data) a `tools/feedback.test.mjs` (8 testů proti dočasné SQLite) — mimo jiné hlídají, že veřejný seznam nevydá text ani autora a že upozornění dostane jen admin, který si ho zapnul.
+- Testy: `lib/feedback.test.ts` (validace, text pro Telegram), `app/components/feedback/feedback-utils.test.ts` (koncept, začátky vět, datum, zmenšování obrázků, úložiště kódů), `app/api/feedback/route.test.ts` (API: limity, podvržené soubory, past na roboty, rate limit, tajné kódy) a `tools/feedback.test.mjs` (proti dočasné SQLite: přílohy, úklid, veřejný seznam, Telegram jen pro adminy) a `tools/feedback.test.mjs` (8 testů proti dočasné SQLite) — mimo jiné hlídají, že veřejný seznam nevydá text ani autora a že upozornění dostane jen admin, který si ho zapnul.
 
 ### Security
 
@@ -28,7 +32,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - `sharp` je nově přímá závislost (dřív jen nepřímá přes Next.js), verze se nemění.
 - Screenshoty se ukládají do `data/feedback-attachments/` vedle databáze, tedy do stejného Docker volume. Nic nastavovat netřeba.
-- Databáze se rozšíří automaticky při startu: nové tabulky `feedback` a `feedback_attachments` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
+- Databáze se rozšíří automaticky při startu: nové tabulky `feedback` (včetně sloupců `secret_hash`, `context`, `app_version`, `status_changed_at`) a `feedback_attachments` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
 - Nová funkce bez nekompatibilních změn → při vydání bump **MINOR** (1.3.4 → 1.4.0) a záznam v `lib/release-notes.ts`.
 
 ### Known issues

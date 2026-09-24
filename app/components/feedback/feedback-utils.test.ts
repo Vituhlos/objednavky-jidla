@@ -65,3 +65,38 @@ describe("isAcceptedImage", () => {
     expect(isAcceptedImage({ type: "application/pdf" })).toBe(false);
   });
 });
+
+import { addOwnKey, parseOwnKeys } from "./my-feedback-storage";
+
+describe("parseOwnKeys", () => {
+  const token = "a".repeat(32);
+
+  it("vrátí platné klíče a zahodí poškozené, cizí a duplicitní", () => {
+    const raw = JSON.stringify([
+      { id: 3, token },
+      { id: 3, token },
+      { id: -1, token },
+      { id: 4, token: "krátký" },
+      { id: 5, token: "<script>".padEnd(20, "x") },
+      "nesmysl",
+      { id: 6, token: "b".repeat(24) },
+    ]);
+    expect(parseOwnKeys(raw)).toEqual([{ id: 3, token }, { id: 6, token: "b".repeat(24) }]);
+  });
+
+  it("nesmysl nebo prázdno = prázdný seznam", () => {
+    expect(parseOwnKeys(null)).toEqual([]);
+    expect(parseOwnKeys("{")).toEqual([]);
+    expect(parseOwnKeys(JSON.stringify({ id: 1 }))).toEqual([]);
+  });
+});
+
+describe("addOwnKey", () => {
+  it("přidá na začátek, neduplikuje a drží limit", () => {
+    const keys = Array.from({ length: 50 }, (_, i) => ({ id: i + 1, token: "t".repeat(20) }));
+    const next = addOwnKey(keys, { id: 999, token: "n".repeat(20) });
+    expect(next[0].id).toBe(999);
+    expect(next).toHaveLength(50);
+    expect(addOwnKey([{ id: 1, token: "x".repeat(20) }], { id: 1, token: "y".repeat(20) })).toEqual([{ id: 1, token: "y".repeat(20) }]);
+  });
+});

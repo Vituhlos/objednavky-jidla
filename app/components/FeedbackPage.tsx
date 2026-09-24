@@ -2,10 +2,14 @@
 
 import type { PublicFeedbackReply } from "@/lib/feedback-meta";
 import { ChangesTimeline } from "./feedback/ChangesTimeline";
-import { FeedbackComposer } from "./feedback/FeedbackComposer";
+import { FeedbackComposer, type FeedbackPrefill } from "./feedback/FeedbackComposer";
 import { HowItWorks } from "./feedback/HowItWorks";
+import { MyFeedback } from "./feedback/MyFeedback";
+import { useMyFeedback } from "./feedback/useMyFeedback";
 
-export default function FeedbackPage({ replies }: { replies: PublicFeedbackReply[] }) {
+export default function FeedbackPage({ replies, prefill }: { replies: PublicFeedbackReply[]; prefill: FeedbackPrefill }) {
+  const own = useMyFeedback();
+
   return (
     <div className="k-shell">
 
@@ -24,9 +28,10 @@ export default function FeedbackPage({ replies }: { replies: PublicFeedbackReply
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start max-w-[1120px]">
-          <FeedbackComposer />
+          <FeedbackComposer onSent={own.remember} prefill={prefill} />
           <div className="flex flex-col gap-4">
             <HowItWorks />
+            <MyFeedback items={own.items} onForget={own.forget} />
             <ChangesTimeline replies={replies} />
           </div>
         </div>

@@ -14,7 +14,7 @@ const NAME_KEYS = ["lastFirstName", "lastLastName"] as const;
  * a první render musí sedět s HTML ze serveru. Zápis jde s krátkým
  * zpožděním, ať se neukládá na každé písmeno.
  */
-export function useFeedbackDraft() {
+export function useFeedbackDraft(prefillCategory?: FeedbackCategory | null) {
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState("");
   const [name, setName] = useState("");
@@ -31,10 +31,13 @@ export function useFeedbackDraft() {
         setMessage(draft.message);
         setRestored(Boolean(draft.message.trim()));
       }
+      // Odkaz „Nahlásit problém“ ví, o co jde, líp než starý koncept
+      if (prefillCategory) setCategory(prefillCategory);
       setName(remembered);
       /* eslint-enable react-hooks/set-state-in-effect */
     } catch { /* soukromý režim apod. — prostě bez konceptu */ }
     hydrated.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- jen při prvním načtení
   }, []);
 
   useEffect(() => {

@@ -217,6 +217,14 @@ function migrate(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
   `);
+  // Doplněno během vývoje připomínek — idempotentní i pro už založené tabulky.
+  // secret_hash: SHA-256 tajného kódu, přes který autor vidí stav své připomínky.
+  try { db.exec("ALTER TABLE feedback ADD COLUMN secret_hash TEXT NOT NULL DEFAULT ''"); } catch {}
+  // context: technický údaj z chybové stránky (kód chyby), app_version: verze u autora
+  try { db.exec("ALTER TABLE feedback ADD COLUMN context TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE feedback ADD COLUMN app_version TEXT NOT NULL DEFAULT ''"); } catch {}
+  // Kdy se naposledy změnil stav — podle toho se po 90 dnech mažou screenshoty vyřízených
+  try { db.exec("ALTER TABLE feedback ADD COLUMN status_changed_at TEXT"); } catch {}
 
   // Screenshoty k připomínkám. Soubory leží v <data>/feedback-attachments,
   // tady je jen evidence. Řádky mizí s připomínkou (CASCADE), soubory maže kód.

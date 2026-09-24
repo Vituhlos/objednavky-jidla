@@ -56,6 +56,9 @@ export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number]["id"];
 export type FeedbackDevice = "mobil" | "počítač" | "";
 
 export const FEEDBACK_LIMITS = {
+  contextMax: 300,
+  /** Kolik vlastních připomínek si prohlížeč pamatuje. */
+  ownMax: 50,
   messageMin: 5,
   messageMax: 2000,
   nameMax: 80,
@@ -97,7 +100,26 @@ export interface FeedbackEntry {
   publicReply: string;
   resolvedAt: string | null;
   attachments: FeedbackAttachment[];
+  context: string;
+  appVersion: string;
 }
+
+/**
+ * Připomínka tak, jak ji vidí její autor přes tajný kód: vlastní text, stav
+ * a odpověď správce. Interní poznámka ani nic o ostatních sem nepatří.
+ */
+export interface OwnFeedback {
+  id: number;
+  createdAt: string;
+  category: FeedbackCategory;
+  message: string;
+  status: FeedbackStatus;
+  reply: string;
+  attachmentCount: number;
+}
+
+/** Po kolika dnech od vyřízení (Hotovo, Zamítnuto) se mažou screenshoty. */
+export const FEEDBACK_ATTACHMENT_RETENTION_DAYS = 90;
 
 /** Co z připomínky smí vidět kdokoli: jen odpověď správce, nikdy původní text ani autor. */
 export interface PublicFeedbackReply {
