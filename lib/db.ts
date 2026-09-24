@@ -7,6 +7,11 @@ const DB_PATH =
 
 let instance: Database.Database | null = null;
 
+/** Složka s databází — v Dockeru mountovaný volume, patří sem i další trvalá data. */
+export function getDataDir(): string {
+  return path.dirname(DB_PATH);
+}
+
 export function getDb(): Database.Database {
   if (!instance) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -167,6 +172,8 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_reminder_time TEXT DEFAULT NULL"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_morning_menu_time TEXT DEFAULT NULL"); } catch {}
+  // Upozornění na nové připomínky — jen pro adminy a jen když si ho sami zapnou.
+  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_feedback INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
@@ -191,6 +198,64 @@ function migrate(db: Database.Database): void {
   // note + icon were added after closures shipped — idempotent for existing databases
   try { db.exec("ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
   try { db.exec("ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // Připomínky k aplikaci. Záměrně bez IP adresy a celého user-agentu —
+  // appka nemá účty a autor má zůstat dohledatelný jen pokud se sám podepíše.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      category     TEXT    NOT NULL,
+      message      TEXT    NOT NULL,
+      author_name  TEXT    NOT NULL DEFAULT '',
+      page         TEXT    NOT NULL DEFAULT '',
+      device       TEXT    NOT NULL DEFAULT '',
+      status       TEXT    NOT NULL DEFAULT 'new',
+      admin_note   TEXT    NOT NULL DEFAULT '',
+      public_reply TEXT    NOT NULL DEFAULT '',
+      resolved_at  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
+  `);
+  // Doplněno během vývoje připomínek — idempotentní i pro už založené tabulky.
+  // secret_hash: SHA-256 tajného kódu, přes který autor vidí stav své připomínky.
+  try { db.exec("ALTER TABLE feedback ADD COLUMN secret_hash TEXT NOT NULL DEFAULT ''"); } catch {}
+  // context: technický údaj z chybové stránky (kód chyby), app_version: verze u autora
+  try { db.exec("ALTER TABLE feedback ADD COLUMN context TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE feedback ADD COLUMN app_version TEXT NOT NULL DEFAULT ''"); } catch {}
+  // Kdy se naposledy změnil stav — podle toho se po 90 dnech mažou screenshoty vyřízených
+  try { db.exec("ALTER TABLE feedback ADD COLUMN status_changed_at TEXT"); } catch {}
+  // Správce připomínku výslovně zveřejní k hlasování; veřejně jde jen jeho shrnutí
+  try { db.exec("ALTER TABLE feedback ADD COLUMN votable INTEGER NOT NULL DEFAULT 0"); } catch {}
+  // Krátký název k hlasování — odpověď autorovi („Díky, podíváme se…“) se na to nehodí
+  try { db.exec("ALTER TABLE feedback ADD COLUMN vote_title TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // Hlasy „chci taky“. voter_hash = SHA-256 náhodného kódu z prohlížeče —
+  // jeden hlas na prohlížeč a věc; IP se neukládá.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback_votes (
+      feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+      voter_hash  TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (feedback_id, voter_hash)
+    );
+  `);
+
+  // Screenshoty k připomínkám. Soubory leží v <data>/feedback-attachments,
+  // tady je jen evidence. Řádky mizí s připomínkou (CASCADE), soubory maže kód.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback_attachments (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+      file_name   TEXT    NOT NULL UNIQUE,
+      mime        TEXT    NOT NULL,
+      size        INTEGER NOT NULL,
+      width       INTEGER NOT NULL,
+      height      INTEGER NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_attachments_feedback ON feedback_attachments(feedback_id);
+  `);
 
   // Performance indexes
   db.exec(`

@@ -6,6 +6,57 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-24
+
+### Added
+
+- **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kam lidé píšou nápady, chyby, výtky i pochvaly. Kategorie se vybírá emoji dlaždicí (💡 nápad, 🐞 chyba, 🍽️ jídlo, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné); teprve pak se ukáže otázka ušitá na kategorii, rychlé začátky vět na klik a pole, které roste s textem. Podpis jménem (předvyplní se z posledního objednávání), nebo bez jména. Rozepsaný text se průběžně ukládá v prohlížeči a po odchodu ze stránky se neztratí. Odeslání i přes Ctrl+Enter. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
+- **Moje připomínky.** Kdo pošle připomínku, vidí na stránce její stav (Čeká na přečtení, Přečteno, V plánu, Hotovo, Nebude se dělat) a odpověď správce. Bez účtů: server při odeslání vrátí náhodný tajný kód (192 bitů), prohlížeč si ho uloží do localStorage a stav si žádá přes `POST /api/feedback/mine`. V databázi je jen SHA-256 kódu a porovnává se v konstantním čase. Seznam platí jen pro daný prohlížeč.
+- **„Nahlásit problém“ tam, kde problém vzniká.** Chybová stránka appky má tlačítko, které otevře připomínky s předvyplněnou kategorií Chyba, stránkou a kódem chyby (digest z Next.js, dohledatelný v logu serveru). Technický údaj uživatel vidí a může ho před odesláním odebrat. V nápovědě objednávky přibyl odkaz „Něco nefunguje? Napište nám“.
+- U připomínky se ukládá verze appky, kterou měl autor načtenou. Správce ji vidí v Nastavení i v upozornění na Telegramu.
+- Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se 90 dní po poslední změně stavu samy smažou (scheduler, denně ve 3:30). Text připomínky zůstává.
+- **Hlasování „chci taky“.** Správce dá otevřené připomínce krátký název (např. „Tmavý režim“) a zapne „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍; nejžádanější jsou nahoře. Text autora ani odpověď autorovi se v hlasování neukazují. Hotové a zamítnuté připomínky se z hlasování samy stáhnou a počet hlasů se ukáže v seznamu změn. Jeden hlas na prohlížeč hlídá databáze (`feedback_votes`, primární klíč připomínka + otisk kódu prohlížeče); kdo si smaže data prohlížeče, může hlasovat znovu, proto jsou počty orientační.
+- **Pozvánka k připomínkám na objednávkové stránce.** Pod stavovým pruhem je banner ve stejném stylu s odkazem na stránku Připomínky. Při každém otevření stránky je jiná z 30 vět, nikdy stejná dvakrát po sobě („Stížnosti na knedlíky řeš s kuchyní. Stížnosti na appku s námi.“). Křížkem jde skrýt na 14 dní.
+- **Screenshoty k připomínce** (nejvýš 3). Obrázek jde přetáhnout kamkoli na stránku, vložit přes Ctrl+V nebo vybrat souborem (na mobilu i z galerie). Prohlížeč ho před odesláním zmenší. Obrázek přetažený ještě před výběrem kategorie ji předvybere jako „Chyba“. Správce je vidí u připomínky v Nastavení a může je zvětšit; v upozornění na Telegramu je jen jejich počet.
+- Nastavení → **Připomínky** (za PINem): velká čísla K vyřízení / Nové / V plánu / Hotovo / Vše zároveň filtrují seznam. Stav (Nová, Přečteno, V plánu, Hotovo, Zamítnuto) se mění jedním klikem a projeví se hned; rozkliknutím se nová připomínka označí jako přečtená. K tomu interní poznámka, odpověď (autor ji vidí hned, ostatní u stavu Hotovo) a mazání. Počet nových ukazuje odznak u záložky.
+- Seznam „Změnili jsme díky vám“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
+- Telegram: upozornění na novou připomínku. Posílá se **jen adminům bota** a jen těm, kdo si ho sami zapnou v `/nastaveni` → 💬 Nové připomínky. Ve výchozím stavu je vypnuté; běžným uživatelům se přepínač nenabízí a webhook ho od nich nepřijme ani při podvrženém `callback_data`.
+- Záloha (`/api/backup`) a obnova (`/api/restore`) zahrnují připomínky; obnova přeskakuje ty, které už v databázi jsou (stejný čas i text).
+- Testy: `lib/feedback.test.ts` (validace, text pro Telegram), `app/components/feedback/feedback-utils.test.ts` (koncept, začátky vět, datum, zmenšování obrázků, úložiště kódů), `app/api/feedback/route.test.ts` (API: limity, podvržené soubory, past na roboty, rate limit, tajné kódy) a `tools/feedback.test.mjs` (proti dočasné SQLite: přílohy, úklid, veřejný seznam, Telegram jen pro adminy).
+
+### Changed
+
+- Texty v celé aplikaci prošly jazykovou kontrolou podle Internetové jazykové příručky ÚJČ. Aplikace uživatelům jednotně vyká (dřív se střídalo tykání s vykáním); tykání zůstává záměrně jen na stránce Připomínky, v pozvánce k připomínkám a v Telegram botovi.
+- LIMA se skloňuje („do LIMY“, „v LIMĚ“), v souvislém textu je „jídelníček“ místo „menu“ a „e-mail“ místo „mail“.
+- Jednotná typografie: pomlčka „ – “ místo „ — “, výpustka „…“ místo tří teček, české uvozovky „ “.
+
+### Fixed
+
+- Skloňování počtů: „1 objednávka / 3 objednávky / 5 objednávek“, „zbývají 3 minuty“ apod. místo tvarů typu „3 objednávek“ nebo „položek: 1“ (nové pomocné funkce `plural()`, `countWord()` a `remainingMinutes()` v `lib/format.ts`).
+- Příští automatické odeslání se píše s předložkou ve správném tvaru („Ve středu v 10:30“, ne „V středu“).
+- Chybějící čárky ve vedlejších větách a před vylučovacím „nebo“, překlepy a doslovné anglicismy v Nastavení, nápovědě a zprávách bota.
+- Patička e-mailu objednávky: „STROS – Sedlčanské strojírny, a.s.“ (jen pomlčka, obsah e-mailu i PDF příloh je jinak beze změny).
+
+### Security
+
+- Formulář je veřejný, proto: validace na serveru přes zod (délky, povolené kategorie, odstranění řídicích znaků, stránka jen jako cesta v rámci appky), limit 5 připomínek za hodinu na IP a strop 100 za den pro celou appku (IP z `x-forwarded-for` jde podvrhnout), skryté pole proti robotům. Text se všude vykresluje jako prostý text a pro Telegram se escapuje.
+- IP adresa ani celý user-agent se k připomínce neukládají.
+- Screenshoty nahrává kdokoli, proto se nevěří příponě ani Content-Type: každý soubor dekóduje `sharp`, co není PNG/JPEG/WebP/GIF, neprojde (ověřeno i na HTML s hlavičkou PNG a na SVG se skriptem). Obrázek se znovu zakóduje do WebP, takže zmizí EXIF (poloha, model telefonu) i cokoli přilepeného za obrazová data. Omezení: 10 MB na soubor, 40 Mpx, delší strana po zpracování 2000 px, 500 MB pro všechny přílohy dohromady. Soubory mají náhodné jméno (UUID) a stahují se jen s PINem přes `/api/feedback/attachments/[id]`, s `Content-Security-Policy: sandbox`, `nosniff` a `no-store`.
+- Připomínky se odesílají přes `POST /api/feedback` (multipart) místo Server Action, protože ty mají strop těla 1 MB. Routa odmítne požadavek bez `Content-Length` nebo větší než limit ještě před čtením těla.
+- Hlasování: `POST /api/feedback/vote` přijme hlas jen u zveřejněné otevřené připomínky, kód prohlížeče se ukládá jen jako SHA-256 a IP se neukládá. Limit 200 hlasů za hodinu na IP je záměrně velkorysý, protože celá firma často chodí ven přes jednu adresu; zastaví skript, ne kolegy.
+- Čtení, úprava i mazání připomínek ověřují PIN v každé Server Action zvlášť a sdílejí počítadlo neúspěchů s chráněnými API routami (10 chyb z jedné IP = zámek na 15 minut). Kontrola PINu se zámkem je nově v `verifySettingsPin()` v `lib/api-auth.ts`; `requireSettingsPin()` ji používá beze změny chování.
+
+### Migration notes
+
+- `sharp` je nově přímá závislost (dřív jen nepřímá přes Next.js), verze se nemění.
+- Screenshoty se ukládají do `data/feedback-attachments/` vedle databáze, tedy do stejného Docker volume. Nic nastavovat netřeba.
+- Databáze se rozšíří automaticky při startu: nové tabulky `feedback` (včetně sloupců `secret_hash`, `context`, `app_version`, `status_changed_at`, `votable`, `vote_title`), `feedback_attachments` a `feedback_votes` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
+
+### Known issues
+
+- Hlasování je orientační: hlas patří prohlížeči, ne člověku. Bez přihlašování to jinak nejde.
+- JSON záloha (`/api/backup`) obsahuje text připomínek, ale ne screenshoty ani hlasy. Při přenosu na jiný server je potřeba zkopírovat i složku `data/feedback-attachments/` (je ve stejném volume jako databáze).
+
 ## [1.3.4] - 2026-08-25
 
 ### Fixed

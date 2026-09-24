@@ -7,7 +7,9 @@ import type { AuditEntry } from "@/lib/audit";
 import {
   actionSaveSettings,
   actionGetTelegramSubscriptions,
+  actionGetFeedback,
 } from "@/app/actions";
+import type { FeedbackEntry } from "@/lib/feedback-meta";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { getAppVersionInfo } from "@/lib/version";
 import {
@@ -20,6 +22,7 @@ import { AuditLogSection } from "./settings/AuditLogSection";
 import { BackupSection } from "./settings/BackupSection";
 import { ClosuresSection } from "./settings/ClosuresSection";
 import { DepartmentsSection } from "./settings/DepartmentsSection";
+import { FeedbackSection } from "./settings/FeedbackSection";
 import { PinGate } from "./settings/PinGate";
 import { TelegramBotCard, TelegramSection, useTelegramStatus } from "./settings/TelegramSection";
 import { TelegramSubscribersSection } from "./settings/TelegramSubscribersSection";
@@ -100,6 +103,21 @@ export default function SettingsPage({
   // Chráněné API routy chtějí PIN v hlavičce. Předává se jako funkce, ne
   // hodnota — ref se plní až při odemčení a getter tak nemůže zestárnout.
   const getPin = useCallback(() => confirmedPinRef.current, []);
+
+  // Připomínky se načítají hned po odemčení, ne až na záložce — počet nových
+  // ukazuje odznak v navigaci a má být vidět dřív, než na záložku kliknete.
+  const [feedback, setFeedback] = useState<FeedbackEntry[]>([]);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!unlocked || feedbackLoaded) return;
+    actionGetFeedback(confirmedPinRef.current)
+      .then((list) => { setFeedback(list); setFeedbackLoaded(true); setFeedbackError(null); })
+      .catch((err) => setFeedbackError(err instanceof Error ? err.message : "Připomínky se nepodařilo načíst."));
+  }, [unlocked, feedbackLoaded]);
+
+  const newFeedbackCount = feedback.filter((f) => f.status === "new").length;
 
   const telegram = useTelegramStatus(
     settings,
@@ -185,6 +203,11 @@ export default function SettingsPage({
                     >
                       <MIcon name={tab.icon as "settings"} size={14} />
                       {tab.label}
+                      {tab.id === "pripominky" && newFeedbackCount > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${activeTab === tab.id ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                          {newFeedbackCount}
+                        </span>
+                      )}
                       {dirtyTabs.includes(tab.id) && (
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeTab === tab.id ? "rgba(255,255,255,0.9)" : "#EA580C" }} />
                       )}
@@ -219,6 +242,11 @@ export default function SettingsPage({
                             <span title="Neuložené změny" className="w-1.5 h-1.5 rounded-full shrink-0"
                               style={{ background: active ? "rgba(255,255,255,0.9)" : "#EA580C" }} />
                           )}
+                          {tab.id === "pripominky" && newFeedbackCount > 0 && (
+                            <span title="Nové připomínky" className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
+                              {newFeedbackCount}
+                            </span>
+                          )}
                           {tab.id === "lide" && telegramSubsLoaded && telegramSubs.length > 0 && (
                             <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700"}`}>
                               {telegramSubs.length}
@@ -243,6 +271,16 @@ export default function SettingsPage({
             <ClosuresSection isActive={activeTab === "provoz"} />
 
             <DepartmentsSection initialDepartments={initialDepts} isActive={activeTab === "lide"} />
+
+            {/* Před formulářem: ten je na této záložce prázdný, ale gap by obsah odsunul o 16 px */}
+            <FeedbackSection
+              entries={feedback}
+              getPin={getPin}
+              isActive={activeTab === "pripominky"}
+              isLoaded={feedbackLoaded}
+              loadError={feedbackError}
+              onChange={setFeedback}
+            />
 
             {/* ── Form (all form-field sections, hidden per tab via CSS) ── */}
             <form
@@ -347,7 +385,7 @@ export default function SettingsPage({
             type="button"
           >Zahodit</button>
           <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
-            {isPending ? "Ukládám..." : "Uložit"}
+            {isPending ? "Ukládám…" : "Uložit"}
           </button>
         </div>
       )}

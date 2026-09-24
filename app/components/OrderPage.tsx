@@ -1,5 +1,6 @@
 "use client";
 
+import { pluralizeOrders } from "@/lib/format";
 import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getHolidayEmoji } from "@/lib/holidays";
@@ -14,6 +15,7 @@ import { useCutoff } from "./order/useCutoff";
 import { useCutoffUnlock } from "./order/useCutoffUnlock";
 import { DayPicker } from "./order/DayPicker";
 import { DayStatusBar } from "./order/DayStatusBar";
+import { FeedbackNudge } from "./order/FeedbackNudge";
 import { HelpModal } from "./order/HelpModal";
 import { OrderHeader } from "./order/OrderHeader";
 import {
@@ -421,8 +423,8 @@ export default function OrderPage({
           <MIcon name="timer" size={15} className="shrink-0" />
           <span>
             {countdownMins <= 10
-              ? `Zbývá jen ${countdownMins} min — objednávka se brzy uzavře!`
-              : `Uzávěrka za ${countdownMins} min (${cutoffTime}) — nezapomeň objednat.`}
+              ? `Zbývá jen ${countdownMins} min – objednávka se brzy uzavře!`
+              : `Uzávěrka za ${countdownMins} min (${cutoffTime}) – nezapomeňte objednat.`}
           </span>
         </div>
       )}
@@ -442,7 +444,7 @@ export default function OrderPage({
         isPending={isPending}
         isSent={isSent}
         noMenu={noMenu}
-        onEmptyOrder={() => setSendError("Objednávka je prázdná — nikdo nic neobjednal.")}
+        onEmptyOrder={() => setSendError("Objednávka je prázdná – nikdo nic neobjednal.")}
         onHelp={() => setShowHelp(true)}
         onPushToggle={handlePushToggle}
         onSend={() => { setSendError(null); setShowSendConfirm(true); }}
@@ -472,7 +474,7 @@ export default function OrderPage({
               /* A closure outranks a state holiday here even when both land on the
                  same day: "Dovolená do 7. 8." answers the question the reader
                  actually has, "Státní svátek" only answers today's. Same card as
-                 the menu screen — one closure, one visual, both pages. */
+                 the menu screen – one closure, one visual, both pages. */
               <ClosureCard closure={activeClosure} />
             ) : (
               /* ── Closed / no-menu banner ── */
@@ -512,7 +514,7 @@ export default function OrderPage({
                     <span>
                       {holidayName
                         ? "V tento den se objednávky nevytvářejí."
-                        : "Jakmile bude menu doplněné, objednávky se tu znovu objeví."}
+                        : "Jakmile bude jídelníček doplněný, objednávky se tu znovu objeví."}
                     </span>
                   </div>
                 </div>
@@ -568,6 +570,8 @@ export default function OrderPage({
                 sentAt={sentAt}
                 totalPrice={totalPrice}
               />
+
+              <FeedbackNudge />
 
               {upcomingClosure && (
                 <div
@@ -703,7 +707,7 @@ export default function OrderPage({
           <div className="send-summary">
             <div className="send-summary__item">
               <span className="send-summary__value">{activeOrderCount}</span>
-              <span className="send-summary__label">objednávek</span>
+              <span className="send-summary__label">{pluralizeOrders(activeOrderCount)}</span>
             </div>
             <div className="send-summary__item">
               <span className="send-summary__value">{totalPrice} Kč</span>

@@ -188,7 +188,7 @@ export function EmojiPicker({ value, onChange }: { value: string; onChange: (ico
             ))}
             {cells.length === 0 && (
               <p className="col-span-6 text-[12px] text-stone-400 px-1.5 py-3">
-                Nic nenalezeno — zkus anglicky, nebo vlož vlastní emoji do políčka vedle.
+                Nic nenalezeno. Zkuste hledat anglicky, nebo vložte vlastní emoji do políčka vedle.
               </p>
             )}
           </div>
@@ -222,7 +222,7 @@ export function EmojiPicker({ value, onChange }: { value: string; onChange: (ico
               : payload
                 ? `${activeLabel} · ${payload.count} emoji celkem`
                 : loadFailed
-                  ? "Plná sada se nenačetla — zobrazeny doporučené"
+                  ? "Plná sada se nenačetla – zobrazeny doporučené"
                   : "Načítám plnou sadu…"}
           </p>
         </div>,

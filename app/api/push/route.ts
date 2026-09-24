@@ -9,7 +9,7 @@ export function GET() {
 export async function POST(req: Request) {
   const body = await req.json();
   if (!body?.endpoint || !body?.keys?.p256dh || !body?.keys?.auth) {
-    return NextResponse.json({ error: "Neplatná subscription" }, { status: 400 });
+    return NextResponse.json({ error: "Neplatný odběr notifikací" }, { status: 400 });
   }
   saveSubscription(body);
   return NextResponse.json({ ok: true });
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const body = await req.json();
-  if (!body?.endpoint) return NextResponse.json({ error: "Chybí endpoint" }, { status: 400 });
+  if (!body?.endpoint) return NextResponse.json({ error: "Chybí adresa odběru" }, { status: 400 });
   deleteSubscription(body.endpoint);
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { countWord } from "@/lib/format";
 import { useState, useTransition } from "react";
 import type { AppSettings } from "@/lib/settings";
 import { actionSendTestPush } from "@/app/actions";
@@ -14,12 +15,12 @@ export function PushSection({ settings }: { settings: AppSettings }) {
 
   const handleTestPush = () => {
     setPushTestStatus("pending");
-    setPushTestMsg("Odesílám...");
+    setPushTestMsg("Odesílám…");
     startTransition(async () => {
       try {
         const result = await actionSendTestPush();
         if (result.error) { setPushTestStatus("error"); setPushTestMsg(result.error); }
-        else { setPushTestStatus("ok"); setPushTestMsg(`Notifikace odeslána do ${result.sent} prohlížeče/ů.`); }
+        else { setPushTestStatus("ok"); setPushTestMsg(`Notifikace odeslána do ${countWord(result.sent, "prohlížeče", "prohlížečů", "prohlížečů")}.`); }
       } catch {
         setPushTestStatus("error");
         setPushTestMsg("Nepodařilo se odeslat testovací notifikaci.");

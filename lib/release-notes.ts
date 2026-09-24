@@ -12,6 +12,46 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.4.0",
+    date: "2026-09-24",
+    title: "Připomínky k aplikaci",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Nová stránka Připomínky (v menu, na mobilu „Nápady“). Kdo si objednává, může napsat nápad, nahlásit chybu nebo pochválit. Stačí vybrat, čeho se to týká, a napsat pár slov. Jméno je nepovinné.",
+          "K připomínce jde přidat až tři screenshoty: přetažením na stránku, vložením přes Ctrl+V nebo výběrem souboru, na mobilu i z galerie.",
+          "Kdo připomínku pošle, vidí v kartě „Moje připomínky“, jak to s ní vypadá, a vaši odpověď. Funguje to bez přihlašování, jen v prohlížeči, ze kterého ji poslal.",
+          "Když appka spadne, chybová stránka nabídne „Nahlásit problém“. Připomínka pak rovnou ví, kde a jaká chyba nastala.",
+          "Hlasování: nápadům, které zveřejníte k hlasování, můžou lidé dát 👍 v kartě „Co chystáme“. Hned vidíte, co chce nejvíc lidí.",
+          "Pod objednávkou je nenápadná pozvánka k připomínkám, pokaždé s jinou větou. Kdo ji nechce vidět, skryje ji na 14 dní.",
+          "Nastavení → Připomínky: přehled s filtrem podle stavu, změna stavu jedním klikem, interní poznámka a odpověď autorovi. Hotové připomínky s odpovědí se objeví v seznamu „Změnili jsme díky vám“.",
+          "Upozornění na novou připomínku do Telegramu. Dostanou ho jen admini bota, kteří si ho zapnou v /nastaveni.",
+        ],
+      },
+      {
+        title: "Fixed",
+        items: [
+          "Opravili jsme texty v celé aplikaci: pravopis, čárky, skloňování počtů („3 objednávky“, „zbývají 2 minuty“) a jednotné vykání.",
+        ],
+      },
+      {
+        title: "Security",
+        items: [
+          "Připomínky i screenshoty vidí jen ten, kdo zná PIN do Nastavení. Veřejně se ukazuje jen vaše odpověď u hotových připomínek, nikdy původní text ani autor.",
+          "Neukládá se IP adresa. Ze screenshotů se odstraní skrytá data (například poloha z telefonu) a screenshoty vyřízených připomínek se po 90 dnech samy smažou.",
+        ],
+      },
+      {
+        title: "Known issues",
+        items: [
+          "Hlasování je orientační: hlas patří prohlížeči, ne člověku, takže kdo si smaže data prohlížeče, může hlasovat znovu.",
+          "Záloha v Nastavení obsahuje text připomínek, ale ne screenshoty. Ty jsou ve složce data/feedback-attachments vedle databáze.",
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3.4",
     date: "2026-08-25",
     title: "Novinky se zase ukazují",

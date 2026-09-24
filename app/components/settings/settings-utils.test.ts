@@ -30,6 +30,13 @@ describe("getNextAutoSend", () => {
     expect(getNextAutoSend("true", "10:30", "Po,Út", mondayAfternoon)).toBe("Zítra v 10:30");
   });
 
+  it("píše den s předložkou ve správném tvaru — „Ve středu“, ne „V středu“", () => {
+    const mondayAfternoon = new Date(2026, 7, 3, 15, 0);
+    expect(getNextAutoSend("true", "10:30", "St", mondayAfternoon)).toBe("Ve středu v 10:30");
+    expect(getNextAutoSend("true", "10:30", "Čt", mondayAfternoon)).toBe("Ve čtvrtek v 10:30");
+    expect(getNextAutoSend("true", "10:30", "Pá", mondayAfternoon)).toBe("V pátek v 10:30");
+  });
+
   it("keeps the existing disabled and incomplete labels", () => {
     expect(getNextAutoSend("false", "10:30", "Po")).toBe("Vypnuto");
     expect(getNextAutoSend("true", "", "Po")).toBe("Nenastaveno");

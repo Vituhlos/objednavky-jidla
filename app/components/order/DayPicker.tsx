@@ -65,7 +65,7 @@ export function DayPicker({
                     className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap select-none"
                     key={`gap-${item.from}`}
                     style={{ background: "rgba(245,158,11,0.16)", color: "#92400e" }}
-                    title="V tyto dny se v LIMA nevaří"
+                    title="V tyto dny se v LIMĚ nevaří"
                   >
                     {mark}
                     {label}
@@ -79,7 +79,7 @@ export function DayPicker({
                     className="flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center gap-1.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap text-stone-600 transition-all duration-200 hover:text-stone-800 hover:bg-white/60 active:scale-[0.96]"
                     key={`gap-${item.from}`}
                     onClick={() => onSelect(todayDate!)}
-                    title="Zpět na dnešek — v tyto dny se nevaří"
+                    title="Zpět na dnešek – v tyto dny se nevaří"
                     type="button"
                   >
                     {mark}
@@ -92,7 +92,7 @@ export function DayPicker({
                 <span
                   className="flex-shrink-0 self-center px-3 inline-flex items-center gap-1.5 text-[11.5px] text-stone-500 whitespace-nowrap select-none"
                   key={`gap-${item.from}`}
-                  title="V tyto dny se v LIMA nevaří"
+                  title="V tyto dny se v LIMĚ nevaří"
                 >
                   {mark}
                   {label}

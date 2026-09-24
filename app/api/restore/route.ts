@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { requireSettingsPin } from "@/lib/api-auth";
+import { FEEDBACK_CATEGORIES, FEEDBACK_STATUSES } from "@/lib/feedback-meta";
+
+const FEEDBACK_CATEGORY_IDS = new Set<string>(FEEDBACK_CATEGORIES.map((c) => c.id));
+const FEEDBACK_STATUS_IDS = new Set<string>(FEEDBACK_STATUSES.map((st) => st.id));
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +15,7 @@ interface BackupFile {
   order_rows?: Row[];
   menu_items?: Row[];
   departments?: Row[];
+  feedback?: Row[];
   settings?: Record<string, string>;
 }
 
@@ -19,6 +24,7 @@ export interface RestoreResult {
   orderRows: number;
   menuWeeks: number;
   departments: number;
+  feedback: number;
   settings: number;
 }
 
@@ -47,7 +53,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { backup, restoreSettings } = await req.json() as { backup: BackupFile; restoreSettings: boolean };
     const db = getDb();
-    const result: RestoreResult = { orders: 0, orderRows: 0, menuWeeks: 0, departments: 0, settings: 0 };
+    const result: RestoreResult = { orders: 0, orderRows: 0, menuWeeks: 0, departments: 0, feedback: 0, settings: 0 };
 
     db.transaction(() => {
       // Menu items — by week_start; skip weeks already present
@@ -131,6 +137,26 @@ export async function POST(req: NextRequest): Promise<Response> {
           "INSERT INTO departments (name, label, email_label, accent, sort_order, active) VALUES (?, ?, ?, ?, ?, ?)"
         ).run(dept.name, dept.label, dept.email_label, dept.accent ?? "blue", dept.sort_order ?? 0, dept.active ?? 1);
         result.departments++;
+      }
+
+      // Feedback — skip entries already present (same time + text)
+      for (const fb of backup.feedback ?? []) {
+        if (typeof fb.message !== "string" || typeof fb.created_at !== "string") continue;
+        const existing = db.prepare("SELECT id FROM feedback WHERE created_at = ? AND message = ?").get(fb.created_at, fb.message);
+        if (existing) continue;
+        db.prepare(
+          `INSERT INTO feedback (created_at, category, message, author_name, page, device, status, admin_note, public_reply, resolved_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          fb.created_at,
+          FEEDBACK_CATEGORY_IDS.has(String(fb.category)) ? String(fb.category) : "jine",
+          fb.message, String(fb.author_name ?? ""),
+          String(fb.page ?? ""), String(fb.device ?? ""),
+          FEEDBACK_STATUS_IDS.has(String(fb.status)) ? String(fb.status) : "new",
+          String(fb.admin_note ?? ""), String(fb.public_reply ?? ""),
+          typeof fb.resolved_at === "string" ? fb.resolved_at : null,
+        );
+        result.feedback++;
       }
 
       // Settings — only keys not already set in DB (INSERT OR IGNORE)

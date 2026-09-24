@@ -123,7 +123,7 @@ export function OrderEditModal({
       return;
     }
     if (isDuplicateName) {
-      setValidationError(`„${personName.trim()}" už v objednávce je.`);
+      setValidationError(`„${personName.trim()}“ už v objednávce je.`);
       return;
     }
     setValidationError(null);
@@ -190,7 +190,7 @@ export function OrderEditModal({
                   value={firstName}
                 />
                 {/\d/.test(firstName) && (
-                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo ze jména.</p>
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraňte číslo ze jména.</p>
                 )}
               </div>
               <div style={{ flex: 1 }}>
@@ -205,7 +205,7 @@ export function OrderEditModal({
                   value={lastName}
                 />
                 {/\d/.test(lastName) && (
-                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraň číslo z příjmení.</p>
+                  <p className="mt-1 text-[11.5px] text-red-600 font-medium">Odstraňte číslo z příjmení.</p>
                 )}
               </div>
             </div>
@@ -293,7 +293,7 @@ export function OrderEditModal({
             <div style={{ position: "relative" }}>
               {showMealTip && (
                 <div className="meal-tip-callout">
-                  Víc jídel pro sebe? Přidej je sem — není třeba nová objednávka.
+                  Víc jídel pro sebe? Přidejte je sem, není potřeba nová objednávka.
                 </div>
               )}
               <button
@@ -314,7 +314,7 @@ export function OrderEditModal({
               id="modal-note"
               maxLength={120}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="např. bez špenátu, bez zelí..."
+              placeholder="např. bez špenátu, bez zelí…"
               rows={2}
               value={note}
             />

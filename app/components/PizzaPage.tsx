@@ -1,5 +1,6 @@
 "use client";
 
+import { countWord } from "@/lib/format";
 import { useState, useTransition, useCallback, useEffect, useRef, memo, useId } from "react";
 import { createPortal } from "react-dom";
 import type { PizzaOrderData, PizzaOrderRow, PizzaItem } from "@/lib/pizza";
@@ -136,7 +137,7 @@ export default function PizzaPage({
 
   const handleScrape = () => {
     setScrapeError(null);
-    setScrapeStatus("Načítám ceník z webu...");
+    setScrapeStatus("Načítám ceník z webu…");
     startTransition(async () => {
       try {
         const res = await fetch("/api/pizza/scrape");
@@ -157,7 +158,7 @@ export default function PizzaPage({
         setPizzaItems(saved);
         setRows((prev) => recalcRows(prev, saved));
         if (scrapeStatusTimer.current) clearTimeout(scrapeStatusTimer.current);
-        setScrapeStatus(`Ceník aktualizován – ${saved.length} pizz načteno.`);
+        setScrapeStatus(`Ceník je aktualizovaný (${countWord(saved.length, "pizza", "pizzy", "pizz")}).`);
         scrapeStatusTimer.current = setTimeout(() => setScrapeStatus(null), 5000);
       } catch (e) {
         setScrapeError(`Nepodařilo se načíst ceník: ${e instanceof Error ? e.message : "neznámá chyba"}`);
@@ -194,7 +195,7 @@ export default function PizzaPage({
             type="button"
           >
             <MIcon name="refresh" size={14} />
-            {isPending ? "Načítám..." : "Aktualizovat ceník"}
+            {isPending ? "Načítám…" : "Aktualizovat ceník"}
           </button>
         </div>
       </div>
@@ -220,7 +221,7 @@ export default function PizzaPage({
             type="button"
           >
             <MIcon name="refresh" size={13} />
-            {isPending ? "Načítám..." : "Aktualizovat ceník"}
+            {isPending ? "Načítám…" : "Aktualizovat ceník"}
           </button>
         </div>
       </div>
@@ -228,7 +229,7 @@ export default function PizzaPage({
       {isClosed && (
         <div className="mx-4 mt-4 p-3.5 rounded-2xl border border-orange-200/80 text-[12.5px] text-orange-800 flex items-center gap-2.5" style={{ background: "rgba(234,88,12,0.07)" }}>
           <MIcon name="lock" size={15} fill style={{ color: "#EA580C", flexShrink: 0 }} />
-          <span><strong>Objednávka je uzavřena.</strong> Uzávěrka proběhla automaticky — objednávky již nelze měnit.</span>
+          <span><strong>Objednávka je uzavřena.</strong> Uzávěrka proběhla automaticky – objednávky již nelze měnit.</span>
         </div>
       )}
       {showCutoffBanner && (
@@ -387,7 +388,7 @@ export default function PizzaPage({
               <div className="glass-soft rounded-2xl p-3.5 space-y-1.5">
                 <p className="font-display font-bold text-[13px] text-stone-800">👤 Cena na osobu</p>
                 <p>Celková cena se <strong>rovnoměrně rozdělí</strong> mezi všechny objednávající (počet řádků s vybranou pizzou). Výsledek je zaokrouhlen nahoru na celé koruny.</p>
-                <p className="text-stone-500 text-[12px]">Pokud někdo objednal 2 pizzy, zaplatí stejný díl jako ostatní — cena se dělí počtem lidí, ne počtem kusů.</p>
+                <p className="text-stone-500 text-[12px]">Pokud někdo objednal 2 pizzy, zaplatí stejný díl jako ostatní – cena se dělí počtem lidí, ne počtem kusů.</p>
               </div>
 
             </div>
@@ -601,7 +602,7 @@ const PizzaRow = memo(function PizzaRow({
               defaultValue={row.personName}
               disabled={disabled}
               onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
-              placeholder="Jméno..."
+              placeholder="Jméno…"
               type="text"
             />
             {departments.length > 0 && (
@@ -660,7 +661,7 @@ const PizzaRow = memo(function PizzaRow({
           defaultValue={row.personName}
           disabled={disabled}
           onBlur={(e) => onUpdate(row.id, { personName: e.target.value })}
-          placeholder="Jméno..."
+          placeholder="Jméno…"
           type="text"
         />
         <select

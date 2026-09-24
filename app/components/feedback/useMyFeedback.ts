@@ -1,0 +1,64 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { OwnFeedback } from "@/lib/feedback-meta";
+import { addOwnKey, OWN_KEY, parseOwnKeys, type OwnKey } from "./my-feedback-storage";
+
+function readKeys(): OwnKey[] {
+  try { return parseOwnKeys(localStorage.getItem(OWN_KEY)); } catch { return []; }
+}
+
+function writeKeys(keys: OwnKey[]): void {
+  try {
+    if (keys.length === 0) localStorage.removeItem(OWN_KEY);
+    else localStorage.setItem(OWN_KEY, JSON.stringify(keys));
+  } catch { /* soukromý režim – seznam prostě nepřežije zavření */ }
+}
+
+/**
+ * „Moje připomínky“ bez účtů: prohlížeč si ke každé odeslané připomínce
+ * pamatuje tajný kód a server podle něj vrátí stav a odpověď. Kdo vymaže
+ * data prohlížeče nebo přejde na jiné zařízení, seznam neuvidí — to je cena
+ * za to, že se nikdo nemusí přihlašovat.
+ */
+export function useMyFeedback() {
+  const [items, setItems] = useState<OwnFeedback[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const keys = readKeys();
+    if (keys.length === 0) { setItems([]); setLoaded(true); return; }
+    try {
+      const res = await fetch("/api/feedback/mine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: keys }),
+      });
+      const data = await res.json() as { ok: boolean; items?: OwnFeedback[] };
+      if (!data.ok || !data.items) return;
+      // Smazané připomínky server nevrátí — jejich kódy není proč držet
+      const alive = new Set(data.items.map((i) => i.id));
+      writeKeys(keys.filter((k) => alive.has(k.id)));
+      setItems(data.items);
+    } catch { /* bez sítě zůstane poslední stav */ } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- načtení z prohlížeče po hydrataci
+    void refresh();
+  }, [refresh]);
+
+  const remember = useCallback((id: number, token: string) => {
+    writeKeys(addOwnKey(readKeys(), { id, token }));
+    void refresh();
+  }, [refresh]);
+
+  const forget = useCallback((id: number) => {
+    writeKeys(readKeys().filter((k) => k.id !== id));
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  return { items, loaded, remember, forget };
+}

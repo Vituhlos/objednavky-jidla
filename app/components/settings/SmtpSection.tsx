@@ -34,7 +34,7 @@ export function SmtpSection({ getPin, settings }: { getPin: () => string; settin
       secure: fd.get("smtpSecure") === "on" ? "true" : "false",
     };
     setSmtpTestStatus("idle");
-    setSmtpTestMsg("Testuji připojení...");
+    setSmtpTestMsg("Testuji připojení…");
     startTransition(async () => {
       try {
         const res = await fetch("/api/smtp-test", {
@@ -71,7 +71,7 @@ export function SmtpSection({ getPin, settings }: { getPin: () => string; settin
           <SettingsField hint="pokud prázdné, použije se uživatel" label="Odesílatel (From)">
             <input className="modal-input" defaultValue={settings.smtpFrom} name="smtpFrom" placeholder="Objednávky <orders@example.com>" type="text" />
           </SettingsField>
-          <SettingsField hint="zaškrtněte pro port 465" label="TLS (SMTP Secure)">
+          <SettingsField hint="zapněte pro port 465" label="TLS (SMTP Secure)">
             <SettingsToggle defaultChecked={settings.smtpSecure === "true"} label="Použít TLS (SMTP Secure)" name="smtpSecure" />
           </SettingsField>
         </div>

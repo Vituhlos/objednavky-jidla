@@ -25,11 +25,11 @@ export function OperationsSection({ settings }: { settings: AppSettings }) {
 
       <SettingsSection icon="schedule" title="Automatické odeslání">
         <p className="text-[12.5px] text-stone-500">
-          Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
+          Objednávka se automaticky odešle v nastavenou dobu. Přeskočí se, pokud je den označen jako zavřený nebo pokud není splněný minimální počet objednávek.
         </p>
         <SettingsToggle defaultChecked={settings.autoSendEnabled === "true"} label="Zapnout automatické odeslání" name="autoSendEnabled" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SettingsField hint="čas kdy se objednávka automaticky odešle" label="Čas odeslání">
+          <SettingsField hint="čas, kdy se objednávka automaticky odešle" label="Čas odeslání">
             <input className="modal-input w-32" defaultValue={settings.autoSendTime} name="autoSendTime" type="time" />
           </SettingsField>
           <SettingsField hint="minimálně N objednávek, jinak se přeskočí" label="Minimální počet objednávek">
@@ -37,7 +37,7 @@ export function OperationsSection({ settings }: { settings: AppSettings }) {
           </SettingsField>
         </div>
         <SettingsDayPicker activeDays={activeDays} label="Dny odeslání" namePrefix="autoSendDay" />
-        <SettingsField hint="e-mail(y) kam přijde upozornění při selhání auto-send — prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
+        <SettingsField hint="e-mail(y), kam přijde upozornění při selhání automatického odeslání – prázdné = použije se adresa z upozornění na jídelníček" label="Upozornění při selhání">
           <input className="modal-input" defaultValue={settings.autoSendFailureEmail} name="autoSendFailureEmail" placeholder="admin@firma.cz" type="email" />
         </SettingsField>
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px]" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>

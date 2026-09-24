@@ -66,13 +66,13 @@ export function OrderHeader({
     <>
     {/* ── Desktop info strip ── */}
     {/* min-h: the bar used to shrink by 7px whenever "Odeslat" was absent (future days,
-        already sent, auto-send on) — it is the tallest child, so the row collapsed
+        already sent, auto-send on) – it is the tallest child, so the row collapsed
         with it. Reserving its height keeps the header still while switching days. */}
     <div className="hidden md:flex px-5 py-2.5 min-h-[60px] border-b border-white/50 items-center gap-4 topbar shrink-0">
       <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
       <span
         className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
-        title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+        title={sseConnected ? "Živé aktualizace aktivní" : "Připojování…"}
       />
       <div className="flex items-center gap-3 flex-1 text-[12px] text-stone-500">
         {isFutureDay && !isSent && futureDayPhrase && (
@@ -144,7 +144,7 @@ export function OrderHeader({
         aria-live="polite"
         className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
         role="img"
-        title={sseConnected ? "Živé aktualizace aktivní" : "Připojování..."}
+        title={sseConnected ? "Živé aktualizace aktivní" : "Připojování…"}
       />
       {isFutureDay && !isSent && futureDayPhrase && (
         <span className="inline-flex items-center gap-1 text-[11.5px] text-stone-500 font-medium shrink-0">

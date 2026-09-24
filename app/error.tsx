@@ -13,6 +13,18 @@ export default function GlobalError({
     console.error(error);
   }, [error]);
 
+  // Odkaz na připomínky s předvyplněnou stránkou a kódem chyby. V produkci
+  // Next.js zprávu chyby skrývá, ale digest jde dohledat v logu serveru.
+  const reportProblem = () => {
+    const detail = error.digest ? `Kód chyby: ${error.digest}` : error.message;
+    const params = new URLSearchParams({
+      kategorie: "chyba",
+      odkud: window.location.pathname,
+      chyba: detail.slice(0, 300),
+    });
+    window.location.href = `/pripominky?${params.toString()}`;
+  };
+
   return (
     <div style={{
       display: "flex",
@@ -32,6 +44,7 @@ export default function GlobalError({
       <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280", textAlign: "center", maxWidth: 320 }}>
         Nastala neočekávaná chyba. Zkuste to znovu nebo obnovte stránku.
       </p>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
       <button
         onClick={reset}
         style={{
@@ -47,6 +60,22 @@ export default function GlobalError({
       >
         Zkusit znovu
       </button>
+      <button
+        onClick={reportProblem}
+        style={{
+          padding: "0.5rem 1.25rem",
+          background: "#fff",
+          color: "#16324a",
+          border: "1px solid #d8c3a5",
+          borderRadius: "6px",
+          cursor: "pointer",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+        }}
+      >
+        Nahlásit problém
+      </button>
+      </div>
     </div>
   );
 }

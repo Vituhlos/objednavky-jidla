@@ -1,5 +1,6 @@
 "use client";
 
+import { countWord } from "@/lib/format";
 import { useRef, useState, useTransition } from "react";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
@@ -23,7 +24,7 @@ export function BackupSection({
 }) {
   const [downloadError, setDownloadError] = useState("");
   const [isPending, startTransition] = useTransition();
-  type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
+  type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; feedback?: number; settings: number };
   const [restoreFile, setRestoreFile] = useState<Record<string, unknown> | null>(null);
   const [restoreFileName, setRestoreFileName] = useState("");
   const [restoreIncludeSettings, setRestoreIncludeSettings] = useState(false);
@@ -103,7 +104,7 @@ export function BackupSection({
     try {
       const res = await fetch("/api/backup", { headers: { "x-settings-pin": getPin() } });
       if (!res.ok) {
-        setDownloadError(res.status === 401 ? "Neplatný PIN — odemkni Nastavení znovu." : await res.text());
+        setDownloadError(res.status === 401 ? "Neplatný PIN. Odemkněte Nastavení znovu." : await res.text());
         return;
       }
       const blob = await res.blob();
@@ -137,7 +138,7 @@ export function BackupSection({
       <div className="border-t border-white/40 pt-3 flex flex-col gap-3">
         <p className="text-[12px] font-semibold text-stone-700">Obnova ze zálohy</p>
         <p className="text-[12px] text-stone-500">
-          Obnova je přídavná — přidají se pouze data, která v aplikaci ještě nejsou (podle data objednávky, týdne jídelníčku a názvu oddělení). Existující záznamy zůstanou beze změny.
+          Obnova je přídavná – přidají se pouze data, která v aplikaci ještě nejsou (podle data objednávky, týdne jídelníčku a názvu oddělení). Existující záznamy zůstanou beze změny.
         </p>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -165,7 +166,7 @@ export function BackupSection({
             <p className="text-[12px] font-semibold text-stone-700">Obsah zálohy:</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[12px] text-stone-600">
               <span>Objednávky: <strong>{backupOrders}</strong></span>
-              <span>Týdny menu: <strong>{backupWeeks}</strong></span>
+              <span>Týdny jídelníčku: <strong>{backupWeeks}</strong></span>
               <span>Oddělení: <strong>{backupDepts}</strong></span>
             </div>
             {backupHasSettings && (
@@ -189,7 +190,7 @@ export function BackupSection({
               onClick={handleRestore}
               type="button"
             >
-              {restoreStatus === "pending" ? "Obnovuji..." : "Obnovit data"}
+              {restoreStatus === "pending" ? "Obnovuji…" : "Obnovit data"}
             </button>
           </div>
         )}
@@ -199,7 +200,7 @@ export function BackupSection({
             <p className="font-semibold text-emerald-700 flex items-center gap-1.5">
               <MIcon name="check_circle" size={14} fill /> Obnova dokončena
             </p>
-            <p className="text-stone-600">Přidáno: {restoreResult.orders} objednávek, {restoreResult.menuWeeks} týdnů menu, {restoreResult.departments} oddělení{restoreResult.settings > 0 ? `, ${restoreResult.settings} nastavení` : ""}.</p>
+            <p className="text-stone-600">Přidáno: {countWord(restoreResult.orders, "objednávka", "objednávky", "objednávek")}, {countWord(restoreResult.menuWeeks, "týden jídelníčku", "týdny jídelníčku", "týdnů jídelníčku")}, {countWord(restoreResult.departments, "oddělení", "oddělení", "oddělení")}{restoreResult.feedback ? `, ${countWord(restoreResult.feedback, "připomínka", "připomínky", "připomínek")}` : ""}{restoreResult.settings > 0 ? `, ${countWord(restoreResult.settings, "nastavení", "nastavení", "nastavení")}` : ""}.</p>
           </div>
         )}
 

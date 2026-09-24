@@ -1,5 +1,6 @@
 "use server";
 
+import { countWord } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
@@ -54,6 +55,14 @@ import {
   reorderDepartments,
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
+import {
+  deleteFeedback,
+  feedbackUpdateSchema,
+  getFeedbackList,
+  updateFeedback,
+  type FeedbackEntry,
+} from "@/lib/feedback";
+import { verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -143,7 +152,7 @@ export async function actionConfirmMenuImport(
   revalidatePath("/jidelnicek");
   revalidatePath("/");
   const { sendTelegramToSubscribers } = await import("@/lib/telegram");
-  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
+  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${countWord(items.length, "položka", "položky", "položek")}`);
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
@@ -379,9 +388,9 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
-  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
+  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošlete botovi /start." };
   try {
-    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA — Telegram funguje!");
+    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA – Telegram funguje!");
     return { ok: true, sent: subs.length };
   } catch (err) {
     return { ok: false, error: String(err) };
@@ -423,3 +432,44 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
   return setTelegramCommands();
 }
 
+
+// ─── Připomínky k aplikaci ────────────────────────────────────────────────────
+
+async function getActionIp(): Promise<string> {
+  return (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+}
+
+// Server Actions jsou veřejné POST endpointy — PIN se ověřuje uvnitř každé z nich,
+// ne jen tím, že je volá odemčená obrazovka Nastavení.
+async function requireActionPin(pin: unknown): Promise<void> {
+  const result = verifySettingsPin(await getActionIp(), typeof pin === "string" ? pin : null);
+  if (result === "locked") throw new Error("Příliš mnoho pokusů. Zkuste to za 15 minut.");
+  if (result === "denied") throw new Error("Neplatný PIN.");
+}
+
+export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {
+  await requireActionPin(pin);
+  return getFeedbackList();
+}
+
+export async function actionUpdateFeedback(
+  pin: string,
+  id: number,
+  updates: unknown,
+): Promise<FeedbackEntry> {
+  await requireActionPin(pin);
+  if (!Number.isInteger(id)) throw new Error("Neplatná připomínka.");
+  const parsed = feedbackUpdateSchema.safeParse(updates);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatná úprava.");
+  const entry = updateFeedback(id, parsed.data);
+  if (!entry) throw new Error("Připomínka už neexistuje.");
+  revalidatePath("/pripominky");
+  return entry;
+}
+
+export async function actionDeleteFeedback(pin: string, id: number): Promise<void> {
+  await requireActionPin(pin);
+  if (!Number.isInteger(id)) throw new Error("Neplatná připomínka.");
+  deleteFeedback(id);
+  revalidatePath("/pripominky");
+}

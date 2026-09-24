@@ -42,6 +42,10 @@ app/
     PizzaPage.tsx                  # Objednávky pizzy
     PizzaDetailPage.tsx            # Detail historické pizza objednávky
     SettingsPage.tsx               # Nastavení (PIN chráněno)
+    FeedbackPage.tsx               # Stránka připomínek (skládá feedback/*)
+    feedback/                      # Composer, dlaždice kategorií, podpis, poděkování,
+                                   # „Jak to funguje“, časová osa změn, useFeedbackDraft
+    settings/FeedbackSection.tsx   # Správa připomínek v Nastavení
 
   api/
     sse/route.ts                   # SSE endpoint — push změn klientům
@@ -60,6 +64,7 @@ app/
   jidelnicek/page.tsx
   pizza/page.tsx
   nastaveni/page.tsx
+  pripominky/page.tsx              # Veřejná stránka připomínek k aplikaci
 
 lib/
   db.ts           # SQLite singleton + migrace všech tabulek
@@ -80,6 +85,9 @@ lib/
   sse-broadcast.ts # Pub/sub pro SSE — broadcast() volají Server Actions
   pizza.ts        # CRUD pizza objednávky
   pizza-utils.ts  # Utility pro pizzu
+  feedback.ts     # Připomínky: validace (zod), CRUD, veřejné odpovědi, text pro Telegram
+  feedback-meta.ts # Kategorie/stavy/typy připomínek — bez DB, importuje i klient
+  feedback-attachments.ts # Screenshoty: sharp re-encode do WebP, úložiště, limity
 
 instrumentation.ts  # Next.js hook — startScheduler() při startu Node.js procesu
 ```
@@ -136,6 +144,31 @@ id | ts (UTC datetime) | action | order_id | department | person_name | details
 Akce: `row_add`, `row_update`, `row_delete`, `order_send`, `order_reopen`, `order_clear`, `auto_send`.
 `row_update` se loguje jen při změně: personName, soupItemId, soupItemId2, mainItemId, extraMeals.
 
+### `feedback`
+Připomínky k aplikaci. Záměrně bez IP adresy a user-agentu.
+```
+id | created_at (UTC) | category | message | author_name (nepovinné)
+page (cesta, odkud přišel) | device ("mobil"|"počítač"|"")
+status ("new"|"read"|"planned"|"done"|"rejected")
+admin_note | public_reply | resolved_at (první přechod do "done")
+secret_hash (SHA-256 kódu autora) | context | app_version | status_changed_at
+votable (0/1) | vote_title
+```
+Veřejně (`getPublicFeedbackReplies`) jde jen `public_reply` hotových připomínek — nikdy `message` ani `author_name`.
+
+### `feedback_attachments`
+```
+id | feedback_id (FK, ON DELETE CASCADE) | file_name (UUID.webp) | mime | size | width | height
+```
+Soubory v `<data>/feedback-attachments/`; při mazání připomínky je maže `deleteAttachmentFiles()`.
+
+### `feedback_votes`
+```
+feedback_id (FK, ON DELETE CASCADE) | voter_hash (SHA-256 kódu z prohlížeče) | created_at
+PRIMARY KEY (feedback_id, voter_hash)
+```
+Hlasovat jde jen o `feedback.votable = 1` s vyplněným `vote_title` a stavem new/read/planned.
+
 ### `pizza_orders`, `pizza_order_rows`, `pizza_items`
 Analogická struktura k oběd objednávkám, bez oddělení.
 
@@ -164,6 +197,16 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - Cron každou minutu: enabled? čas (Praha TZ)? den v týdnu? status != sent? zavřeno? minOrders?
 - Zavřené dny: detekce z `todayMenu.meals/soups` — položka s názvem "Zavřeno"
 - `sendOrder(id, email, "auto")` → loguje `auto_send`
+
+### Připomínky
+- `/pripominky` → `POST /api/feedback` (multipart, veřejné): honeypot `website`, zod validace, rate limit 5/h na IP + 100/den globálně, screenshoty přes `processImage()` (sharp → WebP bez metadat)
+- Screenshoty pro správce: `GET /api/feedback/attachments/[id]` s hlavičkou `x-settings-pin`
+- Moje připomínky: `POST /api/feedback/mine` s tajnými kódy z localStorage (`myFeedback`)
+- Hlasování: `POST /api/feedback/vote` (kód hlasujícího `feedbackVoter` v localStorage)
+- Pozvánka na objednávkové stránce: `order/FeedbackNudge.tsx` (skrytí na 14 dní v localStorage)
+- Úklid: `cleanupOldAttachments()` ve scheduleru ve 3:30 — screenshoty 90 dní po vyřízení
+- Upozornění: `sendTelegramFeedbackNotification()` — jen admini s `notify_feedback = 1` (opt-in, výchozí 0)
+- Správa: Nastavení → Připomínky; `actionGetFeedback/UpdateFeedback/DeleteFeedback(pin, …)` ověřují PIN přes `verifySettingsPin()` se zámkem po 10 chybách
 
 ### Nastavení a PIN
 - Stránka `/nastaveni` chráněna PINem (SHA-256 hash, plain fallback pro první spuštění)

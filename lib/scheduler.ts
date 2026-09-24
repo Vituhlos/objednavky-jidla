@@ -1,3 +1,4 @@
+import { countWord, remainingMinutes } from "./format";
 import cron from "node-cron";
 import { getSettings, saveSettings } from "./settings";
 import type { AppSettings } from "./settings";
@@ -16,6 +17,7 @@ import { broadcast } from "./sse-broadcast";
 import { getAllSubscriptions, deleteSubscription } from "./push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
 import webpush from "web-push";
+import { cleanupOldAttachments } from "./feedback";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
   Po: 1, Út: 2, St: 3, Čt: 4, Pá: 5,
@@ -52,7 +54,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   if (data.order.status === "sent") return;
 
   if (isTodayClosed(data)) {
-    console.log("[scheduler] Auto-send přeskočen — dnes je zavřeno.");
+    console.log("[scheduler] Auto-send přeskočen – dnes je zavřeno.");
     return;
   }
 
@@ -63,7 +65,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
   }, 0);
   const minOrders = parseInt(s.autoSendMinOrders) || 1;
   if (activeCount < minOrders) {
-    console.log(`[scheduler] Auto-send přeskočen — pouze ${activeCount} objednávek (min. ${minOrders}).`);
+    console.log(`[scheduler] Auto-send přeskočen – pouze ${activeCount} objednávek (min. ${minOrders}).`);
     return;
   }
 
@@ -83,7 +85,7 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
     // Ulož chybu do DB pro banner v appce
     saveSettings({ autoSendLastError: errMsg, autoSendLastErrorTs: new Date().toISOString(), autoSendErrorAcked: "false" });
     // Pošli Telegram upozornění
-    await sendTelegramToAdmins(`❌ <b>Auto-send selhal</b>\n📅 ${dateStr}\n⚠️ ${errMsg}\n\nObjednávka zůstala rozepsaná — odešli ji ručně.`);
+    await sendTelegramToAdmins(`❌ <b>Automatické odeslání selhalo</b>\n📅 ${dateStr}\n⚠️ ${errMsg}\n\nObjednávka zůstala rozepsaná – odešli ji ručně.`);
     // Fallback e-mail (pokud je nastaven)
     const recipients = (s.autoSendFailureEmail || s.reminderEmailTo)
       .split(",").map((e) => e.trim()).filter(Boolean);
@@ -95,8 +97,8 @@ async function checkAutoSend(s: AppSettings, currentTime: string, jsDay: number)
           html: `<p>Dobrý den,</p>
 <p>Automatické odesílání objednávky pro <strong>${dateStr}</strong> selhalo.</p>
 <p><strong>Chyba:</strong> <code>${errMsg}</code></p>
-<p>Objednávka zůstala ve stavu <em>rozepsaná</em>. Přihlaste se do aplikace a odešlete ji ručně.</p>`,
-          text: `Automatické odesílání objednávky pro ${dateStr} selhalo.\n\nChyba: ${errMsg}\n\nObjednávka zůstala ve stavu rozepsaná. Přihlaste se do aplikace a odešlete ji ručně.`,
+<p>Objednávka zůstala ve stavu <em>rozepsaná</em>. Otevřete aplikaci a odešlete ji ručně.</p>`,
+          text: `Automatické odesílání objednávky pro ${dateStr} selhalo.\n\nChyba: ${errMsg}\n\nObjednávka zůstala ve stavu rozepsaná. Otevřete aplikaci a odešlete ji ručně.`,
         });
         console.log("[scheduler] Upozornění na selhání auto-send odesláno.");
       } catch (mailErr) {
@@ -150,32 +152,32 @@ async function checkMenuReminder(s: AppSettings, currentTime: string, jsDay: num
   // (např. IMAP jen ve středu v 16:00, ale upozornění vypaluje ráno v 07:30 — e-mail by odešel
   // zbytečně, přestože se e-mail s jídelníčkem teprve zpracuje).
   if (s.imapEnabled === "true") {
-    console.log("[scheduler] Menu chybí — zkouším IMAP import před odesláním upozornění...");
+    console.log("[scheduler] Menu chybí – zkouším IMAP import před odesláním upozornění…");
     const imapResult = await checkImapForMenu();
     if (imapResult.found) {
-      console.log(`[scheduler] Reminder zrušen — IMAP importoval jídelníček (${imapResult.weekLabel}, ${imapResult.itemCount} položek).`);
+      console.log(`[scheduler] Reminder zrušen – IMAP importoval jídelníček (${imapResult.weekLabel}, ${countWord(imapResult.itemCount ?? 0, "položka", "položky", "položek")}).`);
       return;
     }
     const menuAfterImap = getMenuItemsForDay(dayCode);
     if (menuAfterImap.soups.length > 0 || menuAfterImap.meals.length > 0) {
-      console.log(`[scheduler] Reminder zrušen — menu nalezeno po IMAP kontrole (${menuAfterImap.meals.length} jídel).`);
+      console.log(`[scheduler] Reminder zrušen – menu nalezeno po IMAP kontrole (${menuAfterImap.meals.length} jídel).`);
       return;
     }
-    console.log(`[scheduler] IMAP nic nenašel${imapResult.error ? ": " + imapResult.error : ""} — upozornění odejde.`);
+    console.log(`[scheduler] IMAP nic nenašel${imapResult.error ? ": " + imapResult.error : ""} – upozornění odejde.`);
   }
 
   const recipients = s.reminderEmailTo
     ? s.reminderEmailTo.split(",").map((e) => e.trim()).filter(Boolean)
     : [];
   if (recipients.length === 0) {
-    console.warn("[scheduler] Upozornění na chybějící jídelníček NEODEŠLO — není nastaven 'E-mail pro upozornění' v Nastavení.");
+    console.warn("[scheduler] Upozornění na chybějící jídelníček NEODEŠLO – není nastaven 'E-mail pro upozornění' v Nastavení.");
     return;
   }
 
   // logAudit jde PŘED sendEmail — pokud DB selže, email neletí a záznam existuje pro alreadySent
   logAudit({ action: "menu_reminder", details: `Jídelníček chybí pro ${dayCode}` });
 
-  await sendTelegramToAdmins(`⚠️ <b>Chybí jídelníček</b>\n<b>${dayCode}</b> · Uzávěrka je v <b>${s.cutoffTime}</b>\n\nPřidejte jídla v aplikaci nebo importujte PDF.`);
+  await sendTelegramToAdmins(`⚠️ <b>Chybí jídelníček</b>\n<b>${dayCode}</b> · Uzávěrka je v <b>${s.cutoffTime}</b>\n\nPřidej jídla v aplikaci, nebo importuj PDF.`);
 
   await sendEmail({
     to: recipients,
@@ -216,16 +218,16 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   // Pošli jen těm, kdo ještě neobjednali
   const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));
   if (pending.length === 0) {
-    console.log("[scheduler] Push přeskočen — všichni už objednali.");
+    console.log("[scheduler] Push přeskočen – všichni už objednali.");
     return;
   }
 
-  console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům...`);
+  console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům…`);
   const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
   if (!publicKey || !privateKey) { console.warn("[scheduler] VAPID klíče nejsou nastaveny, push přeskočen."); return; }
 
   webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
-  const payload = JSON.stringify({ title: "Nezapomeň objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime} — zbývá ${minutes} minut.`, url: "/" });
+  const payload = JSON.stringify({ title: "Nezapomeňte objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime}, ${remainingMinutes(minutes)}.`, url: "/" });
 
   await Promise.allSettled(
     pending.map(async (row) => {
@@ -249,11 +251,11 @@ async function checkImapImport(s: AppSettings, currentTime: string, jsDay: numbe
     .filter((n) => n !== undefined);
   if (!allowedDays.includes(jsDay)) return;
 
-  console.log("[scheduler] Kontrola IMAP pro jídelníček...");
+  console.log("[scheduler] Kontrola IMAP pro jídelníček…");
   const result = await checkImapForMenu();
   if (result.found) {
-    console.log(`[scheduler] IMAP: importován jídelníček ${result.weekLabel} (${result.itemCount} položek).`);
-    await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${result.weekLabel} · ${result.itemCount} položek`);
+    console.log(`[scheduler] IMAP: importován jídelníček ${result.weekLabel} (${countWord(result.itemCount ?? 0, "položka", "položky", "položek")}).`);
+    await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${result.weekLabel} · ${countWord(result.itemCount ?? 0, "položka", "položky", "položek")}`);
   } else if (result.error) {
     console.warn(`[scheduler] IMAP: ${result.error}`);
   } else {
@@ -274,7 +276,7 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
   if (todayClosure) {
     await sendTelegramToSubscribers(
       "notify_morning_menu",
-      `${todayClosure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${todayClosure.label || "dovolená"}.`,
+      `${todayClosure.icon} <b>${dateStr}</b>\n\nV LIMĚ se dnes nevaří – ${todayClosure.label || "dovolená"}.`,
     );
     return;
   }
@@ -303,7 +305,7 @@ async function checkMorningMenu(s: AppSettings, currentTime: string, jsDay: numb
   const upcoming = getUpcomingClosure(getPragueISODate());
   if (upcoming) {
     const fmt = (iso: string) => { const [, mm, dd] = iso.split("-").map(Number); return `${dd}. ${mm}.`; };
-    text += `\n\n${upcoming.icon} <b>${upcoming.label || "Dovolená"}</b> — od ${fmt(upcoming.startDate)} do ${fmt(upcoming.endDate)} se nevaří.`;
+    text += `\n\n${upcoming.icon} <b>${upcoming.label || "Dovolená"}</b> – od ${fmt(upcoming.startDate)} do ${fmt(upcoming.endDate)} se nevaří.`;
   }
 
   await sendTelegramToSubscribers("notify_morning_menu", text);
@@ -340,7 +342,7 @@ async function checkTelegramReminder(s: AppSettings, currentTime: string, jsDay:
     : "";
 
   await sendTelegramReminderNotification(
-    `⏰ <b>Uzávěrka v ${s.cutoffTime}</b> — zbývá ${minutes} minut${missingLine}`,
+    `⏰ <b>Uzávěrka v ${s.cutoffTime}</b> – ${remainingMinutes(minutes)}${missingLine}`,
   );
 }
 
@@ -357,7 +359,7 @@ async function checkPersonalMorningMenu(currentTime: string, jsDay: number): Pro
 
   const personalClosure = getClosureForDate(getPragueISODate());
   if (personalClosure) {
-    const closedText = `${personalClosure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${personalClosure.label || "dovolená"}.`;
+    const closedText = `${personalClosure.icon} <b>${dateStr}</b>\n\nV LIMĚ se dnes nevaří – ${personalClosure.label || "dovolená"}.`;
     for (const sub of subs) await sendTelegramToChat(sub.chatId, closedText);
     return;
   }
@@ -395,7 +397,7 @@ async function checkPersonalReminders(currentTime: string, jsDay: number): Promi
   const cutoffTotal = h * 60 + m;
   const [ch, cm] = currentTime.split(":").map(Number);
   const remaining = cutoffTotal - (ch * 60 + cm);
-  const remainingText = remaining > 0 ? ` — zbývá ${remaining} minut` : "";
+  const remainingText = remaining > 0 ? ` – ${remainingMinutes(remaining)}` : "";
   for (const sub of subs) {
     await sendTelegramToChat(
       sub.chatId,
@@ -421,6 +423,10 @@ export function startScheduler(): void {
       await checkTelegramReminder(s, currentTime, jsDay);
       await checkPersonalReminders(currentTime, jsDay);
       await checkPersonalMorningMenu(currentTime, jsDay);
+      if (currentTime === "03:30") {
+        const removed = cleanupOldAttachments();
+        if (removed > 0) console.log(`[scheduler] Smazáno ${removed} starých screenshotů k připomínkám.`);
+      }
     } catch (err) {
       console.error("[scheduler] Chyba:", err);
     }

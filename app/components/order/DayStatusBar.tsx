@@ -82,12 +82,12 @@ export function DayStatusBar({
         ) : isFutureDay ? (
           <>
             <strong>Objednávka dopředu.</strong>
-            <span className="text-stone-500"> Odešle se automaticky v den samotný v {cutoffTime}.</span>
+            <span className="text-stone-500"> Odešle se automaticky v daný den v {cutoffTime}.</span>
           </>
         ) : (
           <>
             <strong>Uzávěrka v {cutoffTime}.</strong>
-            <span className="text-stone-500"> Objednávky se přijímají do {cutoffTime}.</span>
+            <span className="text-stone-500"> Do té doby jde objednávky přidávat i upravovat.</span>
           </>
         )}
       </div>

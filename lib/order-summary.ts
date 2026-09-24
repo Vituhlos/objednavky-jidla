@@ -76,7 +76,7 @@ export function describeRowItems(row: OrderRowEnriched): string[] {
 
   const sides: string[] = [];
   const addSide = (count: number, label: string) => { if (count > 0) sides.push(`${count}× ${label}`); };
-  addSide(row.rollCount, "rohlík");
+  addSide(row.rollCount, "houska");
   addSide(row.breadDumplingCount, "hous. knedlík");
   addSide(row.potatoDumplingCount, "bram. knedlík");
   addSide(row.ketchupCount, "kečup");

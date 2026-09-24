@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import MIcon from "../MIcon";
 
@@ -11,16 +12,16 @@ import MIcon from "../MIcon";
  * všechno naráz, základ by v tom zapadl.
  */
 const HELP_STEPS = [
-  { num: "①", title: "Přidej se", body: 'Klikni na „+ Přidat" u svého oddělení. Zadej jméno a příjmení — pod tím jménem se objednávka odešle do LIMA.', icon: "groups" },
-  { num: "②", title: "Vyber jídlo", body: "Zvol polévku a hlavní jídlo z dnešního menu. Cena se spočítá automaticky.", icon: "restaurant_menu" },
-  { num: "③", title: "Hotovo — objednávka se odešle sama", body: "V čas uzávěrky (vidíš ho v horní liště) se objednávka automaticky odešle do LIMA. Nic víc dělat nemusíš.", icon: "check_circle" },
+  { num: "①", title: "Přidejte se", body: "Klikněte na „+ Přidat“ u svého oddělení. Zadejte jméno a příjmení – pod tímto jménem se objednávka odešle do LIMY.", icon: "groups" },
+  { num: "②", title: "Vyberte jídlo", body: "Zvolte polévku a hlavní jídlo z dnešního jídelníčku. Cena se spočítá automaticky.", icon: "restaurant_menu" },
+  { num: "③", title: "Hotovo – objednávka se odešle sama", body: "V čase uzávěrky (je vidět v horní liště) se objednávka automaticky odešle do LIMY. Nic dalšího dělat nemusíte.", icon: "check_circle" },
 ] as const;
 
 const HELP_ADVANCED = [
-  { title: "Dvě různé polévky nebo jídla", body: 'Použij „Přidat další jídlo" — v jedné objednávce jich může být víc.', icon: "add" },
-  { title: "Víc porcí stejného jídla", body: "Nastav počet porcí přímo u daného jídla.", icon: "receipt_long" },
-  { title: "Přílohy a omáčky", body: "Rohlík, knedlík, kečup, tatarka nebo BBQ — přičtou se k ceně automaticky.", icon: "lunch_dining" },
-  { title: "Pizza", body: "Záložka Pizza funguje samostatně s vlastním menu a uzávěrkou.", icon: "local_pizza" },
+  { title: "Dvě různé polévky nebo jídla", body: "Použijte „Přidat další jídlo“ – v jedné objednávce jich může být víc.", icon: "add" },
+  { title: "Víc porcí stejného jídla", body: "Nastavte počet porcí přímo u daného jídla.", icon: "receipt_long" },
+  { title: "Přílohy a omáčky", body: "Houska, knedlík, kečup, tatarka nebo BBQ – přičtou se k ceně automaticky.", icon: "lunch_dining" },
+  { title: "Pizza", body: "Záložka Pizza funguje samostatně, s vlastní nabídkou a uzávěrkou.", icon: "local_pizza" },
   { title: "Přepínání dnů klávesnicí", body: "Šipky ← → přepínají mezi dostupnými dny v týdnu.", icon: "keyboard" },
 ] as const;
 
@@ -101,6 +102,15 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           )}
+
+          <Link
+            className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-[12.5px] font-semibold text-stone-600 hover:bg-white/60 transition"
+            href="/pripominky?kategorie=chyba&odkud=/"
+          >
+            <MIcon name="feedback" size={17} style={{ color: "#D97706" }} />
+            Něco nefunguje? Napište nám
+            <MIcon name="chevron_right" size={16} className="ml-auto text-stone-400" />
+          </Link>
         </div>
       </div>
     </div>

@@ -91,7 +91,7 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
           )}
           {isLocked && (
             <p className="text-[12px] text-amber-700 text-center -mt-1">
-              Moc pokusů po sobě. Zkuste to znovu za <b className="tabular-nums">{lockLeft}</b>.
+              Příliš mnoho pokusů za sebou. Zkuste to znovu za <b className="tabular-nums">{lockLeft}</b>.
             </p>
           )}
           <button
@@ -99,7 +99,7 @@ export function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
             disabled={isPending || pin.length === 0 || isLocked}
             type="submit"
           >
-            {isPending ? "Ověřuji..." : "Odemknout"}
+            {isPending ? "Ověřuji…" : "Odemknout"}
           </button>
         </form>
       </div>

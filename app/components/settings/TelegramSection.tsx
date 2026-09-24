@@ -96,13 +96,13 @@ export function TelegramBotCard({
           </div>
           <span className="text-[13px] font-semibold text-stone-800">Zapnout Telegram notifikace</span>
         </label>
-        <SettingsField hint="Token z @BotFather, např. 123456:ABC-DEF..." label="Bot Token">
-          <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI..." type="text" />
+        <SettingsField hint="Token z @BotFather, např. 123456:ABC-DEF…" label="Bot Token">
+          <input className="modal-input font-mono text-[12px]" defaultValue={settings.telegramBotToken} name="telegramBotToken" placeholder="123456789:ABCdefGHI…" type="text" />
         </SettingsField>
-        <SettingsField hint="každý pracovní den bot pošle ranní jídelníček odběratelům — prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
+        <SettingsField hint="každý pracovní den bot pošle ranní jídelníček odběratelům – prázdné = vypnuto" label="Ranní jídelníček (čas odeslání)">
           <input className="modal-input w-32" defaultValue={settings.telegramMorningMenuTime} name="telegramMorningMenuTime" placeholder="07:30" type="time" />
         </SettingsField>
-        <SettingsField hint="URL tvé appky — umožní otevřít ji jako Mini App přímo v Telegramu přes tlačítko 🌐 v klávesnici (volitelné)" label="URL Mini App">
+        <SettingsField hint="adresa aplikace – umožní ji otevřít jako Mini App přímo v Telegramu tlačítkem 🌐 v klávesnici (nepovinné)" label="URL Mini App">
           <input className="modal-input" defaultValue={settings.telegramAppUrl} name="telegramAppUrl" placeholder="https://objednavky.firma.cz" type="url" />
         </SettingsField>
 
@@ -159,11 +159,11 @@ export function TelegramSection({
         <div className="flex flex-col gap-4">
           <SettingsSection icon="notifications" title="Co bot hlásí">
             <div className="space-y-2 text-[12.5px]">
-              <div className="flex items-start gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a", marginTop: 2 }} /><span className="text-stone-600"><b>Objednávka odeslána</b> — upozornění adminu (auto-send i ruční)</span></div>
-              <div className="flex items-start gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626", marginTop: 2 }} /><span className="text-stone-600"><b>Selhání auto-send</b> — upozornění adminům</span></div>
-              <div className="flex items-start gap-2"><MIcon name="wb_sunny" size={14} fill style={{ color: "#D97706", marginTop: 2 }} /><span className="text-stone-600"><b>Ranní jídelníček</b> — uživatelé se zapnutým 🌅</span></div>
-              <div className="flex items-start gap-2"><MIcon name="alarm" size={14} fill style={{ color: "#7c3aed", marginTop: 2 }} /><span className="text-stone-600"><b>Připomenutí uzávěrky</b> — uživatelé se zapnutým 🔔 (nebo osobní čas ⏰)</span></div>
-              <div className="flex items-start gap-2"><MIcon name="menu_book" size={14} fill style={{ color: "#0284c7", marginTop: 2 }} /><span className="text-stone-600"><b>Nový jídelníček</b> — uživatelé se zapnutým 📋</span></div>
+              <div className="flex items-start gap-2"><MIcon name="check_circle" size={14} fill style={{ color: "#16a34a", marginTop: 2 }} /><span className="text-stone-600"><b>Objednávka odeslána</b> – upozornění adminu (auto-send i ruční)</span></div>
+              <div className="flex items-start gap-2"><MIcon name="error" size={14} fill style={{ color: "#dc2626", marginTop: 2 }} /><span className="text-stone-600"><b>Selhání automatického odeslání</b> – upozornění adminům</span></div>
+              <div className="flex items-start gap-2"><MIcon name="wb_sunny" size={14} fill style={{ color: "#D97706", marginTop: 2 }} /><span className="text-stone-600"><b>Ranní jídelníček</b> – uživatelé se zapnutým 🌅</span></div>
+              <div className="flex items-start gap-2"><MIcon name="alarm" size={14} fill style={{ color: "#7c3aed", marginTop: 2 }} /><span className="text-stone-600"><b>Připomenutí uzávěrky</b> – uživatelé se zapnutým 🔔 (nebo osobní čas ⏰)</span></div>
+              <div className="flex items-start gap-2"><MIcon name="menu_book" size={14} fill style={{ color: "#0284c7", marginTop: 2 }} /><span className="text-stone-600"><b>Nový jídelníček</b> – uživatelé se zapnutým 📋</span></div>
             </div>
           </SettingsSection>
 
@@ -177,7 +177,7 @@ export function TelegramSection({
                 ["/zitra", "jídelníček na zítřek", false],
                 ["/pizza", "aktuální nabídka pizzerie", false],
                 ["/statistiky", "statistiky posledních 7 dní", false],
-                ["/nastaveni", "nastavení notifikací (inline tlačítka)", false],
+                ["/nastaveni", "nastavení notifikací (tlačítka ve zprávě)", false],
                 ["/nastavit reminder HH:MM", "nastavit osobní připomenutí", false],
                 ["/zrusit reminder", "zrušit osobní připomenutí", false],
                 ["/pozvat", "QR kód pro přidání kolegy", false],
@@ -200,7 +200,7 @@ export function TelegramSection({
 
         <SettingsSection icon="integration_instructions" title="Nastavení webhooku">
           <p className="text-[12.5px] text-stone-500">
-            Aby bot přijímal příkazy, musí Telegram vědět na jakou URL odesílat zprávy. Klikni na tlačítko níže po každé změně domény nebo tokenu.
+            Aby bot přijímal příkazy, musí Telegram vědět, na jakou URL odesílat zprávy. Klikněte na tlačítko níže po každé změně domény nebo tokenu.
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -243,7 +243,7 @@ export function TelegramSection({
                 const res = await actionSetTelegramCommands();
                 setCommandsStatus(res.ok ? "ok" : "error");
               }}
-              title="Zaregistruje příkazy bota u Telegramu — zobrazí se v autocomplete při psaní /"
+              title="Zaregistruje příkazy bota u Telegramu – zobrazí se v autocomplete při psaní /"
               type="button"
             >
               {commandsStatus === "pending" ? "Registruji…" : "Registrovat příkazy"}
@@ -291,18 +291,18 @@ export function TelegramSection({
                 {[
                   {
                     num: "1",
-                    title: "Vytvoř bota přes @BotFather (2 minuty)",
+                    title: "Vytvořte bota přes @BotFather (2 minuty)",
                     body: (
                       <div className="space-y-2">
-                        <p>V Telegramu vyhledej <strong>@BotFather</strong> — vyber toho s modrým ověřovacím odznakem. Klikni <strong>Start</strong>.</p>
+                        <p>V Telegramu vyhledejte <strong>@BotFather</strong> – vyberte toho s modrým ověřovacím odznakem. Klikněte na <strong>Start</strong>.</p>
                         <div className="space-y-1 text-[12px]">
                           {[
-                            ["Ty napíšeš:", "/newbot"],
+                            ["Napíšete:", "/newbot"],
                             ["BotFather se zeptá:", "How are we going to call it? (zobrazovaný název, např. Obědy LIMA)"],
-                            ["Ty napíšeš:", "Obědy LIMA"],
-                            ["BotFather se zeptá:", "Choose a username — musí končit na bot (např. ObedyLIMAbot)"],
-                            ["Ty napíšeš:", "ObedyLIMAbot"],
-                            ["BotFather odpoví:", "Done! Token: 1234567890:AAFxxxxxxx... — zkopíruj ho!"],
+                            ["Napíšete:", "Obědy LIMA"],
+                            ["BotFather se zeptá:", "Choose a username – musí končit na bot (např. ObedyLIMAbot)"],
+                            ["Napíšete:", "ObedyLIMAbot"],
+                            ["BotFather odpoví:", "Done! Token: 1234567890:AAFxxxxxxx… – ten zkopírujte"],
                           ].map(([who, what], i) => (
                             <div key={i} className="flex gap-2">
                               <span className="shrink-0 text-stone-400 w-28">{who}</span>
@@ -315,28 +315,28 @@ export function TelegramSection({
                   },
                   {
                     num: "2",
-                    title: "Vlož token do nastavení a ulož",
-                    body: <>Zkopíruj <strong>Bot Token</strong> z BotFather, vlož ho do pole výše, zaškrtni přepínač a klikni <strong>Uložit nastavení</strong>.</>,
+                    title: "Vložte token do nastavení a uložte",
+                    body: <>Zkopírujte <strong>Bot Token</strong> od BotFathera, vložte ho do pole výše, zapněte přepínač a klikněte na <strong>Uložit</strong>.</>,
                   },
                   {
                     num: "3",
-                    title: "Nastav webhook",
-                    body: <>Klikni na <strong>Nastavit webhook</strong> — tím Telegramu řekneš, kam má posílat příkazy. Stačí jednou (opakuj jen při změně domény nebo tokenu).</>,
+                    title: "Nastavte webhook",
+                    body: <>Klikněte na <strong>Nastavit webhook</strong> – tím Telegramu řeknete, kam má posílat příkazy. Stačí jednou (znovu jen při změně domény nebo tokenu).</>,
                   },
                   {
                     num: "4",
-                    title: "Kolegové — stačí kliknout na odkaz",
+                    title: "Kolegové – stačí kliknout na odkaz",
                     body: (
                       <div className="space-y-1.5">
-                        <p>Pošli kolegům odkaz <code className="bg-black/5 px-1 rounded">t.me/ObedyLIMAbot</code> (uprav na své uživatelské jméno). Kliknou, zmáčknou <strong>Start</strong> — a jsou zaregistrovaní. Žádné nastavování, žádný BotFather.</p>
-                        <p className="text-stone-400">První kdo klikne Start dostane automaticky roli <strong>admin</strong> (může odesílat objednávky příkazem).</p>
+                        <p>Pošlete kolegům odkaz <code className="bg-black/5 px-1 rounded">t.me/ObedyLIMAbot</code> (s uživatelským jménem vašeho bota). Kliknou, zmáčknou <strong>Start</strong> – a jsou zaregistrovaní. Žádné nastavování, žádný BotFather.</p>
+                        <p className="text-stone-400">První, kdo klikne na Start, dostane automaticky roli <strong>admin</strong> (může odesílat objednávky příkazem).</p>
                       </div>
                     ),
                   },
                   {
                     num: "5",
-                    title: "Otestuj",
-                    body: <>Klikni na <strong>Testovat zprávu</strong> — bot pošle testovací zprávu všem registrovaným. Zkus taky napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo botovi.</>,
+                    title: "Otestujte",
+                    body: <>Klikněte na <strong>Testovat zprávu</strong> – bot pošle testovací zprávu všem registrovaným. Zkuste také napsat <code className="bg-black/5 px-1 rounded">/pomoc</code> přímo botovi.</>,
                   },
                 ].map((step) => (
                   <div key={step.num} className="flex gap-3">
@@ -352,7 +352,7 @@ export function TelegramSection({
 
                 {/* Commands reference */}
                 <div className="glass-soft rounded-2xl p-3.5 flex flex-col gap-2">
-                  <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (piš botovi přímo v soukromém chatu)</p>
+                  <p className="font-display font-bold text-[12.5px] text-stone-800">Příkazy (pište botovi přímo v soukromém chatu)</p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
                     {[
                       ["/stav", "přehled dnešní objednávky"],
@@ -379,7 +379,7 @@ export function TelegramSection({
                   </div>
                 </div>
 
-                <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdeš v nastavení v sekci „Registrovaní uživatelé“.</p>
+                <p className="text-[11.5px] text-stone-400">Správu registrovaných uživatelů (odebrání, změna role) najdete v Nastavení v sekci „Registrovaní uživatelé“.</p>
               </div>
             </div>
           </div>

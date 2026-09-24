@@ -31,7 +31,7 @@ function Bound({ label, iso }: { label: string; iso: string }) {
   return (
     <div>
       {/* stone-500, not stone-400: at 11px the lighter grey measured 2.59:1 against
-          the card, well under the 4.5:1 floor — and these two dates are the whole
+          the card, well under the 4.5:1 floor – and these two dates are the whole
           reason the footer exists. */}
       <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-500 leading-none">
         {label}
@@ -67,7 +67,7 @@ export default function ClosureCard({ closure }: { closure: ClosureContext }) {
             {closure.label}
           </h1>
           <div className="text-[13px] text-stone-500 mt-1 tabular-nums">
-            Od {shortDate(closure.startDate)} do {shortDate(closure.endDate)} se v LIMA nevaří
+            Od {shortDate(closure.startDate)} do {shortDate(closure.endDate)} se v LIMĚ nevaří
           </div>
           {closure.note && (
             <p className="text-[13px] text-stone-500 leading-relaxed mt-2.5">{closure.note}</p>

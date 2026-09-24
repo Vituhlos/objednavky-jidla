@@ -18,7 +18,7 @@ export function PricesSection({ settings }: { settings: AppSettings }) {
     <>
       <SettingsSection icon="restaurant" title="Ceník jídel">
         <p className="text-[12.5px] text-stone-500">
-          Výchozí ceny používané při importu jídelního lístku z webu. Existující položky v menu se nemění.
+          Výchozí ceny, které se použijí při importu jídelníčku. Položky, které už v jídelníčku jsou, se nezmění.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <SettingsField hint="Kč za porci" label="Výchozí cena polévky">
@@ -32,7 +32,7 @@ export function PricesSection({ settings }: { settings: AppSettings }) {
 
       <SettingsSection icon="shopping_basket" title="Přílohy a doplňky">
         <p className="text-[12.5px] text-stone-500">
-          Ceny příloh zobrazované v modalu a používané pro výpočet ceny řádku.
+          Ceny příloh, které se ukazují v okně objednávky a počítají do ceny.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {SIDE_DISH_PRICES.map((price) => (

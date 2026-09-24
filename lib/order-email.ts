@@ -165,7 +165,7 @@ export function buildOrderEmail(orderData: OrderData): {
   const html = `
     <div style="font-family: Calibri, sans-serif; font-size: 15px;">
       Dobrý den,<br><br>
-      v příloze posílám PDF s dnešní objednávkou obědů firmy STROS - Sedlčanské strojírny,a.s., pro oddělení ${escapeHtml(
+      v příloze posílám PDF s dnešní objednávkou obědů firmy STROS – Sedlčanské strojírny, a.s., pro oddělení ${escapeHtml(
         departmentList
       )}.<br><br>
       ${htmlShrnuti}
@@ -175,7 +175,7 @@ export function buildOrderEmail(orderData: OrderData): {
 
   const textLines = [
     "Denní objednávka obědů – LIMA",
-    `v příloze posílám PDF s dnešní objednávkou obědů firmy STROS - Sedlčanské strojírny,a.s., pro oddělení ${departmentList}.`,
+    `v příloze posílám PDF s dnešní objednávkou obědů firmy STROS – Sedlčanské strojírny, a.s., pro oddělení ${departmentList}.`,
     "",
     "Objednávaná oddělení:",
     ...departmentNames.map((name) => `- ${name}`),

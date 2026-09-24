@@ -1,5 +1,6 @@
 "use client";
 
+import { plural } from "@/lib/format";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderSummary } from "@/lib/orders";
@@ -68,8 +69,8 @@ export default function HistoryPage({
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
         <span className="font-display font-bold text-[15px] text-stone-900 flex-1">Historie objednávek</span>
         <span className="text-[12px] text-stone-500">
-          <strong className="text-stone-700">{sentCount}</strong> obědů
-          {pizzaEnabled && <> · <strong className="text-stone-700">{pizzaSentCount}</strong> pizz</>}
+          <strong className="text-stone-700">{sentCount}</strong> {plural(sentCount, "oběd", "obědy", "obědů")}
+          {pizzaEnabled && <> · <strong className="text-stone-700">{pizzaSentCount}</strong> {plural(pizzaSentCount, "pizza", "pizzy", "pizz")}</>}
         </span>
         <HideEmptyToggle checked={hideEmpty} label="Skrýt prázdné koncepty" onChange={setHideEmpty} />
         <input
