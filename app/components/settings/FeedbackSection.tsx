@@ -18,13 +18,67 @@ type Filter = "open" | "all" | FeedbackStatus;
 
 const OPEN_STATUSES: FeedbackStatus[] = ["new", "read", "planned"];
 
-const STATUS_TONES: Record<FeedbackStatus, string> = {
-  new: "bg-amber-100 text-amber-800",
-  read: "bg-sky-100 text-sky-800",
-  planned: "bg-violet-100 text-violet-800",
-  done: "bg-green-100 text-green-800",
-  rejected: "bg-stone-200 text-stone-600",
+// Stejná řeč barev jako štítky v historii: tlumené pozadí, sytý text.
+const STATUS_STYLES: Record<FeedbackStatus, React.CSSProperties> = {
+  new: { background: "rgba(234,88,12,0.12)", color: "#c2410c" },
+  read: { background: "rgba(26,18,8,0.07)", color: "#7a6552" },
+  planned: { background: "rgba(59,130,246,0.12)", color: "#1d4ed8" },
+  done: { background: "rgba(21,128,61,0.12)", color: "#15803d" },
+  rejected: { background: "rgba(26,18,8,0.05)", color: "#a8a29e" },
 };
+
+function StatusBadge({ status }: { status: FeedbackStatus }) {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style={STATUS_STYLES[status]}>
+      {getStatusMeta(status).label}
+    </span>
+  );
+}
+
+/** Přepínač jako záložky Nastavení na mobilu — šedá lišta, aktivní položka v gradientu. */
+function Segmented<T extends string>({
+  items,
+  value,
+  onChange,
+  label,
+}: {
+  items: { id: T; label: string; count?: number }[];
+  value: T;
+  onChange: (id: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+      <div
+        aria-label={label}
+        className="flex p-1 rounded-2xl gap-0.5"
+        role="group"
+        style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+      >
+        {items.map((item) => {
+          const active = item.id === value;
+          return (
+            <button
+              key={item.id}
+              aria-pressed={active}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[34px] rounded-xl text-[12px] font-semibold transition-all duration-200 active:scale-[0.96] ${
+                active ? "text-white" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"
+              }`}
+              onClick={() => onChange(item.id)}
+              style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
+              type="button"
+            >
+              {item.label}
+              {item.count !== undefined && (
+                <span className={`text-[10.5px] ${active ? "text-white/80" : "text-stone-400"}`}>{item.count}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function formatDateTime(value: string): string {
   // SQLite datetime('now') je UTC bez zóny
@@ -74,51 +128,38 @@ export function FeedbackSection({
     ...Object.fromEntries(FEEDBACK_STATUSES.map((s) => [s.id, entries.filter((e) => e.status === s.id).length])),
   } as Record<Filter, number>;
 
-  const filters: { id: Filter; label: string }[] = [
-    { id: "open", label: "📬 K vyřízení" },
-    ...FEEDBACK_STATUSES.map((s) => ({ id: s.id as Filter, label: `${s.emoji} ${s.label}` })),
-    { id: "all", label: "Vše" },
-  ];
+  const filters = [
+    { id: "open" as Filter, label: "K vyřízení" },
+    ...FEEDBACK_STATUSES.map((s) => ({ id: s.id as Filter, label: s.label })),
+    { id: "all" as Filter, label: "Vše" },
+  ].map((f) => ({ ...f, count: counts[f.id] ?? 0 }));
 
   const visible = entries.filter((e) => matchesFilter(e, filter));
 
   return (
     <SettingsSection
       icon="feedback"
-      title={`Připomínky od uživatelů${counts.new > 0 ? ` · ${counts.new} nových` : ""}`}
+      title="Připomínky od uživatelů"
       helpContent={
         <div className="text-[12px] text-stone-500 leading-relaxed pb-2 flex flex-col gap-1.5">
-          <p>Lidé je posílají ze stránky <b>Připomínky</b> v menu. IP adresa se neukládá, jméno je dobrovolné.</p>
-          <p>Když připomínku označíte jako <b>✅ Hotovo</b> a vyplníte <b>veřejnou odpověď</b>, objeví se na stránce Připomínky v seznamu „Co jsme podle vás upravili“. Původní text ani autor se veřejně nikdy neukazují.</p>
+          <p>Když připomínku označíte jako <b>Hotovo</b> a vyplníte <b>veřejnou odpověď</b>, objeví se na stránce Připomínky v seznamu „Upravili jsme podle vás“. Původní text ani autor se veřejně nikdy neukazují.</p>
           <p>Upozornění na Telegram si admin zapne v botovi: <code className="bg-black/5 px-1 rounded">/nastaveni</code> → 💬 Nové připomínky.</p>
         </div>
       }
     >
-      <div className="flex gap-1.5 flex-wrap">
-        {filters.map((f) => {
-          const active = filter === f.id;
-          return (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              className={`text-[12px] font-semibold px-2.5 py-1.5 rounded-xl transition ${active ? "text-white" : "glass-btn text-stone-600"}`}
-              style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
-            >
-              {f.label}
-              <span className={`ml-1.5 text-[10.5px] ${active ? "text-white/80" : "text-stone-400"}`}>{counts[f.id] ?? 0}</span>
-            </button>
-          );
-        })}
-      </div>
+      <p className="text-[12.5px] text-stone-500">
+        Nápady a hlášení ze stránky Připomínky. IP adresa se neukládá, jméno je dobrovolné.
+      </p>
+
+      <Segmented items={filters} label="Filtr podle stavu" onChange={setFilter} value={filter} />
 
       {loadError ? (
         <p className="text-[12.5px] text-red-600">{loadError}</p>
       ) : !isLoaded ? (
         <p className="text-[12.5px] text-stone-400">Načítám…</p>
       ) : visible.length === 0 ? (
-        <p className="text-[12.5px] text-stone-400 py-2">
-          {entries.length === 0 ? "Zatím žádné připomínky. 📭" : "V tomhle filtru nic není. 🎉"}
+        <p className="text-[12.5px] text-stone-400">
+          {entries.length === 0 ? "Zatím žádné připomínky." : "V tomhle filtru nic není."}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -152,7 +193,6 @@ function FeedbackItem({
   onChange: Dispatch<SetStateAction<FeedbackEntry[]>>;
 }) {
   const cat = getCategoryMeta(entry.category);
-  const status = getStatusMeta(entry.status);
   const [draftStatus, setDraftStatus] = useState<FeedbackStatus>(entry.status);
   const [adminNote, setAdminNote] = useState(entry.adminNote);
   const [publicReply, setPublicReply] = useState(entry.publicReply);
@@ -197,103 +237,113 @@ function FeedbackItem({
   };
 
   return (
-    <li className={`rounded-2xl border transition ${entry.status === "new" ? "border-amber-300/70 bg-amber-50/50" : "border-white/60 bg-white/40"}`}>
+    <li className="glass-soft rounded-2xl">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
         className="w-full text-left flex items-start gap-3 px-3 py-2.5"
       >
-        <span className="text-[20px] leading-none mt-0.5" aria-hidden="true">{cat.emoji}</span>
+        <span className="text-[18px] leading-none mt-0.5" aria-hidden="true">{cat.emoji}</span>
         <span className="flex-1 min-w-0">
-          <span className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[12.5px] font-semibold text-stone-800">{cat.label}</span>
-            <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold ${STATUS_TONES[entry.status]}`}>
-              {status.emoji} {status.label}
-            </span>
+          <span className="flex items-center gap-2 flex-wrap">
+            {entry.status === "new" && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#EA580C" }} title="Nová" />}
+            <span className="text-[13px] font-semibold text-stone-800">{cat.label}</span>
+            <StatusBadge status={entry.status} />
           </span>
-          <span className={`block text-[13px] text-stone-700 mt-1 break-words ${expanded ? "whitespace-pre-line" : "line-clamp-2"}`}>
+          <span className={`block text-[12.5px] text-stone-700 mt-1 break-words ${expanded ? "whitespace-pre-line" : "line-clamp-2"}`}>
             {entry.message}
           </span>
           <span className="block text-[11px] text-stone-400 mt-1">
-            {entry.authorName || "🕶️ anonymně"} · {formatDateTime(entry.createdAt)}
-            {entry.page && <> · 📍 {entry.page}</>}
-            {entry.device && <> · {entry.device === "mobil" ? "📱" : "💻"} {entry.device}</>}
+            {entry.authorName || "anonymně"} · {formatDateTime(entry.createdAt)}
+            {entry.page && <> · {entry.page}</>}
+            {entry.device && <> · {entry.device}</>}
           </span>
         </span>
         <MIcon name={expanded ? "expand_less" : "expand_more"} size={18} className="text-stone-400 shrink-0 mt-0.5" />
       </button>
 
       {expanded && (
-        <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/60 pt-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-[12px] font-semibold text-stone-600">Stav</span>
-            <div className="flex gap-1.5 flex-wrap">
-              {FEEDBACK_STATUSES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setDraftStatus(s.id)}
-                  aria-pressed={draftStatus === s.id}
-                  className={`text-[12px] px-2.5 py-1.5 rounded-xl font-semibold transition ${draftStatus === s.id ? STATUS_TONES[s.id] + " ring-2 ring-amber-400/60" : "glass-btn text-stone-500"}`}
-                >
-                  {s.emoji} {s.label}
-                </button>
-              ))}
-            </div>
+        <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-white/50">
+          <div className="modal-field">
+            <span className="modal-label">Stav</span>
+            <Segmented
+              items={FEEDBACK_STATUSES.map((s) => ({ id: s.id, label: s.label }))}
+              label="Stav připomínky"
+              onChange={setDraftStatus}
+              value={draftStatus}
+            />
           </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-[12px] font-semibold text-stone-600">Interní poznámka <span className="font-normal text-stone-400">(vidíte jen vy)</span></span>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor={`fb-note-${entry.id}`}>
+              Interní poznámka <span className="modal-label-price">vidíte jen vy</span>
+            </label>
             <textarea
-              className="modal-input min-h-[60px] resize-y"
+              className="modal-note"
+              id={`fb-note-${entry.id}`}
               maxLength={FEEDBACK_LIMITS.adminNoteMax}
               onChange={(e) => setAdminNote(e.target.value)}
               placeholder="Třeba co s tím uděláme nebo proč ne…"
+              rows={2}
               value={adminNote}
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-[12px] font-semibold text-stone-600">Veřejná odpověď <span className="font-normal text-stone-400">(ukáže se všem, když je stav ✅ Hotovo)</span></span>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor={`fb-reply-${entry.id}`}>
+              Veřejná odpověď <span className="modal-label-price">ukáže se všem, když je stav Hotovo</span>
+            </label>
             <textarea
-              className="modal-input min-h-[60px] resize-y"
+              className="modal-note"
+              id={`fb-reply-${entry.id}`}
               maxLength={FEEDBACK_LIMITS.publicReplyMax}
               onChange={(e) => setPublicReply(e.target.value)}
               placeholder="Např. „Přidali jsme připomenutí uzávěrky do Telegramu.“"
+              rows={2}
               value={publicReply}
             />
             {draftStatus === "done" && !publicReply.trim() && (
               <span className="text-[11px] text-stone-400">Bez veřejné odpovědi se hotová připomínka na stránce Připomínky neukáže.</span>
             )}
-          </label>
+          </div>
 
-          {error && <p className="text-[12px] text-red-600" role="alert">{error}</p>}
+          {error && <p className="text-[12px] text-red-500" role="alert">{error}</p>}
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              className="modal-btn modal-btn--primary"
+              className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
               disabled={!dirty || isPending}
               onClick={() => save({ status: draftStatus, adminNote, publicReply })}
             >
+              <MIcon name="check" size={14} />
               {isPending ? "Ukládám…" : "Uložit"}
             </button>
             {entry.status === "new" && !dirty && (
-              <button type="button" className="modal-btn modal-btn--secondary" disabled={isPending} onClick={() => save({ status: "read" })}>
-                👀 Označit jako přečtené
+              <button
+                type="button"
+                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                disabled={isPending}
+                onClick={() => save({ status: "read" })}
+              >
+                Označit jako přečtené
               </button>
             )}
-            {saved && <span className="text-[12px] text-emerald-700">Uloženo.</span>}
+            {saved && (
+              <span className="text-[12px] text-green-700 inline-flex items-center gap-1.5">
+                <MIcon name="check_circle" size={14} /> Uloženo
+              </span>
+            )}
             <button
               type="button"
-              className="ml-auto w-8 h-8 rounded-lg glass-btn-danger inline-flex items-center justify-center text-red-500"
+              className="ml-auto shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl text-red-600 transition"
+              style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}
               disabled={isPending}
               onClick={() => setConfirmDelete(true)}
-              title="Smazat připomínku"
-              aria-label="Smazat připomínku"
             >
-              <MIcon name="delete" size={16} />
+              <MIcon name="delete" size={14} />
+              Smazat
             </button>
           </div>
         </div>

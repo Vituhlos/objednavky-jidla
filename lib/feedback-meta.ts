@@ -16,11 +16,11 @@ export const FEEDBACK_CATEGORIES = [
 export type FeedbackCategory = (typeof FEEDBACK_CATEGORIES)[number]["id"];
 
 export const FEEDBACK_STATUSES = [
-  { id: "new",      emoji: "🆕", label: "Nová" },
-  { id: "read",     emoji: "👀", label: "Přečteno" },
-  { id: "planned",  emoji: "🗓️", label: "V plánu" },
-  { id: "done",     emoji: "✅", label: "Hotovo" },
-  { id: "rejected", emoji: "🚫", label: "Zamítnuto" },
+  { id: "new",      label: "Nová" },
+  { id: "read",     label: "Přečteno" },
+  { id: "planned",  label: "V plánu" },
+  { id: "done",     label: "Hotovo" },
+  { id: "rejected", label: "Zamítnuto" },
 ] as const;
 
 export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number]["id"];

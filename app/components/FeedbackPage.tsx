@@ -87,164 +87,178 @@ export default function FeedbackPage({ replies }: { replies: PublicFeedbackReply
     <div className="k-shell">
 
       {/* Desktop topbar */}
-      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-3 topbar shrink-0">
-        <MIcon name="feedback" size={16} fill style={{ color: "#D97706" }} />
-        <span className="font-display font-bold text-[15px] text-stone-900">Připomínky k aplikaci</span>
+      <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
+        <span className="font-display font-bold text-[15px] text-stone-900">Připomínky</span>
+        <span className="text-[12px] text-stone-500">Co byste v Kantýně změnili, přidali nebo opravili</span>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-stone-500">
+          <MIcon name="lock" size={13} style={{ color: "#a8a29e" }} />
+          Čte jen správce · můžete i anonymně
+        </span>
       </div>
 
       {/* Mobile topbar */}
-      <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5">
-        <span className="font-display font-bold text-[14px] text-stone-900">Připomínky</span>
+      <div className="md:hidden border-b border-white/50 topbar shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Připomínky</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-stone-500">
+            <MIcon name="lock" size={12} style={{ color: "#a8a29e" }} />
+            Čte jen správce
+          </span>
+        </div>
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-5 max-w-[1100px]">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
 
           {/* ── Formulář ── */}
-          <section className="glass rounded-3xl overflow-hidden flex-1 min-w-0" aria-labelledby="feedback-form-title">
-            <div className="px-4 md:px-5 py-4 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
-              <h1 id="feedback-form-title" className="font-display font-bold text-[16px] text-stone-900">
-                Co byste v Kantýně změnili? ✍️
-              </h1>
-              <p className="text-[12.5px] text-stone-500 mt-1 leading-relaxed">
-                Nápad, chyba, co vás štve nebo co se povedlo — všechno se hodí.
-                Připomínky čte jen správce aplikace a podepsat se nemusíte.
-              </p>
+          <section className="glass rounded-3xl overflow-hidden flex-1 min-w-0 lg:max-w-[720px]">
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(245,158,11,0.07)" }}>
+              <MIcon name="edit" size={17} style={{ color: "#D97706" }} />
+              <h1 className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Nová připomínka</h1>
             </div>
 
             {sent ? (
-              <div className="p-6 md:p-8 flex flex-col items-center text-center gap-3" role="status">
-                <span className="text-[44px] leading-none" aria-hidden="true">🎉</span>
-                <div className="font-display font-bold text-[17px] text-stone-900">Díky, připomínka dorazila!</div>
-                <p className="text-[13px] text-stone-500 max-w-[360px] leading-relaxed">
-                  Správce ji uvidí v Nastavení. Když se podle ní něco upraví, objeví se to vpravo v seznamu změn.
+              <div className="empty-state" role="status">
+                <div className="empty-state__icon" style={{ background: "rgba(21,128,61,0.08)", borderColor: "rgba(21,128,61,0.25)" }}>
+                  <MIcon name="check" size={22} style={{ color: "#15803d" }} />
+                </div>
+                <p className="empty-state__title">Díky, připomínka dorazila 🙌</p>
+                <p className="empty-state__sub" style={{ maxWidth: 280 }}>
+                  Když se podle ní něco upraví, objeví se to v seznamu změn.
                 </p>
-                <button className="modal-btn modal-btn--secondary mt-2" onClick={() => setSent(false)} type="button">
+                <button className="modal-btn modal-btn--secondary mt-1" onClick={() => setSent(false)} type="button">
                   Napsat další
                 </button>
               </div>
             ) : (
-              <form className="p-4 md:p-5 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+              <form onSubmit={handleSubmit} noValidate>
+                <div className="p-4 flex flex-col gap-4">
 
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="text-[12px] font-semibold text-stone-600 mb-2">O co jde?</legend>
-                  <div className="flex flex-wrap gap-1.5">
-                    {FEEDBACK_CATEGORIES.map((c) => {
-                      const active = c.id === category;
-                      return (
-                        <label
-                          key={c.id}
-                          className={`inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl text-[12.5px] font-semibold cursor-pointer select-none transition-all duration-150 active:scale-[0.97] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amber-500/70 ${
-                            active ? "text-white" : "glass-btn text-stone-600"
-                          }`}
-                          style={active ? {
-                            background: "linear-gradient(135deg,#F59E0B,#EA580C)",
-                            boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)",
-                          } : {}}
-                        >
-                          <input
-                            checked={active}
-                            className="sr-only"
-                            name="category"
-                            onChange={() => setCategory(c.id)}
-                            type="radio"
-                            value={c.id}
-                          />
-                          <span aria-hidden="true">{c.emoji}</span>
-                          {c.label}
-                        </label>
-                      );
-                    })}
+                  <fieldset className="modal-field">
+                    <legend className="modal-label mb-1.5">O co jde?</legend>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {FEEDBACK_CATEGORIES.map((c) => {
+                        const active = c.id === category;
+                        return (
+                          <label
+                            key={c.id}
+                            className={`flex items-center gap-2 px-3 py-2.5 min-h-[44px] rounded-[14px] text-[12.5px] cursor-pointer select-none transition active:scale-[0.98] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amber-500/60 ${
+                              active ? "sidebar-item-active font-semibold text-stone-900" : "font-medium text-stone-600 hover:bg-white/70"
+                            }`}
+                            style={active ? {} : { background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.68)" }}
+                          >
+                            <input
+                              checked={active}
+                              className="sr-only"
+                              name="category"
+                              onChange={() => setCategory(c.id)}
+                              type="radio"
+                              value={c.id}
+                            />
+                            <span className="text-[16px] leading-none" aria-hidden="true">{c.emoji}</span>
+                            <span className="leading-tight">{c.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <div className="modal-field">
+                    <label className="modal-label" htmlFor="feedback-message">Vaše připomínka</label>
+                    <textarea
+                      className="modal-note"
+                      id="feedback-message"
+                      maxLength={FEEDBACK_LIMITS.messageMax}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder={placeholderFor(category)}
+                      rows={5}
+                      value={message}
+                    />
+                    <span className={`text-[11px] self-end ${message.length > FEEDBACK_LIMITS.messageMax * 0.9 ? "text-amber-700" : "text-stone-400"}`}>
+                      {message.length} / {FEEDBACK_LIMITS.messageMax}
+                    </span>
                   </div>
-                </fieldset>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-[12px] font-semibold text-stone-600">Vaše připomínka</span>
-                  <textarea
-                    className="modal-input min-h-[140px] resize-y leading-relaxed"
-                    maxLength={FEEDBACK_LIMITS.messageMax}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={placeholderFor(category)}
-                    required
-                    value={message}
-                  />
-                  <span className={`text-[10.5px] self-end ${message.length > FEEDBACK_LIMITS.messageMax * 0.9 ? "text-amber-700" : "text-stone-400"}`}>
-                    {message.length} / {FEEDBACK_LIMITS.messageMax}
-                  </span>
-                </label>
-
-                <div className="flex flex-col gap-2">
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[12px] font-semibold text-stone-600">Jméno <span className="font-normal text-stone-400">(nepovinné)</span></span>
+                  <div className="modal-field">
+                    <label className="modal-label" htmlFor="feedback-name">
+                      Jméno <span className="modal-label-price">nepovinné</span>
+                    </label>
                     <input
                       autoComplete="name"
                       className="modal-input"
                       disabled={anonymous}
+                      id="feedback-name"
                       maxLength={FEEDBACK_LIMITS.nameMax}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Ať se můžeme doptat"
+                      placeholder={anonymous ? "Odešle se anonymně" : "Ať se můžeme doptat"}
                       type="text"
                       value={anonymous ? "" : name}
                     />
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-[12.5px] text-stone-600 cursor-pointer select-none self-start">
-                    <input
-                      checked={anonymous}
-                      className="w-4 h-4 accent-amber-600"
-                      onChange={(e) => setAnonymous(e.target.checked)}
-                      type="checkbox"
-                    />
-                    🕶️ Odeslat anonymně
-                  </label>
-                </div>
-
-                {/* Past na roboty — člověk pole nevidí a nevyplní */}
-                <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
-                  <label>
-                    Web
-                    <input autoComplete="off" name="website" onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} type="text" value={website} />
-                  </label>
-                </div>
-
-                {error && (
-                  <div className="text-[12.5px] text-red-700 bg-red-50/80 border border-red-200 rounded-xl px-3 py-2" role="alert">
-                    {error}
+                    <label className="flex items-center gap-2 cursor-pointer select-none self-start mt-1.5">
+                      <div className="relative shrink-0">
+                        <input checked={anonymous} className="peer sr-only" onChange={(e) => setAnonymous(e.target.checked)} type="checkbox" />
+                        <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-500/60" />
+                        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
+                      </div>
+                      <span className="text-[12px] text-stone-600">Odeslat anonymně</span>
+                    </label>
                   </div>
-                )}
 
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button className="modal-btn modal-btn--primary inline-flex items-center gap-1.5" disabled={tooShort || isPending} type="submit">
-                    <MIcon name="send" size={15} />
-                    {isPending ? "Odesílám…" : "Odeslat připomínku"}
-                  </button>
-                  {tooShort && trimmedLength > 0 && (
-                    <span className="text-[11.5px] text-stone-400">Ještě pár slov, prosím.</span>
+                  {/* Past na roboty — člověk pole nevidí a nevyplní */}
+                  <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+                    <label>
+                      Web
+                      <input autoComplete="off" name="website" onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} type="text" value={website} />
+                    </label>
+                  </div>
+
+                  {error && (
+                    <div role="alert" className="px-3 py-2 rounded-xl text-[12px] text-red-700 font-medium flex items-center gap-1.5"
+                      style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+                      <MIcon name="warning" size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
+                      {error}
+                    </div>
                   )}
+                </div>
+
+                <div className="flex items-center gap-3 px-4 py-3 border-t border-white/40">
+                  <span className="text-[11.5px] text-stone-400 flex-1">
+                    {tooShort && trimmedLength > 0 ? "Ještě pár slov, prosím." : "IP adresa se neukládá."}
+                  </span>
+                  <button className="modal-btn modal-btn--primary inline-flex items-center gap-1.5" disabled={tooShort || isPending} type="submit">
+                    <MIcon name="send" size={14} />
+                    {isPending ? "Odesílám…" : "Odeslat"}
+                  </button>
                 </div>
               </form>
             )}
           </section>
 
           {/* ── Co jsme upravili ── */}
-          <section className="glass rounded-3xl overflow-hidden lg:w-[380px] lg:shrink-0" aria-labelledby="feedback-done-title">
-            <div className="px-4 md:px-5 py-3.5 border-b border-white/40 flex items-center gap-2" style={{ background: "rgba(79,138,83,0.08)" }}>
-              <span aria-hidden="true">🛠️</span>
-              <h2 id="feedback-done-title" className="font-display font-bold text-[14px] text-stone-900">Co jsme podle vás upravili</h2>
+          <section className="glass rounded-3xl overflow-hidden lg:w-[360px] lg:shrink-0">
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: "rgba(21,128,61,0.06)" }}>
+              <MIcon name="check_circle" size={17} fill style={{ color: "#15803d" }} />
+              <h2 className="font-display font-bold text-[13.5px] text-stone-900 flex-1">Upravili jsme podle vás</h2>
+              {replies.length > 0 && <span className="text-[11px] text-stone-500">{replies.length} změn</span>}
             </div>
             {replies.length === 0 ? (
-              <p className="p-4 md:p-5 text-[12.5px] text-stone-400 leading-relaxed">
-                Zatím tu nic není. První úprava podle vašich připomínek se objeví právě tady. 🌱
-              </p>
+              <div className="empty-state">
+                <div className="empty-state__icon">
+                  <MIcon name="check_circle" size={22} style={{ color: "#94a3b8" }} />
+                </div>
+                <p className="empty-state__title">Zatím tu nic není</p>
+                <p className="empty-state__sub">První úprava podle vašich připomínek se objeví tady</p>
+              </div>
             ) : (
-              <ul className="p-2 md:p-3 flex flex-col gap-1">
+              <ul>
                 {replies.map((r) => {
                   const cat = getCategoryMeta(r.category);
                   return (
-                    <li key={r.id} className="flex gap-3 px-2 py-2.5 rounded-2xl">
-                      <span className="text-[20px] leading-none mt-0.5" aria-hidden="true">{cat.emoji}</span>
+                    <li key={r.id} className="flex gap-3 px-4 py-3 border-b border-white/40 last:border-b-0">
+                      <span className="text-[16px] leading-none mt-0.5" aria-hidden="true">{cat.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[13px] text-stone-800 leading-snug whitespace-pre-line break-words">{r.publicReply}</p>
-                        <span className="text-[11px] text-stone-400">✅ {formatDate(r.resolvedAt)} · {cat.label}</span>
+                        <p className="text-[12.5px] text-stone-800 leading-snug whitespace-pre-line break-words">{r.publicReply}</p>
+                        <span className="text-[11px] text-stone-400">{formatDate(r.resolvedAt)} · {cat.label}</span>
                       </div>
                     </li>
                   );
