@@ -6,6 +6,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-24
+
+### Added
+
+- **„Co je nového“ na stránce Připomínky.** Karta ukazuje poslední novinku i lidem, kteří nemají PIN do Nastavení; „Starší novinky“ otevře okno s celou historií (stejné jako „Co je nového“ v Nastavení). Okno se vykresluje přes portál do `<body>`, protože `backdrop-filter` karty by jinak z `position: fixed` udělal pozici vůči kartě.
+- Záznam v `lib/release-notes.ts` má nové povinné pole `forEveryone`: pár neosobních vět o tom, čeho si všimne člověk, který si objednává. Správa, zabezpečení a nasazení tam nepatří a dál se ukazují jen v Nastavení → O aplikaci → Novinky. Verze s prázdným `forEveryone` se veřejně nezobrazí. Doplněno zpětně pro 1.2.0 až 1.4.0; samotná 1.5.0 veřejně nic neohlašuje (karta by ohlašovala sama sebe).
+- Testy: veřejné novinky nevynechají nevydanou verzi, nepustí ven technické sekce a neoslovují čtenáře („vy“ ani „ty“, protože stránka Připomínky tyká a zbytek appky vyká).
+
 ## [1.4.0] - 2026-09-24
 
 ### Added
