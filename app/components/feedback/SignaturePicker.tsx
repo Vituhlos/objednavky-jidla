@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import MIcon from "../MIcon";
 import { getInitials } from "@/lib/format";
 import { FEEDBACK_LIMITS } from "@/lib/feedback-meta";
 
@@ -29,7 +30,7 @@ export function SignaturePicker({
         onClick={() => { onAnonymousChange(false); inputRef.current?.focus(); }}
       >
         <span aria-hidden="true" className={`fb-sign__avatar${initials ? "" : " fb-sign__avatar--muted"}`}>
-          {initials || <span className="emoji">👤</span>}
+          {initials || <MIcon name="edit" size={14} />}
         </span>
         <span className="sr-only">Poslat pod jménem</span>
         <input
@@ -44,11 +45,10 @@ export function SignaturePicker({
       </label>
       <button
         aria-pressed={anonymous}
-        className={`fb-sign${anonymous ? " fb-sign--active" : ""}`}
+        className={`fb-sign fb-sign--plain${anonymous ? " fb-sign--active" : ""}`}
         onClick={() => onAnonymousChange(!anonymous)}
         type="button"
       >
-        <span aria-hidden="true" className="fb-sign__avatar fb-sign__avatar--muted"><span className="emoji">🕶️</span></span>
         Bez jména
       </button>
     </div>

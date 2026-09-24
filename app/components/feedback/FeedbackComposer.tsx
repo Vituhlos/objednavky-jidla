@@ -179,7 +179,7 @@ export function FeedbackComposer() {
     {dragging && (
       <div aria-hidden="true" className="fb-dropzone-overlay">
         <div className="fb-dropzone-overlay__box">
-          <span className="emoji text-[40px] leading-none">📸</span>
+          <MIcon name="upload_file" size={36} style={{ color: "#D97706" }} />
           <span className="font-display font-bold text-[16px] text-stone-900">Pusť obrázek sem</span>
           <span className="text-[12px] text-stone-500">Přidá se k připomínce</span>
         </div>
@@ -202,7 +202,6 @@ export function FeedbackComposer() {
           {meta && (
             <div key={meta.id} className="flex flex-col gap-3 fade-up">
               <div className="flex items-center gap-2">
-                <span aria-hidden="true" className="emoji text-[18px] leading-none">{meta.emoji}</span>
                 <label className="font-display font-bold text-[14px] text-stone-900" htmlFor="fb-message">{meta.question}</label>
                 {restored && message.trim() && (
                   <span className="ml-auto text-[11px] text-stone-400 inline-flex items-center gap-1">

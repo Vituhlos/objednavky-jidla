@@ -239,14 +239,11 @@ function FeedbackItem({
             {entry.message}
           </span>
           <span className="flex items-center gap-1.5 mt-1.5 text-[11px] text-stone-400 flex-wrap">
-            <span className="inline-flex items-center gap-1">
-              <span className="emoji" aria-hidden="true">{entry.authorName ? "👤" : "🕶️"}</span>
-              {entry.authorName || "anonymně"}
-            </span>
+            <span>{entry.authorName || "bez jména"}</span>
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
             {entry.attachments.length > 0 && (
-              <span className="inline-flex items-center gap-1">· <span className="emoji" aria-hidden="true">📎</span>{entry.attachments.length}</span>
+              <span>· {entry.attachments.length} {entry.attachments.length === 1 ? "obrázek" : "obrázky"}</span>
             )}
           </span>
         </span>

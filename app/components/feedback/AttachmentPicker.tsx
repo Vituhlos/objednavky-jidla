@@ -50,7 +50,7 @@ export function AttachmentPicker({
             onClick={() => inputRef.current?.click()}
             type="button"
           >
-            <span aria-hidden="true" className="emoji text-[20px] leading-none">{busy ? "⏳" : "📸"}</span>
+            <MIcon name={busy ? "refresh" : "upload_file"} size={20} className={busy ? "animate-spin" : ""} style={{ color: "#D97706" }} />
             {items.length === 0 ? (
               <span className="flex flex-col items-start text-left">
                 <span className="text-[12.5px] font-semibold text-stone-700">{busy ? "Připravuji obrázek…" : "Přidat obrázek"}</span>

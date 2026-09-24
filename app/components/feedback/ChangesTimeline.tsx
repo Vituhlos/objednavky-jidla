@@ -17,10 +17,8 @@ export function ChangesTimeline({ replies }: { replies: PublicFeedbackReply[] })
 
       {replies.length === 0 ? (
         <div className="empty-state">
-          <div className="flex -space-x-2" aria-hidden="true">
-            {["💡", "🛠️", "✅"].map((e, i) => (
-              <span key={e} className="fb-timeline__dot emoji" style={{ transform: `rotate(${(i - 1) * 8}deg)` }}>{e}</span>
-            ))}
+          <div className="empty-state__icon">
+            <MIcon name="check_circle" size={22} style={{ color: "#94a3b8" }} />
           </div>
           <p className="empty-state__title">Zatím nic</p>
           <p className="empty-state__sub">První změna podle vašich připomínek se objeví tady</p>
