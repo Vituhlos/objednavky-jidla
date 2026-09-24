@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import sharp from "sharp";
+import type SharpType from "sharp";
 import { getDataDir, getDb } from "./db";
 import { FEEDBACK_ATTACHMENT_LIMITS, type FeedbackAttachment } from "./feedback-meta";
 
@@ -30,9 +30,25 @@ export function getAttachmentDir(): string {
 export type ProcessedImage = { buffer: Buffer; width: number; height: number };
 
 /** Dekóduje, srovná podle EXIF orientace, zmenší a uloží jako WebP bez metadat. */
+// `sharp` je nativní modul a importuje se jen tady, na požádání. Tahle knihovna
+// se přes lib/feedback načítá i ve scheduleru (úklid screenshotů) — kdyby se
+// sharp na serveru nenačetl, nesmí to shodit automatické odesílání objednávek.
+let sharpModule: Promise<typeof SharpType> | null = null;
+function loadSharp(): Promise<typeof SharpType> {
+  sharpModule ??= import("sharp").then((m) => (m as unknown as { default: typeof SharpType }).default ?? (m as unknown as typeof SharpType));
+  return sharpModule;
+}
+
 export async function processImage(input: Buffer): Promise<ProcessedImage> {
   if (input.length === 0 || input.length > FEEDBACK_ATTACHMENT_LIMITS.maxInputBytes) {
     throw new AttachmentError("Obrázek je příliš velký.");
+  }
+  let sharp: typeof SharpType;
+  try {
+    sharp = await loadSharp();
+  } catch (err) {
+    console.error("[feedback] Knihovnu sharp se nepodařilo načíst:", err);
+    throw new AttachmentError("Obrázky teď nejde zpracovat. Pošli připomínku bez nich.");
   }
   try {
     const image = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error", animated: false });

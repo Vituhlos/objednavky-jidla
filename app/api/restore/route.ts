@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { requireSettingsPin } from "@/lib/api-auth";
+import { FEEDBACK_CATEGORIES, FEEDBACK_STATUSES } from "@/lib/feedback-meta";
+
+const FEEDBACK_CATEGORY_IDS = new Set<string>(FEEDBACK_CATEGORIES.map((c) => c.id));
+const FEEDBACK_STATUS_IDS = new Set<string>(FEEDBACK_STATUSES.map((st) => st.id));
 
 export const dynamic = "force-dynamic";
 
@@ -144,8 +148,11 @@ export async function POST(req: NextRequest): Promise<Response> {
           `INSERT INTO feedback (created_at, category, message, author_name, page, device, status, admin_note, public_reply, resolved_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(
-          fb.created_at, String(fb.category ?? "jine"), fb.message, String(fb.author_name ?? ""),
-          String(fb.page ?? ""), String(fb.device ?? ""), String(fb.status ?? "new"),
+          fb.created_at,
+          FEEDBACK_CATEGORY_IDS.has(String(fb.category)) ? String(fb.category) : "jine",
+          fb.message, String(fb.author_name ?? ""),
+          String(fb.page ?? ""), String(fb.device ?? ""),
+          FEEDBACK_STATUS_IDS.has(String(fb.status)) ? String(fb.status) : "new",
           String(fb.admin_note ?? ""), String(fb.public_reply ?? ""),
           typeof fb.resolved_at === "string" ? fb.resolved_at : null,
         );
