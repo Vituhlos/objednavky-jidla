@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { requireSettingsPin } from "@/lib/api-auth";
-import { FEEDBACK_CATEGORIES, FEEDBACK_STATUSES } from "@/lib/feedback-meta";
+import { FEEDBACK_CATEGORIES, FEEDBACK_LIMITS, FEEDBACK_STATUSES } from "@/lib/feedback-meta";
 
 const FEEDBACK_CATEGORY_IDS = new Set<string>(FEEDBACK_CATEGORIES.map((c) => c.id));
 const FEEDBACK_STATUS_IDS = new Set<string>(FEEDBACK_STATUSES.map((st) => st.id));
@@ -16,6 +16,7 @@ interface BackupFile {
   menu_items?: Row[];
   departments?: Row[];
   feedback?: Row[];
+  feedback_votes?: Row[];
   settings?: Record<string, string>;
 }
 
@@ -25,6 +26,7 @@ export interface RestoreResult {
   menuWeeks: number;
   departments: number;
   feedback: number;
+  feedbackVotes: number;
   settings: number;
 }
 
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { backup, restoreSettings } = await req.json() as { backup: BackupFile; restoreSettings: boolean };
     const db = getDb();
-    const result: RestoreResult = { orders: 0, orderRows: 0, menuWeeks: 0, departments: 0, feedback: 0, settings: 0 };
+    const result: RestoreResult = { orders: 0, orderRows: 0, menuWeeks: 0, departments: 0, feedback: 0, feedbackVotes: 0, settings: 0 };
 
     db.transaction(() => {
       // Menu items — by week_start; skip weeks already present
@@ -139,24 +141,53 @@ export async function POST(req: NextRequest): Promise<Response> {
         result.departments++;
       }
 
-      // Feedback — skip entries already present (same time + text)
+      // Feedback — skip entries already present (same time + text). Obnovuje se
+      // i skrytí, „Co chystáme“ a číslo úkolu: skrytá připomínka se po obnově
+      // nesmí znovu objevit na veřejné nástěnce.
+      const feedbackIds = new Map<number, number>();
+      const flag = (v: unknown) => (v === 1 || v === true ? 1 : 0);
+      const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
       for (const fb of backup.feedback ?? []) {
         if (typeof fb.message !== "string" || typeof fb.created_at !== "string") continue;
-        const existing = db.prepare("SELECT id FROM feedback WHERE created_at = ? AND message = ?").get(fb.created_at, fb.message);
-        if (existing) continue;
-        db.prepare(
-          `INSERT INTO feedback (created_at, category, message, author_name, page, device, status, admin_note, public_reply, resolved_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        const oldId = Number(fb.id);
+        const existing = db.prepare("SELECT id FROM feedback WHERE created_at = ? AND message = ?").get(fb.created_at, fb.message) as { id: number } | undefined;
+        if (existing) {
+          if (Number.isInteger(oldId)) feedbackIds.set(oldId, existing.id);
+          continue;
+        }
+        const issue = Number(fb.github_issue);
+        const r = db.prepare(
+          `INSERT INTO feedback (created_at, category, message, author_name, page, device, status, admin_note, public_reply, resolved_at,
+             secret_hash, context, app_version, status_changed_at, votable, vote_title, hidden, is_proposal, github_issue, github_issue_state)
+           VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(
           fb.created_at,
           FEEDBACK_CATEGORY_IDS.has(String(fb.category)) ? String(fb.category) : "jine",
-          fb.message, String(fb.author_name ?? ""),
+          fb.message,
           String(fb.page ?? ""), String(fb.device ?? ""),
           FEEDBACK_STATUS_IDS.has(String(fb.status)) ? String(fb.status) : "new",
           String(fb.admin_note ?? ""), String(fb.public_reply ?? ""),
           typeof fb.resolved_at === "string" ? fb.resolved_at : null,
+          typeof fb.secret_hash === "string" && /^[0-9a-f]{64}$/.test(fb.secret_hash) ? fb.secret_hash : "",
+          text(fb.context, 300), text(fb.app_version, 40),
+          typeof fb.status_changed_at === "string" ? fb.status_changed_at : null,
+          flag(fb.votable), text(fb.vote_title, FEEDBACK_LIMITS.voteTitleMax),
+          flag(fb.hidden), flag(fb.is_proposal),
+          Number.isInteger(issue) && issue > 0 ? issue : null,
+          fb.github_issue_state === "open" || fb.github_issue_state === "closed" ? fb.github_issue_state : "",
         );
+        if (Number.isInteger(oldId)) feedbackIds.set(oldId, Number(r.lastInsertRowid));
         result.feedback++;
+      }
+
+      // Hlasy — jen k připomínkám ze zálohy; stejný hlas dvakrát se nezapíše
+      for (const v of backup.feedback_votes ?? []) {
+        const feedbackId = feedbackIds.get(Number(v.feedback_id));
+        if (!feedbackId || typeof v.voter_hash !== "string" || !/^[0-9a-f]{64}$/.test(v.voter_hash)) continue;
+        const r = db.prepare(
+          "INSERT OR IGNORE INTO feedback_votes (feedback_id, voter_hash, value, created_at) VALUES (?, ?, ?, COALESCE(?, datetime('now')))"
+        ).run(feedbackId, v.voter_hash, v.value === -1 ? -1 : 1, typeof v.created_at === "string" ? v.created_at : null);
+        result.feedbackVotes += r.changes;
       }
 
       // Settings — only keys not already set in DB (INSERT OR IGNORE)

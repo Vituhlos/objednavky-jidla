@@ -40,6 +40,18 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Hlasování má palec nahoru i dolů.",
         ],
       },
+      {
+        title: "Fixed",
+        items: [
+          "Obnova ze zálohy vrací připomínky celé, včetně skrytí, návrhů v „Co chystáme“ a hlasů. Skrytá připomínka se po obnově znovu neukáže.",
+        ],
+      },
+      {
+        title: "Security",
+        items: [
+          "Za Cloudflarem aplikace pozná skutečnou adresu návštěvníka, takže zámek PINu a limity připomínek už nejde obejít vymyšlenou adresou.",
+        ],
+      },
     ],
     forEveryone: [
       "Připomínky ostatních: nápady od kolegů se hned ukážou na stránce Připomínky a jde jim dát 👍 nebo 👎.",

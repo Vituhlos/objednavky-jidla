@@ -7,8 +7,28 @@ export const PIN_HEADER = "x-settings-pin";
 const MAX_FAILURES = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
+const IP_PATTERN = /^[0-9a-fA-F:.]{2,45}$/;
+
+/**
+ * IP návštěvníka pro rate limity a zámek PINu.
+ *
+ * Appka běží za Cloudflarem (Tunnel). `CF-Connecting-IP` tam nastavuje
+ * Cloudflare sám a návštěvník ji podvrhnout nemůže — proto má přednost.
+ * `X-Forwarded-For` naopak přijde od návštěvníka klidně vyplněná a Cloudflare
+ * i Next.js k ní jen připisují; první položku si tedy vymyslí kdokoli
+ * (dřív se brala právě ta a zámek PINu šel obejít). Bez Cloudflaru (přímo
+ * v síti) se bere poslední položka — tu připsala poslední proxy před appkou.
+ */
+export function getClientIpFromHeaders(headers: Headers): string {
+  const cf = headers.get("cf-connecting-ip")?.trim();
+  if (cf && IP_PATTERN.test(cf)) return cf;
+  const forwarded = headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const last = forwarded[forwarded.length - 1];
+  return last && IP_PATTERN.test(last) ? last : "local";
+}
+
 export function getClientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  return getClientIpFromHeaders(req.headers);
 }
 
 /**

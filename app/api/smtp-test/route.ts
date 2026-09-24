@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { testSmtpConnection, testSmtpConnectionWith } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { requireSettingsPin } from "@/lib/api-auth";
+import { getClientIp, requireSettingsPin } from "@/lib/api-auth";
 
 function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  return getClientIp(req);
 }
 
 export async function GET(req: NextRequest) {

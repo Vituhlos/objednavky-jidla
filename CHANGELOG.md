@@ -28,6 +28,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - **Hlasování má 👍 i 👎** (dřív jen „chci taky“). „Co chystáme“ se řadí podle 👍 mínus 👎. `POST /api/feedback/vote` přijímá `value: 1 | -1 | 0` a vrací `{ up, down }`. Dřívější hlasy zůstávají jako 👍; seznam vlastních hlasů v prohlížeči se převede sám.
 - Připomínka dána do „Co chystáme“ (přepínač „Dát do Co chystáme“) z Připomínek ostatních zmizí a hlasy si vezme s sebou.
 
+### Fixed
+
+- **Obnova ze zálohy vrací připomínky celé.** Dřív obnovila jen text, kategorii, stav, poznámku a odpověď — skrytá připomínka by se po obnově znovu ukázala na veřejné nástěnce, návrh správce by se změnil v obyčejnou připomínku a ztratila by se čísla úkolů na GitHubu. Nově se obnoví i skrytí, „Co chystáme“, verze appky, technický údaj, kód pro „Moje připomínky“ a úkol na GitHubu. Záloha nově obsahuje i hlasy (`feedback_votes`, jen otisk kódu prohlížeče) a obnova je přiřadí ke správným připomínkám; opakovaná obnova nic nezdvojí. Test `app/api/restore/route.test.ts` (záloha → smazání → obnova).
+
+### Security
+
+- **IP návštěvníka za Cloudflarem.** Rate limity a zámek PINu braly první položku `X-Forwarded-For`, kterou si návštěvník vyplní sám (Cloudflare i Next.js k ní jen připisují) — s jinou vymyšlenou adresou u každého pokusu šel zámek PINu po 10 chybách i limity připomínek obejít. Nově `getClientIpFromHeaders()` v `lib/api-auth.ts` bere `CF-Connecting-IP`, kterou nastavuje Cloudflare a podvrhnout nejde (Cloudflare Tunnel ji doporučuje přesně k tomu), a bez Cloudflaru poslední položku `X-Forwarded-For`. Platí pro všechna místa: Server Actions, odemčení Nastavení, připomínky, hlasování, záloha, SMTP test, import PDF. Test `lib/client-ip.test.ts`.
+
 ### Migration notes
 
 - Databáze se rozšíří sama při startu o sloupce `feedback.hidden`, `feedback.is_proposal` a `feedback_votes.value` (výchozí 1 = 👍). Sloupec `feedback.author_name` zůstává kvůli starším zálohám, nové připomínky ho nechávají prázdný.

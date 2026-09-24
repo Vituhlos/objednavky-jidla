@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const PER_IP = 5;
 const PER_IP_WINDOW_MS = 60 * 60 * 1000;
-// Strop pro celou appku: IP z x-forwarded-for jde podvrhnout, tak ať spam
+// Strop pro celou appku: i s IP od Cloudflaru si útočník může adresy střídat, tak ať spam
 // nezaplní databázi, disk ani Telegram adminů, ani když se IP střídají.
 const GLOBAL = 100;
 const GLOBAL_WINDOW_MS = 24 * 60 * 60 * 1000;

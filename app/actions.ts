@@ -65,7 +65,7 @@ import {
   type FeedbackEntry,
 } from "@/lib/feedback";
 import { syncFeedbackIssues } from "@/lib/feedback-github";
-import { verifySettingsPin } from "@/lib/api-auth";
+import { getClientIpFromHeaders, verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -350,7 +350,7 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  const ip = getClientIpFromHeaders(await headers());
   const key = `pin:${ip}`;
   if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
     return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
@@ -439,7 +439,7 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
 // ─── Připomínky k aplikaci ────────────────────────────────────────────────────
 
 async function getActionIp(): Promise<string> {
-  return (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  return getClientIpFromHeaders(await headers());
 }
 
 // Server Actions jsou veřejné POST endpointy — PIN se ověřuje uvnitř každé z nich,
