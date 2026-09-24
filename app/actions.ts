@@ -57,6 +57,7 @@ import type { DepartmentInfo } from "@/lib/departments";
 import {
   addProposal,
   deleteFeedback,
+  mergeFeedback,
   feedbackUpdateSchema,
   proposalSchema,
   getFeedbackList,
@@ -472,6 +473,15 @@ export async function actionUpdateFeedback(
   if (!entry) throw new Error("Připomínka už neexistuje.");
   revalidatePath("/pripominky");
   return entry;
+}
+
+/** Sloučí duplicitu do jiné připomínky; vrátí aktualizovaný seznam. */
+export async function actionMergeFeedback(pin: string, sourceId: number, targetId: number): Promise<FeedbackEntry[]> {
+  await requireActionPin(pin);
+  if (!Number.isInteger(sourceId) || !Number.isInteger(targetId)) throw new Error("Neplatná připomínka.");
+  if (!mergeFeedback(sourceId, targetId)) throw new Error("Připomínka už neexistuje.");
+  revalidatePath("/pripominky");
+  return getFeedbackList();
 }
 
 /** Vlastní návrh správce rovnou do „Co chystáme“. */

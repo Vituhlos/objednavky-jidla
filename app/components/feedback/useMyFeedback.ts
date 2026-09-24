@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { OwnFeedback } from "@/lib/feedback-meta";
 import { addOwnKey, OWN_KEY, parseOwnKeys, type OwnKey } from "./my-feedback-storage";
+import { diffSeen, FRESH_SIGNATURE, MINE_CACHE_KEY, readSeen, SEEN_EVENT, writeSeen, type UpdateKind } from "./feedback-seen";
 
 function readKeys(): OwnKey[] {
   try { return parseOwnKeys(localStorage.getItem(OWN_KEY)); } catch { return []; }
@@ -24,6 +25,8 @@ function writeKeys(keys: OwnKey[]): void {
 export function useMyFeedback() {
   const [items, setItems] = useState<OwnFeedback[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Co se změnilo od minula — zvýrazní se jen při téhle návštěvě
+  const [updates, setUpdates] = useState<Map<number, UpdateKind>>(new Map());
 
   const refresh = useCallback(async () => {
     const keys = readKeys();
@@ -40,6 +43,12 @@ export function useMyFeedback() {
       const alive = new Set(data.items.map((i) => i.id));
       writeKeys(keys.filter((k) => alive.has(k.id)));
       setItems(data.items);
+      // Autor je na stránce a změny vidí — odznak v menu tím zhasne
+      const { updates: fresh, next } = diffSeen(data.items, readSeen());
+      if (fresh.size > 0) setUpdates((prev) => new Map([...prev, ...fresh]));
+      writeSeen(next);
+      try { sessionStorage.setItem(MINE_CACHE_KEY, JSON.stringify({ at: Date.now(), items: data.items })); } catch { /* */ }
+      window.dispatchEvent(new Event(SEEN_EVENT));
     } catch { /* bez sítě zůstane poslední stav */ } finally {
       setLoaded(true);
     }
@@ -52,6 +61,7 @@ export function useMyFeedback() {
 
   const remember = useCallback((id: number, token: string) => {
     writeKeys(addOwnKey(readKeys(), { id, token }));
+    writeSeen({ ...readSeen(), [id]: FRESH_SIGNATURE });
     void refresh();
   }, [refresh]);
 
@@ -79,5 +89,5 @@ export function useMyFeedback() {
     }
   }, [forget]);
 
-  return { items, loaded, remember, forget, withdraw };
+  return { items, loaded, updates, remember, forget, withdraw };
 }

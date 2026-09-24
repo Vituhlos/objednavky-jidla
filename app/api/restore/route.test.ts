@@ -42,6 +42,8 @@ describe("záloha a obnova připomínek", () => {
     fb.setVote(visible.id, "a".repeat(24), 1);
     fb.setVote(visible.id, "b".repeat(24), -1);
     fb.setVote(proposal.id, "a".repeat(24), 1);
+    const { entry: dup } = fb.addFeedback(input("napad", "Duplicita tmavého režimu."), "");
+    fb.mergeFeedback(dup.id, visible.id);
 
     const backupRes = await BACKUP(new Request("http://localhost/api/backup", { headers: pinHeaders }) as never);
     expect(backupRes.status).toBe(200);
@@ -59,7 +61,7 @@ describe("záloha a obnova připomínek", () => {
     }) as never);
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(json.result).toMatchObject({ feedback: 3, feedbackVotes: 3 });
+    expect(json.result).toMatchObject({ feedback: 4, feedbackVotes: 3 });
 
     const publicTexts = fb.getPublicFeedback().map((i) => i.text);
     expect(publicTexts).toContain("Tmavý režim by se hodil.");
@@ -69,6 +71,12 @@ describe("záloha a obnova připomínek", () => {
     expect(board.map((i) => i.summary)).toEqual(["Objednávka na celý týden"]);
     expect(board[0]).toMatchObject({ up: 1, down: 0 });
     expect(fb.getPublicFeedback().find((i) => i.text.startsWith("Tmavý"))).toMatchObject({ up: 1, down: 1 });
+
+    // Sloučená duplicita zůstane sloučená a na nástěnce není
+    expect(publicTexts).not.toContain("Duplicita tmavého režimu.");
+    const restoredDup = fb.getFeedbackList().find((e) => e.message === "Duplicita tmavého režimu.");
+    const restoredTarget = fb.getFeedbackList().find((e) => e.message === "Tmavý režim by se hodil.");
+    expect(restoredDup?.mergedInto).toBe(restoredTarget?.id);
 
     // Druhá obnova stejné zálohy nic nezdvojí
     const again = await RESTORE(new Request("http://localhost/api/restore", {

@@ -1,19 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { getCategoryMeta, WITHDRAWABLE_STATUSES, type FeedbackStatus, type OwnFeedback } from "@/lib/feedback-meta";
+import { getCategoryMeta, PUBLIC_STATUS_LABELS, WITHDRAWABLE_STATUSES, type OwnFeedback } from "@/lib/feedback-meta";
 import MIcon from "../MIcon";
 import { formatFeedbackDate } from "./feedback-utils";
 import { StatusBadge } from "./StatusBadge";
 
-// Pro autora srozumitelněji než interní názvy stavů
-const OWN_STATUS_LABELS: Record<FeedbackStatus, string> = {
-  new: "Čeká na přečtení",
-  read: "Přečteno",
-  planned: "V plánu",
-  done: "Hotovo",
-  rejected: "Nebude se dělat",
-};
 
 /**
  * Připomínky odeslané z tohoto prohlížeče: vlastní text, stav a odpověď správce.
@@ -24,10 +16,12 @@ const OWN_STATUS_LABELS: Record<FeedbackStatus, string> = {
  */
 export function MyFeedback({
   items,
+  updates,
   onForget,
   onWithdraw,
 }: {
   items: OwnFeedback[];
+  updates: Map<number, "reply" | "status">;
   onForget: (id: number) => void;
   onWithdraw: (id: number) => Promise<string | null>;
 }) {
@@ -59,10 +53,15 @@ export function MyFeedback({
           const canWithdraw = WITHDRAWABLE_STATUSES.includes(item.status);
           const label = canWithdraw ? "Stáhnout připomínku" : "Skrýt z mého seznamu";
           return (
-            <li key={item.id} className="group px-4 py-3 flex flex-col gap-1.5">
+            <li key={item.id} className={`group px-4 py-3 flex flex-col gap-1.5${updates.has(item.id) ? " fb-own--updated" : ""}`}>
               <div className="flex items-center gap-2">
                 <span aria-hidden="true" className="emoji text-[15px] leading-none">{cat.emoji}</span>
-                <StatusBadge label={OWN_STATUS_LABELS[item.status]} status={item.status} />
+                <StatusBadge label={PUBLIC_STATUS_LABELS[item.status]} status={item.status} />
+                {updates.has(item.id) && (
+                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-amber-700">
+                    {updates.get(item.id) === "reply" ? "Nová odpověď" : "Nový stav"}
+                  </span>
+                )}
                 <span className="text-[11px] text-stone-400 ml-auto">{formatFeedbackDate(item.createdAt)}</span>
                 <button
                   aria-label={label}
@@ -75,6 +74,9 @@ export function MyFeedback({
                 </button>
               </div>
               <p className="text-[12.5px] text-stone-700 leading-snug line-clamp-2 break-words">{item.message}</p>
+              {item.merged && (
+                <p className="text-[11px] text-stone-400">Sloučeno s podobnou připomínkou — stav i odpověď jsou společné.</p>
+              )}
               {item.reply && (
                 <p className="text-[12.5px] text-stone-800 leading-snug whitespace-pre-line break-words pl-2.5 border-l-2" style={{ borderColor: "rgba(234,88,12,0.45)" }}>
                   <span className="font-semibold">Odpověď: </span>{item.reply}

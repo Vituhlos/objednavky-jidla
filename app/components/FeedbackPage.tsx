@@ -64,7 +64,7 @@ export default function FeedbackPage({
           </div>
           <div className="flex flex-col gap-4">
             <HowItWorks />
-            <MyFeedback items={own.items} onForget={own.forget} onWithdraw={onWithdraw} />
+            <MyFeedback items={own.items} onForget={own.forget} onWithdraw={onWithdraw} updates={own.updates} />
             <VotingBoard items={votable} />
             <ChangesTimeline replies={replies} />
             <WhatsNew notes={releaseNotes} />

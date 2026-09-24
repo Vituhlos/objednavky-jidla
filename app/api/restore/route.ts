@@ -180,6 +180,15 @@ export async function POST(req: NextRequest): Promise<Response> {
         result.feedback++;
       }
 
+      // Sloučené duplicity — až teď, když jsou známá nová id obou stran
+      for (const fb of backup.feedback ?? []) {
+        const source = feedbackIds.get(Number(fb.id));
+        const target = feedbackIds.get(Number(fb.merged_into));
+        if (source && target && source !== target) {
+          db.prepare("UPDATE feedback SET merged_into = ? WHERE id = ? AND merged_into IS NULL").run(target, source);
+        }
+      }
+
       // Hlasy — jen k připomínkám ze zálohy; stejný hlas dvakrát se nezapíše
       for (const v of backup.feedback_votes ?? []) {
         const feedbackId = feedbackIds.get(Number(v.feedback_id));

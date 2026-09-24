@@ -237,6 +237,8 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE feedback ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"); } catch {}
   // Návrh napsaný správcem v Nastavení — není od uživatele, nemá tajný kód autora
   try { db.exec("ALTER TABLE feedback ADD COLUMN is_proposal INTEGER NOT NULL DEFAULT 0"); } catch {}
+  // Sloučená duplicita: id připomínky, do které se sloučila (hlasy se přesunuly tam)
+  try { db.exec("ALTER TABLE feedback ADD COLUMN merged_into INTEGER"); } catch {}
 
   // Hlasy „chci taky“. voter_hash = SHA-256 náhodného kódu z prohlížeče —
   // jeden hlas na prohlížeč a věc; IP se neukládá.

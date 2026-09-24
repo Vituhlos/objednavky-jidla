@@ -110,6 +110,8 @@ export interface FeedbackEntry {
   isProposal: boolean;
   /** Správce ji z veřejného seznamu skryl. */
   hidden: boolean;
+  /** Sloučená do jiné připomínky (id), nebo null. */
+  mergedInto: number | null;
   up: number;
   down: number;
   /** Číslo úkolu na GitHubu, nebo null, dokud žádný nevznikl. */
@@ -129,7 +131,18 @@ export interface OwnFeedback {
   status: FeedbackStatus;
   reply: string;
   attachmentCount: number;
+  /** Sloučená s podobnou připomínkou — stav a odpověď jsou z té, do které se sloučila. */
+  merged: boolean;
 }
+
+/** Stavy tak, jak je čte autor a ostatní — srozumitelněji než interní názvy. */
+export const PUBLIC_STATUS_LABELS: Record<FeedbackStatus, string> = {
+  new: "Čeká na přečtení",
+  read: "Přečteno",
+  planned: "V plánu",
+  done: "Hotovo",
+  rejected: "Nebude se dělat",
+};
 
 /**
  * Stavy, ve kterých autor může svou připomínku stáhnout. Hotová a zamítnutá
@@ -170,6 +183,8 @@ export interface PublicFeedbackItem {
   createdAt: string;
   up: number;
   down: number;
+  /** Odpověď správce — jen u vyřízených (Hotovo, Zamítnuto). */
+  reply: string;
 }
 
 /** Položka v „Co chystáme“: návrh správce, nebo připomínka, kterou dal k hlasování (pod svým názvem). */

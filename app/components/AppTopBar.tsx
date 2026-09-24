@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
+import { useFeedbackBadge } from "./feedback/useFeedbackBadge";
 
 const NAV = [
   { href: "/",           label: "Dnešní objednávka", shortLabel: "Oběd",       icon: "restaurant_menu", exact: true  },
@@ -38,6 +39,10 @@ const SidebarClock = memo(function SidebarClock() {
 export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
   const pathname = usePathname();
   const nav = pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza");
+  // Nová odpověď na vlastní připomínku — jen v prohlížeči autora
+  const feedbackUpdates = useFeedbackBadge(pathname.startsWith("/pripominky"));
+  const badgeFor = (href: string) => (href === "/pripominky" ? feedbackUpdates : 0);
+  const badgeLabel = (n: number) => (n === 1 ? "nová odpověď" : n < 5 ? `${n} nové odpovědi` : `${n} nových odpovědí`);
 
   return (
     <>
@@ -85,6 +90,11 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
                 <span className={`flex-1 text-[13px] font-display font-semibold ${isActive ? "text-stone-900" : "text-stone-500"}`}>
                   {label}
                 </span>
+                {badgeFor(href) > 0 && (
+                  <span className="nav-badge" title={badgeLabel(badgeFor(href))}>
+                    <span className="sr-only">{badgeLabel(badgeFor(href))}</span>
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -115,12 +125,19 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
                 style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
               >
-                <MIcon
-                  name={icon}
-                  size={20}
-                  fill={isActive}
-                  style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                />
+                <span className="relative">
+                  <MIcon
+                    name={icon}
+                    size={20}
+                    fill={isActive}
+                    style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
+                  />
+                  {badgeFor(href) > 0 && (
+                    <span className="nav-badge nav-badge--icon" title={badgeLabel(badgeFor(href))}>
+                      <span className="sr-only">{badgeLabel(badgeFor(href))}</span>
+                    </span>
+                  )}
+                </span>
                 <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
                   {shortLabel}
                 </span>

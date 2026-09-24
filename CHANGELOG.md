@@ -8,12 +8,25 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [1.7.0] - 2026-09-24
 
+### Migration notes
+
+- Databáze se rozšíří sama při startu o sloupec `feedback.merged_into`. Zpětně kompatibilní, bez ručního kroku.
+
 ### Added
 
 - **Stažení vlastní připomínky.** Křížek v kartě „Moje připomínky“ u otevřené připomínky (Čeká na přečtení, Přečteno, V plánu) se zeptá „Stáhnout? Zmizí i u ostatních.“ a připomínku smaže ze serveru i s hlasy a screenshoty — zmizí i z „Připomínek ostatních“ a z Nastavení. Oprávnění dokazuje tajný kód z odeslání, který má jen prohlížeč autora (`POST /api/feedback/withdraw`, limit 30/h na IP); cizí nebo vymyšlený kód dostane stejnou odpověď jako neexistující připomínka. Hotovou a zamítnutou připomínku stáhnout nejde (nese odpověď správce), křížek ji jako dřív jen skryje z vlastního seznamu. Testy v `app/api/feedback/route.test.ts`.
 
+- **Vyřízené připomínky na nástěnce.** „Připomínky ostatních“ mají záložku „Vyřízené“: připomínky ve stavu Hotovo a Nebude se dělat (zamítnuto) zůstanou 60 dní vidět se štítkem stavu a odpovědí správce, hlasovat o nich už nejde, počty palců zůstanou. Otevřené mají dál štítek „V plánu“. Odpověď u zamítnuté je nově veřejná stejně jako u hotové (v Nastavení to říká popisek u odpovědi); u otevřené ji dál vidí jen autor.
+- **Odznak „nová odpověď“.** Když správce autorovi odpoví nebo změní stav (V plánu, Hotovo, Nebude se dělat, sloučení), objeví se u Připomínek v menu tečka — jen v prohlížeči autora, dokud nezobrazí „Moje připomínky“. Tam se připomínka při té návštěvě podbarví se štítkem „Nová odpověď“ nebo „Nový stav“. Samotné přečtení správcem („Přečteno“) odznak nevyvolá. Co autor viděl, drží localStorage (`feedbackSeen`), odpověď serveru si menu drží minutu v sessionStorage, ať se neptá na každé stránce. Test `app/components/feedback/feedback-seen.test.ts`.
+- **Sloučení duplicit** v Nastavení → Připomínky („Sloučit s podobnou“, nejdřív se nabízí stejná kategorie, jde sloučit i do vlastního návrhu). Hlasy se přesunou k cílové a sečtou (stejný prohlížeč jen jednou, platí jeho hlas u cílové), duplicita zmizí z nástěnky i „Co chystáme“ a u cílové se do interní poznámky zapíše „Sloučeno #id: text“. Autor duplicity ji v „Moje připomínky“ neztratí: vidí stav a odpověď cílové s poznámkou „Sloučeno s podobnou připomínkou“. Cílovou, do které se něco sloučilo, už její autor stáhnout nemůže (nesla by s sebou cizí hlasy); smazání cílové duplicity zase osamostatní. Obnova ze zálohy sloučení zachová. Testy v `tools/feedback.test.mjs` a `app/api/restore/route.test.ts`.
+
+### Fixed
+
+- **Emoji na iPhonu a iPadu.** Třída `.emoji` dávala přednost vlastnímu fontu Noto Color Emoji, jehož formát Safari na iOS neumí vykreslit — emoji vyšla rozkostičkovaná a 💬 jako černý čtverec (dlaždice kategorií připomínek, výběr emoji u dovolené aj.). Nově má přednost Apple Color Emoji, takže Apple zařízení kreslí svoje emoji; Windows a Android dál používají Noto.
+
 ### Changed
 
+- Filtry v Nastavení → Připomínky (K vyřízení, Nové, V plánu, Hotovo) sloučené duplicity nepočítají, jsou jen ve „Vše“ se štítkem „sloučeno do #id“.
 - **Číslo úkolu z GitHubu naskočí rychleji.** Po kliknutí na „Založit úkol na GitHubu“ se Nastavení 10 minut ptá každých 15 s a server se GitHubu v tu dobu zeptá nejvýš jednou za 30 s (jinak dál jednou za 90 s). Dřív se číslo ukázalo až při dalším návratu do okna po uplynutí 90 s, takže to mohlo trvat i několik minut. Test v `tools/feedback.test.mjs`.
 
 ## [1.6.0] - 2026-09-24
