@@ -21,7 +21,7 @@ const lib = loadLib();
 const feedback = await lib("feedback");
 const telegram = await lib("telegram");
 const { saveSettings } = await lib("settings");
-const { verifySettingsPin } = await lib("api-auth");
+const { verifySettingsPin, checkSettingsPinAttempt } = await lib("api-auth");
 const { getDb } = await lib("db");
 const github = await lib("feedback-github");
 const exporter = await lib("feedback-export");
@@ -99,6 +99,23 @@ test("správa připomínek stojí za PINem a po deseti chybách se zamkne", () =
   assert.equal(verifySettingsPin(ip, "4711"), "locked");
   // jiná IP zámek nesdílí
   assert.equal(verifySettingsPin("10.9.0.2", "4711"), "ok");
+});
+
+test("odemčení Nastavení počítá jen špatné PINy — správná odemčení zámek nespustí", () => {
+  saveSettings({ settingsPin: "4711" });
+  const ip = "10.9.1.1";
+  // Dřív se po pěti správných odemčeních za 10 minut zamklo i správci
+  for (let i = 0; i < 30; i++) assert.deepEqual(checkSettingsPinAttempt(ip, "4711"), { ok: true });
+
+  for (let i = 0; i < 9; i++) assert.deepEqual(checkSettingsPinAttempt(ip, "0000"), { ok: false });
+  // Desátá chyba zamkne a obrazovka hned ví, do kdy odpočítávat
+  const locked = checkSettingsPinAttempt(ip, "0000");
+  assert.equal(locked.ok, false);
+  assert.ok(locked.lockedUntil > Date.now());
+  // Zamčeno i pro správný PIN a sdílí to i Server Actions
+  assert.equal(checkSettingsPinAttempt(ip, "4711").ok, false);
+  assert.equal(verifySettingsPin(ip, "4711"), "locked");
+  assert.deepEqual(checkSettingsPinAttempt("10.9.1.2", "4711"), { ok: true });
 });
 
 test("upozornění na Telegram dostane jen admin, který si ho zapnul", async () => {

@@ -50,6 +50,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         title: "Security",
         items: [
           "Za Cloudflarem aplikace pozná skutečnou adresu návštěvníka, takže zámek PINu a limity připomínek už nejde obejít vymyšlenou adresou.",
+          "Nastavení se už nezamkne, když ho několikrát za sebou otevřete se správným PINem. Zámek počítá jen špatné PINy.",
         ],
       },
     ],

@@ -3,7 +3,6 @@
 import { countWord } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
 import { setMenuForWeek, addMenuItem, updateMenuItem, deleteMenuItem, deleteMenuForWeek, getMondayISO, getNextMondayISO, closeDay, openDay } from "@/lib/menu";
 import type { ParsedMenuItem } from "@/lib/parse-menu";
 import path from "path";
@@ -65,7 +64,7 @@ import {
   type FeedbackEntry,
 } from "@/lib/feedback";
 import { syncFeedbackIssues } from "@/lib/feedback-github";
-import { getClientIpFromHeaders, verifySettingsPin } from "@/lib/api-auth";
+import { checkSettingsPinAttempt, getClientIpFromHeaders, verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -345,17 +344,12 @@ export async function actionReorderDepartments(orderedIds: number[]): Promise<vo
   revalidatePath("/nastaveni");
 }
 
-// A blocked attempt used to be indistinguishable from a wrong PIN — the screen said
-// "nesprávný PIN" while the user was typing the right one. Report the two apart.
+// Zablokovaný pokus se dřív nedal rozeznat od špatného PINu — obrazovka psala
+// „nesprávný PIN“, i když člověk psal správný. Proto se vrací `lockedUntil`.
 export async function actionCheckPin(
   pin: string
 ): Promise<{ ok: boolean; lockedUntil?: number }> {
-  const ip = getClientIpFromHeaders(await headers());
-  const key = `pin:${ip}`;
-  if (!checkRateLimit(key, 5, 10 * 60 * 1000)) {
-    return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() };
-  }
-  return { ok: checkPin(pin) };
+  return checkSettingsPinAttempt(getClientIpFromHeaders(await headers()), typeof pin === "string" ? pin : null);
 }
 
 export async function actionSaveSettings(updates: Partial<AppSettings>, pin?: string): Promise<void> {

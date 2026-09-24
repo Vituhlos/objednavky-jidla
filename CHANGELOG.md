@@ -34,6 +34,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Security
 
+- **Odemčení Nastavení počítá jen špatné PINy.** Obrazovka s PINem měla vlastní limit 5 pokusů za 10 minut, který počítal i správná odemčení — správce se tak po pěti otevřeních Nastavení zamkl sám. Nově používá stejný zámek jako Server Actions a API routy (`checkSettingsPinAttempt()` v `lib/api-auth.ts`): 10 špatných PINů z jedné adresy = zámek na 15 minut, sdílený pro celou appku, a obrazovka dál odpočítává zbývající čas. Test v `tools/feedback.test.mjs`.
 - **IP návštěvníka za Cloudflarem.** Rate limity a zámek PINu braly první položku `X-Forwarded-For`, kterou si návštěvník vyplní sám (Cloudflare i Next.js k ní jen připisují) — s jinou vymyšlenou adresou u každého pokusu šel zámek PINu po 10 chybách i limity připomínek obejít. Nově `getClientIpFromHeaders()` v `lib/api-auth.ts` bere `CF-Connecting-IP`, kterou nastavuje Cloudflare a podvrhnout nejde (Cloudflare Tunnel ji doporučuje přesně k tomu), a bez Cloudflaru poslední položku `X-Forwarded-For`. Platí pro všechna místa: Server Actions, odemčení Nastavení, připomínky, hlasování, záloha, SMTP test, import PDF. Test `lib/client-ip.test.ts`.
 
 ### Migration notes

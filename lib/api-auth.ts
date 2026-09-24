@@ -1,5 +1,5 @@
 import { checkPin } from "./settings";
-import { checkRateLimit, isRateLimited } from "./rate-limit";
+import { checkRateLimit, getRateLimitReset, isRateLimited } from "./rate-limit";
 
 /** Hlavička, kterou Nastavení posílá u volání chráněných API rout. */
 export const PIN_HEADER = "x-settings-pin";
@@ -70,4 +70,20 @@ export function verifySettingsPin(ip: string, pin: string | null | undefined): "
     return "denied";
   }
   return "ok";
+}
+
+/**
+ * Odemčení obrazovky Nastavení. Stejný zámek jako u Server Actions a API rout
+ * (počítají se jen špatné PINy) — dřív měla obrazovka vlastní limit, který
+ * počítal i správná odemčení, takže se správce po pěti otevřeních zamkl sám.
+ * `lockedUntil` řekne obrazovce, do kdy odpočítávat.
+ */
+export function checkSettingsPinAttempt(ip: string, pin: string | null | undefined): { ok: boolean; lockedUntil?: number } {
+  const result = verifySettingsPin(ip, pin);
+  if (result === "ok") return { ok: true };
+  const key = `pin-auth:${ip}`;
+  if (result === "locked" || isRateLimited(key, MAX_FAILURES)) {
+    return { ok: false, lockedUntil: getRateLimitReset(key) ?? Date.now() + LOCKOUT_MS };
+  }
+  return { ok: false };
 }
