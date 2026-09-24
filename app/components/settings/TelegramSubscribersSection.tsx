@@ -60,6 +60,7 @@ export function TelegramSubscribersSection({
                     <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyReminder ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-400"}`} title="Připomenutí uzávěrky">🔔</span>
                     <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyMorningMenu ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-400"}`} title="Ranní jídelníček">🌅</span>
                     <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyMenuImported ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-400"}`} title="Nový jídelníček">📋</span>
+                    {sub.isAdmin && <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyFeedback ? "bg-violet-100 text-violet-700" : "bg-stone-100 text-stone-400"}`} title="Nové připomínky">💬</span>}
                     {sub.personalReminderTime && <span className="text-[10.5px] px-1.5 py-0.5 rounded-full font-medium bg-amber-50 text-amber-600">⏰ {sub.personalReminderTime}</span>}
                   </span>
                 </div>

@@ -31,13 +31,14 @@ export function GET(req: NextRequest) {
   const orderRows = db.prepare("SELECT * FROM order_rows").all();
   const menuItems = db.prepare("SELECT * FROM menu_items").all();
   const departments = db.prepare("SELECT * FROM departments ORDER BY sort_order").all();
+  const feedback = db.prepare("SELECT * FROM feedback ORDER BY id").all();
   const allSettings = getSettings();
   const settings = Object.fromEntries(
     Object.entries(allSettings).filter(([k]) => !SENSITIVE_KEYS.has(k))
   );
 
   const payload = JSON.stringify(
-    { exported_at: new Date().toISOString(), orders, order_rows: orderRows, menu_items: menuItems, departments, settings },
+    { exported_at: new Date().toISOString(), orders, order_rows: orderRows, menu_items: menuItems, departments, feedback, settings },
     null,
     2
   );

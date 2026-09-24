@@ -167,6 +167,8 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_reminder_time TEXT DEFAULT NULL"); } catch {}
   try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_morning_menu_time TEXT DEFAULT NULL"); } catch {}
+  // Upozornění na nové připomínky — jen pro adminy a jen když si ho sami zapnou.
+  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_feedback INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
   try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
 
@@ -191,6 +193,25 @@ function migrate(db: Database.Database): void {
   // note + icon were added after closures shipped — idempotent for existing databases
   try { db.exec("ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
   try { db.exec("ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // Připomínky k aplikaci. Záměrně bez IP adresy a celého user-agentu —
+  // appka nemá účty a autor má zůstat dohledatelný jen pokud se sám podepíše.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      category     TEXT    NOT NULL,
+      message      TEXT    NOT NULL,
+      author_name  TEXT    NOT NULL DEFAULT '',
+      page         TEXT    NOT NULL DEFAULT '',
+      device       TEXT    NOT NULL DEFAULT '',
+      status       TEXT    NOT NULL DEFAULT 'new',
+      admin_note   TEXT    NOT NULL DEFAULT '',
+      public_reply TEXT    NOT NULL DEFAULT '',
+      resolved_at  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
+  `);
 
   // Performance indexes
   db.exec(`

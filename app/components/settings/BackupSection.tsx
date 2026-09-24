@@ -23,7 +23,7 @@ export function BackupSection({
 }) {
   const [downloadError, setDownloadError] = useState("");
   const [isPending, startTransition] = useTransition();
-  type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; settings: number };
+  type RestoreResult = { orders: number; orderRows: number; menuWeeks: number; departments: number; feedback?: number; settings: number };
   const [restoreFile, setRestoreFile] = useState<Record<string, unknown> | null>(null);
   const [restoreFileName, setRestoreFileName] = useState("");
   const [restoreIncludeSettings, setRestoreIncludeSettings] = useState(false);
@@ -199,7 +199,7 @@ export function BackupSection({
             <p className="font-semibold text-emerald-700 flex items-center gap-1.5">
               <MIcon name="check_circle" size={14} fill /> Obnova dokončena
             </p>
-            <p className="text-stone-600">Přidáno: {restoreResult.orders} objednávek, {restoreResult.menuWeeks} týdnů menu, {restoreResult.departments} oddělení{restoreResult.settings > 0 ? `, ${restoreResult.settings} nastavení` : ""}.</p>
+            <p className="text-stone-600">Přidáno: {restoreResult.orders} objednávek, {restoreResult.menuWeeks} týdnů menu, {restoreResult.departments} oddělení{restoreResult.feedback ? `, ${restoreResult.feedback} připomínek` : ""}{restoreResult.settings > 0 ? `, ${restoreResult.settings} nastavení` : ""}.</p>
           </div>
         )}
 

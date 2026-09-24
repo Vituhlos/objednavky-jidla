@@ -27,17 +27,27 @@ export function getClientIp(req: Request): string {
  * jinak by šlo čtyřmístné číslo uhodnout hrubou silou během chvíle.
  */
 export function requireSettingsPin(req: Request): Response | null {
-  const key = `pin-auth:${getClientIp(req)}`;
-
-  if (isRateLimited(key, MAX_FAILURES)) {
+  const result = verifySettingsPin(getClientIp(req), req.headers.get(PIN_HEADER));
+  if (result === "locked") {
     return new Response("Příliš mnoho pokusů. Zkuste to za 15 minut.", { status: 429 });
   }
-
-  const pin = req.headers.get(PIN_HEADER);
-  if (!pin || !checkPin(pin)) {
-    checkRateLimit(key, MAX_FAILURES, LOCKOUT_MS);
+  if (result === "denied") {
     return new Response("Neautorizováno.", { status: 401 });
   }
-
   return null;
+}
+
+/**
+ * Stejná brána jako `requireSettingsPin`, jen bez `Request` — pro Server
+ * Actions, které PIN dostávají jako argument. Sdílí s API routami i počítadlo
+ * neúspěchů, takže se hádání nedá rozložit mezi oba vstupy.
+ */
+export function verifySettingsPin(ip: string, pin: string | null | undefined): "ok" | "denied" | "locked" {
+  const key = `pin-auth:${ip}`;
+  if (isRateLimited(key, MAX_FAILURES)) return "locked";
+  if (!pin || !checkPin(pin)) {
+    checkRateLimit(key, MAX_FAILURES, LOCKOUT_MS);
+    return "denied";
+  }
+  return "ok";
 }

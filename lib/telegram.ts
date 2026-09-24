@@ -12,6 +12,7 @@ export interface TelegramSubscription {
   notifyMorningMenu: boolean;
   notifyOrderSent: boolean;
   notifyMenuImported: boolean;
+  notifyFeedback: boolean;
   personalReminderTime: string | null;
   personalMorningMenuTime: string | null;
   registeredAt: string;
@@ -21,6 +22,7 @@ type DbRow = {
   id: number; chat_id: string; first_name: string; username: string;
   is_admin: number; notify_reminder: number;
   notify_morning_menu: number; notify_order_sent: number; notify_menu_imported: number;
+  notify_feedback: number;
   personal_reminder_time: string | null;
   personal_morning_menu_time: string | null;
   registered_at: string;
@@ -40,6 +42,7 @@ export function getTelegramSubscriptions(): TelegramSubscription[] {
     notifyMorningMenu: r.notify_morning_menu === 1,
     notifyOrderSent: r.notify_order_sent === 1,
     notifyMenuImported: r.notify_menu_imported === 1,
+    notifyFeedback: r.notify_feedback === 1,
     personalReminderTime: r.personal_reminder_time ?? null,
     personalMorningMenuTime: r.personal_morning_menu_time ?? null,
     registeredAt: r.registered_at,
@@ -122,6 +125,7 @@ export const NOTIFY_COLUMNS = [
   "notify_morning_menu",
   "notify_order_sent",
   "notify_menu_imported",
+  "notify_feedback",
 ] as const;
 export type NotifyColumn = (typeof NOTIFY_COLUMNS)[number];
 
@@ -146,6 +150,7 @@ export function getSubscribersFor(col: NotifyColumn): TelegramSubscription[] {
     if (col === "notify_morning_menu") return s.notifyMorningMenu;
     if (col === "notify_order_sent") return s.notifyOrderSent;
     if (col === "notify_menu_imported") return s.notifyMenuImported;
+    if (col === "notify_feedback") return s.notifyFeedback;
     return false;
   });
 }
@@ -251,6 +256,25 @@ export async function sendTelegramToSubscribers(col: NotifyColumn, text: string)
   const s = getSettings();
   if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
   const subs = getSubscribersFor(col);
+  if (subs.length === 0) return;
+  await Promise.allSettled(
+    subs.map((sub) =>
+      sendToChat(s.telegramBotToken, sub.chatId, text).catch((err) =>
+        console.error(`[telegram] Chyba při odesílání na ${sub.chatId}:`, err),
+      ),
+    ),
+  );
+}
+
+/**
+ * Nová připomínka k aplikaci. Chodí jen adminům, kteří si to v botovi sami
+ * zapnuli — text může obsahovat výtky ke kolegům nebo kuchyni, takže nesmí
+ * skončit u běžných odběratelů, ani kdyby si toggle nějak zapnuli.
+ */
+export async function sendTelegramFeedbackNotification(text: string): Promise<void> {
+  const s = getSettings();
+  if (s.telegramEnabled !== "true" || !s.telegramBotToken) return;
+  const subs = getSubscribersFor("notify_feedback").filter((sub) => sub.isAdmin);
   if (subs.length === 0) return;
   await Promise.allSettled(
     subs.map((sub) =>

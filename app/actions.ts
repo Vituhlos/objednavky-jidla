@@ -40,6 +40,7 @@ import {
   setTelegramAdmin,
   getTelegramBotInfo,
   getTelegramWebhookStatus,
+  sendTelegramFeedbackNotification,
 } from "@/lib/telegram";
 import type { TelegramSubscription } from "@/lib/telegram";
 import { checkImapForMenu } from "@/lib/imap";
@@ -54,6 +55,18 @@ import {
   reorderDepartments,
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
+import {
+  addFeedback,
+  deleteFeedback,
+  detectDevice,
+  feedbackUpdateSchema,
+  formatFeedbackTelegram,
+  getFeedbackList,
+  updateFeedback,
+  validateFeedbackInput,
+  type FeedbackEntry,
+} from "@/lib/feedback";
+import { verifySettingsPin } from "@/lib/api-auth";
 
 function isCutoffActive(): boolean {
   const { cutoffTime, orderForceOpenAt } = getSettings();
@@ -423,3 +436,83 @@ export async function actionSetTelegramCommands(): Promise<{ ok: boolean; descri
   return setTelegramCommands();
 }
 
+
+// ─── Připomínky k aplikaci ────────────────────────────────────────────────────
+
+async function getActionIp(): Promise<string> {
+  return (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+}
+
+// Server Actions jsou veřejné POST endpointy — PIN se ověřuje uvnitř každé z nich,
+// ne jen tím, že je volá odemčená obrazovka Nastavení.
+async function requireActionPin(pin: unknown): Promise<void> {
+  const result = verifySettingsPin(await getActionIp(), typeof pin === "string" ? pin : null);
+  if (result === "locked") throw new Error("Příliš mnoho pokusů. Zkuste to za 15 minut.");
+  if (result === "denied") throw new Error("Neplatný PIN.");
+}
+
+const FEEDBACK_PER_IP = 5;
+const FEEDBACK_PER_IP_WINDOW_MS = 60 * 60 * 1000;
+// Strop pro celou appku: IP z x-forwarded-for jde podvrhnout, tak ať spam
+// nezaplní databázi ani Telegram adminů, ani když se IP střídají.
+const FEEDBACK_GLOBAL = 100;
+const FEEDBACK_GLOBAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export async function actionSubmitFeedback(
+  raw: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Past na roboty: pole `website` je pro člověka neviditelné. Kdo ho vyplní,
+  // dostane stejnou odpověď jako úspěch, ať nepozná, že byl odhalen.
+  if (raw && typeof raw === "object" && "website" in raw && (raw as { website?: unknown }).website) {
+    return { ok: true };
+  }
+
+  const parsed = validateFeedbackInput(raw);
+  if (!parsed.ok) return parsed;
+
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (!checkRateLimit(`feedback:${ip}`, FEEDBACK_PER_IP, FEEDBACK_PER_IP_WINDOW_MS)) {
+    return { ok: false, error: "Poslali jste teď hodně připomínek najednou. Zkuste to prosím za hodinu." };
+  }
+  if (!checkRateLimit("feedback:global", FEEDBACK_GLOBAL, FEEDBACK_GLOBAL_WINDOW_MS)) {
+    return { ok: false, error: "Dnes už přišlo příliš mnoho připomínek. Zkuste to prosím zítra." };
+  }
+
+  const entry = addFeedback(parsed.data, detectDevice(hdrs.get("user-agent")));
+
+  // Upozornění nesmí zdržet ani shodit odeslání formuláře
+  void sendTelegramFeedbackNotification(formatFeedbackTelegram(entry)).catch((err) =>
+    console.error("[feedback] Telegram upozornění selhalo:", err),
+  );
+
+  revalidatePath("/pripominky");
+  return { ok: true };
+}
+
+export async function actionGetFeedback(pin: string): Promise<FeedbackEntry[]> {
+  await requireActionPin(pin);
+  return getFeedbackList();
+}
+
+export async function actionUpdateFeedback(
+  pin: string,
+  id: number,
+  updates: unknown,
+): Promise<FeedbackEntry> {
+  await requireActionPin(pin);
+  if (!Number.isInteger(id)) throw new Error("Neplatná připomínka.");
+  const parsed = feedbackUpdateSchema.safeParse(updates);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatná úprava.");
+  const entry = updateFeedback(id, parsed.data);
+  if (!entry) throw new Error("Připomínka už neexistuje.");
+  revalidatePath("/pripominky");
+  return entry;
+}
+
+export async function actionDeleteFeedback(pin: string, id: number): Promise<void> {
+  await requireActionPin(pin);
+  if (!Number.isInteger(id)) throw new Error("Neplatná připomínka.");
+  deleteFeedback(id);
+  revalidatePath("/pripominky");
+}

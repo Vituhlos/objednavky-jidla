@@ -10,6 +10,7 @@ const NAV = [
   { href: "/jidelnicek", label: "Jídelníček LIMA",   shortLabel: "Jídelníček", icon: "menu_book",       exact: false },
   { href: "/pizza",      label: "Pizza",              shortLabel: "Pizza",      icon: "local_pizza",     exact: false },
   { href: "/historie",   label: "Historie",           shortLabel: "Historie",   icon: "history",         exact: false },
+  { href: "/pripominky", label: "Připomínky",         shortLabel: "Nápady",     icon: "feedback",        exact: false },
   { href: "/nastaveni",  label: "Nastavení",          shortLabel: "Nastavení",  icon: "settings",        exact: false },
 ];
 

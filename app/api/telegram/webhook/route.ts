@@ -275,6 +275,10 @@ function buildSettingsKeyboard(chatId: string) {
       [{ text: `⏰ Osobní čas jídelníčku${morningTimeLabel}`, callback_data: "toggle:personal_morning" }],
       [{ text: `📨 Odeslání objednávky  ${sub?.notifyOrderSent ? on : off}`, callback_data: "toggle:order_sent" }],
       [{ text: `📋 Nový jídelníček  ${sub?.notifyMenuImported ? on : off}`, callback_data: "toggle:menu_imported" }],
+      // Připomínky mohou obsahovat citlivé výtky — nabízí se jen adminům
+      ...(sub?.isAdmin
+        ? [[{ text: `💬 Nové připomínky  ${sub.notifyFeedback ? on : off}`, callback_data: "toggle:feedback" }]]
+        : []),
     ],
   };
 }
@@ -639,8 +643,10 @@ export async function POST(req: NextRequest) {
         "toggle:morning": "notify_morning_menu",
         "toggle:order_sent": "notify_order_sent",
         "toggle:menu_imported": "notify_menu_imported",
+        "toggle:feedback": "notify_feedback",
       };
-      const col = colMap[data];
+      // callback_data posílá klient, takže ho lze podvrhnout i bez tlačítka
+      const col = data === "toggle:feedback" && !isTelegramAdmin(chatId) ? undefined : colMap[data];
       if (col) {
         toggleNotifySetting(chatId, col);
         await editMessageReplyMarkup(s.telegramBotToken, chatId, messageId, buildSettingsKeyboard(chatId));

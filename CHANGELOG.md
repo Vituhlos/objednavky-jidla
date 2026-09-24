@@ -6,6 +6,26 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kde lidé píšou nápady, hlášení chyb, výtky i pochvaly. Sedm kategorií s emoji (💡 nápad, 🐞 chyba, 🍽️ jídlo a objednávání, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné). Jméno je nepovinné a předvyplní se z posledního objednávání, jde i odeslat anonymně. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
+- Nastavení → **Připomínky** (za PINem): seznam s filtrem podle stavu (🆕 Nová, 👀 Přečteno, 🗓️ V plánu, ✅ Hotovo, 🚫 Zamítnuto), interní poznámka, veřejná odpověď a mazání. Počet nových ukazuje odznak u záložky.
+- Seznam „Co jsme podle vás upravili“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
+- Telegram: upozornění na novou připomínku. Posílá se **jen adminům bota** a jen těm, kdo si ho sami zapnou v `/nastaveni` → 💬 Nové připomínky. Ve výchozím stavu je vypnuté; běžným uživatelům se přepínač nenabízí a webhook ho od nich nepřijme ani při podvrženém `callback_data`.
+- Záloha (`/api/backup`) a obnova (`/api/restore`) zahrnují připomínky; obnova přeskakuje ty, které už v databázi jsou (stejný čas i text).
+- `lib/feedback.test.ts` (12 testů validace a textu pro Telegram) a `tools/feedback.test.mjs` (8 testů proti dočasné SQLite) — mimo jiné hlídají, že veřejný seznam nevydá text ani autora a že upozornění dostane jen admin, který si ho zapnul.
+
+### Security
+
+- Formulář je veřejný, proto: validace na serveru přes zod (délky, povolené kategorie, odstranění řídicích znaků, stránka jen jako cesta v rámci appky), limit 5 připomínek za hodinu na IP a strop 100 za den pro celou appku (IP z `x-forwarded-for` jde podvrhnout), skryté pole proti robotům. Text se všude vykresluje jako prostý text a pro Telegram se escapuje.
+- IP adresa ani celý user-agent se k připomínce neukládají.
+- Čtení, úprava i mazání připomínek ověřují PIN v každé Server Action zvlášť a sdílejí počítadlo neúspěchů s chráněnými API routami (10 chyb z jedné IP = zámek na 15 minut). Kontrola PINu se zámkem je nově v `verifySettingsPin()` v `lib/api-auth.ts`; `requireSettingsPin()` ji používá beze změny chování.
+
+### Migration notes
+
+- Databáze se rozšíří automaticky při startu: nová tabulka `feedback` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
+- Nová funkce bez nekompatibilních změn → při vydání bump **MINOR** (1.3.4 → 1.4.0) a záznam v `lib/release-notes.ts`.
+
 ## [1.3.4] - 2026-08-25
 
 ### Fixed
