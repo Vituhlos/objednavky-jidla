@@ -6,6 +6,14 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Předání připomínky k řešení** (Nastavení → Připomínky, v detailu připomínky):
+  - „Zkopírovat pro AI“ dá do schránky hotové zadání pro Claude Code nebo Codex: kategorii, stav, stránku, zařízení, verzi aplikace, technický údaj, počet screenshotů, text, interní poznámku a pokyny k postupu (AGENTS.md, SemVer, CHANGELOG, nerozbít objednávky/PDF/e-mail). Na `http://` bez HTTPS, kde prohlížeč `navigator.clipboard` nepovolí, se kopíruje záložní cestou; když neprojde ani ta, zobrazí se text k ručnímu zkopírování.
+  - „Založit úkol na GitHubu“ otevře předvyplněný nový issue. Nic se neodešle samo, GitHub formulář ukáže text k úpravě. Adresa se drží pod 7 500 znaky, delší text připomínky se zkrátí.
+  - Jméno autora se nepředává nikam; interní poznámka jde jen do schránky, na veřejný GitHub ne. Screenshoty je potřeba přiložit ručně.
+- Testy: `lib/feedback-export.test.ts`.
+
 ## [1.5.0] - 2026-09-24
 
 ### Added

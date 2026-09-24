@@ -14,6 +14,7 @@ import { formatFeedbackDate, parseDbDate } from "../feedback/feedback-utils";
 import { StatusBadge } from "../feedback/StatusBadge";
 import { ConfirmModal } from "../ConfirmModal";
 import { FeedbackAttachments } from "./FeedbackAttachments";
+import { FeedbackHandoff } from "./FeedbackHandoff";
 import MIcon from "../MIcon";
 import { SettingsSection } from "./SettingsPrimitives";
 
@@ -248,6 +249,7 @@ function FeedbackItem({
             </div>
           )}
           <FeedbackAttachments attachments={entry.attachments} getPin={getPin} />
+          <FeedbackHandoff entry={{ ...entry, adminNote, status }} />
 
           <div className="modal-field">
             <span className="modal-label">Stav</span>
