@@ -225,6 +225,21 @@ function migrate(db: Database.Database): void {
   try { db.exec("ALTER TABLE feedback ADD COLUMN app_version TEXT NOT NULL DEFAULT ''"); } catch {}
   // Kdy se naposledy změnil stav — podle toho se po 90 dnech mažou screenshoty vyřízených
   try { db.exec("ALTER TABLE feedback ADD COLUMN status_changed_at TEXT"); } catch {}
+  // Správce připomínku výslovně zveřejní k hlasování; veřejně jde jen jeho shrnutí
+  try { db.exec("ALTER TABLE feedback ADD COLUMN votable INTEGER NOT NULL DEFAULT 0"); } catch {}
+  // Krátký název k hlasování — odpověď autorovi („Díky, podíváme se…“) se na to nehodí
+  try { db.exec("ALTER TABLE feedback ADD COLUMN vote_title TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // Hlasy „chci taky“. voter_hash = SHA-256 náhodného kódu z prohlížeče —
+  // jeden hlas na prohlížeč a věc; IP se neukládá.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback_votes (
+      feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+      voter_hash  TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (feedback_id, voter_hash)
+    );
+  `);
 
   // Screenshoty k připomínkám. Soubory leží v <data>/feedback-attachments,
   // tady je jen evidence. Řádky mizí s připomínkou (CASCADE), soubory maže kód.

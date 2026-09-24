@@ -5,6 +5,7 @@ import { actionDeleteFeedback, actionUpdateFeedback } from "@/app/actions";
 import {
   FEEDBACK_LIMITS,
   FEEDBACK_STATUSES,
+  pluralizeVotes,
   getCategoryMeta,
   type FeedbackEntry,
   type FeedbackStatus,
@@ -81,6 +82,7 @@ export function FeedbackSection({
         <div className="text-[12px] text-stone-500 leading-relaxed pb-2 flex flex-col gap-1.5">
           <p>Připomínka se po rozkliknutí sama označí jako přečtená. Stav se mění jedním klikem.</p>
           <p><b>Odpověď</b> uvidí autor hned v kartě „Moje připomínky“ (jen ve svém prohlížeči). Když připomínku označíte jako <b>Hotovo</b>, objeví se odpověď i veřejně v seznamu „Změnili jsme díky vám“. Původní text ani autor se veřejně nikdy neukazují.</p>
+          <p><b>Hlasování:</b> otevřené připomínce dejte krátký název (třeba „Tmavý režim“) a zapněte „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Hlas je vázaný na prohlížeč, ne na člověka — kdo si smaže data prohlížeče, může hlasovat znovu. Berte počty jako orientační.</p>
           <p>Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se po 90 dnech samy smažou, text zůstává.</p>
           <p>Upozornění na Telegram si admin zapne v botovi: <code className="bg-black/5 px-1 rounded">/nastaveni</code> → 💬 Nové připomínky.</p>
         </div>
@@ -155,14 +157,15 @@ function FeedbackItem({
   const [status, setOptimisticStatus] = useOptimistic(entry.status);
   const [adminNote, setAdminNote] = useState(entry.adminNote);
   const [publicReply, setPublicReply] = useState(entry.publicReply);
+  const [voteTitle, setVoteTitle] = useState(entry.voteTitle);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const textsDirty = adminNote !== entry.adminNote || publicReply !== entry.publicReply;
+  const textsDirty = adminNote !== entry.adminNote || publicReply !== entry.publicReply || voteTitle !== entry.voteTitle;
 
-  const persist = (updates: { status?: FeedbackStatus; adminNote?: string; publicReply?: string }) => {
+  const persist = (updates: { status?: FeedbackStatus; adminNote?: string; publicReply?: string; voteTitle?: string; votable?: boolean }) => {
     setError(null);
     startTransition(async () => {
       if (updates.status) setOptimisticStatus(updates.status);
@@ -227,6 +230,7 @@ function FeedbackItem({
             {entry.page && <span>· {entry.page}</span>}
             {entry.device && <span>· {entry.device}</span>}
             {entry.appVersion && <span>· v{entry.appVersion}</span>}
+            {(entry.votable || entry.votes > 0) && <span className="text-blue-700">· {pluralizeVotes(entry.votes)}</span>}
             {entry.attachments.length > 0 && (
               <span>· {entry.attachments.length} {entry.attachments.length === 1 ? "obrázek" : "obrázky"}</span>
             )}
@@ -307,6 +311,46 @@ function FeedbackItem({
             </div>
           </div>
 
+          {status !== "done" && status !== "rejected" && (
+            <div className="flex flex-col gap-2 p-3 rounded-2xl" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.12)" }}>
+              <div className="modal-field">
+                <label className="modal-label" htmlFor={`fb-vote-${entry.id}`}>
+                  Název k hlasování <span className="modal-label-price">krátce, uvidí ho všichni</span>
+                </label>
+                <input
+                  className="modal-input"
+                  id={`fb-vote-${entry.id}`}
+                  maxLength={FEEDBACK_LIMITS.voteTitleMax}
+                  onChange={(e) => setVoteTitle(e.target.value)}
+                  placeholder="Např. „Tmavý režim“"
+                  type="text"
+                  value={voteTitle}
+                />
+              </div>
+              <label className={`flex items-start gap-2.5 select-none ${entry.voteTitle.trim() ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
+                <div className="relative shrink-0 mt-0.5">
+                  <input
+                    checked={entry.votable}
+                    className="peer sr-only"
+                    disabled={!entry.voteTitle.trim() || isPending}
+                    onChange={(e) => persist({ votable: e.target.checked })}
+                    type="checkbox"
+                  />
+                  <div className="w-9 h-5 rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-500/60" />
+                  <div className="absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+                </div>
+                <span className="text-[12.5px] text-stone-700 leading-snug">
+                  Dát k hlasování
+                  <span className="block text-[11px] text-stone-400">
+                    {entry.voteTitle.trim()
+                      ? "Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Text autora ne."
+                      : "Nejdřív napište a uložte název."}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+
           {status === "done" && !publicReply.trim() && (
             <p className="text-[11.5px] text-amber-700 inline-flex items-center gap-1.5">
               <MIcon name="info" size={13} />
@@ -321,7 +365,7 @@ function FeedbackItem({
               type="button"
               className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
               disabled={!textsDirty || isPending}
-              onClick={() => persist({ adminNote, publicReply })}
+              onClick={() => persist({ adminNote, publicReply, voteTitle })}
             >
               <MIcon name="check" size={14} />
               Uložit texty

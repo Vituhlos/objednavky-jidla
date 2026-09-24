@@ -15,6 +15,8 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - **„Nahlásit problém“ tam, kde problém vzniká.** Chybová stránka appky má tlačítko, které otevře připomínky s předvyplněnou kategorií Chyba, stránkou a kódem chyby (digest z Next.js, dohledatelný v logu serveru). Technický údaj uživatel vidí a může ho před odesláním odebrat. V nápovědě objednávky přibyl odkaz „Něco nefunguje? Napiš nám“.
 - U připomínky se ukládá verze appky, kterou měl autor načtenou. Správce ji vidí v Nastavení i v upozornění na Telegramu.
 - Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se 90 dní po poslední změně stavu samy smažou (scheduler, denně ve 3:30). Text připomínky zůstává.
+- **Hlasování „chci taky“.** Správce dá otevřené připomínce krátký název (např. „Tmavý režim“) a zapne „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍; nejžádanější jsou nahoře. Text autora ani odpověď autorovi se v hlasování neukazují. Hotové a zamítnuté připomínky se z hlasování samy stáhnou a počet hlasů se ukáže v seznamu změn. Jeden hlas na prohlížeč hlídá databáze (`feedback_votes`, primární klíč připomínka + otisk kódu prohlížeče); kdo si smaže data prohlížeče, může hlasovat znovu, proto jsou počty orientační.
+- **Pozvánka k připomínkám na objednávkové stránce.** Pod stavovým pruhem je banner ve stejném stylu s odkazem na stránku Připomínky. Věta se střídá po dnech („Stížnosti na knedlíky řeš s kuchyní. Stížnosti na appku s námi.“). Křížkem jde skrýt na 14 dní.
 - **Screenshoty k připomínce** (nejvýš 3). Obrázek jde přetáhnout kamkoli na stránku, vložit přes Ctrl+V nebo vybrat souborem (na mobilu i z galerie). Prohlížeč ho před odesláním zmenší. Obrázek přetažený ještě před výběrem kategorie ji předvybere jako „Chyba“. Správce je vidí u připomínky v Nastavení a může je zvětšit; v upozornění na Telegramu je jen jejich počet.
 - Nastavení → **Připomínky** (za PINem): velká čísla K vyřízení / Nové / V plánu / Hotovo / Vše zároveň filtrují seznam. Stav (Nová, Přečteno, V plánu, Hotovo, Zamítnuto) se mění jedním klikem a projeví se hned; rozkliknutím se nová připomínka označí jako přečtená. K tomu interní poznámka, odpověď (autor ji vidí hned, ostatní u stavu Hotovo) a mazání. Počet nových ukazuje odznak u záložky.
 - Seznam „Změnili jsme díky vám“ na stránce Připomínky. Obsahuje jen připomínky ve stavu Hotovo s vyplněnou veřejnou odpovědí a ukazuje výhradně tu odpověď — původní text ani autor se veřejně nikdy nezobrazí.
@@ -28,17 +30,19 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - IP adresa ani celý user-agent se k připomínce neukládají.
 - Screenshoty nahrává kdokoli, proto se nevěří příponě ani Content-Type: každý soubor dekóduje `sharp`, co není PNG/JPEG/WebP/GIF, neprojde (ověřeno i na HTML s hlavičkou PNG a na SVG se skriptem). Obrázek se znovu zakóduje do WebP, takže zmizí EXIF (poloha, model telefonu) i cokoli přilepeného za obrazová data. Omezení: 10 MB na soubor, 40 Mpx, delší strana po zpracování 2000 px, 500 MB pro všechny přílohy dohromady. Soubory mají náhodné jméno (UUID) a stahují se jen s PINem přes `/api/feedback/attachments/[id]`, s `Content-Security-Policy: sandbox`, `nosniff` a `no-store`.
 - Připomínky se odesílají přes `POST /api/feedback` (multipart) místo Server Action, protože ty mají strop těla 1 MB. Routa odmítne požadavek bez `Content-Length` nebo větší než limit ještě před čtením těla.
+- Hlasování: `POST /api/feedback/vote` přijme hlas jen u zveřejněné otevřené připomínky, kód prohlížeče se ukládá jen jako SHA-256 a IP se neukládá. Limit 200 hlasů za hodinu na IP je záměrně velkorysý, protože celá firma často chodí ven přes jednu adresu; zastaví skript, ne kolegy.
 - Čtení, úprava i mazání připomínek ověřují PIN v každé Server Action zvlášť a sdílejí počítadlo neúspěchů s chráněnými API routami (10 chyb z jedné IP = zámek na 15 minut). Kontrola PINu se zámkem je nově v `verifySettingsPin()` v `lib/api-auth.ts`; `requireSettingsPin()` ji používá beze změny chování.
 
 ### Migration notes
 
 - `sharp` je nově přímá závislost (dřív jen nepřímá přes Next.js), verze se nemění.
 - Screenshoty se ukládají do `data/feedback-attachments/` vedle databáze, tedy do stejného Docker volume. Nic nastavovat netřeba.
-- Databáze se rozšíří automaticky při startu: nové tabulky `feedback` (včetně sloupců `secret_hash`, `context`, `app_version`, `status_changed_at`) a `feedback_attachments` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
+- Databáze se rozšíří automaticky při startu: nové tabulky `feedback` (včetně sloupců `secret_hash`, `context`, `app_version`, `status_changed_at`, `votable`, `vote_title`), `feedback_attachments` a `feedback_votes` a sloupec `telegram_subscriptions.notify_feedback` (výchozí 0). Změna je zpětně kompatibilní, žádný ruční krok není potřeba.
 
 ### Known issues
 
-- JSON záloha (`/api/backup`) obsahuje text připomínek, ale ne screenshoty. Při přenosu na jiný server je potřeba zkopírovat i složku `data/feedback-attachments/` (je ve stejném volume jako databáze).
+- Hlasování je orientační: hlas patří prohlížeči, ne člověku. Bez přihlašování to jinak nejde.
+- JSON záloha (`/api/backup`) obsahuje text připomínek, ale ne screenshoty ani hlasy. Při přenosu na jiný server je potřeba zkopírovat i složku `data/feedback-attachments/` (je ve stejném volume jako databáze).
 
 ## [1.3.4] - 2026-08-25
 

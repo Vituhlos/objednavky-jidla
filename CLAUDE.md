@@ -151,6 +151,8 @@ id | created_at (UTC) | category | message | author_name (nepovinné)
 page (cesta, odkud přišel) | device ("mobil"|"počítač"|"")
 status ("new"|"read"|"planned"|"done"|"rejected")
 admin_note | public_reply | resolved_at (první přechod do "done")
+secret_hash (SHA-256 kódu autora) | context | app_version | status_changed_at
+votable (0/1) | vote_title
 ```
 Veřejně (`getPublicFeedbackReplies`) jde jen `public_reply` hotových připomínek — nikdy `message` ani `author_name`.
 
@@ -159,6 +161,13 @@ Veřejně (`getPublicFeedbackReplies`) jde jen `public_reply` hotových připom�
 id | feedback_id (FK, ON DELETE CASCADE) | file_name (UUID.webp) | mime | size | width | height
 ```
 Soubory v `<data>/feedback-attachments/`; při mazání připomínky je maže `deleteAttachmentFiles()`.
+
+### `feedback_votes`
+```
+feedback_id (FK, ON DELETE CASCADE) | voter_hash (SHA-256 kódu z prohlížeče) | created_at
+PRIMARY KEY (feedback_id, voter_hash)
+```
+Hlasovat jde jen o `feedback.votable = 1` s vyplněným `vote_title` a stavem new/read/planned.
 
 ### `pizza_orders`, `pizza_order_rows`, `pizza_items`
 Analogická struktura k oběd objednávkám, bez oddělení.
@@ -192,6 +201,10 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 ### Připomínky
 - `/pripominky` → `POST /api/feedback` (multipart, veřejné): honeypot `website`, zod validace, rate limit 5/h na IP + 100/den globálně, screenshoty přes `processImage()` (sharp → WebP bez metadat)
 - Screenshoty pro správce: `GET /api/feedback/attachments/[id]` s hlavičkou `x-settings-pin`
+- Moje připomínky: `POST /api/feedback/mine` s tajnými kódy z localStorage (`myFeedback`)
+- Hlasování: `POST /api/feedback/vote` (kód hlasujícího `feedbackVoter` v localStorage)
+- Pozvánka na objednávkové stránce: `order/FeedbackNudge.tsx` (skrytí na 14 dní v localStorage)
+- Úklid: `cleanupOldAttachments()` ve scheduleru ve 3:30 — screenshoty 90 dní po vyřízení
 - Upozornění: `sendTelegramFeedbackNotification()` — jen admini s `notify_feedback = 1` (opt-in, výchozí 0)
 - Správa: Nastavení → Připomínky; `actionGetFeedback/UpdateFeedback/DeleteFeedback(pin, …)` ověřují PIN přes `verifySettingsPin()` se zámkem po 10 chybách
 

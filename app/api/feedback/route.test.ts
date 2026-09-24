@@ -22,6 +22,8 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "feedback-
 
 type Route = typeof import("./route");
 type MineRoute = typeof import("./mine/route");
+type VoteRoute = typeof import("./vote/route");
+let VOTE: VoteRoute["POST"];
 let POST: Route["POST"];
 let MINE: MineRoute["POST"];
 let png: Buffer;
@@ -29,6 +31,7 @@ let png: Buffer;
 beforeAll(async () => {
   ({ POST } = await import("./route"));
   ({ POST: MINE } = await import("./mine/route"));
+  ({ POST: VOTE } = await import("./vote/route"));
   png = await sharp({ create: { width: 64, height: 48, channels: 3, background: "#ea580c" } }).png().toBuffer();
 });
 
@@ -137,5 +140,36 @@ describe("POST /api/feedback/mine", () => {
   it("odmítne nesmyslný požadavek", async () => {
     expect((await mine("nesmysl")).status).toBe(400);
     expect((await mine(Array.from({ length: 51 }, (_, i) => ({ id: i + 1, token: "x".repeat(20) })))).status).toBe(400);
+  });
+});
+
+async function vote(payload: unknown) {
+  const body = JSON.stringify(payload);
+  const res = await VOTE(new Request("http://localhost/api/feedback/vote", {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json", "content-length": String(Buffer.byteLength(body)), "x-forwarded-for": freshIp() },
+  }) as never);
+  return { status: res.status, json: await res.json() as { ok: boolean; votes?: number } };
+}
+
+describe("POST /api/feedback/vote", () => {
+  it("o nezveřejněné připomínce hlasovat nejde", async () => {
+    const created = (await send(valid)).json;
+    expect((await vote({ id: created.id, voter: "v".repeat(24), vote: true })).status).toBe(404);
+  });
+
+  it("zveřejněná připomínka hlas přijme, druhý hlas stejného prohlížeče ne", async () => {
+    const created = (await send(valid)).json;
+    const { updateFeedback } = await import("@/lib/feedback");
+    updateFeedback(created.id!, { status: "planned", voteTitle: "Shrnutí", votable: true });
+    expect((await vote({ id: created.id, voter: "w".repeat(24), vote: true })).json.votes).toBe(1);
+    expect((await vote({ id: created.id, voter: "w".repeat(24), vote: true })).json.votes).toBe(1);
+    expect((await vote({ id: created.id, voter: "x".repeat(24), vote: true })).json.votes).toBe(2);
+  });
+
+  it("odmítne nesmyslný požadavek", async () => {
+    expect((await vote({ id: "1", voter: "w".repeat(24), vote: true })).status).toBe(400);
+    expect((await vote({ id: 1, voter: "krátký", vote: true })).status).toBe(400);
   });
 });

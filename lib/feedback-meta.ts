@@ -65,6 +65,7 @@ export const FEEDBACK_LIMITS = {
   pageMax: 100,
   adminNoteMax: 2000,
   publicReplyMax: 500,
+  voteTitleMax: 120,
 } as const;
 
 export const FEEDBACK_ATTACHMENT_LIMITS = {
@@ -102,6 +103,9 @@ export interface FeedbackEntry {
   attachments: FeedbackAttachment[];
   context: string;
   appVersion: string;
+  votable: boolean;
+  voteTitle: string;
+  votes: number;
 }
 
 /**
@@ -127,7 +131,26 @@ export interface PublicFeedbackReply {
   category: FeedbackCategory;
   publicReply: string;
   resolvedAt: string;
+  votes: number;
 }
+
+/** Připomínka zveřejněná k hlasování — jen shrnutí od správce, nikdy text autora. */
+export interface VotableFeedback {
+  id: number;
+  category: FeedbackCategory;
+  status: FeedbackStatus;
+  summary: string;
+  votes: number;
+}
+
+/** „1 hlas“, „2 hlasy“, „5 hlasů“. */
+export function pluralizeVotes(count: number): string {
+  if (count === 1) return "1 hlas";
+  if (count >= 2 && count <= 4) return `${count} hlasy`;
+  return `${count} hlasů`;
+}
+
+export const VOTER_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
 
 export function getCategoryMeta(id: string) {
   return FEEDBACK_CATEGORIES.find((c) => c.id === id) ?? FEEDBACK_CATEGORIES[FEEDBACK_CATEGORIES.length - 1];

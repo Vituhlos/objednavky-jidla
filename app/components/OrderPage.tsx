@@ -14,6 +14,7 @@ import { useCutoff } from "./order/useCutoff";
 import { useCutoffUnlock } from "./order/useCutoffUnlock";
 import { DayPicker } from "./order/DayPicker";
 import { DayStatusBar } from "./order/DayStatusBar";
+import { FeedbackNudge } from "./order/FeedbackNudge";
 import { HelpModal } from "./order/HelpModal";
 import { OrderHeader } from "./order/OrderHeader";
 import {
@@ -568,6 +569,8 @@ export default function OrderPage({
                 sentAt={sentAt}
                 totalPrice={totalPrice}
               />
+
+              <FeedbackNudge date={todayDate ?? selectedDate ?? ""} />
 
               {upcomingClosure && (
                 <div

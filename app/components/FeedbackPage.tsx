@@ -1,13 +1,22 @@
 "use client";
 
-import type { PublicFeedbackReply } from "@/lib/feedback-meta";
+import type { PublicFeedbackReply, VotableFeedback } from "@/lib/feedback-meta";
 import { ChangesTimeline } from "./feedback/ChangesTimeline";
 import { FeedbackComposer, type FeedbackPrefill } from "./feedback/FeedbackComposer";
 import { HowItWorks } from "./feedback/HowItWorks";
 import { MyFeedback } from "./feedback/MyFeedback";
 import { useMyFeedback } from "./feedback/useMyFeedback";
+import { VotingBoard } from "./feedback/VotingBoard";
 
-export default function FeedbackPage({ replies, prefill }: { replies: PublicFeedbackReply[]; prefill: FeedbackPrefill }) {
+export default function FeedbackPage({
+  replies,
+  votable,
+  prefill,
+}: {
+  replies: PublicFeedbackReply[];
+  votable: VotableFeedback[];
+  prefill: FeedbackPrefill;
+}) {
   const own = useMyFeedback();
 
   return (
@@ -32,6 +41,7 @@ export default function FeedbackPage({ replies, prefill }: { replies: PublicFeed
           <div className="flex flex-col gap-4">
             <HowItWorks />
             <MyFeedback items={own.items} onForget={own.forget} />
+            <VotingBoard items={votable} />
             <ChangesTimeline replies={replies} />
           </div>
         </div>

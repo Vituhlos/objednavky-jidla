@@ -60,7 +60,7 @@ test("veřejný seznam ukáže jen hotové s odpovědí — nikdy text ani autor
 
   const pub = feedback.getPublicFeedbackReplies();
   assert.deepEqual(pub.map((r) => r.id), [secret.id]);
-  assert.deepEqual(Object.keys(pub[0]).sort(), ["category", "id", "publicReply", "resolvedAt"]);
+  assert.deepEqual(Object.keys(pub[0]).sort(), ["category", "id", "publicReply", "resolvedAt", "votes"]);
   assert.ok(!JSON.stringify(pub).includes("Novák"));
   assert.ok(!JSON.stringify(pub).includes("Tajný"));
 });
@@ -173,7 +173,7 @@ test("veřejný seznam přílohy nevydá", async () => {
   const { entry } = feedback.addFeedback(input({ message: "Veřejná s obrázkem" }), "", [img]);
   feedback.updateFeedback(entry.id, { status: "done", publicReply: "Hotovo" });
   const pub = feedback.getPublicFeedbackReplies().find((r) => r.id === entry.id);
-  assert.deepEqual(Object.keys(pub).sort(), ["category", "id", "publicReply", "resolvedAt"]);
+  assert.deepEqual(Object.keys(pub).sort(), ["category", "id", "publicReply", "resolvedAt", "votes"]);
 });
 
 // ── Moje připomínky, kontext, úklid ──────────────────────────────────────────
@@ -239,4 +239,54 @@ test("změna stavu posune datum změny, úprava textu ne", () => {
   assert.equal(getDb().prepare("SELECT status_changed_at AS t FROM feedback WHERE id = ?").get(entry.id).t, "2020-01-01 00:00:00");
   feedback.updateFeedback(entry.id, { status: "rejected" });
   assert.notEqual(getDb().prepare("SELECT status_changed_at AS t FROM feedback WHERE id = ?").get(entry.id).t, "2020-01-01 00:00:00");
+});
+
+// ── Hlasování ────────────────────────────────────────────────────────────────
+
+test("hlasovat jde jen o zveřejněné otevřené připomínce, jednou za prohlížeč", () => {
+  const { entry } = feedback.addFeedback(input({ message: "Tmavý režim, prosím" }), "");
+  const alice = "a".repeat(24);
+  const bob = "b".repeat(24);
+
+  // nezveřejněná → nejde
+  assert.equal(feedback.setVote(entry.id, alice, true), null);
+
+  feedback.updateFeedback(entry.id, { status: "planned", voteTitle: "Tmavý režim", votable: true });
+  assert.equal(feedback.setVote(entry.id, alice, true), 1);
+  assert.equal(feedback.setVote(entry.id, alice, true), 1);   // podruhé se nepřičte
+  assert.equal(feedback.setVote(entry.id, bob, true), 2);
+  assert.equal(feedback.setVote(entry.id, alice, false), 1);  // vzít zpět
+
+  const board = feedback.getVotableFeedback();
+  const item = board.find((i) => i.id === entry.id);
+  assert.equal(item.votes, 1);
+  assert.equal(item.summary, "Tmavý režim");
+  assert.deepEqual(Object.keys(item).sort(), ["category", "id", "status", "summary", "votes"]);
+
+  // hotová připomínka z hlasování zmizí a hlasy si nese do seznamu změn
+  feedback.updateFeedback(entry.id, { status: "done", publicReply: "Tmavý režim je venku." });
+  assert.equal(feedback.setVote(entry.id, alice, true), null);
+  assert.ok(!feedback.getVotableFeedback().some((i) => i.id === entry.id));
+  assert.equal(feedback.getPublicFeedbackReplies().find((r) => r.id === entry.id).votes, 1);
+
+  // v DB není kód prohlížeče, jen jeho otisk
+  const voters = getDb().prepare("SELECT voter_hash FROM feedback_votes WHERE feedback_id = ?").all(entry.id);
+  assert.ok(voters.every((v) => /^[0-9a-f]{64}$/.test(v.voter_hash) && v.voter_hash !== bob));
+});
+
+test("bez názvu se k hlasování nedá, odpověď autorovi se veřejně neukáže", () => {
+  const { entry } = feedback.addFeedback(input(), "");
+  feedback.updateFeedback(entry.id, { votable: true, publicReply: "Díky, podíváme se na to." });
+  assert.equal(feedback.getFeedbackById(entry.id).votable, false);
+  assert.ok(!feedback.getVotableFeedback().some((i) => i.id === entry.id));
+  assert.equal(feedback.setVote(entry.id, "c".repeat(24), true), null);
+
+  feedback.updateFeedback(entry.id, { voteTitle: "  Export   do Excelu ", votable: true });
+  const item = feedback.getVotableFeedback().find((i) => i.id === entry.id);
+  assert.equal(item.summary, "Export do Excelu");
+  assert.equal(feedback.setVote(entry.id, "<script>", true), null);
+
+  // smazáním názvu se hlasování vypne
+  feedback.updateFeedback(entry.id, { voteTitle: "" });
+  assert.equal(feedback.getFeedbackById(entry.id).votable, false);
 });

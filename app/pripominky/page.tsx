@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
 import { FEEDBACK_CATEGORIES, type FeedbackCategory } from "@/lib/feedback-meta";
-import { getPublicFeedbackReplies } from "@/lib/feedback";
+import { getPublicFeedbackReplies, getVotableFeedback } from "@/lib/feedback";
 import FeedbackPage from "@/app/components/FeedbackPage";
 
 export const metadata: Metadata = {
@@ -30,6 +30,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         context: first(params.chyba).slice(0, 300),
       }}
       replies={getPublicFeedbackReplies()}
+      votable={getVotableFeedback()}
     />
   );
 }

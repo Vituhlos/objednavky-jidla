@@ -16,7 +16,9 @@ import {
   type FeedbackStatus,
   type OwnFeedback,
   type PublicFeedbackReply,
+  type VotableFeedback,
   FEEDBACK_ATTACHMENT_RETENTION_DAYS,
+  VOTER_TOKEN_PATTERN,
 } from "./feedback-meta";
 
 export * from "./feedback-meta";
@@ -88,6 +90,8 @@ export const feedbackUpdateSchema = z.object({
   status: z.enum(statusIds).optional(),
   adminNote: z.string().transform(cleanText).pipe(z.string().max(FEEDBACK_LIMITS.adminNoteMax)).optional(),
   publicReply: z.string().transform(cleanText).pipe(z.string().max(FEEDBACK_LIMITS.publicReplyMax)).optional(),
+  votable: z.boolean().optional(),
+  voteTitle: z.string().transform((v) => cleanText(v).replace(/\s+/g, " ")).pipe(z.string().max(FEEDBACK_LIMITS.voteTitleMax)).optional(),
 });
 
 export type FeedbackUpdate = z.infer<typeof feedbackUpdateSchema>;
@@ -122,6 +126,9 @@ type DbRow = {
   resolved_at: string | null;
   context: string;
   app_version: string;
+  votable: number;
+  vote_title: string;
+  votes: number;
 };
 
 function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]>): FeedbackEntry {
@@ -140,6 +147,9 @@ function toEntry(r: DbRow, attachments: Map<number, FeedbackEntry["attachments"]
     attachments: attachments.get(r.id) ?? [],
     context: r.context ?? "",
     appVersion: r.app_version ?? "",
+    votable: r.votable === 1,
+    voteTitle: r.vote_title ?? "",
+    votes: r.votes ?? 0,
   };
 }
 
@@ -219,13 +229,15 @@ export function getOwnFeedback(items: { id: number; token: string }[]): OwnFeedb
 }
 
 export function getFeedbackById(id: number): FeedbackEntry | null {
-  const row = getDb().prepare("SELECT * FROM feedback WHERE id = ?").get(id) as DbRow | undefined;
+  const row = getDb().prepare(`SELECT *, (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+       FROM feedback WHERE id = ?`).get(id) as DbRow | undefined;
   return row ? toEntry(row, getAttachmentsByFeedback()) : null;
 }
 
 export function getFeedbackList(): FeedbackEntry[] {
   const rows = getDb()
-    .prepare("SELECT * FROM feedback ORDER BY created_at DESC, id DESC")
+    .prepare(`SELECT *, (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+       FROM feedback ORDER BY created_at DESC, id DESC`)
     .all() as DbRow[];
   const attachments = getAttachmentsByFeedback();
   return rows.map((r) => toEntry(r, attachments));
@@ -245,6 +257,10 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
   const status = updates.status ?? current.status;
   const adminNote = updates.adminNote ?? current.adminNote;
   const publicReply = updates.publicReply ?? current.publicReply;
+  // Název jde ven všem — i mimo validaci ve Server Action ho uklidit
+  const voteTitle = cleanText(updates.voteTitle ?? current.voteTitle).replace(/\s+/g, " ").slice(0, FEEDBACK_LIMITS.voteTitleMax);
+  // Bez názvu se hlasovat nedá — vymazáním názvu se hlasování samo vypne
+  const votable = (updates.votable ?? current.votable) && voteTitle !== "";
   // Datum vyřízení drží první přechod do „Hotovo“, ať seznam změn neskáče
   // při každé opravě překlepu v odpovědi. Návrat z „Hotovo“ ho maže.
   const resolvedAt =
@@ -252,11 +268,11 @@ export function updateFeedback(id: number, updates: FeedbackUpdate): FeedbackEnt
 
   getDb()
     .prepare(
-      `UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ?,
+      `UPDATE feedback SET status = ?, admin_note = ?, public_reply = ?, resolved_at = ?, votable = ?, vote_title = ?,
          status_changed_at = CASE WHEN status = ? THEN status_changed_at ELSE datetime('now') END
        WHERE id = ?`,
     )
-    .run(status, adminNote, publicReply, resolvedAt, status, id);
+    .run(status, adminNote, publicReply, resolvedAt, votable ? 1 : 0, voteTitle, status, id);
   return getFeedbackById(id);
 }
 
@@ -293,17 +309,62 @@ export function cleanupOldAttachments(days = FEEDBACK_ATTACHMENT_RETENTION_DAYS)
 export function getPublicFeedbackReplies(limit = 20): PublicFeedbackReply[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, category, public_reply, resolved_at FROM feedback
+      `SELECT id, category, public_reply, resolved_at,
+              (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+       FROM feedback
        WHERE status = 'done' AND public_reply != '' AND resolved_at IS NOT NULL
        ORDER BY resolved_at DESC, id DESC LIMIT ?`,
     )
-    .all(limit) as { id: number; category: string; public_reply: string; resolved_at: string }[];
+    .all(limit) as { id: number; category: string; public_reply: string; resolved_at: string; votes: number }[];
   return rows.map((r) => ({
     id: r.id,
     category: getCategoryMeta(r.category).id,
     publicReply: r.public_reply,
     resolvedAt: r.resolved_at,
+    votes: r.votes,
   }));
+}
+
+// Hlasovat jde jen o otevřených věcech; hotové a zamítnuté se uzavřou samy
+const VOTABLE_SQL = "votable = 1 AND vote_title != '' AND status IN ('new', 'read', 'planned')";
+
+/** Připomínky zveřejněné k hlasování, nejžádanější první. */
+export function getVotableFeedback(limit = 30): VotableFeedback[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, category, status, vote_title,
+              (SELECT COUNT(*) FROM feedback_votes v WHERE v.feedback_id = feedback.id) AS votes
+       FROM feedback WHERE ${VOTABLE_SQL}
+       ORDER BY votes DESC, id DESC LIMIT ?`,
+    )
+    .all(limit) as { id: number; category: string; status: string; vote_title: string; votes: number }[];
+  return rows.map((r) => ({
+    id: r.id,
+    category: getCategoryMeta(r.category).id,
+    status: getStatusMeta(r.status).id,
+    summary: r.vote_title,
+    votes: r.votes,
+  }));
+}
+
+/**
+ * Přidá nebo odebere hlas. `null` = o téhle připomínce se hlasovat nedá
+ * (neexistuje, není zveřejněná, nebo je už vyřízená).
+ *
+ * Hlas je vázaný na náhodný kód prohlížeče, ne na člověka — kdo si smaže
+ * data prohlížeče, může hlasovat znovu. Bez účtů to jinak nejde; hlasování
+ * je proto orientační a správce to ví (stojí to v nápovědě v Nastavení).
+ */
+export function setVote(id: number, voterToken: string, vote: boolean): number | null {
+  if (!VOTER_TOKEN_PATTERN.test(voterToken)) return null;
+  const db = getDb();
+  const open = db.prepare(`SELECT id FROM feedback WHERE id = ? AND ${VOTABLE_SQL}`).get(id);
+  if (!open) return null;
+  const voter = hashSecret(`vote:${voterToken}`);
+  if (vote) db.prepare("INSERT OR IGNORE INTO feedback_votes (feedback_id, voter_hash) VALUES (?, ?)").run(id, voter);
+  else db.prepare("DELETE FROM feedback_votes WHERE feedback_id = ? AND voter_hash = ?").run(id, voter);
+  const { cnt } = db.prepare("SELECT COUNT(*) AS cnt FROM feedback_votes WHERE feedback_id = ?").get(id) as { cnt: number };
+  return cnt;
 }
 
 const TELEGRAM_PREVIEW_MAX = 600;

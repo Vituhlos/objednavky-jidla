@@ -1,4 +1,4 @@
-import { getCategoryMeta, type PublicFeedbackReply } from "@/lib/feedback-meta";
+import { getCategoryMeta, pluralizeVotes, type PublicFeedbackReply } from "@/lib/feedback-meta";
 import MIcon from "../MIcon";
 import { formatFeedbackDate, pluralizeChanges } from "./feedback-utils";
 
@@ -34,6 +34,7 @@ export function ChangesTimeline({ replies }: { replies: PublicFeedbackReply[] })
                   <p className="text-[13px] text-stone-800 leading-snug whitespace-pre-line break-words">{r.publicReply}</p>
                   <p className="text-[11px] text-stone-400 mt-1">
                     <time dateTime={r.resolvedAt.replace(" ", "T")}>{formatFeedbackDate(r.resolvedAt)}</time> · {cat.short}
+                    {r.votes > 0 && <> · {pluralizeVotes(r.votes)}</>}
                   </p>
                 </div>
               </li>
