@@ -570,7 +570,7 @@ export default function OrderPage({
                 totalPrice={totalPrice}
               />
 
-              <FeedbackNudge date={todayDate ?? selectedDate ?? ""} />
+              <FeedbackNudge />
 
               {upcomingClosure && (
                 <div

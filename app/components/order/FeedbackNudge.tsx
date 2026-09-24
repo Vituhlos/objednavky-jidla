@@ -3,47 +3,43 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import MIcon from "../MIcon";
-
-// Věta se střídá po dnech, ať banner nezevšední. Vybírá se podle data, ne
-// náhodně — server i prohlížeč tak vykreslí totéž.
-const LINES = [
-  { lead: "Něco nefunguje?", rest: "Napiš nám, ať to spravíme dřív, než vystydne oběd." },
-  { lead: "Stížnosti na knedlíky řeš s kuchyní.", rest: "Stížnosti na appku s námi." },
-  { lead: "Máš nápad, jak objednávat rychleji?", rest: "Sem s ním. Nejlepší nápady opravdu děláme." },
-  { lead: "Appka tě zlobí?", rest: "Postěžuj si, klidně i bez jména." },
-  { lead: "Polévku nevylepšíme.", rest: "Appku ale ano. Řekni nám, co ti v ní chybí." },
-] as const;
+import { NUDGE_LINES, pickNextLine } from "./feedback-nudge-lines";
 
 const DISMISS_KEY = "feedbackNudgeHiddenUntil";
 const DISMISS_DAYS = 14;
-
-function pickLine(date: string) {
-  const n = [...date].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  return LINES[n % LINES.length];
-}
+const LAST_LINE_KEY = "feedbackNudgeLastLine";
 
 /**
  * Pozvánka k připomínkám pod objednávkou — místo plovoucího tlačítka, které
  * by překáželo na každé stránce. Kdo ji zavře, 14 dní ji neuvidí.
  */
-export function FeedbackNudge({ date }: { date: string }) {
-  // Až po načtení: jestli ji člověk zavřel, ví jen prohlížeč. Bez toho by
-  // zavřený banner na okamžik problikl.
-  const [visible, setVisible] = useState(false);
+export function FeedbackNudge() {
+  // Až po načtení: jestli ji člověk zavřel a jakou větu viděl minule, ví jen
+  // prohlížeč. Náhodná věta na serveru by se navíc s prohlížečem neshodla.
+  const [lineIndex, setLineIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let hiddenUntil = 0;
-    try { hiddenUntil = Number(localStorage.getItem(DISMISS_KEY)) || 0; } catch { /* */ }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- stav je jen v prohlížeči
-    setVisible(Date.now() > hiddenUntil);
+    let last: number | null = null;
+    try {
+      hiddenUntil = Number(localStorage.getItem(DISMISS_KEY)) || 0;
+      const stored = localStorage.getItem(LAST_LINE_KEY);
+      last = stored === null ? null : Number(stored);
+    } catch { /* */ }
+    if (Date.now() <= hiddenUntil) return;
+    // Při každém otevření jiná věta, nikdy stejná dvakrát po sobě
+    const next = pickNextLine(NUDGE_LINES.length, last);
+    try { localStorage.setItem(LAST_LINE_KEY, String(next)); } catch { /* */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- výběr závisí na prohlížeči
+    setLineIndex(next);
   }, []);
 
-  if (!visible) return null;
-  const line = pickLine(date);
+  if (lineIndex === null) return null;
+  const line = NUDGE_LINES[lineIndex];
 
   const dismiss = () => {
     try { localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000)); } catch { /* */ }
-    setVisible(false);
+    setLineIndex(null);
   };
 
   return (

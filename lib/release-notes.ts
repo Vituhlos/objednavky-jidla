@@ -24,7 +24,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Kdo připomínku pošle, vidí v kartě „Moje připomínky“, jak to s ní vypadá, a vaši odpověď. Funguje to bez přihlašování, jen v prohlížeči, ze kterého ji poslal.",
           "Když appka spadne, chybová stránka nabídne „Nahlásit problém“. Připomínka pak rovnou ví, kde a jaká chyba nastala.",
           "Hlasování: nápadům, které zveřejníte k hlasování, můžou lidé dát 👍 v kartě „Co chystáme“. Hned vidíte, co chce nejvíc lidí.",
-          "Pod objednávkou je nenápadná pozvánka k připomínkám. Kdo ji nechce vidět, skryje ji na 14 dní.",
+          "Pod objednávkou je nenápadná pozvánka k připomínkám, pokaždé s jinou větou. Kdo ji nechce vidět, skryje ji na 14 dní.",
           "Nastavení → Připomínky: přehled s filtrem podle stavu, změna stavu jedním klikem, interní poznámka a odpověď autorovi. Hotové připomínky s odpovědí se objeví v seznamu „Změnili jsme díky vám“.",
           "Upozornění na novou připomínku do Telegramu. Dostanou ho jen admini bota, kteří si ho zapnou v /nastaveni.",
         ],
