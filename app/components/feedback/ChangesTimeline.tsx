@@ -4,7 +4,7 @@ import { formatFeedbackDate, pluralizeChanges } from "./feedback-utils";
 
 /**
  * „Změnili jsme díky vám“ — hotové připomínky s veřejnou odpovědí správce.
- * Ukazuje jen tu odpověď; původní text ani autor sem nikdy nedorazí.
+ * Ukazuje jen tu odpověď, ne původní text.
  */
 export function ChangesTimeline({ replies }: { replies: PublicFeedbackReply[] }) {
   return (

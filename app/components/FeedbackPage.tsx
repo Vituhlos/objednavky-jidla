@@ -1,11 +1,13 @@
 "use client";
 
-import type { PublicFeedbackReply, VotableFeedback } from "@/lib/feedback-meta";
+import { useRouter } from "next/navigation";
+import type { PublicFeedbackItem, PublicFeedbackReply, VotableFeedback } from "@/lib/feedback-meta";
 import type { PublicReleaseNote } from "@/lib/release-notes";
 import { ChangesTimeline } from "./feedback/ChangesTimeline";
 import { FeedbackComposer, type FeedbackPrefill } from "./feedback/FeedbackComposer";
 import { HowItWorks } from "./feedback/HowItWorks";
 import { MyFeedback } from "./feedback/MyFeedback";
+import { OthersFeedback } from "./feedback/OthersFeedback";
 import { useMyFeedback } from "./feedback/useMyFeedback";
 import { VotingBoard } from "./feedback/VotingBoard";
 import { WhatsNew } from "./feedback/WhatsNew";
@@ -13,15 +15,24 @@ import { WhatsNew } from "./feedback/WhatsNew";
 export default function FeedbackPage({
   replies,
   votable,
+  others,
   releaseNotes,
   prefill,
 }: {
   replies: PublicFeedbackReply[];
   votable: VotableFeedback[];
+  others: PublicFeedbackItem[];
   releaseNotes: PublicReleaseNote[];
   prefill: FeedbackPrefill;
 }) {
   const own = useMyFeedback();
+  const router = useRouter();
+  // Po odeslání načíst seznamy znovu, ať se nový nápad hned objeví v „Připomínkách ostatních“
+  const onSent = (id: number, token: string) => {
+    own.remember(id, token);
+    router.refresh();
+  };
+  const ownIds = new Set(own.items.map((i) => i.id));
 
   return (
     <div className="k-shell">
@@ -41,7 +52,10 @@ export default function FeedbackPage({
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 pb-nav">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start max-w-[1120px]">
-          <FeedbackComposer onSent={own.remember} prefill={prefill} />
+          <div className="flex flex-col gap-4 min-w-0">
+            <FeedbackComposer onSent={onSent} prefill={prefill} />
+            <OthersFeedback items={others} ownIds={ownIds} />
+          </div>
           <div className="flex flex-col gap-4">
             <HowItWorks />
             <MyFeedback items={own.items} onForget={own.forget} />

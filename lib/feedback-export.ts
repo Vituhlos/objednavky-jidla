@@ -3,8 +3,8 @@ import { getCategoryMeta, getStatusMeta, type FeedbackEntry } from "./feedback-m
 /**
  * Předání připomínky dál — do AI asistenta (schránka) nebo jako úkol na GitHub.
  *
- * Jméno autora se nepředává nikam: AI ho k opravě nepotřebuje a repozitář je
- * veřejný. Interní poznámka jde jen do schránky, na GitHub ne.
+ * Připomínky jsou anonymní. Interní poznámka jde jen do schránky, na veřejný
+ * GitHub ne.
  */
 
 export const GITHUB_REPO = "Vituhlos/objednavky-jidla";
@@ -81,7 +81,7 @@ export function buildGithubIssueUrl(entry: ExportableFeedback): string {
 
   const build = (message: string) => {
     const body = [
-      `Připomínka #${entry.id} z aplikace (bez jména autora).`,
+      `Připomínka #${entry.id} z aplikace.`,
       "",
       ...detailLines(entry),
       "",

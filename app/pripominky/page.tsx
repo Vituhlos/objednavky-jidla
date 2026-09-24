@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
 import { FEEDBACK_CATEGORIES, type FeedbackCategory } from "@/lib/feedback-meta";
-import { getPublicFeedbackReplies, getVotableFeedback } from "@/lib/feedback";
+import { getPublicFeedback, getPublicFeedbackReplies, getVotableFeedback } from "@/lib/feedback";
 import { getPublicReleaseNotes } from "@/lib/release-notes";
 import FeedbackPage from "@/app/components/FeedbackPage";
 
@@ -32,6 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       }}
       releaseNotes={getPublicReleaseNotes()}
       replies={getPublicFeedbackReplies()}
+      others={getPublicFeedback()}
       votable={getVotableFeedback()}
     />
   );

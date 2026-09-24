@@ -56,8 +56,10 @@ import {
 } from "@/lib/departments";
 import type { DepartmentInfo } from "@/lib/departments";
 import {
+  addProposal,
   deleteFeedback,
   feedbackUpdateSchema,
+  proposalSchema,
   getFeedbackList,
   updateFeedback,
   type FeedbackEntry,
@@ -474,6 +476,16 @@ export async function actionUpdateFeedback(
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatná úprava.");
   const entry = updateFeedback(id, parsed.data);
   if (!entry) throw new Error("Připomínka už neexistuje.");
+  revalidatePath("/pripominky");
+  return entry;
+}
+
+/** Vlastní návrh správce rovnou do „Co chystáme“. */
+export async function actionAddProposal(pin: string, input: unknown): Promise<FeedbackEntry> {
+  await requireActionPin(pin);
+  const parsed = proposalSchema.safeParse(input);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Neplatný návrh.");
+  const entry = addProposal(parsed.data);
   revalidatePath("/pripominky");
   return entry;
 }

@@ -8,7 +8,7 @@ import { copyText } from "./copy-text";
 
 /**
  * Předání připomínky k řešení: zadání pro AI do schránky, nebo nový úkol na
- * GitHubu. Ani jedno neobsahuje jméno autora; interní poznámka jde jen do schránky.
+ * GitHubu. Interní poznámka jde jen do schránky, na veřejný GitHub ne.
  */
 export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
   const [copied, setCopied] = useState(false);
@@ -27,9 +27,7 @@ export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
 
   return (
     <div className="modal-field">
-      <span className="modal-label">
-        Předat k řešení <span className="modal-label-price">bez jména autora</span>
-      </span>
+      <span className="modal-label">Předat k řešení</span>
       <div className="flex items-center gap-2 flex-wrap">
         <button
           className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"

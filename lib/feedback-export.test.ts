@@ -7,7 +7,6 @@ const entry: FeedbackEntry = {
   createdAt: "2026-09-24 07:15:00",
   category: "chyba",
   message: "Po uložení řádku zmizí poznámka.\nStalo se to dvakrát.",
-  authorName: "Jana Nováková",
   page: "/",
   device: "mobil",
   status: "new",
@@ -19,7 +18,11 @@ const entry: FeedbackEntry = {
   appVersion: "1.5.0",
   votable: false,
   voteTitle: "",
-  votes: 0,
+  isPublic: false,
+  isProposal: false,
+  hidden: false,
+  up: 0,
+  down: 0,
   githubIssue: null,
   githubIssueState: "",
 };
@@ -30,7 +33,7 @@ function issueParams(url: string) {
 }
 
 describe("buildAiPrompt", () => {
-  it("obsahuje text, údaje a interní poznámku, ale ne jméno autora", () => {
+  it("obsahuje text, údaje a interní poznámku", () => {
     const text = buildAiPrompt(entry);
     expect(text).toContain("Připomínka #42");
     expect(text).toContain("> Po uložení řádku zmizí poznámka.\n> Stalo se to dvakrát.");
@@ -38,7 +41,6 @@ describe("buildAiPrompt", () => {
     expect(text).toContain("Stránka: /");
     expect(text).toContain("Screenshoty: 1");
     expect(text).toContain("Asi optimistický update");
-    expect(text).not.toContain("Jana");
   });
 
   it("nerozbije formátování zpětným apostrofem v technickém údaji", () => {
@@ -51,13 +53,12 @@ describe("buildAiPrompt", () => {
 });
 
 describe("buildGithubIssueUrl", () => {
-  it("předvyplní název i text a vynechá jméno autora a interní poznámku", () => {
+  it("předvyplní název i text a vynechá interní poznámku", () => {
     const params = issueParams(buildGithubIssueUrl(entry));
     expect(params.get("title")).toBe("🐞 Chyba: Po uložení řádku zmizí poznámka.");
     const body = params.get("body") ?? "";
     expect(body).toContain("> Stalo se to dvakrát.");
     expect(body).toContain("Verze aplikace: v1.5.0");
-    expect(body).not.toContain("Jana");
     expect(body).not.toContain("optimistický");
   });
 

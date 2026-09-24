@@ -32,10 +32,10 @@ const input = (overrides = {}) => {
   return r.data;
 };
 
-test("uloží připomínku jako novou a bez IP adresy", () => {
+test("uloží připomínku jako novou, bez jména a bez IP adresy", () => {
   const { entry } = feedback.addFeedback(input({ authorName: "Jana" }), "mobil");
   assert.equal(entry.status, "new");
-  assert.equal(entry.authorName, "Jana");
+  assert.equal(getDb().prepare("SELECT author_name FROM feedback WHERE id = ?").get(entry.id).author_name, "");
   assert.equal(entry.device, "mobil");
   assert.equal(entry.resolvedAt, null);
 
@@ -52,7 +52,7 @@ test("počítá jen nové připomínky", () => {
 });
 
 test("veřejný seznam ukáže jen hotové s odpovědí — nikdy text ani autora", () => {
-  const { entry: secret } = feedback.addFeedback(input({ message: "Kuchař Novák je hrozný", authorName: "Tajný" }), "");
+  const { entry: secret } = feedback.addFeedback(input({ category: "jidlo", message: "Kuchař Novák je hrozný" }), "");
   const { entry: noReply } = feedback.addFeedback(input({ message: "Hotovo bez odpovědi" }), "");
   const { entry: planned } = feedback.addFeedback(input({ message: "V plánu s odpovědí" }), "");
 
@@ -64,7 +64,6 @@ test("veřejný seznam ukáže jen hotové s odpovědí — nikdy text ani autor
   assert.deepEqual(pub.map((r) => r.id), [secret.id]);
   assert.deepEqual(Object.keys(pub[0]).sort(), ["category", "id", "publicReply", "resolvedAt", "votes"]);
   assert.ok(!JSON.stringify(pub).includes("Novák"));
-  assert.ok(!JSON.stringify(pub).includes("Tajný"));
 });
 
 test("datum vyřízení drží první přechod do Hotovo a návrat ho smaže", () => {
@@ -245,29 +244,30 @@ test("změna stavu posune datum změny, úprava textu ne", () => {
 
 // ── Hlasování ────────────────────────────────────────────────────────────────
 
-test("hlasovat jde jen o zveřejněné otevřené připomínce, jednou za prohlížeč", () => {
-  const { entry } = feedback.addFeedback(input({ message: "Tmavý režim, prosím" }), "");
+test("o chybě jde hlasovat, až ji správce dá do „Co chystáme“; jeden hlas na prohlížeč", () => {
+  const { entry } = feedback.addFeedback(input({ category: "chyba", message: "Tmavý režim, prosím" }), "");
   const alice = "a".repeat(24);
   const bob = "b".repeat(24);
 
-  // nezveřejněná → nejde
-  assert.equal(feedback.setVote(entry.id, alice, true), null);
+  // chyba není veřejná kategorie → nejde
+  assert.equal(feedback.setVote(entry.id, alice, 1), null);
 
   feedback.updateFeedback(entry.id, { status: "planned", voteTitle: "Tmavý režim", votable: true });
-  assert.equal(feedback.setVote(entry.id, alice, true), 1);
-  assert.equal(feedback.setVote(entry.id, alice, true), 1);   // podruhé se nepřičte
-  assert.equal(feedback.setVote(entry.id, bob, true), 2);
-  assert.equal(feedback.setVote(entry.id, alice, false), 1);  // vzít zpět
+  assert.deepEqual(feedback.setVote(entry.id, alice, 1), { up: 1, down: 0 });
+  assert.deepEqual(feedback.setVote(entry.id, alice, 1), { up: 1, down: 0 });   // podruhé se nepřičte
+  assert.deepEqual(feedback.setVote(entry.id, bob, -1), { up: 1, down: 1 });
+  assert.deepEqual(feedback.setVote(entry.id, bob, 1), { up: 2, down: 0 });     // změna názoru
+  assert.deepEqual(feedback.setVote(entry.id, alice, 0), { up: 1, down: 0 });   // vzít zpět
 
   const board = feedback.getVotableFeedback();
   const item = board.find((i) => i.id === entry.id);
-  assert.equal(item.votes, 1);
+  assert.equal(item.up, 1);
   assert.equal(item.summary, "Tmavý režim");
-  assert.deepEqual(Object.keys(item).sort(), ["category", "id", "status", "summary", "votes"]);
+  assert.deepEqual(Object.keys(item).sort(), ["category", "down", "id", "status", "summary", "up"]);
 
-  // hotová připomínka z hlasování zmizí a hlasy si nese do seznamu změn
+  // hotová připomínka z hlasování zmizí a 👍 si nese do seznamu změn
   feedback.updateFeedback(entry.id, { status: "done", publicReply: "Tmavý režim je venku." });
-  assert.equal(feedback.setVote(entry.id, alice, true), null);
+  assert.equal(feedback.setVote(entry.id, alice, 1), null);
   assert.ok(!feedback.getVotableFeedback().some((i) => i.id === entry.id));
   assert.equal(feedback.getPublicFeedbackReplies().find((r) => r.id === entry.id).votes, 1);
 
@@ -277,16 +277,16 @@ test("hlasovat jde jen o zveřejněné otevřené připomínce, jednou za prohl�
 });
 
 test("bez názvu se k hlasování nedá, odpověď autorovi se veřejně neukáže", () => {
-  const { entry } = feedback.addFeedback(input(), "");
+  const { entry } = feedback.addFeedback(input({ category: "chyba" }), "");
   feedback.updateFeedback(entry.id, { votable: true, publicReply: "Díky, podíváme se na to." });
   assert.equal(feedback.getFeedbackById(entry.id).votable, false);
   assert.ok(!feedback.getVotableFeedback().some((i) => i.id === entry.id));
-  assert.equal(feedback.setVote(entry.id, "c".repeat(24), true), null);
+  assert.equal(feedback.setVote(entry.id, "c".repeat(24), 1), null);
 
   feedback.updateFeedback(entry.id, { voteTitle: "  Export   do Excelu ", votable: true });
   const item = feedback.getVotableFeedback().find((i) => i.id === entry.id);
   assert.equal(item.summary, "Export do Excelu");
-  assert.equal(feedback.setVote(entry.id, "<script>", true), null);
+  assert.equal(feedback.setVote(entry.id, "<script>", 1), null);
 
   // smazáním názvu se hlasování vypne
   feedback.updateFeedback(entry.id, { voteTitle: "" });
@@ -325,5 +325,48 @@ test("nesmyslná odpověď GitHubu nic nerozbije", () => {
   assert.deepEqual(github.extractIssueLinks(null), []);
   assert.deepEqual(github.extractIssueLinks({ message: "API rate limit exceeded" }), []);
   assert.deepEqual(github.extractIssueLinks([null, 1, { number: -1 }, { number: 3, body: 42, author_association: "OWNER" }]), []);
+});
+
+test("„Připomínky ostatních“ ukážou jen otevřené veřejné kategorie a nic navíc", () => {
+  const { entry: idea } = feedback.addFeedback(input({ category: "napad", message: "Tmavý režim prosím", page: "/pizza", context: "digest 1" }), "mobil");
+  const { entry: bug } = feedback.addFeedback(input({ category: "chyba", message: "Padá mi to" }), "");
+  const { entry: food } = feedback.addFeedback(input({ category: "jidlo", message: "Polévka studená" }), "");
+  const { entry: hidden } = feedback.addFeedback(input({ category: "mobil", message: "Nevhodný text" }), "");
+  const { entry: done } = feedback.addFeedback(input({ category: "ovladani", message: "Větší písmo" }), "");
+  const { entry: promoted } = feedback.addFeedback(input({ category: "jine", message: "Nápad pro Co chystáme" }), "");
+  feedback.updateFeedback(hidden.id, { hidden: true });
+  feedback.updateFeedback(done.id, { status: "done" });
+  feedback.updateFeedback(promoted.id, { voteTitle: "Hezčí souhrn", votable: true });
+
+  const ids = feedback.getPublicFeedback().map((i) => i.id);
+  assert.ok(ids.includes(idea.id));
+  for (const other of [bug, food, hidden, done, promoted]) assert.ok(!ids.includes(other.id), `id ${other.id}`);
+  const item = feedback.getPublicFeedback().find((i) => i.id === idea.id);
+  assert.deepEqual(Object.keys(item).sort(), ["category", "createdAt", "down", "id", "status", "text", "up"]);
+
+  // Přesunutá do „Co chystáme“ je tam pod názvem správce
+  assert.ok(feedback.getVotableFeedback().some((v) => v.id === promoted.id && v.summary === "Hezčí souhrn"));
+});
+
+test("vlastní návrh správce jde rovnou do „Co chystáme“ a hlasuje se 👍 i 👎", () => {
+  const parsed = feedback.proposalSchema.safeParse({ title: "  Objednávka  na celý týden ", category: "napad" });
+  assert.ok(parsed.success);
+  const entry = feedback.addProposal(parsed.data);
+  assert.equal(entry.isProposal, true);
+  assert.equal(entry.status, "planned");
+  const item = feedback.getVotableFeedback().find((v) => v.id === entry.id);
+  assert.equal(item.summary, "Objednávka na celý týden");
+  // Ve veřejném seznamu připomínek od lidí není
+  assert.ok(!feedback.getPublicFeedback().some((i) => i.id === entry.id));
+
+  assert.deepEqual(feedback.setVote(entry.id, "a".repeat(24), 1), { up: 1, down: 0 });
+  assert.deepEqual(feedback.setVote(entry.id, "b".repeat(24), -1), { up: 1, down: 1 });
+  assert.deepEqual(feedback.setVote(entry.id, "a".repeat(24), -1), { up: 0, down: 2 });
+  // Návrh zůstane k hlasování, i kdyby se klient pokusil hlasování vypnout
+  feedback.updateFeedback(entry.id, { votable: false });
+  assert.ok(feedback.getVotableFeedback().some((v) => v.id === entry.id));
+  // Hotový návrh se z hlasování stáhne
+  feedback.updateFeedback(entry.id, { status: "done" });
+  assert.equal(feedback.setVote(entry.id, "c".repeat(24), 1), null);
 });
 

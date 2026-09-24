@@ -5,26 +5,23 @@ import type { FeedbackCategory } from "@/lib/feedback-meta";
 import { parseDraft } from "./feedback-utils";
 
 const DRAFT_KEY = "feedbackDraft";
-const NAME_KEYS = ["lastFirstName", "lastLastName"] as const;
 
 /**
  * Rozepsaná připomínka přežije odchod ze stránky i zavření prohlížeče.
  *
- * Koncept i jméno se čtou až po hydrataci — localStorage na serveru není
+ * Koncept se čte až po hydrataci — localStorage na serveru není
  * a první render musí sedět s HTML ze serveru. Zápis jde s krátkým
  * zpožděním, ať se neukládá na každé písmeno.
  */
 export function useFeedbackDraft(prefillCategory?: FeedbackCategory | null) {
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState("");
-  const [name, setName] = useState("");
   const [restored, setRestored] = useState(false);
   const hydrated = useRef(false);
 
   useEffect(() => {
     try {
       const draft = parseDraft(localStorage.getItem(DRAFT_KEY));
-      const remembered = NAME_KEYS.map((k) => localStorage.getItem(k) ?? "").join(" ").trim();
       /* eslint-disable react-hooks/set-state-in-effect -- jednorázové načtení z prohlížeče po hydrataci */
       if (draft) {
         setCategory(draft.category);
@@ -33,7 +30,6 @@ export function useFeedbackDraft(prefillCategory?: FeedbackCategory | null) {
       }
       // Odkaz „Nahlásit problém“ ví, o co jde, líp než starý koncept
       if (prefillCategory) setCategory(prefillCategory);
-      setName(remembered);
       /* eslint-enable react-hooks/set-state-in-effect */
     } catch { /* soukromý režim apod. – prostě bez konceptu */ }
     hydrated.current = true;
@@ -58,5 +54,5 @@ export function useFeedbackDraft(prefillCategory?: FeedbackCategory | null) {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* */ }
   }, []);
 
-  return { category, setCategory, message, setMessage, name, setName, restored, clearDraft };
+  return { category, setCategory, message, setMessage, restored, clearDraft };
 }

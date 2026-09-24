@@ -19,6 +19,35 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.6.0",
+    date: "2026-09-24",
+    title: "Hlasování o nápadech",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Připomínky ostatních: nápady, vzhled, mobil a jiné se hned ukážou všem, bez jména, a lidé jim dávají 👍 nebo 👎. Chyby, jídlo a pochvaly vidíte dál jen vy.",
+          "Vlastní návrh do „Co chystáme“: v Nastavení → Připomínky napíšete nápad a lidé na něj hlasují. Proužek ukazuje, kolik procent je pro.",
+          "Nevhodný text jedním přepínačem skryjete z veřejného seznamu.",
+          "Připomínku jde předat k řešení: „Zkopírovat pro AI“ dá hotové zadání pro Claude Code nebo Codex, „Založit úkol na GitHubu“ otevře předvyplněný úkol a jeho číslo se k připomínce doplní samo.",
+          "Screenshoty jdou stáhnout jako PNG.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Připomínky jsou anonymní, jméno se nesbírá. Kdo chce, podepíše se do textu.",
+          "Hlasování má palec nahoru i dolů.",
+        ],
+      },
+    ],
+    forEveryone: [
+      "Připomínky ostatních: nápady od kolegů se hned ukážou na stránce Připomínky a jde jim dát 👍 nebo 👎.",
+      "V kartě „Co chystáme“ jde hlasovat palcem nahoru i dolů.",
+      "Připomínky jsou anonymní. Kdo chce, podepíše se do textu.",
+    ],
+  },
+  {
     version: "1.5.0",
     date: "2026-09-24",
     title: "Co je nového pro všechny",
