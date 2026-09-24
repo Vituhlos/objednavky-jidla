@@ -161,7 +161,7 @@ export function VersionMeta({
   label,
   value,
   mono = false,
-  unavailable = "Až v release buildu",
+  unavailable = "Jen ve vydané verzi",
 }: {
   label: string;
   value: string;

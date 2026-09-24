@@ -45,7 +45,7 @@ function targetLabel(
  * stejné větve, takže se import bez detekce nabídne do aktuálního týdne.
  *
  * Detekce se dá v náhledu přebít ručně (`selectCurrentWeek` / `selectNextWeek`),
- * protože hlavička PDF od LIMA občas nese týden, který neodpovídá tomu, kam
+ * protože hlavička PDF od LIMY občas nese týden, který neodpovídá tomu, kam
  * ho pořadatel chce nahrát.
  *
  * `startTransition` přichází zvenčí schválně — stránka má jediný `isPending`,

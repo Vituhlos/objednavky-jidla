@@ -1,5 +1,6 @@
 "use server";
 
+import { countWord } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { checkRateLimit, getRateLimitReset } from "@/lib/rate-limit";
@@ -151,7 +152,7 @@ export async function actionConfirmMenuImport(
   revalidatePath("/jidelnicek");
   revalidatePath("/");
   const { sendTelegramToSubscribers } = await import("@/lib/telegram");
-  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${items.length} položek`);
+  await sendTelegramToSubscribers("notify_menu_imported", `📋 <b>Jídelníček importován</b>\n${weekLabel} · ${countWord(items.length, "položka", "položky", "položek")}`);
 }
 
 export async function actionDeleteMenuWeek(weekStart: string): Promise<void> {
@@ -387,9 +388,9 @@ export async function actionSetTelegramWebhook(): Promise<{ ok: boolean; descrip
 export async function actionSendTelegramTest(): Promise<{ ok: boolean; sent?: number; error?: string }> {
   const { sendTelegramMessage, getTelegramSubscriptions } = await import("@/lib/telegram");
   const subs = getTelegramSubscriptions();
-  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošli /start botovi." };
+  if (subs.length === 0) return { ok: false, error: "Žádní registrovaní uživatelé. Pošlete botovi /start." };
   try {
-    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA — Telegram funguje!");
+    await sendTelegramMessage("✅ Test zprávy z Objednávky LIMA – Telegram funguje!");
     return { ok: true, sent: subs.length };
   } catch (err) {
     return { ok: false, error: String(err) };

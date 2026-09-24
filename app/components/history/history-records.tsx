@@ -1,3 +1,4 @@
+import { countWord } from "@/lib/format";
 import MIcon from "../MIcon";
 import {
   formatHistoryDate,
@@ -67,7 +68,7 @@ export function HistoryRecords({
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/40" style={{ background: accent }}>
         <MIcon name={icon} size={17} fill style={{ color: iconColor }} />
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{label}</span>
-        <span className="text-[11px] text-stone-500">{visibleCount} záznamů · {sentCount} odesláno</span>
+        <span className="text-[11px] text-stone-500">{countWord(visibleCount, "záznam", "záznamy", "záznamů")} · odesláno: {sentCount}</span>
       </div>
       {records.length === 0 ? (
         <div className="empty-state">

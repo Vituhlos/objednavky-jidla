@@ -35,7 +35,7 @@ export function useFeedbackDraft(prefillCategory?: FeedbackCategory | null) {
       if (prefillCategory) setCategory(prefillCategory);
       setName(remembered);
       /* eslint-enable react-hooks/set-state-in-effect */
-    } catch { /* soukromý režim apod. — prostě bez konceptu */ }
+    } catch { /* soukromý režim apod. – prostě bez konceptu */ }
     hydrated.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- jen při prvním načtení
   }, []);

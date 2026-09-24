@@ -30,6 +30,12 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
       {
+        title: "Fixed",
+        items: [
+          "Opravili jsme texty v celé aplikaci: pravopis, čárky, skloňování počtů („3 objednávky“, „zbývají 2 minuty“) a jednotné vykání.",
+        ],
+      },
+      {
         title: "Security",
         items: [
           "Připomínky i screenshoty vidí jen ten, kdo zná PIN do Nastavení. Veřejně se ukazuje jen vaše odpověď u hotových připomínek, nikdy původní text ani autor.",

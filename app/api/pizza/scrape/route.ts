@@ -4,7 +4,7 @@ import { getSettings } from "@/lib/settings";
 
 export async function GET() {
   if (getSettings().pizzaEnabled === "false") {
-    return NextResponse.json({ error: "Pizza modul je vypnutý." }, { status: 404 });
+    return NextResponse.json({ error: "Modul Pizza je vypnutý." }, { status: 404 });
   }
   try {
     const items = await scrapePizzaMenu();

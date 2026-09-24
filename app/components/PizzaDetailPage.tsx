@@ -28,7 +28,7 @@ function PizzaPriceBreakdown({ totals }: { totals: PizzaTotals }) {
   const rows = [
     { label: "Pizzy (ceny)", value: `${totals.baseTotal} Kč`, accent: false },
     { label: `Krabice (${PIZZA_BOX_FEE} Kč/ks)`, value: `${totals.boxTotal} Kč`, accent: false },
-    ...(totals.freeCount > 0 ? [{ label: `3+1 zdarma (${totals.freeCount}× nejlevnější)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
+    ...(totals.freeCount > 0 ? [{ label: `2+1 zdarma (${totals.freeCount}× nejlevnější)`, value: `−${totals.discountAmount} Kč`, accent: true }] : []),
     ...(totals.deliveryFee > 0 ? [{ label: "Doprava", value: `${totals.deliveryFee} Kč`, accent: false }] : []),
     ...(totals.deliveryFee === 0 && totals.finalTotal > 0 ? [{ label: "Doprava zdarma (≥4 ks)", value: "0 Kč", accent: true }] : []),
   ];

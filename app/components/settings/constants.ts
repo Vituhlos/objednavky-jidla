@@ -41,7 +41,7 @@ export const ACTION_LABELS: Record<string, string> = {
   order_reopen: "Znovuotevření",
   order_clear: "Vymazání objednávky",
   auto_send: "Auto-odeslání",
-  menu_reminder: "Upozornění na chybějící menu",
+  menu_reminder: "Upozornění na chybějící jídelníček",
 };
 
 export const CHANNEL_LABELS: Record<string, string> = {

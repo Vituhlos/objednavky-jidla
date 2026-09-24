@@ -12,7 +12,7 @@ function writeKeys(keys: OwnKey[]): void {
   try {
     if (keys.length === 0) localStorage.removeItem(OWN_KEY);
     else localStorage.setItem(OWN_KEY, JSON.stringify(keys));
-  } catch { /* soukromý režim — seznam prostě nepřežije zavření */ }
+  } catch { /* soukromý režim – seznam prostě nepřežije zavření */ }
 }
 
 /**

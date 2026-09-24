@@ -119,7 +119,7 @@ function MIcon({
     // An unknown name renders nothing at all — silently, which let typos survive for
     // months. Shout about it in dev, stay quiet in production.
     if (process.env.NODE_ENV !== "production") {
-      console.warn('[MIcon] Ikona "' + name + '" neni v registru — nevykresli se nic. Doplnte ji do MIcon.tsx.');
+      console.warn('[MIcon] Ikona "' + name + '" neni v registru – nevykresli se nic. Doplnte ji do MIcon.tsx.');
     }
     return null;
   }

@@ -116,13 +116,13 @@ export function ClosuresSection({ isActive }: { isActive: boolean }) {
   return (
     <SettingsSection icon="event_busy" title="Zavřeno / dovolená">
       <p className="text-[12.5px] text-stone-500">
-        Období, kdy se v LIMA nevaří. Zobrazí se v přepínači dnů na objednávkové
+        Období, kdy se v LIMĚ nevaří. Zobrazí se v přepínači dnů na objednávkové
         stránce a vypne automatické odeslání. Lze zadat dopředu, nezávisle na
         importu jídelníčku.
       </p>
       {closureError && <p className="text-[12px] text-red-500">{closureError}</p>}
       {closuresLoaded && closures.length === 0 && !showAddClosure && (
-        <p className="text-[12.5px] text-stone-400">Zatím nic — provoz běží normálně.</p>
+        <p className="text-[12.5px] text-stone-400">Zatím nic – provoz běží normálně.</p>
       )}
       <div className="flex flex-col gap-2">
         {closures.filter((c) => c.id !== editingClosureId).map((c) => (
@@ -184,7 +184,7 @@ export function ClosuresSection({ isActive }: { isActive: boolean }) {
           <SettingsField hint="ukáže se v upozornění, v jídelníčku i v botovi" label="Ikona">
             <EmojiPicker onChange={setNewClosureIcon} value={newClosureIcon} />
           </SettingsField>
-          <SettingsField hint="nepovinné — přidá se do upozornění na hlavní stránce; data se doplňují sama" label="Vlastní poznámka">
+          <SettingsField hint="nepovinné – přidá se do upozornění na hlavní stránce; data se doplňují sama" label="Vlastní poznámka">
             <input className="modal-input" onChange={(e) => setNewClosureNote(e.target.value)} placeholder="např. Kdo chce oběd, musí si ho zajistit sám." value={newClosureNote} />
           </SettingsField>
           <div className="flex gap-2">
@@ -214,7 +214,7 @@ export function ClosuresSection({ isActive }: { isActive: boolean }) {
         <ConfirmModal
           confirmLabel="Smazat"
           isPending={isPending}
-          message={`${formatClosureRange(confirmDeleteClosure.startDate, confirmDeleteClosure.endDate)} — ${confirmDeleteClosure.label || "Dovolená"}. V těchto dnech se zase začne objednávat a auto-odeslání se obnoví.`}
+          message={`${formatClosureRange(confirmDeleteClosure.startDate, confirmDeleteClosure.endDate)} – ${confirmDeleteClosure.label || "Dovolená"}. V těchto dnech se zase začne objednávat a auto-odeslání se obnoví.`}
           onClose={() => setConfirmDeleteClosure(null)}
           onConfirm={() => handleDeleteClosure(confirmDeleteClosure)}
           title="Smazat zavření"

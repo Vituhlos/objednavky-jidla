@@ -385,7 +385,7 @@ export default function SettingsPage({
             type="button"
           >Zahodit</button>
           <button className="modal-btn modal-btn--primary" disabled={isPending} form="settings-form" type="submit">
-            {isPending ? "Ukládám..." : "Uložit"}
+            {isPending ? "Ukládám…" : "Uložit"}
           </button>
         </div>
       )}

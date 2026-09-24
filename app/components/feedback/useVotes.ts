@@ -15,7 +15,7 @@ function getVoter(): string | null {
     }
     return voter;
   } catch {
-    return null; // bez localStorage (soukromý režim) hlasovat nejde — hlas by nešel vzít zpět
+    return null; // bez localStorage (soukromý režim) hlasovat nejde – hlas by nešel vzít zpět
   }
 }
 

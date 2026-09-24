@@ -62,7 +62,7 @@ export const DepartmentRow = memo(function DepartmentRow({
         </div>
         {confirmDelete && (
           <ConfirmModal
-            message={`Oddělení „${dept.label}" bude trvale smazáno.`}
+            message={`Oddělení „${dept.label}“ bude trvale smazáno.`}
             onClose={() => setConfirmDelete(false)}
             onConfirm={() => { onDelete(dept.id); setConfirmDelete(false); }}
             title="Smazat oddělení"

@@ -48,7 +48,7 @@ export function AboutSection({ isActive }: { isActive: boolean }) {
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
                         <p className="font-display font-bold text-[18px] text-stone-900">{VERSION_INFO.name}</p>
-                        <p className="text-[12.5px] text-stone-500">Produktová verze, release kanál a diagnostika aktuálně běžícího buildu.</p>
+                        <p className="text-[12.5px] text-stone-500">Verze aplikace, kanál vydání a diagnostické údaje o právě běžící verzi.</p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
@@ -75,7 +75,7 @@ export function AboutSection({ isActive }: { isActive: boolean }) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       <VersionMeta label="Verze" value={`v${VERSION_INFO.version}`} mono unavailable="Bez verze" />
                       <VersionMeta label="Kanál" value={CHANNEL_LABELS[VERSION_INFO.releaseChannel] ?? VERSION_INFO.releaseChannel} unavailable="Lokální vývoj" />
-                      <VersionMeta label="Build" value={VERSION_INFO.buildDate ? formatBuildDate(VERSION_INFO.buildDate) : ""} unavailable="Lokální vývoj" />
+                      <VersionMeta label="Sestaveno" value={VERSION_INFO.buildDate ? formatBuildDate(VERSION_INFO.buildDate) : ""} unavailable="Lokální vývoj" />
                       <VersionMeta label="Commit" value={VERSION_INFO.shortCommitSha || VERSION_INFO.commitSha} mono />
                       <VersionMeta label="Git ref" value={VERSION_INFO.gitRef} mono />
                       <VersionMeta label="Image" value={VERSION_INFO.dockerTag} mono unavailable="Mimo Docker release" />
@@ -85,7 +85,7 @@ export function AboutSection({ isActive }: { isActive: boolean }) {
                       <a className="inline-flex items-center gap-1.5 font-semibold px-3 py-2 rounded-2xl glass-btn text-stone-600" href="/api/version" rel="noreferrer" target="_blank">
                         <MIcon name="info" size={14} /> JSON diagnostika
                       </a>
-                      <span className="text-stone-400">Technický endpoint pro podporu, monitoring a ověření nasazené verze.</span>
+                      <span className="text-stone-400">Technická adresa pro podporu, monitoring a ověření nasazené verze.</span>
                     </div>
                   </div>
                 </SettingsSection>

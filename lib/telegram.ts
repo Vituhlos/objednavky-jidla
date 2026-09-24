@@ -217,7 +217,7 @@ async function sendToChat(token: string, chatId: string, text: string, replyMark
     // the same way push does, otherwise every broadcast keeps paying for it.
     if (res.status === 403) {
       removeTelegramSubscription(chatId);
-      console.warn(`[telegram] Odběr ${chatId} odstraněn — bot je zablokovaný.`);
+      console.warn(`[telegram] Odběr ${chatId} odstraněn – bot je zablokovaný.`);
     }
     break;
   }
@@ -375,7 +375,7 @@ export async function setTelegramCommands(): Promise<{ ok: boolean; description?
     { command: "start", description: "Registrovat se a přijímat notifikace" },
     { command: "stav", description: "Podrobný přehled dnešní objednávky" },
     { command: "souhrn", description: "Kompaktní tabulka (jméno + kód jídla)" },
-    { command: "menu", description: "Dnešní jídelníček (nebo /menu Po Ut St Ct Pa)" },
+    { command: "menu", description: "Dnešní jídelníček (nebo /menu Po Út St Čt Pá)" },
     { command: "tyden", description: "Jídelníček na celý týden" },
     { command: "zitra", description: "Jídelníček na zítřek" },
     ...(s.pizzaEnabled !== "false" ? [{ command: "pizza", description: "Aktuální nabídka pizzerie" }] : []),

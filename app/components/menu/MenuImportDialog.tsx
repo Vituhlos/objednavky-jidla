@@ -83,7 +83,7 @@ export function MenuImportDialog({
                 <p className="text-[13px] text-stone-600 text-center">Přetáhněte PDF sem nebo klikněte pro výběr</p>
                 <input accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} ref={fileInputRef} style={{ display: "none" }} type="file" />
               </div>
-              <p className="text-[12px] text-stone-400 text-center">Čekám na soubor...</p>
+              <p className="text-[12px] text-stone-400 text-center">Čekám na soubor…</p>
             </>
           )}
           {state.phase === "error" && (
@@ -96,7 +96,7 @@ export function MenuImportDialog({
             <>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[12.5px] text-stone-600">
-                  Rozpoznáno <strong>{state.result.items.length}</strong> položek
+                  Rozpoznané položky: <strong>{state.result.items.length}</strong>
                   {state.result.weekLabel && <>, týden <strong>{state.result.weekLabel}</strong></>}
                 </span>
                 <div className="ml-auto flex items-center gap-1.5">
@@ -123,14 +123,14 @@ export function MenuImportDialog({
             </>
           )}
           {state.phase === "saving" && (
-            <p className="text-[13px] text-stone-500 text-center py-4">Ukládám jídelníček...</p>
+            <p className="text-[13px] text-stone-500 text-center py-4">Ukládám jídelníček…</p>
           )}
         </div>
         {state.phase === "preview" && (
           <div className="modal-sheet__footer">
             <button className="modal-btn modal-btn--secondary" onClick={onClose} type="button">Zrušit</button>
             <button className="modal-btn modal-btn--primary" disabled={isPending} onClick={onConfirm} type="button">
-              {isPending ? "Ukládám..." : "Uložit jídelníček"}
+              {isPending ? "Ukládám…" : "Uložit jídelníček"}
             </button>
           </div>
         )}

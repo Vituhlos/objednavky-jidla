@@ -54,7 +54,7 @@ export function TelegramSubscribersSection({
                     {sub.username && sub.firstName && <span className="text-stone-400 font-normal text-[11px] ml-1">@{sub.username}</span>}
                   </span>
                   <span className="text-[11px] text-stone-400">
-                    {sub.isAdmin ? "Admin" : "Uživatel"} · registrován {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
+                    {sub.isAdmin ? "Admin" : "Uživatel"} · registrace {new Date(sub.registeredAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}
                   </span>
                   <span className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-medium ${sub.notifyReminder ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-400"}`} title="Připomenutí uzávěrky">🔔</span>

@@ -135,7 +135,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         {isSent && activeRows.length > 0 && (
           <div className="flex items-center gap-1.5 px-4 py-2 border-t border-white/30">
             <MIcon name="lock" size={12} style={{ color: "#94a3b8" }} />
-            <span className="text-[11px] text-stone-400">Odesláno — pouze pro čtení</span>
+            <span className="text-[11px] text-stone-400">Odesláno – pouze pro čtení</span>
           </div>
         )}
       </section>

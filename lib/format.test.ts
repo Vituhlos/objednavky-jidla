@@ -30,3 +30,22 @@ describe("pluralizeExtras", () => {
     expect(pluralizeExtras(0)).toBe("příloh");
   });
 });
+
+import { countWord, plural, remainingMinutes } from "./format";
+
+describe("plural / countWord", () => {
+  it("vybere tvar podle českých pravidel", () => {
+    expect(plural(1, "položka", "položky", "položek")).toBe("položka");
+    expect(countWord(3, "položka", "položky", "položek")).toBe("3 položky");
+    expect(countWord(5, "položka", "položky", "položek")).toBe("5 položek");
+    expect(countWord(0, "oběd", "obědy", "obědů")).toBe("0 obědů");
+  });
+});
+
+describe("remainingMinutes", () => {
+  it("shoduje sloveso s číslem", () => {
+    expect(remainingMinutes(1)).toBe("zbývá 1 minuta");
+    expect(remainingMinutes(3)).toBe("zbývají 3 minuty");
+    expect(remainingMinutes(20)).toBe("zbývá 20 minut");
+  });
+});

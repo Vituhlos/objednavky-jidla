@@ -75,12 +75,12 @@ export function TodayOrderSection({
                 }}
                 type="button"
               >
-                <MIcon name="send" size={14} /> {resendStatus === "pending" ? "Odesílám..." : "Znovu odeslat email"}
+                <MIcon name="send" size={14} /> {resendStatus === "pending" ? "Odesílám…" : "Znovu odeslat e-mail"}
               </button>
             </div>
             {resendStatus === "done" && (
               <p className="text-[12px] text-green-700 inline-flex items-center gap-1.5">
-                <MIcon name="check_circle" size={13} fill /> Email byl znovu odeslán.
+                <MIcon name="check_circle" size={13} fill /> E-mail byl znovu odeslán.
               </p>
             )}
             {resendStatus === "error" && (

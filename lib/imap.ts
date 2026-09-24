@@ -1,3 +1,4 @@
+import { countWord } from "./format";
 import { ImapFlow } from "imapflow";
 import pdfParse from "pdf-parse";
 import path from "path";
@@ -111,12 +112,12 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
           continue;
         }
 
-        console.log(`[imap] PDF nalezeno (part: ${pdfPart.part ?? "1"}), stahuji...`);
+        console.log(`[imap] PDF nalezeno (part: ${pdfPart.part ?? "1"}), stahuji…`);
         const { content } = await client.download(String(uid), pdfPart.part ?? "1", { uid: true });
         const chunks: Buffer[] = [];
         for await (const chunk of content) chunks.push(chunk);
         const pdfBuffer = Buffer.concat(chunks);
-        console.log(`[imap] PDF staženo (${pdfBuffer.length} B), parsuju...`);
+        console.log(`[imap] PDF staženo (${pdfBuffer.length} B), parsuju…`);
 
         const rawResult = await pdfParse(pdfBuffer);
         const parsed = parseMenuText(rawResult.text);
@@ -138,8 +139,8 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
         // Označíme jako přečtený
         await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
 
-        logAudit({ action: "menu_imap_import", details: `Import z e-mailu: ${parsed.weekLabel} (${parsed.items.length} položek)` });
-        console.log(`[imap] Importován jídelníček ${parsed.weekLabel} (${parsed.items.length} položek).`);
+        logAudit({ action: "menu_imap_import", details: `Import z e-mailu: ${parsed.weekLabel} (${countWord(parsed.items.length, "položka", "položky", "položek")})` });
+        console.log(`[imap] Importován jídelníček ${parsed.weekLabel} (${countWord(parsed.items.length, "položka", "položky", "položek")}).`);
 
         return { found: true, weekLabel: parsed.weekLabel, weekStart: parsed.weekStart, itemCount: parsed.items.length };
       }

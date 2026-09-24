@@ -12,7 +12,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - **Připomínky k aplikaci.** Nová stránka `/pripominky` (v menu „Připomínky“, na mobilu „Nápady“), kam lidé píšou nápady, chyby, výtky i pochvaly. Kategorie se vybírá emoji dlaždicí (💡 nápad, 🐞 chyba, 🍽️ jídlo, 🎨 vzhled, 📱 mobil, 🙌 pochvala, 💬 jiné); teprve pak se ukáže otázka ušitá na kategorii, rychlé začátky vět na klik a pole, které roste s textem. Podpis jménem (předvyplní se z posledního objednávání), nebo bez jména. Rozepsaný text se průběžně ukládá v prohlížeči a po odchodu ze stránky se neztratí. Odeslání i přes Ctrl+Enter. Automaticky se přidá jen stránka, odkud člověk přišel, a hrubý typ zařízení (mobil/počítač).
 - **Moje připomínky.** Kdo pošle připomínku, vidí na stránce její stav (Čeká na přečtení, Přečteno, V plánu, Hotovo, Nebude se dělat) a odpověď správce. Bez účtů: server při odeslání vrátí náhodný tajný kód (192 bitů), prohlížeč si ho uloží do localStorage a stav si žádá přes `POST /api/feedback/mine`. V databázi je jen SHA-256 kódu a porovnává se v konstantním čase. Seznam platí jen pro daný prohlížeč.
-- **„Nahlásit problém“ tam, kde problém vzniká.** Chybová stránka appky má tlačítko, které otevře připomínky s předvyplněnou kategorií Chyba, stránkou a kódem chyby (digest z Next.js, dohledatelný v logu serveru). Technický údaj uživatel vidí a může ho před odesláním odebrat. V nápovědě objednávky přibyl odkaz „Něco nefunguje? Napiš nám“.
+- **„Nahlásit problém“ tam, kde problém vzniká.** Chybová stránka appky má tlačítko, které otevře připomínky s předvyplněnou kategorií Chyba, stránkou a kódem chyby (digest z Next.js, dohledatelný v logu serveru). Technický údaj uživatel vidí a může ho před odesláním odebrat. V nápovědě objednávky přibyl odkaz „Něco nefunguje? Napište nám“.
 - U připomínky se ukládá verze appky, kterou měl autor načtenou. Správce ji vidí v Nastavení i v upozornění na Telegramu.
 - Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se 90 dní po poslední změně stavu samy smažou (scheduler, denně ve 3:30). Text připomínky zůstává.
 - **Hlasování „chci taky“.** Správce dá otevřené připomínce krátký název (např. „Tmavý režim“) a zapne „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍; nejžádanější jsou nahoře. Text autora ani odpověď autorovi se v hlasování neukazují. Hotové a zamítnuté připomínky se z hlasování samy stáhnou a počet hlasů se ukáže v seznamu změn. Jeden hlas na prohlížeč hlídá databáze (`feedback_votes`, primární klíč připomínka + otisk kódu prohlížeče); kdo si smaže data prohlížeče, může hlasovat znovu, proto jsou počty orientační.
@@ -23,6 +23,19 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - Telegram: upozornění na novou připomínku. Posílá se **jen adminům bota** a jen těm, kdo si ho sami zapnou v `/nastaveni` → 💬 Nové připomínky. Ve výchozím stavu je vypnuté; běžným uživatelům se přepínač nenabízí a webhook ho od nich nepřijme ani při podvrženém `callback_data`.
 - Záloha (`/api/backup`) a obnova (`/api/restore`) zahrnují připomínky; obnova přeskakuje ty, které už v databázi jsou (stejný čas i text).
 - Testy: `lib/feedback.test.ts` (validace, text pro Telegram), `app/components/feedback/feedback-utils.test.ts` (koncept, začátky vět, datum, zmenšování obrázků, úložiště kódů), `app/api/feedback/route.test.ts` (API: limity, podvržené soubory, past na roboty, rate limit, tajné kódy) a `tools/feedback.test.mjs` (proti dočasné SQLite: přílohy, úklid, veřejný seznam, Telegram jen pro adminy).
+
+### Changed
+
+- Texty v celé aplikaci prošly jazykovou kontrolou podle Internetové jazykové příručky ÚJČ. Aplikace uživatelům jednotně vyká (dřív se střídalo tykání s vykáním); tykání zůstává záměrně jen na stránce Připomínky, v pozvánce k připomínkám a v Telegram botovi.
+- LIMA se skloňuje („do LIMY“, „v LIMĚ“), v souvislém textu je „jídelníček“ místo „menu“ a „e-mail“ místo „mail“.
+- Jednotná typografie: pomlčka „ – “ místo „ — “, výpustka „…“ místo tří teček, české uvozovky „ “.
+
+### Fixed
+
+- Skloňování počtů: „1 objednávka / 3 objednávky / 5 objednávek“, „zbývají 3 minuty“ apod. místo tvarů typu „3 objednávek“ nebo „položek: 1“ (nové pomocné funkce `plural()`, `countWord()` a `remainingMinutes()` v `lib/format.ts`).
+- Příští automatické odeslání se píše s předložkou ve správném tvaru („Ve středu v 10:30“, ne „V středu“).
+- Chybějící čárky ve vedlejších větách a před vylučovacím „nebo“, překlepy a doslovné anglicismy v Nastavení, nápovědě a zprávách bota.
+- Patička e-mailu objednávky: „STROS – Sedlčanské strojírny, a.s.“ (jen pomlčka, obsah e-mailu i PDF příloh je jinak beze změny).
 
 ### Security
 

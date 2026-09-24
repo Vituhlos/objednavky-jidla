@@ -69,7 +69,7 @@ function formatMenuForDay(dayCode: string, dateStr: string): string {
   // dish (and promising a cutoff) is nonsense, so say what actually happens.
   const closure = closureForDay(dayCode);
   if (closure) {
-    return `${closure.icon} <b>${dateStr}</b>\n\nV LIMA se dnes nevaří — ${escapeHtml(closure.label)}.`;
+    return `${closure.icon} <b>${dateStr}</b>\n\nV LIMĚ se dnes nevaří – ${escapeHtml(closure.label)}.`;
   }
   if (menu.soups.length === 0 && menu.meals.length === 0)
     return `🍽 <b>Jídelníček ${dateStr}</b>\n\nJídelníček zatím není k dispozici.`;
@@ -125,7 +125,7 @@ function formatStav(): string {
       lines.push(`<b>📂 ${escapeHtml(dept.label)}</b>`);
       active.forEach((r) => {
         const parts = describeRowItems(r);
-        const detail = parts.length > 0 ? `  —  ${parts.join("  +  ")}` : "";
+        const detail = parts.length > 0 ? `  –  ${parts.join("  +  ")}` : "";
         lines.push(`  • <b>${escapeHtml(r.personName)}</b>${detail}`);
       });
     });
@@ -247,7 +247,7 @@ function formatChybi(): string {
     data.departments.flatMap((d) => d.rows.filter((r) => r.personName).map((r) => r.personName)),
   );
   const missing = recentPeople.map((r) => r.person_name).filter((n) => !orderedToday.has(n));
-  if (missing.length === 0) return "✅ Všichni kdo obvykle objednávají, dnes mají řádek.";
+  if (missing.length === 0) return "✅ Všichni, kdo obvykle objednávají, dnes mají řádek.";
   const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
     weekday: "long", day: "numeric", month: "numeric",
   });
@@ -352,13 +352,13 @@ function buildMainReplyKeyboard(isAdmin: boolean) {
   return { keyboard: rows, resize_keyboard: true };
 }
 
-const REMINDER_TEXT = "⏰ <b>Osobní připomenutí</b>\n\nVyber čas kdy ti bot každý pracovní den pošle připomenutí uzávěrky:";
+const REMINDER_TEXT = "⏰ <b>Osobní připomenutí</b>\n\nVyber čas, kdy ti bot každý pracovní den pošle připomenutí uzávěrky:";
 const REMINDER_TIMES = ["09:30", "10:00", "10:30", "11:00", "11:15", "11:30"];
 
-const CAS_TEXT = "🕐 <b>Čas auto-odesílání</b>\n\nVyber čas kdy se objednávka každý den automaticky odešle:";
+const CAS_TEXT = "🕐 <b>Čas auto-odesílání</b>\n\nVyber čas, kdy se objednávka každý den automaticky odešle:";
 const CAS_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00"];
 
-const MORNING_TEXT = "🌅 <b>Osobní čas ranního jídelníčku</b>\n\nVyber čas kdy ti bot každý pracovní den ráno pošle jídelníček:";
+const MORNING_TEXT = "🌅 <b>Osobní čas ranního jídelníčku</b>\n\nVyber čas, kdy ti bot každý pracovní den ráno pošle jídelníček:";
 const MORNING_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30"];
 
 function buildCasKeyboard(currentTime: string | null) {
@@ -611,11 +611,11 @@ export async function POST(req: NextRequest) {
   // run unauthenticated. Re-register the webhook in Nastavení to create it.
   if (s.telegramWebhookSecret) {
     if (req.headers.get("x-telegram-bot-api-secret-token") !== s.telegramWebhookSecret) {
-      console.warn("[telegram] Odmítnut požadavek na webhook — neplatný secret token.");
+      console.warn("[telegram] Odmítnut požadavek na webhook – neplatný secret token.");
       return new Response("forbidden", { status: 403 });
     }
   } else {
-    console.warn("[telegram] Webhook běží BEZ ověření — přeregistrujte webhook v Nastavení.");
+    console.warn("[telegram] Webhook běží BEZ ověření – přeregistrujte webhook v Nastavení.");
   }
 
   let update: TelegramUpdate;
@@ -668,7 +668,7 @@ export async function POST(req: NextRequest) {
       if (data === "cmd:tyden") { await editMessageText(s.telegramBotToken, chatId, messageId, "📅 <b>Jídelníček na týden</b>\n\nVyber den:", buildTydenKeyboard()); }
       if (data === "cmd:pizza") {
         if (s.pizzaEnabled === "false") {
-          await editMessageText(s.telegramBotToken, chatId, messageId, "🍕 Pizza modul je vypnutý.", { inline_keyboard: [[{ text: "✖ Zavřít", callback_data: "close" }]] });
+          await editMessageText(s.telegramBotToken, chatId, messageId, "🍕 Modul Pizza je vypnutý.", { inline_keyboard: [[{ text: "✖ Zavřít", callback_data: "close" }]] });
         } else {
           await sendTyping(s.telegramBotToken, chatId);
           await editMessageText(s.telegramBotToken, chatId, messageId, await formatPizza(), buildPizzaKeyboard());
@@ -760,7 +760,7 @@ export async function POST(req: NextRequest) {
       if (data === "pdf:objednavka") {
         const orderData = getTodayOrderData();
         if (!orderPdfExists(orderData.order.id)) {
-          await sendTelegramToChat(chatId, "⚠️ PDF objednávky neexistuje — objednávka ještě nebyla odeslána.");
+          await sendTelegramToChat(chatId, "⚠️ PDF objednávky neexistuje – objednávka ještě nebyla odeslána.");
         } else {
           await sendTyping(s.telegramBotToken, chatId);
           const pdfPath = getOrderPdfPath(orderData.order.id);
@@ -801,12 +801,12 @@ export async function POST(req: NextRequest) {
       if (data === "admin:zrusit") {
         const orderData = getTodayOrderData();
         if (orderData.order.status !== "sent") {
-          await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
+          await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána – není co rušit.");
         } else {
           reopenOrderAndUnlock(orderData.order.id);
           broadcast();
           if (messageId) await editMessageText(s.telegramBotToken, chatId, messageId, "🔓 <b>Objednávka znovu otevřena.</b>", buildStavKeyboard(chatId));
-          await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
+          await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena – lze ještě upravovat.");
         }
       }
       if (data === "admin:chybi") {
@@ -827,9 +827,9 @@ export async function POST(req: NextRequest) {
       await answerInlineQuery(s.telegramBotToken, iq.id, [{
         type: "article",
         id: "unregistered",
-        title: "Nejsi registrovaný",
+        title: "Nejdřív se zaregistruj",
         description: "Napiš botovi /start",
-        input_message_content: { message_text: "Nejsi registrovaný u bota Objednávky LIMA." },
+        input_message_content: { message_text: "Bota Objednávky LIMA je potřeba nejdřív spustit příkazem /start." },
       }]);
       return new Response("ok");
     }
@@ -838,11 +838,11 @@ export async function POST(req: NextRequest) {
     const results: object[] = [];
     const add = (id: string, title: string, text: string, description: string) =>
       results.push({ type: "article", id, title, description, input_message_content: { message_text: text, parse_mode: "HTML" } });
-    if (show("menu")) add("menu", "🍽 Dnešní menu", formatMenu(), "Jídelníček pro dnešní den");
+    if (show("menu")) add("menu", "🍽 Dnešní jídelníček", formatMenu(), "Jídelníček pro dnešní den");
     if (s.pizzaEnabled !== "false" && show("pizza")) add("pizza", "🍕 Pizza", await formatPizza(), "Aktuální nabídka pizzerie");
     if (show("stav")) add("stav", "📋 Stav objednávky", formatStav(), "Aktuální stav objednávky LIMA");
     if (show("souhrn")) add("souhrn", "📊 Souhrn", formatSouhrn(), "Kompaktní přehled objednávky");
-    if (results.length === 0) add("menu", "🍽 Dnešní menu", formatMenu(), "Jídelníček pro dnešní den");
+    if (results.length === 0) add("menu", "🍽 Dnešní jídelníček", formatMenu(), "Jídelníček pro dnešní den");
     await answerInlineQuery(s.telegramBotToken, iq.id, results);
     return new Response("ok");
   }
@@ -881,28 +881,27 @@ export async function POST(req: NextRequest) {
     const keyboard = pendingAction === "reminder"
       ? buildReminderKeyboard(getTelegramSubscription(chatId)?.personalReminderTime ?? null)
       : buildMorningKeyboard(getTelegramSubscription(chatId)?.personalMorningMenuTime ?? null);
-    await sendTelegramToChat(chatId, `⚠️ Neplatný formát — napiš čas jako <code>HH:MM</code> (např. <code>11:45</code>).`, keyboard);
+    await sendTelegramToChat(chatId, `⚠️ Neplatný formát – napiš čas jako <code>HH:MM</code> (např. <code>11:45</code>).`, keyboard);
     return new Response("ok");
   }
   if (pendingAction && cmd.startsWith("/")) pendingActions.delete(chatId);
 
   if (cmd === "/start") {
     const { isNew, isAdmin } = registerTelegramUser(chatId, firstName, senderUsername);
-    const name = firstName ? `, <b>${escapeHtml(firstName)}</b>` : "";
     if (!isNew) {
       await sendTelegramToChat(
         chatId,
-        `👋 Vítej zpět${name}! Tady jsou tvé možnosti:`,
+        `👋 Vítej zpět! Tady jsou tvé možnosti:`,
         buildMainReplyKeyboard(isAdmin),
       );
       return new Response("ok");
     }
     const adminNote = isAdmin
-      ? "\n\n👑 Jsi první registrovaný — máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky přímo z bota."
+      ? "\n\n👑 Registrace proběhla jako první, takže máš roli <b>admin</b>. Můžeš ručně odesílat a rušit objednávky přímo z bota."
       : "";
     const welcomeText =
-      `👋 Vítej${name}!\n\n` +
-      `Jsem bot systému <b>Objednávky LIMA</b> — firemního objednávání obědů.${adminNote}\n\n` +
+      `👋 Vítej!\n\n` +
+      `Jsem bot systému <b>Objednávky LIMA</b> – firemního objednávání obědů.${adminNote}\n\n` +
       `<b>Co ti bot nabídne:</b>\n` +
       `  🍽 Jídelníček, objednávka a pizza kdykoliv\n` +
       `  🔔 Připomenutí před uzávěrkou (volitelné)\n` +
@@ -928,7 +927,7 @@ export async function POST(req: NextRequest) {
     const dayArg = effectiveCmd.startsWith("/menu ") ? effectiveCmd.slice(6).trim() : "";
     const dayCode = dayArg ? DAY_INPUT_MAP[dayArg] : null;
     if (dayArg && !dayCode) {
-      await sendTelegramToChat(chatId, "⚠️ Neznámý den — vyber ze seznamu:", buildTydenKeyboard());
+      await sendTelegramToChat(chatId, "⚠️ Neznámý den – vyber ze seznamu:", buildTydenKeyboard());
     } else if (dayCode) {
       const jsDay = Object.entries({ 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" }).find(([, v]) => v === dayCode)?.[0];
       const date = jsDay ? getDateForDay(getPragueNow(), Number(jsDay)) : getPragueNow();
@@ -941,7 +940,7 @@ export async function POST(req: NextRequest) {
     await sendTelegramToChat(chatId, "📅 <b>Jídelníček na týden</b>\n\nVyber den:", buildTydenKeyboard());
   } else if (effectiveCmd === "/pizza") {
     if (s.pizzaEnabled === "false") {
-      await sendTelegramToChat(chatId, "🍕 Pizza modul je vypnutý.");
+      await sendTelegramToChat(chatId, "🍕 Modul Pizza je vypnutý.");
     } else {
       await sendTyping(s.telegramBotToken, chatId);
       await sendTelegramToChat(chatId, await formatPizza(), buildPizzaKeyboard());
@@ -963,7 +962,7 @@ export async function POST(req: NextRequest) {
         s.telegramBotToken,
         chatId,
         qrUrl,
-        `📲 <b>Přidej kolegu k Objednávkám LIMA</b>\n\nNechte naskenovat QR kód nebo pošlete odkaz:\n${botUrl}`,
+        `📲 <b>Přidej kolegu k Objednávkám LIMA</b>\n\nNech naskenovat QR kód, nebo pošli odkaz:\n${botUrl}`,
       );
     } else {
       await sendTelegramToChat(chatId, "⚠️ Nepodařilo se načíst odkaz na bota.");
@@ -1012,11 +1011,11 @@ export async function POST(req: NextRequest) {
     } else {
       const data = getTodayOrderData();
       if (data.order.status !== "sent") {
-        await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána — není co rušit.");
+        await sendTelegramToChat(chatId, "⚠️ Objednávka nebyla odeslána – není co rušit.");
       } else {
         reopenOrderAndUnlock(data.order.id);
         broadcast();
-        await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena — lze ještě upravovat.");
+        await sendTelegramToAdmins("🔓 Objednávka byla znovu otevřena – lze ještě upravovat.");
       }
     }
   } else if (effectiveCmd === "/pdf") {
@@ -1077,28 +1076,28 @@ export async function POST(req: NextRequest) {
     await sendTelegramToChat(
       chatId,
       "<b>Dostupné příkazy:</b>\n" +
-        "/stav — podrobný přehled objednávky\n" +
-        "/souhrn — kompaktní tabulka (jméno + kód jídla)\n" +
-        "/menu — dnešní jídelníček\n" +
-        "/menu Po|Ut|St|Ct|Pa — jídelníček pro konkrétní den\n" +
-        "/tyden — jídelníček na celý týden\n" +
-        "/zitra — jídelníček na zítřek\n" +
-        (s.pizzaEnabled !== "false" ? "/pizza — aktuální nabídka pizzerie\n" : "") +
-        "/statistiky — statistiky posledních 7 dní\n" +
-        "/nastaveni — nastavení notifikací\n" +
-        "/nastavit reminder HH:MM — osobní připomenutí (např. 11:00)\n" +
-        "/zrusit reminder — zrušit osobní připomenutí\n" +
-        "/pozvat — QR kód pro přidání kolegy\n" +
+        "/stav – podrobný přehled objednávky\n" +
+        "/souhrn – kompaktní tabulka (jméno + kód jídla)\n" +
+        "/menu – dnešní jídelníček\n" +
+        "/menu Po|Út|St|Čt|Pá – jídelníček pro konkrétní den\n" +
+        "/tyden – jídelníček na celý týden\n" +
+        "/zitra – jídelníček na zítřek\n" +
+        (s.pizzaEnabled !== "false" ? "/pizza – aktuální nabídka pizzerie\n" : "") +
+        "/statistiky – statistiky posledních 7 dní\n" +
+        "/nastaveni – nastavení notifikací\n" +
+        "/nastavit reminder HH:MM – osobní připomenutí (např. 11:00)\n" +
+        "/zrusit reminder – zrušit osobní připomenutí\n" +
+        "/pozvat – QR kód pro přidání kolegy\n" +
         (admin
-          ? "/pdf — stáhnout PDF objednávky nebo jídelníčku\n" +
-            "/admin — admin příkazy (odeslat, znovu otevřít, kdo chybí)\n" +
-            "/zprava [text] — rozeslat zprávu všem uživatelům\n" +
-            "/chybi — kdo ještě dnes neobjednal\n" +
-            "/odeslat — ruční odeslání objednávky\n" +
-            "/zrusit — znovu otevřít odeslanou objednávku\n" +
-            "/nastavit cas HH:MM — změnit čas auto-odesílání\n"
+          ? "/pdf – stáhnout PDF objednávky nebo jídelníčku\n" +
+            "/admin – admin příkazy (odeslat, znovu otevřít, kdo chybí)\n" +
+            "/zprava [text] – rozeslat zprávu všem uživatelům\n" +
+            "/chybi – kdo ještě dnes neobjednal\n" +
+            "/odeslat – ruční odeslání objednávky\n" +
+            "/zrusit – znovu otevřít odeslanou objednávku\n" +
+            "/nastavit cas HH:MM – změnit čas auto-odesílání\n"
           : "") +
-        "/pomoc — tento seznam",
+        "/pomoc – tento seznam",
     );
   }
 

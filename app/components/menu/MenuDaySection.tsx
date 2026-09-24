@@ -82,7 +82,7 @@ export function MenuDaySection({
                 {holidayName
                   ? "Svátek / zavřeno"
                   : closureLabel
-                    ? "Zavřeno — v tento den se nevaří"
+                    ? "Zavřeno – v tento den se nevaří"
                     : "V tento den není jídelníček k dispozici."}
               </div>
             </div>
@@ -97,8 +97,8 @@ export function MenuDaySection({
                 {holidayName
                   ? "V tento den se jídla nevydávají."
                   : closureLabel
-                    ? (editMode ? "Zavřeno je nastavené v Nastavení → Zavřeno / dovolená." : "V tento den se v LIMA nevaří.")
-                    : "Zkuste jiný den nebo doplnit menu v editaci."}
+                    ? (editMode ? "Zavřeno je nastavené v Nastavení → Zavřeno / dovolená." : "V tento den se v LIMĚ nevaří.")
+                    : "Zkuste jiný den, nebo doplňte jídelníček v úpravách."}
               </span>
             </div>
             {editMode && !closureLabel && (

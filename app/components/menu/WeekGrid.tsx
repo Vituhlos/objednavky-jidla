@@ -82,7 +82,7 @@ export const WeekGrid = memo(function WeekGrid({
                       </div>
                     </div>
                     <div className="px-3 py-2.5 text-[11px] text-stone-600 leading-snug">
-                      V tento den jídelníček neprobíhá.
+                      V tento den se nevaří.
                     </div>
                   </div>
                 ) : closureLabel ? (

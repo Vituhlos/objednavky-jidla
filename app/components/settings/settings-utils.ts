@@ -14,13 +14,15 @@ export function getNextAutoSend(
   if (days.length === 0 || !time) return "Nenastaveno";
 
   const jsToCode: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá" };
+  // I s předložkou — „ve středu“, „ve čtvrtek“, ne „v středu“
   const dayNames: Record<string, string> = {
-    Po: "pondělí",
-    "Út": "úterý",
-    St: "středu",
-    "Čt": "čtvrtek",
-    "Pá": "pátek",
+    Po: "v pondělí",
+    "Út": "v úterý",
+    St: "ve středu",
+    "Čt": "ve čtvrtek",
+    "Pá": "v pátek",
   };
+  const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   try {
     const current = now ?? getPragueNow();
     const currentDay = current.getDay();
@@ -30,14 +32,14 @@ export function getNextAutoSend(
       const code = jsToCode[(currentDay + offset) % 7];
       if (!code || !days.includes(code)) continue;
       if (offset === 0 && currentTime >= time) continue;
-      const label = offset === 0 ? "Dnes" : offset === 1 ? "Zítra" : `V ${dayNames[code] ?? code}`;
+      const label = offset === 0 ? "Dnes" : offset === 1 ? "Zítra" : capitalize(dayNames[code] ?? code);
       return `${label} v ${time}`;
     }
   } catch {
     // Keep the settings page usable even when the runtime lacks timezone data.
   }
 
-  return `Příštích ${days[0]} v ${time}`;
+  return `${capitalize(dayNames[days[0]] ?? days[0])} v ${time}`;
 }
 
 export function formatTimestamp(value: string): string {
@@ -85,7 +87,7 @@ export function validateClosureRange(
   todayISO: string
 ): { error?: string; warning?: string } {
   if (!from || !to) return {};
-  if (from > to) return { error: "Datum „Do“ je dřív než „Od“ — prohoďte je." };
+  if (from > to) return { error: "Datum „Do“ je dřív než „Od“ – prohoďte je." };
 
   const clash = existing.find((closure) => from <= closure.endDate && to >= closure.startDate);
   if (clash) {
@@ -93,7 +95,7 @@ export function validateClosureRange(
       error: `Překrývá se s „${clash.label || "Dovolená"}“ (${formatClosureRange(clash.startDate, clash.endDate)}).`,
     };
   }
-  if (to < todayISO) return { warning: "Termín je celý v minulosti — na provoz už nemá vliv." };
+  if (to < todayISO) return { warning: "Termín je celý v minulosti – na provoz už nemá vliv." };
   return {};
 }
 

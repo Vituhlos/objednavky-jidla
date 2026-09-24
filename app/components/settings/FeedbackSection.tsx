@@ -82,7 +82,7 @@ export function FeedbackSection({
         <div className="text-[12px] text-stone-500 leading-relaxed pb-2 flex flex-col gap-1.5">
           <p>Připomínka se po rozkliknutí sama označí jako přečtená. Stav se mění jedním klikem.</p>
           <p><b>Odpověď</b> uvidí autor hned v kartě „Moje připomínky“ (jen ve svém prohlížeči). Když připomínku označíte jako <b>Hotovo</b>, objeví se odpověď i veřejně v seznamu „Změnili jsme díky vám“. Původní text ani autor se veřejně nikdy neukazují.</p>
-          <p><b>Hlasování:</b> otevřené připomínce dejte krátký název (třeba „Tmavý režim“) a zapněte „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Hlas je vázaný na prohlížeč, ne na člověka — kdo si smaže data prohlížeče, může hlasovat znovu. Berte počty jako orientační.</p>
+          <p><b>Hlasování:</b> otevřené připomínce dejte krátký název (třeba „Tmavý režim“) a zapněte „Dát k hlasování“. Název se ukáže v kartě „Co chystáme“ a lidé u něj dávají 👍. Hlas je vázaný na prohlížeč, ne na člověka – kdo si smaže data prohlížeče, může hlasovat znovu. Berte počty jako orientační.</p>
           <p>Screenshoty vyřízených připomínek (Hotovo, Zamítnuto) se po 90 dnech samy smažou, text zůstává.</p>
           <p>Upozornění na Telegram si admin zapne v botovi: <code className="bg-black/5 px-1 rounded">/nastaveni</code> → 💬 Nové připomínky.</p>
         </div>
