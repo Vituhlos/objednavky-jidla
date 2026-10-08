@@ -30,7 +30,9 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Kantýna",
-    statusBarStyle: "black-translucent",
+    // „default", ne „black-translucent": s průsvitným stavovým řádkem kreslí
+    // iOS 26+ přes horní okraj appky rozostření. Viz .status-bar-fill v globals.css.
+    statusBarStyle: "default",
     startupImage: IOS_SPLASH_SCREENS.map((s) => ({
       url: `/pwa-splash/${splashSizeParam(s)}`,
       media: `(device-width: ${s.w}px) and (device-height: ${s.h}px) and (-webkit-device-pixel-ratio: ${s.dpr}) and (orientation: portrait)`,
@@ -69,6 +71,7 @@ export default function RootLayout({
           <div className="orb orb-amber" />
           <div className="orb orb-mint" />
         </div>
+        <div className="status-bar-fill" aria-hidden />
         <AppTopBar pizzaEnabled={pizzaEnabled} />
         {children}
         <InstallHint />

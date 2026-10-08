@@ -6,8 +6,24 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.2] - 2026-10-08
+
+Druhé zkušební vydání před 1.8.0: opravy podle zkoušky rc.1 na skutečném iPhonu. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.2`.
+
+Zkouška rc.1 na iPhonu potvrdila, že zmizel prázdný pruh dole, navigace sedí nad home indikátorem a záhlaví je pod hodinami.
+
+### Migration notes
+
+- Appku přidanou na plochu iPhonu je potřeba z plochy odebrat a přidat znovu: styl stavového řádku si iOS ukládá při přidání.
+
+### Known issues
+
+- Oprava neostrého záhlaví na iPhonu zatím nebyla ověřena na zařízení.
+- Odstup spodní navigace od proužku gest na Androidu nebyl ověřen na zařízení.
+
 ### Fixed
 
+- **Neostrý text v záhlaví na iPhonu.** Od iOS 26 kreslí systém přes horní okraj appky z plochy, která běží pod stavovým řádkem (`black-translucent`), rozostření; nadpis stránky a tlačítka v záhlaví byly rozmazané a CSS to vypnout neumí. Stavový řádek má nově styl `default` a u horní hrany je fixed pruh v plné barvě pozadí (`.status-bar-fill`), který WebKit protáhne do systémové oblasti místo rozostření.
 - **Pozadí na mobilu končilo v půlce spodní navigace.** Obsah pod navigací zakrýval pruh v barvě pozadí přes celou šířku, který zároveň usekl barevné pozadí stránky. Obsah se teď pod navigací vytrácí maskou na rolované oblasti a pozadí zůstává celé.
 - **Zakalené záhlaví na mobilu.** Záhlaví stránky a podklad pod stavovým řádkem měly mléčné sklo, i když pod nimi nic neroluje; na telefonu to vypadalo jako rozmazaný pruh. Na mobilu jsou bez výplně, na desktopu beze změny.
 

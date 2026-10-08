@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.1",
+    version: "1.8.0-rc.2",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -37,6 +37,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         title: "Fixed",
         items: [
           "Na iPhonu zmizel prázdný pruh dole, spodní navigace sedí níž a záhlaví stránky už není schované pod hodinami.",
+          "Text v záhlaví na iPhonu už není rozmazaný a barevné pozadí stránky nekončí v půlce spodní navigace.",
           "Po návratu do appky se objednávka sama načte znovu, i když ji telefon mezitím uspal. Když se změnil den, načte se celá stránka.",
           "Připomínka před uzávěrkou už nechodí těm, kdo mají objednáno.",
         ],
@@ -51,7 +52,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         title: "Known issues",
         items: [
-          "Zkušební vydání: oprava pruhu na iPhonu a odstup navigace na Androidu s gesty zatím nebyly ověřeny na skutečném zařízení.",
+          "Zkušební vydání: oprava neostrého záhlaví na iPhonu a odstup navigace na Androidu s gesty zatím nebyly ověřeny na skutečném zařízení.",
           "Appku už přidanou na plochu iPhonu je pro novou úvodní obrazovku potřeba odebrat a přidat znovu.",
         ],
       },

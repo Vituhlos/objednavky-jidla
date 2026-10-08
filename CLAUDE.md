@@ -243,7 +243,8 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 - `public/sw.js`: push notifikace a offline fallback. Cachuje **jen** `offline.html` a zachytává jen načtení stránky — appka, API ani SSE se necachují
 - Offline stránka ukáže poslední stav dnešní objednávky ze snímku v localStorage (`offlineOrderSnapshot`, ukládá `order/offline-snapshot.ts`)
 - Push: zvonek na hlavní stránce → `/api/push`; připomínka před uzávěrkou (scheduler, jen kdo ještě neobjednal) a „Objednávka odeslána“
-- iOS + `black-translucent`: WebKit počítá výšku dokumentu bez horní safe area (webkit.org/b/236445). Proto `html` v `display-mode: standalone` roste o `safe-area-inset-top` a `.k-shell` je `position: fixed; inset: 0`
+- iOS: stavový řádek má styl `default` a u horní hrany leží fixed pruh v plné barvě (`.status-bar-fill`). S `black-translucent` kreslí iOS 26+ přes horní okraj appky rozostření, které CSS vypnout neumí
+- iOS a obsah pod stavovým řádkem: WebKit počítá výšku dokumentu bez horní safe area (webkit.org/b/236445). Proto `html` v `display-mode: standalone` roste o `safe-area-inset-top` a `.k-shell` je `position: fixed; inset: 0`
 
 ### Auto-odesílání
 - `instrumentation.ts` → `startScheduler()` při startu Node.js
