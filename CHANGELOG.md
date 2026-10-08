@@ -11,6 +11,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - **Potažení dolů pro obnovení** na dotykových zařízeních (`app/components/PullToRefresh.tsx`). Stránka sama neroluje, takže prohlížeč vlastní potažení nenabízel a appka z plochy neměla jak obnovit data. Tah dolů od horní hrany obsahu vysune ukazatel, po přetažení přes práh se znovu načtou data stránky (`router.refresh()`) a živá objednávka (událost `app:refresh`, i u objednávky na další dny). Nebere se v otevřeném okně, v odrolovaném obsahu a při vodorovném tahu.
 - **Animace řádků objednávky.** Nově přidaný řádek vjede; po smazání řádku ostatní plynule dojedou na místo (`useFlipList`, stejný mechanismus jako u hlasování v připomínkách).
 - **Animovaná čísla.** Součet oddělení, souhrn v záhlaví a ve stavovém pruhu se při změně krátce „přetočí“ (`AnimatedNumber`); při prvním vykreslení se neanimují.
+- **Jídelníček na mobilu: pás dnů a listování.** Dny jsou jeden pás přes celou šířku se stejným tvarem jako přepínač týdnů (dřív samostatné čtverečky, které nezabraly šířku). Mezi dny jde listovat přejetím do strany a den vjede ze strany posunu. Dnešek je popsaný slovem „Dnes“ místo tečky, která se pletla s označením vybraného dne. „Upravit“, stažení PDF a import jsou u nadpisu; vedle přepínače týdnů zůstal jen rozsah dat.
 - **Klouzavá pilulka v jídelníčku** u přepínače týdnů a dnů. Logika pilulky je vytažená do `useSlidingPill` a sdílí ji s přepínačem dnů v objednávkách.
 
 ### Changed

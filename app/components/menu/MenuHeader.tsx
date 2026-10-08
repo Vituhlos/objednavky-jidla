@@ -92,14 +92,33 @@ export function MenuHeader({
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Jídelníček LIMA</h1>
-          {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
+          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1 min-w-0 truncate">Jídelníček LIMA</h1>
+          {/* Akce patří k nadpisu; dřív se „Upravit" a stažení PDF mačkaly vedle přepínače týdnů. */}
+          {hasPdfActive && (
+            <a
+              aria-label="Stáhnout PDF jídelníčku"
+              className="tap inline-flex items-center justify-center w-10 rounded-xl glass-btn text-stone-600 shrink-0"
+              download
+              href={`/api/menu/pdf/${activeWeekStart}`}
+            >
+              <MIcon name="download" size={16} />
+            </a>
+          )}
+          {isCurrentWeek && (
+            <button
+              className={`tap inline-flex items-center text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn shrink-0 ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              onClick={onToggleEdit}
+              type="button"
+            >
+              {editMode ? "Hotovo" : "Upravit"}
+            </button>
+          )}
           <button
-            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
             onClick={onOpenImport}
             type="button"
           >
-            <MIcon name="upload_file" size={13} /> PDF
+            <MIcon name="upload_file" size={14} /> Import
           </button>
         </div>
       </div>
@@ -127,20 +146,8 @@ export function MenuHeader({
             );
           })}
         </div>
-        {hasPdfActive && (
-          <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
-            download href={`/api/menu/pdf/${activeWeekStart}`}>
-            ↓ PDF
-          </a>
-        )}
-        {isCurrentWeek && (
-          <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={onToggleEdit}
-            type="button"
-          >
-            {editMode ? "Zavřít" : "Upravit"}
-          </button>
+        {activeWeekLabel && (
+          <span className="md:hidden ml-auto self-center shrink-0 text-[12px] text-stone-500">{activeWeekLabel}</span>
         )}
       </div>
     </>

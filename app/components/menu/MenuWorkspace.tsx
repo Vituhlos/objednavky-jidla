@@ -1,7 +1,9 @@
 "use client";
 
 import type { MenuWeek } from "@/app/jidelnicek/page";
+import { useRef, useState } from "react";
 import { useSlidingPill } from "../useSlidingPill";
+import { useDaySwipe } from "../order/useDaySwipe";
 import type { MenuItem } from "@/lib/types";
 import { MenuDaySection } from "./MenuDaySection";
 import { WeekClosurePanel } from "./WeekClosurePanel";
@@ -47,8 +49,21 @@ export function MenuWorkspace({
   onCloseDay,
   onOpenDay,
 }: MenuWorkspaceProps) {
-  // Hook musí být před předčasným návratem níž.
+  // Hooky musí být před předčasným návratem níž.
   const dayTrackRef = useSlidingPill<HTMLDivElement>(activeDay);
+  const mobileRef = useRef<HTMLDivElement>(null);
+  const [dayDirection, setDayDirection] = useState<"next" | "prev">("next");
+  const dayCodes: readonly string[] = DAY_ORDER;
+  const dayIndex = dayCodes.indexOf(activeDay);
+  const selectDay = (day: typeof activeDay) => {
+    setDayDirection(dayCodes.indexOf(day) >= dayIndex ? "next" : "prev");
+    onSelectDay(day);
+  };
+  useDaySwipe(mobileRef, {
+    enabled: !activeWeekData.weekClosure,
+    onPrev: () => { if (dayIndex > 0) selectDay(DAY_ORDER[dayIndex - 1]); },
+    onNext: () => { if (dayIndex >= 0 && dayIndex < DAY_ORDER.length - 1) selectDay(DAY_ORDER[dayIndex + 1]); },
+  });
   if (activeWeekData.weekClosure) {
     return <WeekClosurePanel closure={activeWeekData.weekClosure} />;
   }
@@ -58,29 +73,37 @@ export function MenuWorkspace({
 
   return (
     <>
-      {/* Day tabs — mobile only */}
-      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0" ref={dayTrackRef}>
-        {DAY_ORDER.map((day) => {
-          const active = activeDay === day;
-          const isToday = day === visibleTodayCode;
-          const hasData = !!activeMenu[day];
-          return (
-            <button
-              key={day}
-              className={`relative isolate shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
-              data-pill-key={day}
-              onClick={() => onSelectDay(day)}
-              /* Pozadí mají všechny dny stejné; vybraný ho překrývá pilulkou, která mezi dny klouže. */
-              style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}
-              type="button"
-            >
-              {active && <span aria-hidden="true" className="day-pill" data-pill />}
-              <span className={`text-[11px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-500"}`}>{day}</span>
-              <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-700"}`}>{dayDates[day]}</span>
-              {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
-            </button>
-          );
-        })}
+      {/* Dny — jen mobil. Jeden pás přes celou šířku, stejný tvar jako přepínač
+          týdnů nad ním a dnů v objednávkách. Dnešek je popsaný slovem; tečka,
+          která ho značila dřív, se pletla s označením vybraného dne. */}
+      <div className="md:hidden px-4 pt-1 pb-2 shrink-0">
+        <div
+          className="grid grid-cols-5 gap-0.5 p-1 rounded-2xl"
+          ref={dayTrackRef}
+          style={{ background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
+        >
+          {DAY_ORDER.map((day) => {
+            const active = activeDay === day;
+            const isToday = day === visibleTodayCode;
+            const hasData = !!activeMenu[day];
+            return (
+              <button
+                aria-current={active ? "date" : undefined}
+                className={`relative isolate min-w-0 min-h-[48px] flex flex-col items-center justify-center rounded-xl active:scale-[0.96] transition-opacity ${!hasData && !active ? "opacity-45" : ""}`}
+                data-pill-key={day}
+                key={day}
+                onClick={() => selectDay(day)}
+                type="button"
+              >
+                {active && <span aria-hidden="true" className="day-pill" data-pill />}
+                <span className={`text-[11px] font-bold uppercase tracking-wide leading-none transition-colors ${active ? "text-white/85" : isToday ? "text-amber-700" : "text-stone-500"}`}>
+                  {isToday ? "Dnes" : day}
+                </span>
+                <span className={`font-display font-bold text-[15px] leading-tight mt-0.5 transition-colors ${active ? "text-white" : "text-stone-700"}`}>{dayDates[day]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Desktop: full week grid */}
@@ -102,7 +125,9 @@ export function MenuWorkspace({
       </div>
 
       {/* Mobile: single day view */}
-      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav">
+      {/* Mezi dny jde listovat přejetím do strany; den vjede ze strany posunu. */}
+      <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" ref={mobileRef}>
+        <div className={`day-in day-in--${dayDirection}`} key={`${activeWeekStart}-${activeDay}`}>
         <MenuDaySection
           closure={activeWeekData.closureLabels[activeDay] ?? null}
           day={activeDay}
@@ -116,6 +141,7 @@ export function MenuWorkspace({
           onOpenDay={onOpenDay}
           soups={soups}
         />
+        </div>
       </div>
     </>
   );
