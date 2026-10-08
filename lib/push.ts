@@ -65,7 +65,8 @@ export async function sendOrderSentPush(orderId: number, sentAt: string): Promis
   );
 }
 
-async function sendPush(
+/** Pošle notifikaci daným odběrům a uklidí ty, které prohlížeč mezitím odvolal. */
+export async function sendPush(
   subs: PushSubscriptionRow[],
   payload: { title: string; body: string; url: string; tag?: string },
 ): Promise<void> {
