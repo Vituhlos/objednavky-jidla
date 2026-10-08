@@ -6,6 +6,15 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.5] - 2026-10-08
+
+Páté zkušební vydání před 1.8.0: první etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.5`.
+
+### Known issues
+
+- Vzhled klouzavé pilulky v přepínači dnů a načítací kostry nebyl ověřen pohledem, jen chování simulovanými dotyky.
+- Zda zmizela žlutá lišta u hodin v Safari, jde ověřit jen na iPhonu.
+
 ### Changed
 
 - **Přepínání dnů v objednávkách.** Vybraný den značí pilulka, která mezi dny klouže a přesune se hned po volbě, nečeká na odpověď serveru. Vybraný den se sám doroluje do zorného pole, obsah po přepnutí vjede ze strany, kterou se den posunul, a mezi dny jde přejet prstem do strany (`useDaySwipe`; ne od okrajů displeje, kde má iOS návrat zpět, a ne v pásu dnů).
