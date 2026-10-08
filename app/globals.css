@@ -237,27 +237,23 @@ body {
 .slide-in { animation: slideIn .25s ease both; }
 
 /* ── Přepínač dnů: klouzavá pilulka a příjezd obsahu ── */
+/* Pilulka je potomek vybraného čipu (čip má isolation), takže leží pod jeho
+   popiskem bez ohledu na to, jak prohlížeč řadí vrstvy mezi sourozenci. */
 .day-pill {
-  position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; opacity: 0;
+  position: absolute; inset: 0; z-index: -1;
   border-radius: 12px; pointer-events: none;
   background: linear-gradient(135deg, #F59E0B, #EA580C);
   box-shadow: 0 2px 8px -2px rgba(234,88,12,0.35);
-  transition: transform .34s cubic-bezier(.22,1.15,.36,1), width .34s cubic-bezier(.22,1.15,.36,1), opacity .15s ease;
-  will-change: transform;
+  transform-origin: left center;
 }
 @keyframes dayInNext { from { opacity: 0; transform: translate3d(18px, 0, 0); } to { opacity: 1; transform: none; } }
 @keyframes dayInPrev { from { opacity: 0; transform: translate3d(-18px, 0, 0); } to { opacity: 1; transform: none; } }
-.day-in--next { animation: dayInNext .28s cubic-bezier(.2,.8,.2,1); }
-.day-in--prev { animation: dayInPrev .28s cubic-bezier(.2,.8,.2,1); }
-
-/* ── Načítací kostra (app/loading.tsx) ── */
-@keyframes skeletonPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
-@keyframes skeletonIn { from { opacity: 0; } to { opacity: 1; } }
-/* Ukáže se až po chvíli, aby při rychlém načtení jen neproblikla. */
-.skeleton-shell { animation: skeletonIn .2s ease .18s both; }
-.skeleton {
-  display: block; background: rgba(26,18,8,0.07);
-  animation: skeletonPulse 1.4s ease-in-out infinite;
+@keyframes dayInFade { from { opacity: 0.35; } to { opacity: 1; } }
+/* Na počítači jen prolnutí — posun tří sloupců do strany působil jako skok. */
+.day-in--next, .day-in--prev { animation: dayInFade .2s ease; }
+@media (max-width: 767px) {
+  .day-in--next { animation: dayInNext .28s cubic-bezier(.2,.8,.2,1); }
+  .day-in--prev { animation: dayInPrev .28s cubic-bezier(.2,.8,.2,1); }
 }
 
 /* ── Empty states ── */

@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.5",
+    version: "1.8.0-rc.6",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -43,6 +43,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Pole a tlačítka v oknech jsou zřetelně ohraničená a spodek okna už nepřekrývá navigace.",
           "Hledání v Historii už na iPhonu po klepnutí nepřiblíží celou stránku.",
           "Nabídka instalace se už na počítači neroztahuje přes celou šířku; ukazuje se jen na mobilu.",
+          "Při otevření appky je kratší bílé probliknutí.",
           "Po návratu tlačítkem Zpět už nezůstanou panely objednávek zešedlé a výběr v navigaci sedí.",
           "Po návratu do appky se objednávka sama načte znovu, i když ji telefon mezitím uspal. Když se změnil den, načte se celá stránka.",
           "Připomínka před uzávěrkou už nechodí těm, kdo mají objednáno.",
@@ -54,7 +55,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Ikona appky na Androidu je oranžová jako na iPhonu a stavový řádek má barvu pozadí appky.",
           "Záhlaví hlavní stránky na mobilu má velký nadpis dne a pod ním stav uzávěrky se souhrnem; prázdné oddělení zabere jeden řádek.",
           "Přepínání dnů v objednávkách: výběr plynule přejíždí a reaguje hned, mezi dny jde přejet prstem do strany.",
-          "Při přechodu mezi stránkami se ukáže obrys stránky místo prázdného čekání; malá tlačítka mají na telefonu větší dotykovou plochu.",
+          "Položka v menu se zvýrazní hned po kliknutí, nečeká na načtení stránky; malá tlačítka mají na telefonu větší dotykovou plochu.",
           "Chyby, které dřív zmizely beze stopy (migrace databáze, volání Telegramu, uložení PDF jídelníčku), se zapisují do logu. Chování se nemění.",
         ],
       },
