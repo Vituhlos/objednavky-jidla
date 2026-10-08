@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Bílé probliknutí při otevření.** Barva pozadí je nově přímo v HTML (`<html style>`), takže stránka není bílá, než se stáhne hlavní stylopis. Stylopis s písmem pro emoji se načítá až na konci `body`, kde neblokuje první vykreslení.
+
 ## [1.8.0-rc.5] - 2026-10-08
 
 Páté zkušební vydání před 1.8.0: první etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.5`.
