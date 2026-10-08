@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- **Aktualizace Reactu a Next.js** — React 19.2 → 19.3, Next.js 16.2 → 16.4 (včetně `eslint-config-next` a typů). Chování appky se nemění. `pdfkit` a `pdf-parse` zůstávají záměrně na stávajících verzích.
+
 ## [1.8.0-rc.7] - 2026-10-08
 
 Sedmé zkušební vydání před 1.8.0: druhá etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.7`.
