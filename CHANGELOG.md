@@ -6,6 +6,19 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.6] - 2026-10-08
+
+Šesté zkušební vydání před 1.8.0: opravy chyb zavlečených v rc.5 a kratší bílé probliknutí při otevření. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.6`.
+
+### Known issues
+
+- Pilulka vybraného dne byla po přestavbě ověřena v Chromu, ne v Safari na iOS, kde se chyba projevila.
+- Bílou plochu před načtením stránky kryje na iPhonu jen úvodní obrázek; zda sedí pro konkrétní model, nebylo ověřeno.
+
+### Removed
+
+- Načítací kostra mezi stránkami z rc.5 (`app/loading.tsx`) — viz Fixed.
+
 ### Fixed
 
 - **Poskakování při přechodu mezi stránkami (rc.5).** Načítací kostra z rc.5 způsobila, že stará stránka při přechodu hned zmizela a nová naskočila až po chvíli; na rychlém připojení to bylo horší než dřív. Kostra je odstraněná, stará stránka zase zůstává, dokud není nová připravená. Odezvu na kliknutí dává okamžité zvýraznění položky v menu — ve spodní navigaci už z rc.3, nově i v postranním menu na počítači.
