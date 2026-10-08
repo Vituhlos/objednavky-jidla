@@ -29,7 +29,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Bez připojení appka ukáže vlastní stránku s naposledy načtenou dnešní objednávkou (jen ke čtení) a po obnovení spojení se načte sama.",
           "Na mobilu v prohlížeči se nabídne přidání appky na plochu: na Androidu tlačítkem, na iPhonu návodem. Na iPhonu fungují upozornění až v appce z plochy.",
           "Po odeslání objednávky přijde upozornění „Objednávka odeslána“ těm, kdo v ní mají řádek a zapnutý zvonek.",
-          "Dlouhé podržení ikony na ploše nabídne zkratky Oběd, Jídelníček a Připomínky.",
+          "Na Androidu nabídne dlouhé podržení ikony na ploše zkratky Oběd, Jídelníček a Připomínky. iPhone to u appek z plochy neumí.",
           "Appka z plochy má na iPhonu úvodní obrazovku a na Androidu ikonu, kterou systém nezmenšuje do bílého kolečka.",
         ],
       },
@@ -62,7 +62,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Bez signálu appka ukáže naposledy načtenou dnešní objednávku.",
       "Po návratu do appky se objednávka sama načte znovu.",
       "Po odeslání objednávky přijde upozornění, pokud je zapnutý zvonek.",
-      "Appku jde přidat na plochu telefonu; podržení ikony nabídne zkratky.",
+      "Appku jde přidat na plochu telefonu; na Androidu podržení ikony nabídne zkratky.",
     ],
   },
   {

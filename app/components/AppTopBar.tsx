@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
 import MIcon from "./MIcon";
+import MobileNav from "./MobileNav";
 import { useFeedbackBadge } from "./feedback/useFeedbackBadge";
 
 const NAV = [
@@ -105,43 +106,8 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
         </div>
       </aside>
 
-      {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden mobile-nav">
-        <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
-          {nav.map(({ href, shortLabel, icon, exact }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition"
-                style={isActive ? { background: "rgba(245,158,11,0.1)" } : {}}
-              >
-                <span className="relative">
-                  <MIcon
-                    name={icon}
-                    size={20}
-                    fill={isActive}
-                    style={isActive ? { color: "#D97706" } : { color: "#94a3b8" }}
-                  />
-                  {badgeFor(href) > 0 && (
-                    <span className="nav-badge nav-badge--icon" title={badgeLabel(badgeFor(href))}>
-                      <span className="sr-only">{badgeLabel(badgeFor(href))}</span>
-                    </span>
-                  )}
-                </span>
-                <span className={`text-[11px] font-semibold font-display leading-none ${isActive ? "text-stone-800" : "text-stone-400"}`}>
-                  {shortLabel}
-                </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#F59E0B" }} />
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      {/* ── Mobile bottom nav (hidden on desktop) ── */}
+      <MobileNav badgeFor={badgeFor} badgeLabel={badgeLabel} items={nav} pathname={pathname} />
     </>
   );
 }

@@ -271,7 +271,61 @@ body {
 @media (min-width: 768px) { .pb-nav { padding-bottom: 2rem; } }
 
 /* ── Mobile bottom nav ── */
-.mobile-nav { position: fixed; left: 0.5rem; right: 0.5rem; bottom: var(--nav-bottom); z-index: 40; }
+.mobile-nav {
+  position: fixed; left: 0.5rem; right: 0.5rem; bottom: var(--nav-bottom); z-index: 40;
+  /* Na širokém displeji (telefon na šířku) se lišta neroztahuje přes celou šířku. */
+  max-width: 30rem; margin: 0 auto;
+  /* Tažení po liště nesmí vyvolat výběr textu ani náhled odkazu. */
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.mobile-nav__bar { padding: 5px; border-radius: 22px; }
+/* Stejně široké sloupce: pilulka je široká přesně jako položka a posouvá se
+   o násobky vlastní šířky. touch-action: none, aby vodorovné tažení dostala appka. */
+.mobile-nav__track {
+  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  touch-action: none;
+}
+.mobile-nav__pill {
+  position: absolute; top: 0; bottom: 0; left: 0; border-radius: 17px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,247,237,0.58));
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.22) inset, 0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 14px -8px rgba(234,88,12,0.4);
+  /* Lehký překmit na konci, jako když nativní výběr „dosedne". */
+  transition: transform .42s cubic-bezier(.22,1.25,.36,1), opacity .2s ease;
+  will-change: transform; pointer-events: none;
+}
+/* Při tažení jede s prstem; krátký přechod jen vyhlazuje kroky mezi událostmi. */
+.mobile-nav__pill--dragging { transition: transform .06s linear, opacity .2s ease; }
+.mobile-nav__item {
+  position: relative; z-index: 1; min-width: 0; min-height: 50px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border-radius: 17px; -webkit-tap-highlight-color: transparent;
+  transition: transform .15s ease;
+}
+button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+/* Nabídka „Více" nad pravým koncem lišty. */
+.mobile-nav__menu {
+  position: absolute; right: 0; bottom: calc(100% + 8px); min-width: 13rem;
+  padding: 6px; border-radius: 20px;
+  background: rgba(255,255,255,0.96); border: 1px solid rgba(255,255,255,0.8);
+  box-shadow: 0 18px 40px -16px rgba(26,18,8,0.28), 0 2px 8px -2px rgba(26,18,8,0.08);
+  transform-origin: bottom right; animation: scaleIn .18s ease both;
+  user-select: none; -webkit-user-select: none;
+}
+.mobile-nav__menu-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  min-height: 48px; padding: 0 0.85rem; border-radius: 14px;
+  font-size: 14px; font-weight: 600; color: #44403c;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-nav__menu-item:active { background: rgba(26,18,8,0.05); }
+.mobile-nav__menu-item--active { background: rgba(245,158,11,0.1); color: #1c1917; }
+.mobile-nav__item:active { transform: scale(0.94); }
+.mobile-nav__item:focus-visible { outline-offset: -2px; }
+.mobile-nav__label {
+  max-width: 100%; padding: 0 2px; font-size: 11px; font-weight: 600; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .2s ease;
+}
 @media (max-width: 767px) {
   /* Obsah se pod navigací vytrácí maskou, ne překrytím barvou: barevný pruh
      přes celou šířku usekl pozadí (orby) v půlce navigace. Maska se týká jen

@@ -42,7 +42,8 @@ app/
   pwa-splash/[size]/route.tsx      # Úvodní obrazovky pro iOS
 
   components/
-    AppTopBar.tsx                  # Postranní panel (desktop) + spodní navigace (mobil)
+    AppTopBar.tsx                  # Postranní panel (desktop); položky navigace
+    MobileNav.tsx                  # Spodní navigace na mobilu: pilulka s tažením, nabídka „Více“
     InstallHint.tsx                # Nabídka „přidat na plochu“ na mobilu
     SwRegister.tsx                 # Registrace service workeru
     MIcon.tsx                      # Inline SVG ikony (registr; neznámé jméno nic nevykreslí)
@@ -300,7 +301,7 @@ k-shell             obal stránky (fixed; vlevo místo pro sidebar na desktopu)
 stage-bg, orb-*     pozadí s barevnými skvrnami
 topbar              pruh záhlaví stránky
 desktop-sidebar     postranní navigace (≥ 768px)
-mobile-nav(-fade)   plovoucí spodní navigace na mobilu
+mobile-nav, mobile-nav__*   plovoucí spodní navigace na mobilu (lišta, pilulka, nabídka „Více“)
 pb-nav              spodní odsazení obsahu kvůli mobilní navigaci
 glass, glass-card, glass-soft, glass-btn(-danger), glass-dim   skleněné plochy a tlačítka
 modal-overlay/sheet modální dialog (na mobilu bottom sheet); modal-* jeho části
