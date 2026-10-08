@@ -6,6 +6,31 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.7] - 2026-10-08
+
+Sedmé zkušební vydání před 1.8.0: druhá etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.7`.
+
+### Known issues
+
+- Gesta (potažení pro obnovení, listování dnů v jídelníčku) jsou ověřená simulovanými dotyky v prohlížeči, ne prstem na telefonu.
+- Pilulka vybraného dne po přestavbě z rc.6 zatím nebyla potvrzena v Safari na iOS.
+
+### Added
+
+- **Potažení dolů pro obnovení** na dotykových zařízeních (`app/components/PullToRefresh.tsx`). Stránka sama neroluje, takže prohlížeč vlastní potažení nenabízel a appka z plochy neměla jak obnovit data. Tah dolů od horní hrany obsahu vysune ukazatel, po přetažení přes práh se znovu načtou data stránky (`router.refresh()`) a živá objednávka (událost `app:refresh`, i u objednávky na další dny). Nebere se v otevřeném okně, v odrolovaném obsahu a při vodorovném tahu.
+- **Animace řádků objednávky.** Nově přidaný řádek vjede; po smazání řádku ostatní plynule dojedou na místo (`useFlipList`, stejný mechanismus jako u hlasování v připomínkách).
+- **Animovaná čísla.** Součet oddělení, souhrn v záhlaví a ve stavovém pruhu se při změně krátce „přetočí“ (`AnimatedNumber`); při prvním vykreslení se neanimují.
+- **Jídelníček na mobilu: pás dnů a listování.** Dny jsou jeden pás přes celou šířku se stejným tvarem jako přepínač týdnů (dřív samostatné čtverečky, které nezabraly šířku). Mezi dny jde listovat přejetím do strany a den vjede ze strany posunu. Dnešek je popsaný slovem „Dnes“ místo tečky, která se pletla s označením vybraného dne. „Upravit“, stažení PDF a import jsou u nadpisu; vedle přepínače týdnů zůstal jen rozsah dat.
+- **Klouzavá pilulka v jídelníčku** u přepínače týdnů a dnů. Logika pilulky je vytažená do `useSlidingPill` a sdílí ji s přepínačem dnů v objednávkách.
+
+### Changed
+
+- **Přechod mezi stránkami** je krátké prolnutí nové stránky z pozadí (160 ms, jen průhlednost). Nativní přechody (`ViewTransition`) dokumentace Next.js popisuje až pro React 19.3; projekt má 19.2, takže by šlo o experimentální funkci.
+
+### Fixed
+
+- **Stylopis emoji pořád blokoval první vykreslení.** V rc.6 se přesunul z `head` na konec `body`, jenže `<link rel="stylesheet">` vložený parserem blokuje vykreslení i tam — prohlížeč se o něm jen dozví později. Nově ho vkládá skript po načtení stránky (`app/components/EmojiFont.tsx`), takže vykreslení neblokuje; do té doby kreslí emoji systémové písmo.
+
 ## [1.8.0-rc.6] - 2026-10-08
 
 Šesté zkušební vydání před 1.8.0: opravy chyb zavlečených v rc.5 a kratší bílé probliknutí při otevření. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.6`.

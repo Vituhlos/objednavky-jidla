@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, memo } from "react";
+import { AnimatedNumber } from "./AnimatedNumber";
+import { useFlipList } from "./feedback/useFlipList";
 import type { DepartmentData, OrderRowEnriched, Department } from "@/lib/types";
 import { EXTRAS_PRICES_DEFAULT, type ExtrasPrices } from "@/lib/pricing";
 import { hasOrderRowContent } from "@/lib/order-utils";
@@ -38,6 +40,10 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
 
   const dc = DEPT_COLORS[data.accent] ?? DC_DEFAULT;
   const activeRows = data.rows.filter(hasOrderRowContent);
+  // Po smazání řádku ostatní plynule dojedou na místo (FLIP).
+  const rowsRef = useFlipList<HTMLDivElement>(activeRows.map((r) => r.id));
+  // Řádky, které tu byly při vložení panelu, se neanimují — vjede jen nově přidaný.
+  const [initialRowIds] = useState(() => new Set(activeRows.map((r) => r.id)));
   const modalRow = modalState ? (data.rows.find((r) => r.id === modalState.rowId) ?? null) : null;
 
   const currentDeptNameRef = useRef(data.name);
@@ -77,7 +83,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
               {activeRows.length > 0 ? (
                 <>
                   {activeRows.length} {pluralizeOrders(activeRows.length)}
-                  {data.subtotal > 0 && <> · <strong className="text-stone-700">{data.subtotal} Kč</strong></>}
+                  {data.subtotal > 0 && <> · <strong className="text-stone-700"><AnimatedNumber suffix=" Kč" value={data.subtotal} /></strong></>}
                 </>
               ) : (
                 <span className="text-stone-400">Zatím prázdné</span>
@@ -108,7 +114,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
         )}
 
         {/* Rows */}
-        <div className={isSent ? "dept-rows-sent" : ""}>
+        <div className={isSent ? "dept-rows-sent" : ""} ref={rowsRef}>
           {activeRows.length === 0 ? (
             <div className="empty-state empty-state--compact">
               <div className="empty-state__icon">
@@ -120,6 +126,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
           ) : (
             activeRows.map((row) => (
               <OrderRow
+                entering={!initialRowIds.has(row.id)}
                 key={row.id}
                 row={row}
                 accent={data.accent}

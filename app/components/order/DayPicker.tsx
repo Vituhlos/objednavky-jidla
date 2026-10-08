@@ -1,7 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
 import { DEFAULT_CLOSURE_ICON } from "@/lib/closure-icons";
+import { useSlidingPill } from "../useSlidingPill";
 import { formatGapLabel, getDayLabel, type PickerItem } from "./order-utils";
 
 /**
@@ -19,10 +20,7 @@ import { formatGapLabel, getDayLabel, type PickerItem } from "./order-utils";
  * Vybraný den značí pilulka, která mezi dny klouže. Přesune se hned po volbě
  * (`pendingDate`), nečeká na odpověď serveru — jinak klepnutí působilo opožděně.
  *
- * Pilulka je potomek vybraného čipu, ne samostatný prvek pod čipy. První verze
- * ji měla zvlášť a spoléhala na `z-index`; Safari na iOS ale vrstvy s transformací
- * řadí po svém, takže pilulka jednou zakryla popisek a jindy se nevykreslila.
- * Takhle je výběr správně i bez animace a klouzání je jen přechod navíc.
+ * Jak pilulka funguje a proč je potomkem čipu, popisuje `useSlidingPill`.
  */
 export function DayPicker({
   pickerItems,
@@ -39,43 +37,8 @@ export function DayPicker({
   onSelect: (date: string) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  /** Kde pilulka stála naposledy (v souřadnicích pásu) — odtud vyjíždí animace. */
-  const lastSpot = useRef<{ left: number; width: number } | null>(null);
   const shownDate = pendingDate ?? selectedDate;
-
-  useLayoutEffect(() => {
-    const track = trackRef.current;
-    const scroller = scrollerRef.current;
-    const chip = track && shownDate ? track.querySelector<HTMLElement>(`[data-date="${shownDate}"]`) : null;
-    if (!chip) {
-      lastSpot.current = null;
-      return;
-    }
-    const spot = { left: chip.offsetLeft, width: chip.offsetWidth };
-    const previous = lastSpot.current;
-    lastSpot.current = spot;
-
-    // Vybraný den doroluj do zorného pole (pás je širší než displej).
-    if (scroller && scroller.scrollWidth > scroller.clientWidth) {
-      const target = spot.left - (scroller.clientWidth - spot.width) / 2;
-      scroller.scrollTo({ left: Math.max(0, target), behavior: previous ? "smooth" : "auto" });
-    }
-
-    // Klouzání: pilulka už stojí na novém místě (je součástí čipu), jen se
-    // na okamžik opticky vrátí na staré a dojede. Když animace neproběhne,
-    // výběr je stejně vidět správně.
-    const pill = chip.querySelector<HTMLElement>(".day-pill");
-    if (!pill || !previous || spot.width === 0 || (previous.left === spot.left && previous.width === spot.width)) return;
-    if (typeof pill.animate !== "function" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    pill.animate(
-      [
-        { transform: `translateX(${previous.left - spot.left}px) scaleX(${previous.width / spot.width})` },
-        { transform: "none" },
-      ],
-      { duration: 340, easing: "cubic-bezier(.22,1.15,.36,1)" },
-    );
-  }, [shownDate, pickerItems]);
+  const trackRef = useSlidingPill<HTMLDivElement>(shownDate, { scroller: scrollerRef, watch: pickerItems });
 
   return (
     <div className="relative -mx-4">
@@ -159,6 +122,7 @@ export function DayPicker({
               <button
                 aria-current={isActive ? "date" : undefined}
                 data-date={date}
+                data-pill-key={date}
                 key={date}
                 className={`relative isolate flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-colors duration-200 active:scale-[0.96] ${
                   isShown ? "text-white" : "text-stone-600 hover:text-stone-800"
@@ -166,7 +130,7 @@ export function DayPicker({
                 onClick={() => { if (isShown) return; onSelect(date); }}
                 type="button"
               >
-                {isShown && <span aria-hidden="true" className="day-pill" />}
+                {isShown && <span aria-hidden="true" className="day-pill" data-pill />}
                 {getDayLabel(date, todayDate!)}
               </button>
             );

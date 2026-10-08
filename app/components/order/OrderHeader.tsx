@@ -1,6 +1,7 @@
 "use client";
 
 import MIcon from "../MIcon";
+import { AnimatedNumber } from "../AnimatedNumber";
 
 /**
  * Informační pruh nad objednávkou: který den, stav uzávěrky, počet objednávek,
@@ -102,7 +103,7 @@ export function OrderHeader({
         )}
         {activeOrderCount > 0 && (
           <span className="text-stone-400">
-            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · {totalPrice} Kč
+            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · <AnimatedNumber suffix=" Kč" value={totalPrice} />
           </span>
         )}
       </div>
@@ -191,7 +192,7 @@ export function OrderHeader({
         )}
         {activeOrderCount > 0 && (
           <span className="text-stone-500">
-            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · <strong className="font-semibold text-stone-700">{totalPrice} Kč</strong>
+            {activeOrderCount} {activeOrderCount === 1 ? "objednávka" : activeOrderCount < 5 ? "objednávky" : "objednávek"} · <strong className="font-semibold text-stone-700"><AnimatedNumber suffix=" Kč" value={totalPrice} /></strong>
           </span>
         )}
         {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (

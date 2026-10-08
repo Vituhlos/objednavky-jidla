@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
+import EmojiFont from "./components/EmojiFont";
 import AppTopBar from "./components/AppTopBar";
 import InstallHint from "./components/InstallHint";
 import SheetDragManager from "./components/SheetDragManager";
+import PullToRefresh from "./components/PullToRefresh";
 import { getSettings } from "@/lib/settings";
 import { IOS_SPLASH_SCREENS, PWA_BG, splashSizeParam } from "@/lib/pwa-assets";
 
@@ -70,16 +72,9 @@ export default function RootLayout({
         {children}
         <InstallHint />
         <SheetDragManager />
+        <PullToRefresh />
         <SwRegister />
-        {/* Self-hosted Noto Color Emoji, generated into public/fonts by
-            tools/download-emoji-font. Ten slices with unicode-range, so a browser
-            fetches only the slice holding an emoji actually on screen. Missing file
-            just 404s and the system emoji font takes over.
-            Až na konci body, ne v head: stylopis v head blokuje první vykreslení
-            celé stránky, a tenhle jen deklaruje písmo pro emoji. */}
-        {/* eslint-disable-next-line @next/next/no-css-tags -- generated file, deliberately
-            outside the bundle graph: importing it would make a missing font break the build */}
-        <link href="/fonts/noto-color-emoji.css" rel="stylesheet" />
+        <EmojiFont />
       </body>
     </html>
   );

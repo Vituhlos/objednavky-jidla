@@ -17,15 +17,19 @@ export function getChips(row: OrderRowEnriched): string[] {
   return chips;
 }
 
-export function OrderRow({ row, accent, isSent, onEdit, onDelete }: {
-  row: OrderRowEnriched; accent: string; isSent: boolean; onEdit: () => void; onDelete: () => void;
+export function OrderRow({ row, accent, isSent, entering = false, onEdit, onDelete }: {
+  row: OrderRowEnriched; accent: string; isSent: boolean;
+  /** Řádek přibyl až po vykreslení panelu — vjede, místo aby se jen objevil. */
+  entering?: boolean;
+  onEdit: () => void; onDelete: () => void;
 }) {
   const dc = DEPT_COLORS[accent] ?? DC_DEFAULT;
   const chips = getChips(row);
 
   return (
     <div
-      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${!isSent ? "hover:bg-white/60 active:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      className={`group flex items-center gap-3 px-4 py-3 border-b border-white/30 last:border-0 transition-all duration-150 ease-out ${entering ? "row-enter" : ""} ${!isSent ? "hover:bg-white/60 active:bg-white/60 cursor-pointer active:scale-[0.995]" : ""}`}
+      data-flip-id={row.id}
       onClick={!isSent ? onEdit : undefined}
       role={!isSent ? "button" : undefined}
       tabIndex={!isSent ? 0 : undefined}

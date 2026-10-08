@@ -2,6 +2,7 @@
 
 import type { MenuWeek } from "@/app/jidelnicek/page";
 import MIcon from "../MIcon";
+import { useSlidingPill } from "../useSlidingPill";
 
 interface MenuHeaderProps {
   weeks: MenuWeek[];
@@ -44,6 +45,8 @@ export function MenuHeader({
   onOpenImport,
   onRequestDeleteWeek,
 }: MenuHeaderProps) {
+  // Výběr týdne klouže stejně jako výběr dne na stránce objednávek.
+  const weekTrackRef = useSlidingPill<HTMLDivElement>(activeWeekStart, { watch: weeks });
   return (
     <>
       {/* Desktop topbar */}
@@ -89,21 +92,40 @@ export function MenuHeader({
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Jídelníček LIMA</h1>
-          {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
+          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1 min-w-0 truncate">Jídelníček LIMA</h1>
+          {/* Akce patří k nadpisu; dřív se „Upravit" a stažení PDF mačkaly vedle přepínače týdnů. */}
+          {hasPdfActive && (
+            <a
+              aria-label="Stáhnout PDF jídelníčku"
+              className="tap inline-flex items-center justify-center w-10 rounded-xl glass-btn text-stone-600 shrink-0"
+              download
+              href={`/api/menu/pdf/${activeWeekStart}`}
+            >
+              <MIcon name="download" size={16} />
+            </a>
+          )}
+          {isCurrentWeek && (
+            <button
+              className={`tap inline-flex items-center text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn shrink-0 ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              onClick={onToggleEdit}
+              type="button"
+            >
+              {editMode ? "Hotovo" : "Upravit"}
+            </button>
+          )}
           <button
-            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
             onClick={onOpenImport}
             type="button"
           >
-            <MIcon name="upload_file" size={13} /> PDF
+            <MIcon name="upload_file" size={14} /> Import
           </button>
         </div>
       </div>
 
       {/* Week tabs */}
       <div className="flex gap-1.5 px-4 pt-3 pb-1 shrink-0 overflow-x-auto no-scrollbar">
-        <div className="flex p-1 rounded-2xl gap-0.5 shrink-0" style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
+        <div className="flex p-1 rounded-2xl gap-0.5 shrink-0" ref={weekTrackRef} style={{ background: "rgba(26,18,8,0.07)", border: "1px solid rgba(255,255,255,0.55)" }}>
           {weeks.map((week) => {
             const active = week.weekStart === activeWeekStart;
             return (
@@ -111,11 +133,12 @@ export function MenuHeader({
                 key={week.weekStart}
                 /* Same metrics as the day picker on the order page: one visual language, and
                      44px is the touch-target minimum this strip was under. */
-                  className={`flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-all duration-200 active:scale-[0.97] whitespace-nowrap ${active ? "" : "text-stone-500 hover:text-stone-700 hover:bg-white/60"}`}
+                  className={`relative isolate flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-colors duration-200 active:scale-[0.97] whitespace-nowrap ${active ? "text-white" : "text-stone-500 hover:text-stone-700"}`}
+                data-pill-key={week.weekStart}
                 onClick={() => onSelectWeek(week.weekStart)}
-                style={active ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", color: "white", boxShadow: "0 2px 8px -2px rgba(234,88,12,0.35)" } : {}}
                 type="button"
               >
+                {active && <span aria-hidden="true" className="day-pill" data-pill />}
                 {/* A fully closed week says so in the tab — no need to click to find out */}
                 {week.weekClosure && <span className="emoji mr-1">{week.weekClosure.icon}</span>}
                 {week.tabLabel}
@@ -123,20 +146,8 @@ export function MenuHeader({
             );
           })}
         </div>
-        {hasPdfActive && (
-          <a className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 md:hidden"
-            download href={`/api/menu/pdf/${activeWeekStart}`}>
-            ↓ PDF
-          </a>
-        )}
-        {isCurrentWeek && (
-          <button
-            className={`md:hidden inline-flex items-center text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
-            onClick={onToggleEdit}
-            type="button"
-          >
-            {editMode ? "Zavřít" : "Upravit"}
-          </button>
+        {activeWeekLabel && (
+          <span className="md:hidden ml-auto self-center shrink-0 text-[12px] text-stone-500">{activeWeekLabel}</span>
         )}
       </div>
     </>

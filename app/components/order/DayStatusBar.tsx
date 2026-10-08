@@ -1,6 +1,7 @@
 "use client";
 
 import MIcon from "../MIcon";
+import { AnimatedNumber } from "../AnimatedNumber";
 
 /**
  * Pruh pod panely: v jakém je den stavu a kolik to dělá.
@@ -104,7 +105,7 @@ export function DayStatusBar({
         </button>
       )}
       {!isOrderLocked && totalPrice > 0 && (
-        <span className="font-display font-bold text-[14px] text-stone-800 shrink-0">{totalPrice} Kč</span>
+        <span className="font-display font-bold text-[14px] text-stone-800 shrink-0"><AnimatedNumber suffix=" Kč" value={totalPrice} /></span>
       )}
     </div>
   );
