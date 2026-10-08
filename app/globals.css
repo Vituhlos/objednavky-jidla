@@ -10,11 +10,21 @@
   --divider: rgba(26,18,8,0.08);
   --font-inter: 'Inter', -apple-system, system-ui, sans-serif;
   --font-jakarta: 'Plus Jakarta Sans', sans-serif;
+  /* Odsazení plovoucí mobilní navigace od spodní hrany. Na iPhonu sedí těsně
+     nad home indikátorem (jako nativní tab bar), ne nad celou safe area. */
+  --nav-bottom: max(0.5rem, calc(env(safe-area-inset-bottom, 0px) - 0.75rem));
 }
 
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; overflow: hidden; margin: 0; }
+/* iOS, appka z plochy + black-translucent: WebKit počítá výšku dokumentu bez
+   horní safe area, takže vše ukotvené dole končí o výšku stavového řádku nad
+   okrajem displeje (webkit.org/b/236445). Dokument o ten kus natáhneme; mimo
+   iOS je inset nulový a pravidlo nic nedělá. */
+@media (display-mode: standalone) {
+  html { height: calc(100% + env(safe-area-inset-top, 0px)); }
+}
 button, a { touch-action: manipulation; }
 :focus-visible { outline: 2px solid rgba(245,158,11,0.7); outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) {
@@ -252,13 +262,37 @@ body {
 }
 @media (max-width: 767px) {
   .settings-save-fab {
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(76px + var(--nav-bottom));
   }
 }
 
 /* ── Safe-area bottom padding (accounts for fixed bottom nav + iOS home indicator) ── */
-.pb-nav { padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
+.pb-nav { padding-bottom: calc(6rem + var(--nav-bottom)); }
 @media (min-width: 768px) { .pb-nav { padding-bottom: 2rem; } }
+
+/* ── Mobile bottom nav + fade pod ní ── */
+.mobile-nav { position: fixed; left: 0.5rem; right: 0.5rem; bottom: var(--nav-bottom); z-index: 40; }
+.mobile-nav-fade {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  height: calc(4.5rem + var(--nav-bottom));
+  background: linear-gradient(to top, var(--bg) 30%, rgb(248 244 239 / 0) 100%);
+  pointer-events: none;
+}
+
+/* ── Nabídka „přidat na plochu" (nad mobilní navigací) ── */
+.install-hint {
+  position: fixed; left: 0.75rem; right: 0.75rem; z-index: 34;
+  bottom: calc(var(--nav-bottom) + 76px);
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.65rem 0.75rem; border-radius: 18px;
+  background: rgba(255,255,255,0.94);
+}
+.install-hint__icon {
+  flex: none; width: 38px; height: 38px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #F59E0B, #EA580C);
+  box-shadow: 0 6px 16px -6px rgba(245,158,11,0.5);
+}
 
 /* ── Scrollbars ── */
 .scroll-area { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -268,19 +302,29 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ── Shell (Next.js content area, accounts for fixed sidebar) ── */
+/* Fixed + inset místo výšky v dvh: shell se tak drží stejného viewportu jako
+   spodní navigace a pozadí, a nemůžou se na iOS rozejít. */
 .k-shell {
-  position: relative; z-index: 10;
-  height: 100vh; overflow: hidden; /* fallback */
-  height: 100dvh;                  /* adapts to browser toolbar on mobile */
+  position: fixed; inset: 0; z-index: 10;
+  overflow: hidden;
   display: flex; flex-direction: column;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+/* Podklad pod stavový řádek iOS — stejné sklo jako .topbar, takže s ním splyne. */
+.k-shell::before {
+  content: ''; flex: none;
+  height: env(safe-area-inset-top, 0px);
+  margin: 0 calc(-1 * env(safe-area-inset-right, 0px)) 0 calc(-1 * env(safe-area-inset-left, 0px));
+  background: rgba(255,255,255,0.42);
 }
 @media (min-width: 768px) {
-  .k-shell { margin-left: 232px; }
+  .k-shell { left: 232px; }
 }
 
 /* ── Toast notifications ── */
 .k-toast {
-  position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: calc(var(--nav-bottom) + 82px); left: 50%; transform: translateX(-50%);
   z-index: 500; white-space: nowrap;
   display: flex; align-items: center; gap: 0.5rem;
   padding: 0.55rem 1rem 0.55rem 0.75rem;

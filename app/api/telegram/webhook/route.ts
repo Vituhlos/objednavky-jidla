@@ -15,15 +15,63 @@ import {
   escapeHtml,
 } from "@/lib/telegram";
 import { getDb } from "@/lib/db";
-import { formatOrderTotals, describeRowItems, describeRowCodes } from "@/lib/order-summary";
-import { getTodayOrderData, sendOrder, reopenOrderAndUnlock, getOrderPdfPath, orderPdfExists } from "@/lib/orders";
-import { getMenuItemsForDay, getMondayISO } from "@/lib/menu";
-import { getClosureForDate, getUpcomingClosure } from "@/lib/closures";
+import { formatOrderTotals } from "@/lib/order-summary";
+import {
+  getTodayOrderData,
+  sendOrder,
+  reopenOrderAndUnlock,
+  getOrderPdfPath,
+  orderPdfExists,
+} from "@/lib/orders";
+import { getMondayISO } from "@/lib/menu";
 import fs from "fs";
 import path from "path";
 import { broadcast } from "@/lib/sse-broadcast";
 import { getPragueNow } from "@/lib/time";
-import { scrapePizzaMenu } from "@/lib/pizza-scraper";
+import {
+  DAY_INPUT_MAP,
+  formatMenuForDay,
+  formatMenu,
+  formatZitra,
+  formatStav,
+  formatSouhrn,
+  getDateForDay,
+  formatPizza,
+  formatStatistiky,
+  formatChybi,
+} from "./messages";
+import {
+  SETTINGS_TEXT,
+  buildSettingsKeyboard,
+  buildStavKeyboard,
+  buildMenuKeyboard,
+  buildPizzaKeyboard,
+  buildMainReplyKeyboard,
+  REMINDER_TEXT,
+  CAS_TEXT,
+  MORNING_TEXT,
+  buildCasKeyboard,
+  buildReminderKeyboard,
+  buildMorningKeyboard,
+  buildPdfKeyboard,
+  buildPdfHistoryKeyboard,
+  buildTydenKeyboard,
+  buildStatisticsKeyboard,
+  buildAdminChybiKeyboard,
+  buildDayViewKeyboard,
+  buildAdminKeyboard,
+  BUTTON_MAP,
+} from "./keyboards";
+import {
+  sendTyping,
+  editMessageText,
+  answerCallbackQuery,
+  editMessageReplyMarkup,
+  sendPhotoToChat,
+  answerInlineQuery,
+  sendDocument,
+  getBotUsername,
+} from "./telegram-api";
 
 export const dynamic = "force-dynamic";
 
@@ -33,550 +81,6 @@ export const dynamic = "force-dynamic";
 const PENDING_TTL_MS = 10 * 60 * 1000;
 const pendingActions = new Map<string, { action: "reminder" | "morning"; at: number }>();
 
-const DAY_CODE: Record<number, string> = { 1: "Po", 2: "Út", 3: "St", 4: "Čt", 5: "Pá", 6: "So", 0: "Ne" };
-
-// Normalised user input → DB day code (handles diacritics variants)
-const DAY_INPUT_MAP: Record<string, string> = {
-  po: "Po", pondeli: "Po", "pondělí": "Po",
-  ut: "Út", "út": "Út", utery: "Út", "úterý": "Út",
-  st: "St", streda: "St", "středa": "St",
-  ct: "Čt", "čt": "Čt", ctvrtek: "Čt", "čtvrtek": "Čt",
-  pa: "Pá", "pá": "Pá", patek: "Pá", "pátek": "Pá",
-};
-
-// ISO date of a weekday code within the current Prague week, for closure lookups
-function isoForDayCode(dayCode: string): string | null {
-  const offsets: Record<string, number> = { Po: 0, "Út": 1, St: 2, "Čt": 3, "Pá": 4 };
-  const offset = offsets[dayCode];
-  if (offset === undefined) return null;
-  const [y, m, d] = getMondayISO().split("-").map(Number);
-  const date = new Date(y, m - 1, d + offset, 12, 0, 0);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function closureForDay(dayCode: string): { label: string; icon: string } | null {
-  const iso = isoForDayCode(dayCode);
-  if (!iso) return null;
-  const closure = getClosureForDate(iso);
-  return closure ? { label: closure.label || "dovolená", icon: closure.icon } : null;
-}
-
-// ─── Formatters ───────────────────────────────────────────────────────────────
-
-function formatMenuForDay(dayCode: string, dateStr: string): string {
-  const menu = getMenuItemsForDay(dayCode);
-  // A closed day comes back as a single synthetic "Zavřeno" item — printing it as a
-  // dish (and promising a cutoff) is nonsense, so say what actually happens.
-  const closure = closureForDay(dayCode);
-  if (closure) {
-    return `${closure.icon} <b>${dateStr}</b>\n\nV LIMĚ se dnes nevaří – ${escapeHtml(closure.label)}.`;
-  }
-  if (menu.soups.length === 0 && menu.meals.length === 0)
-    return `🍽 <b>Jídelníček ${dateStr}</b>\n\nJídelníček zatím není k dispozici.`;
-  const lines: string[] = [`🍽 <b>Jídelníček ${dateStr}</b>`];
-  if (menu.soups.length > 0) {
-    lines.push("");
-    lines.push("<b>🍲 Polévky</b>");
-    menu.soups.forEach((s) => lines.push(`  • ${escapeHtml(s.name)}`));
-  }
-  if (menu.meals.length > 0) {
-    lines.push("");
-    lines.push("<b>🍽 Hlavní jídla</b>");
-    menu.meals.forEach((m) => lines.push(`  • ${escapeHtml(m.name)}`));
-  }
-  return lines.join("\n");
-}
-
-function formatMenu(): string {
-  const now = getPragueNow();
-  const dayCode = DAY_CODE[now.getDay()];
-  if (!dayCode || now.getDay() === 0 || now.getDay() === 6) return "Dnes není pracovní den.";
-  const dateStr = now.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-  return formatMenuForDay(dayCode, dateStr);
-}
-
-function formatZitra(): string {
-  const now = getPragueNow();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const jsDay = tomorrow.getDay();
-  const dayCode = DAY_CODE[jsDay];
-  if (!dayCode || jsDay === 0 || jsDay === 6) return "Zítra není pracovní den.";
-  const dateStr = tomorrow.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-  return formatMenuForDay(dayCode, dateStr);
-}
-
-function formatStav(): string {
-  const data = getTodayOrderData();
-  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
-    weekday: "long", day: "numeric", month: "numeric",
-  });
-  const sent = data.order.status === "sent";
-  const totalPeople = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
-  const statusLine = `${sent ? "✅ <b>Odesláno</b>" : "📝 <b>Rozepsáno</b>"}  ·  ${formatOrderTotals(data)}`;
-  const lines: string[] = [`📋 <b>Objednávka ${dateStr}</b>`, statusLine];
-  if (totalPeople === 0) {
-    lines.push("", "<i>Zatím nikdo neobjednal.</i>");
-  } else {
-    data.departments.forEach((dept) => {
-      const active = dept.rows.filter((r) => r.personName);
-      if (active.length === 0) return;
-      lines.push("");
-      lines.push(`<b>📂 ${escapeHtml(dept.label)}</b>`);
-      active.forEach((r) => {
-        const parts = describeRowItems(r);
-        const detail = parts.length > 0 ? `  –  ${parts.join("  +  ")}` : "";
-        lines.push(`  • <b>${escapeHtml(r.personName)}</b>${detail}`);
-      });
-    });
-  }
-  return lines.join("\n");
-}
-
-function formatSouhrn(): string {
-  const data = getTodayOrderData();
-  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
-    weekday: "long", day: "numeric", month: "numeric",
-  });
-  const statusIcon = data.order.status === "sent" ? "✅" : "📝";
-  const statusLabel = data.order.status === "sent" ? "Odesláno" : "Rozepsáno";
-  const totalRows = data.departments.flatMap((d) => d.rows.filter((r) => r.personName)).length;
-  const blocks: string[] = [];
-  data.departments.forEach((dept) => {
-    const active = dept.rows.filter((r) => r.personName);
-    if (active.length === 0) return;
-    const nameWidth = Math.min(18, Math.max(...active.map((r) => r.personName.length)));
-    const rows = active.map((r) => {
-      const name = r.personName.slice(0, nameWidth).padEnd(nameWidth);
-      return `${name}  ${describeRowCodes(r)}`;
-    });
-    blocks.push(`${escapeHtml(dept.label)}\n${escapeHtml(rows.join("\n"))}`);
-  });
-  return (
-    `📊 <b>Souhrn ${dateStr}</b>\n` +
-    `${statusIcon} ${statusLabel}  ·  ${formatOrderTotals(data)}\n\n` +
-    `<pre>${blocks.join("\n\n")}</pre>`
-  );
-}
-
-// Returns the date of a given JS weekday (1=Mon…5=Fri) within the current Prague week
-function getDateForDay(now: Date, targetJsDay: number): Date {
-  const currentJsDay = now.getDay();
-  const mondayOffset = currentJsDay === 0 ? -6 : 1 - currentJsDay;
-  const d = new Date(now);
-  d.setDate(d.getDate() + mondayOffset + (targetJsDay - 1));
-  return d;
-}
-
-async function formatPizza(): Promise<string> {
-  try {
-    const items = await scrapePizzaMenu();
-    if (items.length === 0) return "🍕 <b>Pizza Dublovice</b>\n\nNabídka není momentálně k dispozici.";
-    const nameWidth = Math.min(32, Math.max(...items.map((i) => i.name.length)));
-    const rows = items.map((item) => {
-      const code = String(item.code).padStart(2);
-      const name = item.name.slice(0, nameWidth).padEnd(nameWidth);
-      return `${code}  ${name}  ${item.price} Kč`;
-    });
-    return `🍕 <b>Pizza Dublovice</b>\n\n<pre>${rows.join("\n")}</pre>`;
-  } catch {
-    return "⚠️ Nepodařilo se načíst nabídku pizzy. Zkus to znovu.";
-  }
-}
-
-function formatTyden(): string {
-  const now = getPragueNow();
-  const WEEKDAYS: Array<{ jsDay: number; code: string }> = [
-    { jsDay: 1, code: "Po" }, { jsDay: 2, code: "Út" }, { jsDay: 3, code: "St" },
-    { jsDay: 4, code: "Čt" }, { jsDay: 5, code: "Pá" },
-  ];
-  const blocks = WEEKDAYS.map(({ jsDay, code }) => {
-    const date = getDateForDay(now, jsDay);
-    const dateStr = date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
-    return formatMenuForDay(code, dateStr);
-  });
-  return `📅 <b>Jídelníček na celý týden</b>\n\n` + blocks.join("\n\n―――――――――――――\n\n");
-}
-
-function formatStatistiky(): string {
-  const db = getDb();
-  const weekAgo = new Date(getPragueNow());
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekAgoISO = weekAgo.toISOString().slice(0, 10);
-  const weekStats = db.prepare(`
-    SELECT COUNT(*) as cnt, COALESCE(SUM(o.extra_email), 0) as total
-    FROM order_rows r
-    JOIN orders o ON o.id = r.order_id
-    WHERE o.date >= ? AND o.status = 'sent' AND r.person_name != ''
-  `).get(weekAgoISO) as { cnt: number; total: number };
-  const topMeals = db.prepare(`
-    SELECT mi.name, COUNT(*) as cnt
-    FROM order_rows r
-    JOIN orders o ON o.id = r.order_id
-    JOIN menu_items mi ON mi.id = r.main_item_id
-    WHERE o.date >= ? AND o.status = 'sent'
-    GROUP BY r.main_item_id
-    ORDER BY cnt DESC
-    LIMIT 3
-  `).all(weekAgoISO) as { name: string; cnt: number }[];
-  const totalSent = db.prepare(`SELECT COUNT(*) as cnt FROM orders WHERE status = 'sent'`).get() as { cnt: number };
-  const lines = [`📊 <b>Statistiky</b>`, "", `<b>Posledních 7 dní</b>`, `  Objednávek: ${weekStats.cnt}`, ""];
-  if (topMeals.length > 0) {
-    lines.push("<b>Nejoblíbenější jídla (7 dní)</b>");
-    topMeals.forEach((m, i) => lines.push(`  ${i + 1}. ${m.name} (${m.cnt}×)`));
-    lines.push("");
-  }
-  lines.push(`<b>Celkem</b>`);
-  lines.push(`  Odeslaných objednávek: ${totalSent.cnt}`);
-  return lines.join("\n");
-}
-
-function formatChybi(): string {
-  const db = getDb();
-  const data = getTodayOrderData();
-  const twoWeeksAgo = new Date(getPragueNow());
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  const twoWeeksAgoISO = twoWeeksAgo.toISOString().slice(0, 10);
-  const recentPeople = db.prepare(`
-    SELECT DISTINCT r.person_name FROM order_rows r
-    JOIN orders o ON o.id = r.order_id
-    WHERE r.person_name != '' AND o.date >= ? AND o.id != ? AND o.status = 'sent'
-    ORDER BY r.person_name
-  `).all(twoWeeksAgoISO, data.order.id) as { person_name: string }[];
-  const orderedToday = new Set(
-    data.departments.flatMap((d) => d.rows.filter((r) => r.personName).map((r) => r.personName)),
-  );
-  const missing = recentPeople.map((r) => r.person_name).filter((n) => !orderedToday.has(n));
-  if (missing.length === 0) return "✅ Všichni, kdo obvykle objednávají, dnes mají řádek.";
-  const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", {
-    weekday: "long", day: "numeric", month: "numeric",
-  });
-  return (
-    `👥 <b>Kdo ještě neobjednal (${dateStr})</b>\n\n` +
-    missing.map((n) => `  • ${n}`).join("\n") +
-    `\n\n<i>Celkem ${missing.length} osob</i>`
-  );
-}
-
-// ─── Inline keyboards ─────────────────────────────────────────────────────────
-
-const SETTINGS_TEXT = "⚙️ <b>Nastavení notifikací</b>\n\nZapni nebo vypni, co ti má bot posílat:";
-
-function buildSettingsKeyboard(chatId: string) {
-  const sub = getTelegramSubscription(chatId);
-  const on = "✅", off = "❌";
-  const reminderTimeLabel = sub?.personalReminderTime ? `  (${sub.personalReminderTime})` : "";
-  const morningTimeLabel = sub?.personalMorningMenuTime ? `  (${sub.personalMorningMenuTime})` : "  (globální)";
-  return {
-    inline_keyboard: [
-      [{ text: `🔔 Připomenutí uzávěrky  ${sub?.notifyReminder ? on : off}`, callback_data: "toggle:reminder" }],
-      [{ text: `⏰ Osobní připomenutí${reminderTimeLabel}`, callback_data: "toggle:personal_reminder" }],
-      [{ text: `🌅 Ranní jídelníček  ${sub?.notifyMorningMenu ? on : off}`, callback_data: "toggle:morning" }],
-      [{ text: `⏰ Osobní čas jídelníčku${morningTimeLabel}`, callback_data: "toggle:personal_morning" }],
-      [{ text: `📨 Odeslání objednávky  ${sub?.notifyOrderSent ? on : off}`, callback_data: "toggle:order_sent" }],
-      [{ text: `📋 Nový jídelníček  ${sub?.notifyMenuImported ? on : off}`, callback_data: "toggle:menu_imported" }],
-      // Připomínky mohou obsahovat citlivé výtky — nabízí se jen adminům
-      ...(sub?.isAdmin
-        ? [[{ text: `💬 Nové připomínky  ${sub.notifyFeedback ? on : off}`, callback_data: "toggle:feedback" }]]
-        : []),
-    ],
-  };
-}
-
-function buildWelcomeKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "📋 Objednávka", callback_data: "cmd:stav" },
-        { text: "🍽 Jídelníček", callback_data: "cmd:menu" },
-      ],
-      [{ text: "⚙️ Nastavení notifikací", callback_data: "cmd:nastaveni" }],
-    ],
-  };
-}
-
-function buildStavKeyboard(chatId = "") {
-  const isAdmin = chatId ? isTelegramAdmin(chatId) : false;
-  const isSent = isAdmin ? getTodayOrderData().order.status === "sent" : false;
-  const rows: object[][] = [[
-    { text: "🔄 Obnovit", callback_data: "cmd:stav" },
-    { text: "📊 Souhrn", callback_data: "cmd:souhrn" },
-    { text: "🍽 Jídelníček", callback_data: "cmd:menu" },
-  ]];
-  if (isAdmin) {
-    rows.push(isSent
-      ? [{ text: "🔓 Znovu otevřít objednávku", callback_data: "admin:zrusit" }]
-      : [{ text: "📤 Odeslat objednávku", callback_data: "admin:odeslat" }]);
-  }
-  return { inline_keyboard: rows };
-}
-
-function buildMenuKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "🔄 Obnovit", callback_data: "cmd:menu" },
-      { text: "📋 Objednávka", callback_data: "cmd:stav" },
-      { text: "➡️ Zítra", callback_data: "cmd:zitra" },
-    ]],
-  };
-}
-
-function buildPizzaKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "🔄 Obnovit", callback_data: "cmd:pizza" },
-      { text: "📋 Objednávka", callback_data: "cmd:stav" },
-    ]],
-  };
-}
-
-function buildMainReplyKeyboard(isAdmin: boolean) {
-  const { telegramAppUrl, pizzaEnabled } = getSettings();
-  type KeyboardButton = { text: string } | { text: string; web_app: { url: string } };
-  const rows: Array<Array<KeyboardButton>> = [
-    [{ text: "📋 Objednávka" }, { text: "📊 Souhrn" }],
-    [{ text: "🍽 Menu dnes" },  { text: "📅 Celý týden" }],
-  ];
-  // Bez pizzy: "Nastavení" zůstane samo na řádku
-  rows.push(
-    pizzaEnabled !== "false"
-      ? [{ text: "🍕 Pizza" }, { text: "⚙️ Nastavení" }]
-      : [{ text: "⚙️ Nastavení" }],
-  );
-  if (telegramAppUrl) {
-    rows.push([{ text: "🌐 Otevřít appku", web_app: { url: telegramAppUrl } }]);
-  }
-  if (isAdmin) {
-    rows.push([{ text: "👑 Admin" }, { text: "📄 PDF" }]);
-  }
-  return { keyboard: rows, resize_keyboard: true };
-}
-
-const REMINDER_TEXT = "⏰ <b>Osobní připomenutí</b>\n\nVyber čas, kdy ti bot každý pracovní den pošle připomenutí uzávěrky:";
-const REMINDER_TIMES = ["09:30", "10:00", "10:30", "11:00", "11:15", "11:30"];
-
-const CAS_TEXT = "🕐 <b>Čas auto-odesílání</b>\n\nVyber čas, kdy se objednávka každý den automaticky odešle:";
-const CAS_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00"];
-
-const MORNING_TEXT = "🌅 <b>Osobní čas ranního jídelníčku</b>\n\nVyber čas, kdy ti bot každý pracovní den ráno pošle jídelníček:";
-const MORNING_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30"];
-
-function buildCasKeyboard(currentTime: string | null) {
-  const rows: object[][] = [];
-  for (let i = 0; i < CAS_TIMES.length; i += 3) {
-    rows.push(CAS_TIMES.slice(i, i + 3).map((t) => ({
-      text: currentTime === t ? `✅ ${t}` : t,
-      callback_data: `cas:${t}`,
-    })));
-  }
-  return { inline_keyboard: rows };
-}
-
-function buildReminderKeyboard(currentTime: string | null) {
-  const row1 = REMINDER_TIMES.slice(0, 3).map((t) => ({
-    text: currentTime === t ? `✅ ${t}` : t,
-    callback_data: `reminder:${t}`,
-  }));
-  const row2 = REMINDER_TIMES.slice(3).map((t) => ({
-    text: currentTime === t ? `✅ ${t}` : t,
-    callback_data: `reminder:${t}`,
-  }));
-  const rows: object[][] = [row1, row2, [{ text: "⌨️ Vlastní čas", callback_data: "reminder:custom" }]];
-  if (currentTime) rows.push([{ text: "❌ Zrušit připomenutí", callback_data: "reminder:cancel" }]);
-  rows.push([{ text: "← Zpět na nastavení", callback_data: "cmd:nastaveni" }]);
-  return { inline_keyboard: rows };
-}
-
-function buildMorningKeyboard(currentTime: string | null) {
-  const row1 = MORNING_TIMES.slice(0, 3).map((t) => ({
-    text: currentTime === t ? `✅ ${t}` : t,
-    callback_data: `morning:${t}`,
-  }));
-  const row2 = MORNING_TIMES.slice(3).map((t) => ({
-    text: currentTime === t ? `✅ ${t}` : t,
-    callback_data: `morning:${t}`,
-  }));
-  const rows: object[][] = [row1, row2, [{ text: "⌨️ Vlastní čas", callback_data: "morning:custom" }]];
-  if (currentTime) rows.push([{ text: "❌ Zrušit osobní čas", callback_data: "morning:cancel" }]);
-  rows.push([{ text: "← Zpět na nastavení", callback_data: "cmd:nastaveni" }]);
-  return { inline_keyboard: rows };
-}
-
-function buildPdfKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "📄 Objednávka dnes", callback_data: "pdf:objednavka" },
-        { text: "📋 Jídelníček", callback_data: "pdf:jidelnicek" },
-      ],
-      [{ text: "🗂 Starší objednávky", callback_data: "pdf:history" }],
-    ],
-  };
-}
-
-function buildPdfHistoryKeyboard(): object {
-  const todayISO = getPragueNow().toISOString().slice(0, 10);
-  const rows = getDb()
-    .prepare("SELECT id, date FROM orders WHERE status = 'sent' AND date < ? ORDER BY date DESC LIMIT 5")
-    .all(todayISO) as { id: number; date: string }[];
-  const withPdf = rows.filter((r) => orderPdfExists(r.id));
-  if (withPdf.length === 0) {
-    return { inline_keyboard: [
-      [{ text: "Žádné starší PDF není k dispozici", callback_data: "pdf:noop" }],
-      [{ text: "← Zpět", callback_data: "pdf:back" }],
-    ]};
-  }
-  const buttons: object[][] = withPdf.map((r) => [{
-    text: new Date(`${r.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric" }),
-    callback_data: `pdf:order:${r.id}`,
-  }]);
-  buttons.push([{ text: "← Zpět", callback_data: "pdf:back" }]);
-  return { inline_keyboard: buttons };
-}
-
-function buildTydenKeyboard() {
-  const todayCode = DAY_CODE[getPragueNow().getDay()];
-  const DAYS = [
-    { label: "Po", cb: "day:Po", code: "Po" },
-    { label: "Út", cb: "day:Ut", code: "Út" },
-    { label: "St", cb: "day:St", code: "St" },
-    { label: "Čt", cb: "day:Ct", code: "Čt" },
-    { label: "Pá", cb: "day:Pa", code: "Pá" },
-  ];
-  return {
-    inline_keyboard: [DAYS.map((d) => ({
-      text: d.code === todayCode ? `• ${d.label} •` : d.label,
-      callback_data: d.cb,
-    }))],
-  };
-}
-
-function buildStatisticsKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "🔄 Obnovit", callback_data: "cmd:statistiky" },
-      { text: "📋 Objednávka", callback_data: "cmd:stav" },
-    ]],
-  };
-}
-
-function buildAdminChybiKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "🔄 Obnovit", callback_data: "admin:chybi" },
-      { text: "← Admin panel", callback_data: "cmd:admin" },
-    ]],
-  };
-}
-
-function buildDayViewKeyboard() {
-  return {
-    inline_keyboard: [[
-      { text: "← Týden", callback_data: "cmd:tyden" },
-      { text: "📋 Objednávka", callback_data: "cmd:stav" },
-    ]],
-  };
-}
-
-function buildAdminKeyboard() {
-  const data = getTodayOrderData();
-  const isSent = data.order.status === "sent";
-  return {
-    inline_keyboard: [
-      isSent
-        ? [{ text: "🔓 Znovu otevřít objednávku", callback_data: "admin:zrusit" }]
-        : [{ text: "📤 Odeslat objednávku", callback_data: "admin:odeslat" }],
-      [{ text: "👥 Kdo ještě neobjednal", callback_data: "admin:chybi" }],
-      [{ text: "📄 PDF objednávky", callback_data: "pdf:objednavka" }, { text: "📋 PDF jídelníčku", callback_data: "pdf:jidelnicek" }],
-    ],
-  };
-}
-
-// Maps ReplyKeyboard button texts → command strings
-const BUTTON_MAP: Record<string, string> = {
-  "📋 objednávka":    "/stav",
-  "📊 souhrn":        "/souhrn",
-  "🍽 menu dnes":     "/menu",
-  "📅 celý týden":    "/tyden",
-  "🍕 pizza":         "/pizza",
-  "⚙️ nastavení":     "/nastaveni",
-  "👑 admin":         "/admin",
-  "📄 pdf":           "/pdf",
-};
-
-// ─── Telegram API helpers ─────────────────────────────────────────────────────
-
-async function sendTyping(token: string, chatId: string): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, action: "typing" }),
-  }).catch(() => {});
-}
-
-async function editMessageText(token: string, chatId: string, messageId: number, text: string, replyMarkup?: object): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", ...(replyMarkup && { reply_markup: replyMarkup }) }),
-  }).catch(() => {});
-}
-
-async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackQueryId }),
-  }).catch(() => {});
-}
-
-async function editMessageReplyMarkup(token: string, chatId: string, messageId: number, replyMarkup: object): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/editMessageReplyMarkup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: replyMarkup }),
-  }).catch(() => {});
-}
-
-async function sendPhotoToChat(token: string, chatId: string, photoUrl: string, caption: string): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, photo: photoUrl, caption, parse_mode: "HTML" }),
-  }).catch(() => {});
-}
-
-async function answerInlineQuery(token: string, inlineQueryId: string, results: object[]): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${token}/answerInlineQuery`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    // is_personal + cache_time 0: results contain the order, they must never be
-    // cached or served to a different user
-    body: JSON.stringify({ inline_query_id: inlineQueryId, results, cache_time: 0, is_personal: true }),
-  }).catch(() => {});
-}
-
-async function sendDocument(token: string, chatId: string, filePath: string, filename: string, caption?: string): Promise<void> {
-  const buffer = fs.readFileSync(filePath);
-  const formData = new FormData();
-  formData.append("chat_id", chatId);
-  formData.append("document", new Blob([buffer], { type: "application/pdf" }), filename);
-  if (caption) formData.append("caption", caption);
-  await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
-    method: "POST",
-    body: formData,
-  }).catch(() => {});
-}
-
-async function getBotUsername(token: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-    const data = await res.json() as { ok: boolean; result?: { username: string } };
-    return data.ok && data.result?.username ? data.result.username : null;
-  } catch {
-    return null;
-  }
-}
 
 // ─── Update types ─────────────────────────────────────────────────────────────
 

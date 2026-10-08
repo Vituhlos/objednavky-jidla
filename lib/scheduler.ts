@@ -14,9 +14,8 @@ import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
-import { getAllSubscriptions, deleteSubscription } from "./push";
+import { getAllSubscriptions, getOrderedPushEndpoints, sendPush } from "./push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
-import webpush from "web-push";
 import { cleanupOldAttachments } from "./feedback";
 
 const DAY_CODE_TO_JS: Record<string, number> = {
@@ -207,13 +206,7 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   if (isTodayClosed(data)) return;
 
   // Zjisti které endpointy mají v dnešní objednávce neprázdný řádek
-  const activeEndpoints = new Set(
-    data.departments
-      .flatMap((d) => d.rows)
-      .filter((r) => r.mainItem || r.soupItem || r.extraMealItems.length > 0)
-      .map((r) => (r as unknown as { pushEndpoint?: string }).pushEndpoint)
-      .filter(Boolean) as string[]
-  );
+  const activeEndpoints = getOrderedPushEndpoints(data.order.id);
 
   // Pošli jen těm, kdo ještě neobjednali
   const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));
@@ -223,23 +216,7 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   }
 
   console.log(`[scheduler] Odesílám push upozornění ${pending.length} prohlížečům…`);
-  const { publicKey, privateKey } = { publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey };
-  if (!publicKey || !privateKey) { console.warn("[scheduler] VAPID klíče nejsou nastaveny, push přeskočen."); return; }
-
-  webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
-  const payload = JSON.stringify({ title: "Nezapomeňte objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime}, ${remainingMinutes(minutes)}.`, url: "/" });
-
-  await Promise.allSettled(
-    pending.map(async (row) => {
-      try {
-        await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
-      } catch (err: unknown) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) deleteSubscription(row.endpoint);
-        else console.warn("[push] Chyba:", (err as Error).message);
-      }
-    })
-  );
+  await sendPush(pending, { title: "Nezapomeňte objednat! 🍽️", body: `Uzávěrka je v ${s.cutoffTime}, ${remainingMinutes(minutes)}.`, url: "/" });
 }
 
 async function checkImapImport(s: AppSettings, currentTime: string, jsDay: number): Promise<void> {

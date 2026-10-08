@@ -9,7 +9,7 @@ Běží jako **jeden Docker kontejner**, bez přihlášení — přístup omezen
 
 | Vrstva | Technologie |
 |---|---|
-| Framework | Next.js 15, App Router, React 19 |
+| Framework | Next.js 16, App Router, React 19 |
 | Jazyk | TypeScript (striktní) |
 | CSS | Tailwind CSS 4 + vlastní třídy v `globals.css` |
 | Databáze | SQLite přes `better-sqlite3` (singleton, WAL mode) |
@@ -18,7 +18,12 @@ Běží jako **jeden Docker kontejner**, bez přihlášení — přístup omezen
 | PDF import | pdf-parse |
 | Scheduler | node-cron (spouštěn přes `instrumentation.ts`) |
 | Real-time | SSE (Server-Sent Events) |
+| Push | web-push (VAPID), service worker `public/sw.js` |
+| Testy | vitest (`*.test.ts` vedle kódu) + `node --test` (`tools/*.test.mjs`) |
 | Runtime | Node.js 24, Docker |
+
+Tahle tabulka jmenuje jen hlavní verze. **Autoritativní zdroj konkrétní verze je
+`package.json` a `package-lock.json`** — při rozporu platí ony, ne tenhle popis.
 
 ---
 
@@ -31,15 +36,26 @@ app/
   error.tsx                        # Error boundary
   actions.ts                       # Všechny React Server Actions
   globals.css                      # Veškeré CSS
+  manifest.ts                      # PWA manifest (ikony, zkratky, barvy)
+  icon.svg, apple-icon.tsx         # Favicon a ikona pro iOS
+  pwa-icon/[variant]/route.tsx     # Ikony pro manifest (192/512, maskable)
+  pwa-splash/[size]/route.tsx      # Úvodní obrazovky pro iOS
 
   components/
-    AppTopBar.tsx                  # Horní navigace (všechny stránky)
+    AppTopBar.tsx                  # Postranní panel (desktop) + spodní navigace (mobil)
+    InstallHint.tsx                # Nabídka „přidat na plochu“ na mobilu
+    SwRegister.tsx                 # Registrace service workeru
+    MIcon.tsx                      # Inline SVG ikony (registr; neznámé jméno nic nevykreslí)
     OrderPage.tsx                  # Klientská komponenta hlavní stránky
-    DepartmentPanel.tsx            # Panel oddělení + modální editace řádku
+    order/                         # Části OrderPage: OrderHeader, OrderRow, OrderEditModal,
+                                   # DayPicker, hooky (useOrderSync, useCutoff, useDayNavigation,
+                                   # usePushNotifications, useRowDeletion), offline-snapshot
+    DepartmentPanel.tsx            # Panel oddělení se seznamem řádků
     OrderDetailPage.tsx            # Read-only detail historické objednávky
     HistoryPage.tsx                # Seznam historických objednávek
     MenuPage.tsx                   # Správa jídelníčku (import PDF, editace)
     PizzaPage.tsx                  # Objednávky pizzy
+    pizza/                         # PizzaRow, PizzaSelect, PizzaPriceBreakdown
     PizzaDetailPage.tsx            # Detail historické pizza objednávky
     SettingsPage.tsx               # Nastavení (PIN chráněno)
     FeedbackPage.tsx               # Stránka připomínek (skládá feedback/*)
@@ -55,6 +71,13 @@ app/
     menu/import/route.ts           # POST — ruční přidání položky jídelníčku
     menu/pdf/[weekStart]/route.ts  # POST — import jídelníčku z PDF
     pizza/scrape/route.ts          # GET — scraping cen pizzy z webu pizzerie
+    push/route.ts                  # GET veřejný VAPID klíč, POST/DELETE odběr push
+    orders/[id]/pdf/route.ts       # GET — PDF odeslané objednávky
+    restore/route.ts               # POST — obnova databáze ze zálohy
+    feedback/…                     # Připomínky: odeslání, mine, vote, withdraw, attachments
+    telegram/webhook/              # Telegram bot: route.ts (handler), messages.ts (texty),
+                                   # keyboards.ts (klávesnice), telegram-api.ts (volání API)
+    health, ping, version          # Diagnostika
 
   historie/
     page.tsx                       # Seznam objednávek
@@ -88,6 +111,17 @@ lib/
   feedback.ts     # Připomínky: validace (zod), CRUD, veřejné odpovědi, text pro Telegram
   feedback-meta.ts # Kategorie/stavy/typy připomínek — bez DB, importuje i klient
   feedback-attachments.ts # Screenshoty: sharp re-encode do WebP, úložiště, limity
+  push.ts         # Web Push: odběry, sendPush(), getOrderedPushEndpoints()
+  pwa-assets.ts   # Seznam ikon a iOS úvodních obrazovek (pro routy, manifest i metadata)
+  cutoff.ts, time.ts, closures.ts, holidays.ts  # Uzávěrka, pražský čas, dovolené, svátky
+  telegram.ts, imap.ts            # Telegram bot, import jídelníčku z e-mailu
+  release-notes.ts, version.ts    # „Co je nového“ v appce, build metadata
+
+public/
+  sw.js           # Service worker: push notifikace + stránka „Bez připojení“
+  offline.html    # Statická offline stránka; čte snímek objednávky z localStorage
+
+tools/            # check-changelog.mjs (CI), testy node --test, generate-emoji.mjs
 
 instrumentation.ts  # Next.js hook — startScheduler() při startu Node.js procesu
 ```
@@ -112,6 +146,7 @@ main_item_id (FK) | meal_count
 extra_meals (JSON: [{itemId, count}])
 roll_count | bread_dumpling_count | potato_dumpling_count
 ketchup_count | tatarka_count | bbq_count | note
+push_endpoint (prohlížeč, který řádek založil — kvůli push; do OrderRow se nemapuje)
 ```
 
 ### `menu_items`
@@ -176,6 +211,10 @@ Hlasovat jde o položky „Co chystáme“ a „Připomínek ostatních“ (ne s
 ### `pizza_orders`, `pizza_order_rows`, `pizza_items`
 Analogická struktura k oběd objednávkám, bez oddělení.
 
+### Další tabulky
+`push_subscriptions` (endpoint, p256dh, auth), `telegram_subscriptions`,
+`closures` (dovolené), `menu_day_closed`. Přesné sloupce viz `lib/db.ts`.
+
 ---
 
 ## Klíčové toky
@@ -183,18 +222,28 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 ### Objednávka obědů
 1. `app/page.tsx` (server) volá `getTodayOrderData()` → předá do `OrderPage` (client)
 2. Přidání řádku: `actionAddRow` → `addOrderRow()` → broadcast SSE
-3. Editace řádku: modal v `DepartmentPanel.tsx` → `actionUpdateRow` → optimistický update + server confirm
+3. Editace řádku: modal `order/OrderEditModal.tsx` → `actionUpdateRow` → optimistický update + server confirm
 4. Odeslání: `actionSendOrder` → `sendOrder()`:
    - Atomický `UPDATE WHERE status = 'draft'` (ochrana před dvojím odesláním)
    - `buildOrderEmail()` → HTML
    - `buildDepartmentPdfAttachment()` → PDF per oddělení
    - `sendEmail()` → nodemailer
    - Při SMTP chybě: revert na draft, throw → uživatel vidí chybu
+   - Po úspěchu `sendOrderSentPush()` bez await — push těm, kdo mají v objednávce řádek
 
 ### Real-time synchronizace (SSE)
 - Klient otevře `EventSource("/api/sse")` — drží spojení (ping každých 20s)
 - Server Actions volají `broadcast()` po každé mutaci
 - Klient přijme `event: change` → fetch `/api/order-refresh` → setState
+- Logika je v `order/useOrderSync.ts`: reconnect s odstupem, refresh po návratu na kartu
+  po delší pauze a po obnovení spojení, celé načtení stránky při změně dne
+
+### PWA (appka z plochy)
+- `app/manifest.ts` + `appleWebApp` v `layout.tsx`; ikony a iOS úvodní obrazovky generují routy z `lib/pwa-assets.ts`
+- `public/sw.js`: push notifikace a offline fallback. Cachuje **jen** `offline.html` a zachytává jen načtení stránky — appka, API ani SSE se necachují
+- Offline stránka ukáže poslední stav dnešní objednávky ze snímku v localStorage (`offlineOrderSnapshot`, ukládá `order/offline-snapshot.ts`)
+- Push: zvonek na hlavní stránce → `/api/push`; připomínka před uzávěrkou (scheduler, jen kdo ještě neobjednal) a „Objednávka odeslána“
+- iOS + `black-translucent`: WebKit počítá výšku dokumentu bez horní safe area (webkit.org/b/236445). Proto `html` v `display-mode: standalone` roste o `safe-area-inset-top` a `.k-shell` je `position: fixed; inset: 0`
 
 ### Auto-odesílání
 - `instrumentation.ts` → `startScheduler()` při startu Node.js
@@ -226,44 +275,45 @@ Analogická struktura k oběd objednávkám, bez oddělení.
 
 ## Design systém
 
-### CSS proměnné (barvy)
+Světlý „skleněný“ vzhled v teplých tónech. Tmavý režim není.
+
+### CSS proměnné (`:root` v `globals.css`)
 ```css
---paper: #f3efe6     /* pozadí */
---sand:  #d8c3a5     /* bordery */
---navy:  #16324a     /* primární tmavá */
---steel: #2f4858     /* sekundární tmavá */
---graphite: #2e3338  /* text */
---rust:  #b55233     /* červenohnědá */
---amber: #c78b2a     /* žlutá */
---green: #4f6f52     /* zelená */
---v2-orange: #ea580c
---v2-text-muted: #6b7280
+--bg: #f8f4ef        /* pozadí; stejná barva je v manifestu a themeColor */
+--ink: #1a1208       /* text */
+--ink-2: #3d2c1a  --ink-3: #7a6552  --muted: #9b8474
+--divider: rgba(26,18,8,0.08)
+--nav-bottom         /* odsazení mobilní navigace od spodní hrany (safe area) */
 ```
+Akcent je jantarovo-oranžový přechod `#F59E0B → #EA580C`. Většina barev je zapsaná
+přímo v komponentách (Tailwind `stone-*` a inline `style`), ne přes proměnné.
 
 ### Fonty
-- Nadpisy: **Oswald** (400/500/600)
-- Tělo: **Source Sans 3** (400/500/600/700)
+- Nadpisy (`.font-display`): **Plus Jakarta Sans**
+- Tělo: **Inter**
+- Emoji: self-hosted Noto Color Emoji (`.emoji`; na Apple zařízeních má přednost systémové)
 
 ### Hlavní CSS třídy
 ```
-v2-shell            wrapper stránky
-v2-topbar           horní nav
-v2-infostrip        info pruh pod navem
-v2-content          content area
-v2-dept             sekce oddělení (+ --blue/rust/green)
-v2-order-row        řádek objednávky (+ --interactive)
-v2-statusbar        spodní stavový pruh (+ --sent)
-v2-btn              tlačítka (+ --primary/secondary/danger/ghost)
-v2-alert            alerty (+ --warn)
-v2-navlink          nav položky (+ --active)
-modal-overlay/sheet modální dialog pro editaci řádku
+k-shell             obal stránky (fixed; vlevo místo pro sidebar na desktopu)
+stage-bg, orb-*     pozadí s barevnými skvrnami
+topbar              pruh záhlaví stránky
+desktop-sidebar     postranní navigace (≥ 768px)
+mobile-nav(-fade)   plovoucí spodní navigace na mobilu
+pb-nav              spodní odsazení obsahu kvůli mobilní navigaci
+glass, glass-card, glass-soft, glass-btn(-danger), glass-dim   skleněné plochy a tlačítka
+modal-overlay/sheet modální dialog (na mobilu bottom sheet); modal-* jeho části
+confirm-dialog      potvrzovací dialog
+k-toast, k-offline  toast a pruh „odpojeno“
+install-hint        nabídka „přidat na plochu“
 stepper-btn/count   +/- stepper pro počty příloh
 row-menu-*          kontextové menu řádku (tři tečky)
+fb-*                stránka připomínek
 ```
 
 ### Mobile
-- TopBar scrolluje horizontálně na malých displejích
-- Order rows přejdou do card layoutu pod 768px
+- Pod 768px mizí sidebar a nastupuje plovoucí spodní navigace
+- Vše ukotvené dole počítá s `--nav-bottom`; nahoře má `.k-shell` podklad pod stavový řádek
 - iOS Safari: `overflow: clip` místo `overflow: hidden` uvnitř scrollable containerů
 
 ---

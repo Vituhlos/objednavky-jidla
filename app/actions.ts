@@ -136,7 +136,10 @@ export async function actionSendOrder(orderId: number): Promise<void> {
     const { formatOrderTotals } = await import("@/lib/order-summary");
     const dateStr = new Date(`${data.order.date}T12:00:00`).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
     await sendTelegramToSubscribers("notify_order_sent", `✅ <b>Objednávka odeslána</b>\n📅 ${dateStr}\n${formatOrderTotals(data)}`);
-  } catch {}
+  } catch (err) {
+    // Objednávka už odešla; nedoručené oznámení ji nesmí shodit.
+    console.warn("[telegram] Oznámení o odeslání objednávky selhalo:", (err as Error).message);
+  }
 }
 
 export async function actionConfirmMenuImport(
@@ -150,7 +153,9 @@ export async function actionConfirmMenuImport(
     const pdfsDir = path.join(process.cwd(), "data", "pdfs");
     const tmpPath = path.join(pdfsDir, tmpPdfName);
     const destPath = path.join(pdfsDir, `${weekStart}.pdf`);
-    try { fs.renameSync(tmpPath, destPath); } catch {}
+    try { fs.renameSync(tmpPath, destPath); } catch (err) {
+      console.warn("[menu] PDF jídelníčku se nepodařilo uložit:", (err as Error).message);
+    }
   }
   revalidatePath("/jidelnicek");
   revalidatePath("/");

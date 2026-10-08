@@ -134,7 +134,10 @@ export async function checkImapForMenu(): Promise<ImapCheckResult> {
           const pdfsDir = path.join(process.cwd(), "data", "pdfs");
           fs.mkdirSync(pdfsDir, { recursive: true });
           fs.writeFileSync(path.join(pdfsDir, `${parsed.weekStart}.pdf`), pdfBuffer);
-        } catch { /* non-fatal */ }
+        } catch (err) {
+          // Jídelníček je uložený; chybí jen kopie PDF ke stažení.
+          console.warn("[imap] PDF jídelníčku se nepodařilo uložit:", (err as Error).message);
+        }
 
         // Označíme jako přečtený
         await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });

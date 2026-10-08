@@ -106,14 +106,10 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
       </aside>
 
       {/* ── Mobile bottom fade (masks background bleed under nav) ── */}
-      <div
-        aria-hidden="true"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
-        style={{ height: 80, background: "linear-gradient(to top, #f3efe6 30%, rgba(243,239,230,0) 100%)" }}
-      />
+      <div aria-hidden="true" className="md:hidden mobile-nav-fade" />
 
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
-      <nav aria-label="Navigace" className="md:hidden fixed left-2 right-2 z-40" style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      <nav aria-label="Navigace" className="md:hidden mobile-nav">
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
           {nav.map(({ href, shortLabel, icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);

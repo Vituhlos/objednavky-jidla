@@ -23,6 +23,20 @@ export function getDb(): Database.Database {
   return instance;
 }
 
+/**
+ * Přidá sloupec do existující databáze. U už zmigrované databáze SQLite hlásí
+ * „duplicate column name" — to je očekávaný stav a přechází se mlčky. Cokoli
+ * jiného je skutečná chyba: start kvůli ní nepadá (jako dosud), ale jde do logu.
+ */
+function addColumn(db: Database.Database, sql: string): void {
+  try {
+    db.exec(sql);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (!/duplicate column name/i.test(message)) console.error(`[db] Migrace selhala (${sql}):`, message);
+  }
+}
+
 function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS menu_items (
@@ -89,20 +103,22 @@ function migrate(db: Database.Database): void {
   `);
 
   // Add week_start column to existing databases (idempotent)
-  try { db.exec("ALTER TABLE menu_items ADD COLUMN week_start TEXT"); } catch {}
+  addColumn(db, "ALTER TABLE menu_items ADD COLUMN week_start TEXT");
   // Add note column to order_rows (idempotent)
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN note TEXT NOT NULL DEFAULT ''");
   // Add meal count + second meal columns (idempotent)
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN meal_count INTEGER NOT NULL DEFAULT 1"); } catch {}
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN main_item_id_2 INTEGER REFERENCES menu_items(id)"); } catch {}
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN meal_count_2 INTEGER NOT NULL DEFAULT 1"); } catch {}
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN meal_count INTEGER NOT NULL DEFAULT 1");
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN main_item_id_2 INTEGER REFERENCES menu_items(id)");
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN meal_count_2 INTEGER NOT NULL DEFAULT 1");
   // Add second soup + dynamic extra meals JSON (idempotent)
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN soup_item_id_2 INTEGER REFERENCES menu_items(id)"); } catch {}
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN extra_meals TEXT NOT NULL DEFAULT '[]'"); } catch {}
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN soup_item_id_2 INTEGER REFERENCES menu_items(id)");
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN extra_meals TEXT NOT NULL DEFAULT '[]'");
   // Migrate old main_item_id_2 into extra_meals JSON where not yet migrated
   try {
     db.exec(`UPDATE order_rows SET extra_meals = json_array(json_object('itemId', main_item_id_2, 'count', COALESCE(meal_count_2, 1))) WHERE main_item_id_2 IS NOT NULL AND extra_meals = '[]'`);
-  } catch {}
+  } catch (err) {
+    console.error("[db] Migrace extra_meals selhala:", (err as Error).message);
+  }
 
   // Departments table (dynamic, replaces hardcoded DEPARTMENTS constant)
   db.exec(`
@@ -166,16 +182,16 @@ function migrate(db: Database.Database): void {
       registered_at   TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_reminder INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_morning_menu INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_order_sent INTEGER NOT NULL DEFAULT 1"); } catch {}
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1"); } catch {}
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_reminder_time TEXT DEFAULT NULL"); } catch {}
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN personal_morning_menu_time TEXT DEFAULT NULL"); } catch {}
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN notify_reminder INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN notify_morning_menu INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN notify_order_sent INTEGER NOT NULL DEFAULT 1");
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN notify_menu_imported INTEGER NOT NULL DEFAULT 1");
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN personal_reminder_time TEXT DEFAULT NULL");
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN personal_morning_menu_time TEXT DEFAULT NULL");
   // Upozornění na nové připomínky — jen pro adminy a jen když si ho sami zapnou.
-  try { db.exec("ALTER TABLE telegram_subscriptions ADD COLUMN notify_feedback INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.exec("ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT"); } catch {}
-  try { db.exec("ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE telegram_subscriptions ADD COLUMN notify_feedback INTEGER NOT NULL DEFAULT 0");
+  addColumn(db, "ALTER TABLE order_rows ADD COLUMN push_endpoint TEXT");
+  addColumn(db, "ALTER TABLE menu_items ADD COLUMN allergens TEXT NOT NULL DEFAULT ''");
 
   db.prepare(`
     CREATE TABLE IF NOT EXISTS menu_day_closed (
@@ -196,8 +212,8 @@ function migrate(db: Database.Database): void {
     )
   `).run();
   // note + icon were added after closures shipped — idempotent for existing databases
-  try { db.exec("ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''"); } catch {}
-  try { db.exec("ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE closures ADD COLUMN note TEXT NOT NULL DEFAULT ''");
+  addColumn(db, "ALTER TABLE closures ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
 
   // Připomínky k aplikaci. Záměrně bez IP adresy a celého user-agentu —
   // appka nemá účty a autor má zůstat dohledatelný jen pokud se sám podepíše.
@@ -219,26 +235,26 @@ function migrate(db: Database.Database): void {
   `);
   // Doplněno během vývoje připomínek — idempotentní i pro už založené tabulky.
   // secret_hash: SHA-256 tajného kódu, přes který autor vidí stav své připomínky.
-  try { db.exec("ALTER TABLE feedback ADD COLUMN secret_hash TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN secret_hash TEXT NOT NULL DEFAULT ''");
   // context: technický údaj z chybové stránky (kód chyby), app_version: verze u autora
-  try { db.exec("ALTER TABLE feedback ADD COLUMN context TEXT NOT NULL DEFAULT ''"); } catch {}
-  try { db.exec("ALTER TABLE feedback ADD COLUMN app_version TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN context TEXT NOT NULL DEFAULT ''");
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN app_version TEXT NOT NULL DEFAULT ''");
   // Kdy se naposledy změnil stav — podle toho se po 90 dnech mažou screenshoty vyřízených
-  try { db.exec("ALTER TABLE feedback ADD COLUMN status_changed_at TEXT"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN status_changed_at TEXT");
   // Správce připomínku výslovně zveřejní k hlasování; veřejně jde jen jeho shrnutí
-  try { db.exec("ALTER TABLE feedback ADD COLUMN votable INTEGER NOT NULL DEFAULT 0"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN votable INTEGER NOT NULL DEFAULT 0");
   // Krátký název k hlasování — odpověď autorovi („Díky, podíváme se…“) se na to nehodí
-  try { db.exec("ALTER TABLE feedback ADD COLUMN vote_title TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN vote_title TEXT NOT NULL DEFAULT ''");
   // Úkol na GitHubu, který k připomínce vznikl (dohledá se podle značky v textu úkolu)
-  try { db.exec("ALTER TABLE feedback ADD COLUMN github_issue INTEGER"); } catch {}
-  try { db.exec("ALTER TABLE feedback ADD COLUMN github_issue_state TEXT NOT NULL DEFAULT ''"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN github_issue INTEGER");
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN github_issue_state TEXT NOT NULL DEFAULT ''");
   // Veřejnost připomínky určuje kategorie (PUBLIC_CATEGORIES); hidden = správce ji
   // z „Připomínek ostatních“ skryl (nevhodný obsah, duplicita).
-  try { db.exec("ALTER TABLE feedback ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0");
   // Návrh napsaný správcem v Nastavení — není od uživatele, nemá tajný kód autora
-  try { db.exec("ALTER TABLE feedback ADD COLUMN is_proposal INTEGER NOT NULL DEFAULT 0"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN is_proposal INTEGER NOT NULL DEFAULT 0");
   // Sloučená duplicita: id připomínky, do které se sloučila (hlasy se přesunuly tam)
-  try { db.exec("ALTER TABLE feedback ADD COLUMN merged_into INTEGER"); } catch {}
+  addColumn(db, "ALTER TABLE feedback ADD COLUMN merged_into INTEGER");
 
   // Hlasy „chci taky“. voter_hash = SHA-256 náhodného kódu z prohlížeče —
   // jeden hlas na prohlížeč a věc; IP se neukládá.
@@ -251,7 +267,7 @@ function migrate(db: Database.Database): void {
     );
   `);
   // 👍 = 1, 👎 = -1. Hlasy z doby „chci taky“ jsou všechny 👍.
-  try { db.exec("ALTER TABLE feedback_votes ADD COLUMN value INTEGER NOT NULL DEFAULT 1"); } catch {}
+  addColumn(db, "ALTER TABLE feedback_votes ADD COLUMN value INTEGER NOT NULL DEFAULT 1");
 
   // Screenshoty k připomínkám. Soubory leží v <data>/feedback-attachments,
   // tady je jen evidence. Řádky mizí s připomínkou (CASCADE), soubory maže kód.
@@ -278,5 +294,5 @@ function migrate(db: Database.Database): void {
   `);
 
   // Add department column to pizza_order_rows (idempotent)
-  try { db.prepare("ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''").run(); } catch {}
+  addColumn(db, "ALTER TABLE pizza_order_rows ADD COLUMN department TEXT NOT NULL DEFAULT ''");
 }

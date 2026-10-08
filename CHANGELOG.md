@@ -6,6 +6,48 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.1] - 2026-10-08
+
+Zkušební vydání před 1.8.0. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.1`, `stable` ani `latest` nepřepisuje. Slouží hlavně k ověření na skutečném iPhonu a Androidu.
+
+### Migration notes
+
+- Bez změny databáze, proměnných prostředí i Docker konfigurace; žádný ruční krok.
+- Appku už přidanou na plochu iPhonu je pro novou úvodní obrazovku potřeba z plochy odebrat a přidat znovu. Ostatní změny se projeví samy.
+
+### Known issues
+
+- Oprava prázdného pruhu dole na iPhonu obchází chybu WebKitu a zatím nebyla ověřena na zařízení.
+- Odstup spodní navigace od proužku gest na Androidu nebyl ověřen na zařízení.
+
+### Added
+
+- **Stránka „Bez připojení“.** Když se appka nedostane na server, ukáže vlastní hlášku s tlačítkem „Zkusit znovu“ místo chybové stránky prohlížeče a po obnovení spojení se načte sama. Service worker si drží v cache jen tuhle jednu stránku (`public/offline.html`) a zachytává pouze načtení stránky; appka, API ani SSE se necachují.
+- **Poslední objednávka i bez připojení.** Stránka „Bez připojení“ ukáže naposledy načtený stav dnešní objednávky (kdo, co, cena, čas načtení), jen ke čtení. Appka si ho průběžně ukládá do localStorage prohlížeče (`offlineOrderSnapshot`); starší než dnešní se neukazuje. Test `app/components/order/offline-snapshot.test.ts`.
+- **Nabídka „přidat na plochu“.** Na mobilu v prohlížeči se nad navigací ukáže karta: na Androidu s tlačítkem „Nainstalovat“, na iPhonu s návodem (Sdílet → Přidat na plochu), protože tam upozornění fungují až v appce z plochy. Po zavření se 30 dní neukáže, v nainstalované appce nikdy.
+- **Upozornění „Objednávka odeslána“.** Po ručním i automatickém odeslání dostanou push ti, kdo mají v objednávce vyplněný řádek a mají zapnutý zvonek. Selhání push služby odeslání objednávky neovlivní.
+- **Zkratky na ikoně appky.** Dlouhé podržení ikony na ploše nabídne Oběd, Jídelníček a Připomínky (`shortcuts` v manifestu).
+- **Úvodní obrazovka na iPhonu.** Appka z plochy při startu neblikne bíle: pro iPhony od SE po 17 Pro Max má spouštěcí obrázek v barvě pozadí s ikonou (`apple-touch-startup-image`, routa `/pwa-splash/[size]`, jen na výšku). iOS si obrázek ukládá při přidání na plochu, takže u už nainstalované appky se projeví až po jejím odebrání a novém přidání.
+- **Ikony pro Android.** Manifest nově nabízí ikonu 192 a 512 px a variantu `maskable` (routa `/pwa-icon/[variant]`), takže ji launcher nezmenšuje do bílého kolečka.
+
+### Fixed
+
+- **Prázdný pruh dole v appce z plochy na iPhonu.** Se stavovým řádkem `black-translucent` počítá WebKit výšku dokumentu bez horní safe area ([bug 236445](https://bugs.webkit.org/show_bug.cgi?id=236445)), takže vše ukotvené dole končilo o výšku stavového řádku nad okrajem displeje. V režimu `display-mode: standalone` se dokument o `safe-area-inset-top` natahuje a `.k-shell` je ukotvený (`position: fixed; inset: 0`) ke stejnému viewportu jako spodní navigace a pozadí. Na skutečném iPhonu zatím neověřeno.
+- **Hlavička pod stavovým řádkem.** Řádek s datem a stavem objednávky byl na iPhonu schovaný pod hodinami; shell má nově nahoře podklad ve výšce `safe-area-inset-top`. Toast „Objednávka odeslána!“ se posouvá o stejnou hodnotu.
+- **Stav po návratu do appky.** Appku z plochy systém na pozadí uspí i se živým spojením a tlačítko pro obnovení stránky v ní není. Po návratu se teď objednávka stáhne znovu (po pauze delší než 30 s a po každém obnovení spojení), spojení se naváže hned místo čekání až 60 s, a když se mezitím změnil den, stránka se načte celá, aby neukazovala včerejší objednávku.
+- **Připomínka před uzávěrkou chodila i těm, kdo už objednali.** Filtr četl z řádku objednávky pole `pushEndpoint`, které se z databáze vůbec nenačítalo, takže nikoho nevyřadil. Nově se ptá přímo databáze (`getOrderedPushEndpoints`).
+- Push notifikace odkazovaly na neexistující ikonu `/icons/icon-192.png`; nově používají `/apple-icon`. Stejně neplatný `badge` je odebraný, Android použije výchozí.
+
+### Changed
+
+- **Spodní navigace na mobilu sedí níž.** Na iPhonu těsně nad home indikátorem místo nad celou safe area (proměnná `--nav-bottom`); od ní se odvíjí i spodní odsazení obsahu, toast a plovoucí tlačítko uložení v Nastavení.
+- Barva lišty prohlížeče a `theme_color` / `background_color` v manifestu odpovídají pozadí appky (`#f8f4ef`). Nainstalovaná appka na Androidu má tak stavový řádek krémový místo oranžového.
+- Ikona nainstalované appky na Androidu je oranžová jako na iPhonu a jako favicon; dosud manifest odkazoval na starší modrozelenou (`/icon`). Ta je z kódu odstraněná (`app/icon.tsx`), favicon zůstává `app/icon.svg`.
+- Test `tools/feedback.test.mjs` jde spustit i na Windows (dynamický import přes `file://` URL).
+- **Chyby, které dřív mizely beze stopy, jdou do logu.** Chování se nemění, nic nově nepadá: migrace sloupců v `lib/db.ts` mlčky přecházejí jen očekávané „duplicate column name“ a cokoli jiného zapíšou (`addColumn`); loguje se nedoručené volání Telegram API (jen text chyby, bez adresy s tokenem), neuložené PDF jídelníčku, neúspěšné smazání řádku na pozadí a neúspěšná registrace service workeru.
+- Vnitřní úklid bez změny chování: Telegram webhook je rozdělený na `route.ts`, `messages.ts`, `keyboards.ts` a `telegram-api.ts`; podkomponenty stránky Pizza jsou v `app/components/pizza/`.
+- `CLAUDE.md` a `AGENTS.md` popisují současný stav: fonty, CSS třídy, strukturu, testy a PWA.
+
 ## [1.7.0] - 2026-09-24
 
 ### Migration notes
