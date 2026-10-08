@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.3",
+    version: "1.8.0-rc.4",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -39,7 +39,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         items: [
           "Na iPhonu zmizel prázdný pruh dole, spodní navigace sedí níž a záhlaví stránky už není schované pod hodinami.",
           "Text v záhlaví na iPhonu už není rozmazaný a barevné pozadí stránky nekončí v půlce spodní navigace.",
-          "Okno objednávky jde na mobilu stáhnout prstem dolů; dřív to bylo v kódu, ale nehýbalo se.",
+          "Okna vyjíždějící zespodu jdou na mobilu stáhnout prstem dolů; dřív to bylo v kódu jen u objednávky a nehýbalo se.",
+          "Pole a tlačítka v oknech jsou zřetelně ohraničená a spodek okna už nepřekrývá navigace.",
           "Hledání v Historii už na iPhonu po klepnutí nepřiblíží celou stránku.",
           "Po návratu do appky se objednávka sama načte znovu, i když ji telefon mezitím uspal. Když se změnil den, načte se celá stránka.",
           "Připomínka před uzávěrkou už nechodí těm, kdo mají objednáno.",
@@ -67,7 +68,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Po návratu do appky se objednávka sama načte znovu.",
       "Po odeslání objednávky přijde upozornění, pokud je zapnutý zvonek.",
       "Appku jde přidat na plochu telefonu; na Androidu podržení ikony nabídne zkratky.",
-      "Spodní lišta na mobilu jde přejíždět prstem a okno objednávky stáhnout dolů.",
+      "Spodní lišta na mobilu jde přejíždět prstem a okna stáhnout dolů.",
     ],
   },
   {

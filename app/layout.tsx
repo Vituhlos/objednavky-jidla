@@ -4,6 +4,7 @@ import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
 import InstallHint from "./components/InstallHint";
+import SheetDragManager from "./components/SheetDragManager";
 import { getSettings } from "@/lib/settings";
 import { IOS_SPLASH_SCREENS, splashSizeParam } from "@/lib/pwa-assets";
 
@@ -75,6 +76,7 @@ export default function RootLayout({
         <AppTopBar pizzaEnabled={pizzaEnabled} />
         {children}
         <InstallHint />
+        <SheetDragManager />
         <SwRegister />
       </body>
     </html>
