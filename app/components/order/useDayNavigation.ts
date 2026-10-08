@@ -34,6 +34,14 @@ export function useDayNavigation({
 }) {
   const router = useRouter();
   const [pendingDate, setPendingDate] = useState<string | null>(null);
+  // Čekající den platí jen do příští změny vybraného dne. Bez toho zůstal viset:
+  // po návratu tlačítkem Zpět se `pendingDate` lišil od vybraného dne natrvalo
+  // a panely zůstaly zešedlé a neklikatelné.
+  const [seenDate, setSeenDate] = useState(selectedDate);
+  if (seenDate !== selectedDate) {
+    setSeenDate(selectedDate);
+    setPendingDate(null);
+  }
 
   const pickerItems = useMemo(
     () => buildPickerItems(availableDates ?? [], closedDates ?? [], closureRanges ?? []),
@@ -84,6 +92,8 @@ export function useDayNavigation({
     pickerItems,
     showDayPicker,
     daySwitchPending,
+    /** Den, na který se právě přechází — pás dnů ho zvýrazní hned. */
+    pendingDate: daySwitchPending ? pendingDate : null,
     goToDate,
     lastOrderableBeforeClosure,
     reopensAfterClosure,

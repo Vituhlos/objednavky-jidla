@@ -26,6 +26,11 @@ html, body { height: 100%; overflow: hidden; margin: 0; }
   html { height: calc(100% + env(safe-area-inset-top, 0px)); }
 }
 button, a { touch-action: manipulation; }
+/* Malé ovládací prvky dostanou na dotykových zařízeních plochu aspoň 44 px;
+   na počítači zůstávají v původní hustotě. */
+@media (pointer: coarse) {
+  .tap { min-width: 44px; min-height: 44px; justify-content: center; }
+}
 /* iOS při klepnutí do pole s písmem menším než 16 px přiblíží celou stránku
    a už ji nevrátí. Na dotykových zařízeních proto mají pole vždy aspoň 16 px. */
 @media (hover: none) and (pointer: coarse) {
@@ -231,6 +236,30 @@ body {
 .scale-in { animation: scaleIn .22s ease both; }
 .slide-in { animation: slideIn .25s ease both; }
 
+/* ── Přepínač dnů: klouzavá pilulka a příjezd obsahu ── */
+.day-pill {
+  position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; opacity: 0;
+  border-radius: 12px; pointer-events: none;
+  background: linear-gradient(135deg, #F59E0B, #EA580C);
+  box-shadow: 0 2px 8px -2px rgba(234,88,12,0.35);
+  transition: transform .34s cubic-bezier(.22,1.15,.36,1), width .34s cubic-bezier(.22,1.15,.36,1), opacity .15s ease;
+  will-change: transform;
+}
+@keyframes dayInNext { from { opacity: 0; transform: translate3d(18px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes dayInPrev { from { opacity: 0; transform: translate3d(-18px, 0, 0); } to { opacity: 1; transform: none; } }
+.day-in--next { animation: dayInNext .28s cubic-bezier(.2,.8,.2,1); }
+.day-in--prev { animation: dayInPrev .28s cubic-bezier(.2,.8,.2,1); }
+
+/* ── Načítací kostra (app/loading.tsx) ── */
+@keyframes skeletonPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes skeletonIn { from { opacity: 0; } to { opacity: 1; } }
+/* Ukáže se až po chvíli, aby při rychlém načtení jen neproblikla. */
+.skeleton-shell { animation: skeletonIn .2s ease .18s both; }
+.skeleton {
+  display: block; background: rgba(26,18,8,0.07);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
 /* ── Empty states ── */
 @keyframes empty-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .empty-state {
@@ -367,6 +396,9 @@ button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit
   padding: 0.65rem 0.75rem; border-radius: 18px;
   background: rgba(255,255,255,0.94);
 }
+/* Jen na mobilu. `md:hidden` z Tailwindu tady nestačí: `display: flex` výše je
+   mimo vrstvy, takže utilitu přebije a karta se roztáhla přes celý desktop. */
+@media (min-width: 768px) { .install-hint { display: none; } }
 .install-hint__icon {
   flex: none; width: 38px; height: 38px; border-radius: 12px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -405,11 +437,16 @@ button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit
    plná barva bez průhlednosti a bez pointer-events: none (prvek musí být
    „vidět" při vzorkování). Mimo appku z plochy má nulovou výšku. */
 .status-bar-fill {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  /* Nad pruhem „odpojeno" (z-index 200): ten je žlutý a Safari by podle něj
+     obarvilo lištu u hodin. */
+  position: fixed; top: 0; left: 0; right: 0; z-index: 210;
   height: env(safe-area-inset-top, 0px);
   background: var(--bg);
 }
-@media (display-mode: standalone) {
+/* I v prohlížeči (ne jen v appce z plochy): Safari barví lištu u hodin podle
+   prvku u horní hrany stránky a bez tohohle pruhu si vybralo, co tam zrovna
+   prosvítalo. Aspoň 6 px, jinak ho Safari nebere v úvahu. */
+@media (display-mode: standalone), (max-width: 767px) {
   .status-bar-fill { height: max(env(safe-area-inset-top, 0px), 6px); }
 }
 @media (min-width: 768px) {

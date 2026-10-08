@@ -92,7 +92,7 @@ export function MenuHeader({
           <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Jídelníček LIMA</h1>
           {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
           <button
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
+            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
             onClick={onOpenImport}
             type="button"
           >

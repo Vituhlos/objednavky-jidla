@@ -96,7 +96,7 @@ export function DayStatusBar({
       </div>
       {isCutoffLocked && (
         <button
-          className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-amber-700"
+          className="tap shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-amber-700"
           onClick={onUnlock}
           type="button"
         >

@@ -19,7 +19,7 @@ function BackButton({ mobile }: { mobile?: boolean }) {
   return (
     <Link
       href="/historie"
-      className={`inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+      className={`tap inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
     >
       <MIcon name="arrow_back" size={mobile ? 15 : 13} />
       <span>Historie</span>
@@ -42,7 +42,7 @@ function ReopenButton({ canReopen, onReopen, pending, small }: { canReopen: bool
   if (!canReopen) return null;
   return (
     <button
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
+      className={`tap inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
       disabled={pending}
       onClick={onReopen}
       type="button"
