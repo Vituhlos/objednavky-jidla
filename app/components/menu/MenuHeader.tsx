@@ -89,7 +89,7 @@ export function MenuHeader({
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Jídelníček LIMA</span>
+          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Jídelníček LIMA</h1>
           {activeWeekLabel && <span className="text-[11px] text-stone-500">{activeWeekLabel}</span>}
           <button
             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"

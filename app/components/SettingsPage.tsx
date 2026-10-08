@@ -167,7 +167,7 @@ export default function SettingsPage({
 
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0 px-4 py-2.5">
-        <span className="font-display font-bold text-[14px] text-stone-900">Nastavení</span>
+        <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900">Nastavení</h1>
       </div>
 
       <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5 space-y-4 pb-nav md:pb-24">

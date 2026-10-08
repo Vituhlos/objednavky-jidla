@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.2",
+    version: "1.8.0-rc.3",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -29,8 +29,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Bez připojení appka ukáže vlastní stránku s naposledy načtenou dnešní objednávkou (jen ke čtení) a po obnovení spojení se načte sama.",
           "Na mobilu v prohlížeči se nabídne přidání appky na plochu: na Androidu tlačítkem, na iPhonu návodem. Na iPhonu fungují upozornění až v appce z plochy.",
           "Po odeslání objednávky přijde upozornění „Objednávka odeslána“ těm, kdo v ní mají řádek a zapnutý zvonek.",
-          "Dlouhé podržení ikony na ploše nabídne zkratky Oběd, Jídelníček a Připomínky.",
+          "Na Androidu nabídne dlouhé podržení ikony na ploše zkratky Oběd, Jídelníček a Připomínky. iPhone to u appek z plochy neumí.",
           "Appka z plochy má na iPhonu úvodní obrazovku a na Androidu ikonu, kterou systém nezmenšuje do bílého kolečka.",
+          "Spodní navigace na mobilu se chová jako nativní lišta: výběr plynule přejíždí a jde táhnout prstem. Při šesti a více položkách jsou Připomínky a Nastavení pod „Více“.",
         ],
       },
       {
@@ -38,6 +39,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         items: [
           "Na iPhonu zmizel prázdný pruh dole, spodní navigace sedí níž a záhlaví stránky už není schované pod hodinami.",
           "Text v záhlaví na iPhonu už není rozmazaný a barevné pozadí stránky nekončí v půlce spodní navigace.",
+          "Okno objednávky jde na mobilu stáhnout prstem dolů; dřív to bylo v kódu, ale nehýbalo se.",
+          "Hledání v Historii už na iPhonu po klepnutí nepřiblíží celou stránku.",
           "Po návratu do appky se objednávka sama načte znovu, i když ji telefon mezitím uspal. Když se změnil den, načte se celá stránka.",
           "Připomínka před uzávěrkou už nechodí těm, kdo mají objednáno.",
         ],
@@ -46,13 +49,14 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         title: "Changed",
         items: [
           "Ikona appky na Androidu je oranžová jako na iPhonu a stavový řádek má barvu pozadí appky.",
+          "Záhlaví hlavní stránky na mobilu má velký nadpis dne a pod ním stav uzávěrky se souhrnem; prázdné oddělení zabere jeden řádek.",
           "Chyby, které dřív zmizely beze stopy (migrace databáze, volání Telegramu, uložení PDF jídelníčku), se zapisují do logu. Chování se nemění.",
         ],
       },
       {
         title: "Known issues",
         items: [
-          "Zkušební vydání: oprava neostrého záhlaví na iPhonu a odstup navigace na Androidu s gesty zatím nebyly ověřeny na skutečném zařízení.",
+          "Zkušební vydání: gesta na mobilu, oprava neostrého záhlaví na iPhonu a odstup navigace na Androidu zatím nebyly ověřeny na skutečném zařízení.",
           "Appku už přidanou na plochu iPhonu je pro novou úvodní obrazovku potřeba odebrat a přidat znovu.",
         ],
       },
@@ -62,7 +66,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Bez signálu appka ukáže naposledy načtenou dnešní objednávku.",
       "Po návratu do appky se objednávka sama načte znovu.",
       "Po odeslání objednávky přijde upozornění, pokud je zapnutý zvonek.",
-      "Appku jde přidat na plochu telefonu; podržení ikony nabídne zkratky.",
+      "Appku jde přidat na plochu telefonu; na Androidu podržení ikony nabídne zkratky.",
+      "Spodní lišta na mobilu jde přejíždět prstem a okno objednávky stáhnout dolů.",
     ],
   },
   {

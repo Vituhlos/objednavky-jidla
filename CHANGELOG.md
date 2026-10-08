@@ -6,6 +6,32 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.3] - 2026-10-08
+
+Třetí zkušební vydání před 1.8.0: mobilní ovládání. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.3`.
+
+### Known issues
+
+- Gesta (tažení pilulky v navigaci, stahování editačního okna) byla ověřena simulovanými dotyky v prohlížeči, ne prstem na telefonu.
+- Oprava neostrého záhlaví na iPhonu z rc.2 vyžaduje appku z plochy odebrat a přidat znovu.
+
+### Changed
+
+- **Spodní navigace na mobilu se chová jako nativní lišta.** Výběrová pilulka mezi položkami plynule přejíždí a při tažení prstem po liště jede s prstem; po puštění se zvolí položka pod ním. Klepnutí, klávesnice i čtečky fungují jako dřív, položky jsou dál obyčejné odkazy (`app/components/MobileNav.tsx`).
+- **Nejvýš pět položek v liště, zbytek pod „Více“.** Se šesti položkami se lišta nevešla na telefon široký 320 px a na 360 px jen těsně. Při šesti a více položkách zůstanou první čtyři (Oběd, Jídelníček, Pizza, Historie) a Připomínky s Nastavením jsou v nabídce „Více“; odznak nové odpovědi se pak ukazuje na „Více“. S vypnutou pizzou je položek pět a nabídka se nepoužije.
+- Položky lišty jsou stejně široké a vysoké 50 px (dřív 41 px a šířka podle délky slova); na širokém displeji se lišta neroztahuje přes celou šířku.
+- **Záhlaví hlavní stránky na mobilu má dva řádky.** Nahoře velký nadpis dne se zvonkem a nápovědou, pod ním stav uzávěrky a souhrn slovy („9 objednávek · 1020 Kč“). Na jednom řádku se datum na úzkém displeji ořezávalo („Pátek 9. 1…“) a souhrn byl jen „1 · 110 Kč“.
+- **Prázdné oddělení zabere na mobilu jeden řádek** místo vysoké karty; se čtyřmi odděleními se stránka zkrátila zhruba o čtvrtinu. Rada „Přidejte první osobu tlačítkem výše“ se ukazuje jen tehdy, když tlačítko opravdu je (ne po uzávěrce a po odeslání).
+- **Tlačítka v editačním okně na mobilu** jsou přes celou šířku a vysoká 48 px, „Uložit“ je širší; okno je skoro neprůhledné, aby pod poli neprosvítal obsah stránky.
+- Nadpisy stránek na mobilu jsou jednotně větší (18 px) a jsou to skutečné nadpisy (`h1`); na stránce Pizza je tlačítko ceníku vedle nadpisu místo samostatného řádku.
+
+### Fixed
+
+- **Stažení editačního okna prstem nefungovalo.** Okno objednávky šlo podle kódu stáhnout tahem dolů, ale nehýbalo se: vstupní animace `sheetUp` (`both`) držela svůj koncový `transform` i po doběhnutí a přebíjela posun nastavovaný při tažení. Nově okno jede s prstem, pozadí se při tom zesvětluje, po puštění se zavře (tah přes 120 px nebo rychlé švihnutí) nebo vrátí. Táhnout jde za úchyt, záhlaví i za obsah, pokud není odrolovaný; odrolovaný obsah normálně roluje. Logika je v `app/components/useSheetDrag.ts` a dá se použít pro další okna.
+- **Přiblížení stránky po klepnutí do pole na iPhonu.** Pole s písmem menším než 16 px (například hledání v Historii) iOS po klepnutí přiblíží a stránku už nevrátí. Na dotykových zařízeních mají pole vždy aspoň 16 px.
+- Ve stavovém pruhu pod objednávkou začínal na mobilu druhý řádek tečkou („· Uzávěrka proběhla v 08:00.“); druhá věta je teď na vlastním řádku bez ní.
+- Popis zkratek na ikoně appky tvrdil, že fungují všude. Fungují na Androidu a na počítači; iOS u appek z plochy `shortcuts` z manifestu nepodporuje.
+
 ## [1.8.0-rc.2] - 2026-10-08
 
 Druhé zkušební vydání před 1.8.0: opravy podle zkoušky rc.1 na skutečném iPhonu. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.2`.
@@ -47,7 +73,7 @@ Zkušební vydání před 1.8.0. Publikuje se jen pod přesným Docker tagem `1.
 - **Poslední objednávka i bez připojení.** Stránka „Bez připojení“ ukáže naposledy načtený stav dnešní objednávky (kdo, co, cena, čas načtení), jen ke čtení. Appka si ho průběžně ukládá do localStorage prohlížeče (`offlineOrderSnapshot`); starší než dnešní se neukazuje. Test `app/components/order/offline-snapshot.test.ts`.
 - **Nabídka „přidat na plochu“.** Na mobilu v prohlížeči se nad navigací ukáže karta: na Androidu s tlačítkem „Nainstalovat“, na iPhonu s návodem (Sdílet → Přidat na plochu), protože tam upozornění fungují až v appce z plochy. Po zavření se 30 dní neukáže, v nainstalované appce nikdy.
 - **Upozornění „Objednávka odeslána“.** Po ručním i automatickém odeslání dostanou push ti, kdo mají v objednávce vyplněný řádek a mají zapnutý zvonek. Selhání push služby odeslání objednávky neovlivní.
-- **Zkratky na ikoně appky.** Dlouhé podržení ikony na ploše nabídne Oběd, Jídelníček a Připomínky (`shortcuts` v manifestu).
+- **Zkratky na ikoně appky (Android a počítač).** Dlouhé podržení ikony na ploše nabídne Oběd, Jídelníček a Připomínky (`shortcuts` v manifestu). iOS tuhle část manifestu nepodporuje.
 - **Úvodní obrazovka na iPhonu.** Appka z plochy při startu neblikne bíle: pro iPhony od SE po 17 Pro Max má spouštěcí obrázek v barvě pozadí s ikonou (`apple-touch-startup-image`, routa `/pwa-splash/[size]`, jen na výšku). iOS si obrázek ukládá při přidání na plochu, takže u už nainstalované appky se projeví až po jejím odebrání a novém přidání.
 - **Ikony pro Android.** Manifest nově nabízí ikonu 192 a 512 px a variantu `maskable` (routa `/pwa-icon/[variant]`), takže ji launcher nezmenšuje do bílého kolečka.
 

@@ -85,12 +85,12 @@ export default function HistoryPage({
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Historie</span>
+          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Historie</h1>
           <HideEmptyToggle checked={hideEmpty} label="Skrýt prázdné" onChange={setHideEmpty} />
         </div>
         <div className="px-4 pb-2.5">
           <input
-            className="modal-input w-full !py-1.5 !text-[12px]"
+            className="modal-input w-full !py-2"
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Hledat (datum, e-mail)…"
             type="search"
