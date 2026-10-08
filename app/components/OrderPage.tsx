@@ -1,7 +1,7 @@
 "use client";
 
 import { pluralizeOrders } from "@/lib/format";
-import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef, useMemo, ViewTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getHolidayEmoji } from "@/lib/holidays";
 import type { OrderData, OrderRowEnriched, Department, DepartmentData, MealEntry } from "@/lib/types";
@@ -10,6 +10,7 @@ import { hasOrderRowContent } from "@/lib/order-utils";
 import { usePushNotifications } from "./order/usePushNotifications";
 import { useRowDeletion } from "./order/useRowDeletion";
 import { useDayNavigation } from "./order/useDayNavigation";
+import { DAY_SLIDE_CLASS } from "./order/day-transition";
 import { useOrderSync } from "./order/useOrderSync";
 import { buildOfflineSnapshot, saveOfflineSnapshot } from "./order/offline-snapshot";
 import { useCutoff } from "./order/useCutoff";
@@ -101,8 +102,6 @@ export default function OrderPage({
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
 
   const [departments, setDepartments] = useState(initialData.departments);
-  // Mění se s daty nového dne; spouští příjezdovou animaci mřížky (viz níže).
-  const [dayAnimKey, setDayAnimKey] = useState(0);
   const departmentsRef = useRef(initialData.departments);
   useEffect(() => { departmentsRef.current = departments; }, [departments]);
 
@@ -153,34 +152,42 @@ export default function OrderPage({
     handleUnlock,
   } = useCutoffUnlock(forceOpenAt);
 
-  // Sync state when selected date changes — component isn't remounted, only gets new props
-  const prevOrderIdRef = useRef(initialData.order.id);
-  useEffect(() => {
-    if (prevOrderIdRef.current === initialData.order.id) return;
-    prevOrderIdRef.current = initialData.order.id;
-    orderIdRef.current = initialData.order.id;
+  // Sync state when selected date changes — component isn't remounted, only gets new props.
+  // Stav se přepisuje už při vykreslení, ne v efektu: nová data tak dorazí ve
+  // stejném vykreslení jako nový den a `<ViewTransition>` níž vyfotí hotový
+  // stav. S efektem by nový den nejdřív přijel se starými řádky a pod animací
+  // se přepsal.
+  const [syncedOrderId, setSyncedOrderId] = useState(initialData.order.id);
+  if (syncedOrderId !== initialData.order.id) {
+    setSyncedOrderId(initialData.order.id);
     setDepartments(initialData.departments);
-    // Příjezdová animace až teď, s novými daty. Klíč podle čísla objednávky
-    // přepnul mřížku o jedno vykreslení dřív — nejdřív vjela se starými řádky
-    // a pak se pod animací přepsala, což vypadalo jako skok.
-    setDayAnimKey((k) => k + 1);
-    departmentsRef.current = initialData.departments;
     setOrderStatus(initialData.order.status);
     setSentAt(initialData.order.sentAt);
     setJustSent(false);
     setSendError(null);
+  }
+  // Den, který je už na obrazovce. Dokud se liší od právě vykreslovaného, jde
+  // o přepnutí dne a obsah se má vyměnit s posunem (viz <ViewTransition> níž);
+  // efekt ho po vykreslení dorovná, takže další změny dat už se neanimují.
+  const currentDate = selectedDate ?? todayDate;
+  const [settledDay, setSettledDay] = useState({ orderId: initialData.order.id, date: currentDate });
+  const daySlide = settledDay.orderId === initialData.order.id
+    ? "none"
+    : (currentDate ?? "") >= (settledDay.date ?? "") ? DAY_SLIDE_CLASS.next : DAY_SLIDE_CLASS.prev;
+  const prevOrderIdRef = useRef(initialData.order.id);
+  useEffect(() => {
+    if (prevOrderIdRef.current === initialData.order.id) return;
+    prevOrderIdRef.current = initialData.order.id;
+    setSettledDay({ orderId: initialData.order.id, date: currentDate });
+    orderIdRef.current = initialData.order.id;
+    departmentsRef.current = initialData.departments;
     if (justSentTimer.current) { clearTimeout(justSentTimer.current); justSentTimer.current = null; }
     flushPendingDelete();
     clearPendingDelete();
-  }, [clearPendingDelete, flushPendingDelete, initialData.departments, initialData.order.id, initialData.order.sentAt, initialData.order.status]);
+  }, [clearPendingDelete, currentDate, flushPendingDelete, initialData.departments, initialData.order.id]);
 
-  // ── Přepnutí dne: směr pro animaci obsahu a přejetí prstem do strany ──
-  const [dayDirection, setDayDirection] = useState<"next" | "prev">("next");
-  const currentDate = selectedDate ?? todayDate;
-  const selectDate = useCallback((date: string) => {
-    if (currentDate) setDayDirection(date >= currentDate ? "next" : "prev");
-    goToDate(date);
-  }, [currentDate, goToDate]);
+  // ── Přepnutí dne přejetím prstem do strany ──
+  const selectDate = goToDate;
   const mainRef = useRef<HTMLElement>(null);
   const dayIndex = availableDates && currentDate ? availableDates.indexOf(currentDate) : -1;
   useDaySwipe(mainRef, {
@@ -494,6 +501,9 @@ export default function OrderPage({
       />
 
       {/* ── Scrollable main content ── */}
+      {/* Při přepnutí dne starý obsah odjede a nový přijede ze strany posunu
+          (třídy day-slide-* v globals.css). Jiné změny uvnitř se neanimují. */}
+      <ViewTransition default="none" update={daySlide}>
       <main className="flex-1 overflow-y-auto scroll-area p-4" ref={mainRef}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
@@ -575,11 +585,8 @@ export default function OrderPage({
               )}
 
               {/* Department panels — 3-col on desktop */}
-              {/* Klíč se mění ve chvíli, kdy dorazí data nového dne: mřížka se
-                  znovu vloží a vjede ze strany, kterou se den posunul. */}
               <div
-                className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 day-in day-in--${dayDirection} ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}
-                key={dayAnimKey}
+                className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}
               >
                 {departments.map((dept) => (
                   <DepartmentPanel
@@ -682,6 +689,7 @@ export default function OrderPage({
           )}
         </div>
       </main>
+      </ViewTransition>
 
       {/* ── Modals ── */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}

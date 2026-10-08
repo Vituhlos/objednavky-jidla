@@ -8,6 +8,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Changed
 
+- **Přepnutí dne jako skutečná výměna obsahu** — v objednávkách i v jídelníčku na mobilu starý den odjede do strany a nový zároveň přijede (dřív jen nový den „vjel“ na místo starého). Na počítači se dny plynule prolnou. Staví na nativních přechodech z Reactu 19.3 (`<ViewTransition>`); v prohlížeči bez podpory View Transitions se den vymění bez animace.
 - **Aktualizace Reactu a Next.js** — React 19.2 → 19.3, Next.js 16.2 → 16.4 (včetně `eslint-config-next` a typů). Chování appky se nemění. `pdfkit` a `pdf-parse` zůstávají záměrně na stávajících verzích.
 
 ## [1.8.0-rc.7] - 2026-10-08
