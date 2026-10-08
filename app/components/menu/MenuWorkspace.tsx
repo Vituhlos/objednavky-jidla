@@ -110,7 +110,7 @@ export function MenuWorkspace({
       </div>
 
       {/* Desktop: full week grid */}
-      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-4 pb-8 pt-3">
+      <div className="hidden md:block flex-1 overflow-y-auto scroll-area px-5 pb-8 pt-5">
         <WeekGrid
           closureLabels={activeWeekData.closureLabels}
           dayDates={dayDates}

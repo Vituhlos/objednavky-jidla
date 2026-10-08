@@ -46,7 +46,7 @@ export function TodayOrderSection({
             <p className="text-[12.5px] text-stone-500">Objednávka je odeslána.</p>
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                className="glass-btn btn-md shrink-0 text-stone-600"
                 disabled={isPending}
                 onClick={() => {
                   startTransition(async () => {
@@ -59,7 +59,7 @@ export function TodayOrderSection({
                 <MIcon name="lock_open" size={14} /> Znovu otevřít
               </button>
               <button
-                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                className="glass-btn btn-md shrink-0 text-stone-600"
                 disabled={isPending || resendStatus === "pending"}
                 onClick={() => {
                   setResendStatus("pending");
@@ -97,7 +97,7 @@ export function TodayOrderSection({
             <p className="text-[12.5px] text-stone-500">Objednávka je otevřená.</p>
             <div className="flex flex-wrap gap-2">
               <button
-                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                className="glass-btn btn-md shrink-0 text-stone-600"
                 disabled={isPending || sendStatus === "pending"}
                 onClick={() => {
                   setSendStatus("pending");
@@ -116,7 +116,7 @@ export function TodayOrderSection({
                 {sendStatus === "pending" ? "Odesílám…" : "Odeslat ručně"}
               </button>
               <button
-                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger"
+                className="glass-btn-danger btn-md shrink-0"
                 disabled={isPending}
                 onClick={() => setClearConfirm(true)}
                 type="button"

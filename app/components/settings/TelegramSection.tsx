@@ -83,7 +83,7 @@ export function TelegramBotCard({
               </span>
             );
           })()}
-          <button type="button" onClick={() => setShowTelegramHelp(true)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500">
+          <button type="button" onClick={() => setShowTelegramHelp(true)} className="glass-btn btn-sm text-stone-500">
             <MIcon name="help_outline" size={13} /> Jak nastavit?
           </button>
         </div>
@@ -125,7 +125,7 @@ export function TelegramBotCard({
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), 2000);
               }}
-              className="shrink-0 inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-500 whitespace-nowrap"
+              className="glass-btn btn-sm shrink-0 text-stone-500 whitespace-nowrap"
               title={`https://t.me/${botInfo.username}`}
             >
               <MIcon name={linkCopied ? "check" : "link"} size={13} />
@@ -278,7 +278,7 @@ export function TelegramSection({
             <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-sheet__header">
                 <h3 className="modal-sheet__title">Jak nastavit Telegram bota</h3>
-                <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
+                <button aria-label="Zavřít" className="glass-btn btn-icon text-stone-500 text-lg font-bold" onClick={() => setShowTelegramHelp(false)} type="button">×</button>
               </div>
               <div className="modal-sheet__body space-y-4">
 

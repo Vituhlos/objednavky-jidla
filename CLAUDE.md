@@ -304,7 +304,9 @@ topbar              pruh záhlaví stránky
 desktop-sidebar     postranní navigace (≥ 768px)
 mobile-nav, mobile-nav__*   plovoucí spodní navigace na mobilu (lišta, pilulka, nabídka „Více“)
 pb-nav              spodní odsazení obsahu kvůli mobilní navigaci
-glass, glass-card, glass-soft, glass-btn(-danger), glass-dim   skleněné plochy a tlačítka
+glass, glass-card, glass-soft, glass-dim   skleněné plochy
+glass-btn, glass-btn-danger, btn-primary   vzhled tlačítka (sklo, nebezpečná akce, oranžová primární)
+btn-md, btn-sm, btn-icon(--sm)             velikost tlačítka — vždy jedna z nich, odsazení a zaoblení se ručně nepíšou
 modal-overlay/sheet modální dialog (na mobilu bottom sheet); modal-* jeho části
 confirm-dialog      potvrzovací dialog
 k-toast, k-offline  toast a pruh „odpojeno“

@@ -195,7 +195,7 @@ export default function PizzaPage({
         {scrapeError && <span className="text-[12px] text-red-500 truncate max-w-xs">{scrapeError}</span>}
         <div className="ml-auto">
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+            className="glass-btn btn-md text-stone-600"
             disabled={isPending}
             onClick={handleScrape}
             type="button"
@@ -211,7 +211,7 @@ export default function PizzaPage({
         <div className="flex items-center gap-3 px-4 pt-2 pb-2">
           <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Pizza</h1>
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 min-h-[40px] rounded-2xl glass-btn text-stone-600 shrink-0"
+            className="glass-btn btn-md text-stone-600 shrink-0"
             disabled={isPending}
             onClick={handleScrape}
             type="button"
@@ -268,8 +268,7 @@ export default function PizzaPage({
             )}
             {!isClosed && (
               <button
-                className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-                style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
+                className="btn-primary btn-sm"
                 disabled={isAddingRow || isPending}
                 onClick={handleAddRow}
                 type="button"
@@ -373,7 +372,7 @@ export default function PizzaPage({
           <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-sheet__header">
               <h3 className="modal-sheet__title">Jak se počítá cena?</h3>
-              <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>
+              <button aria-label="Zavřít" className="glass-btn btn-icon text-stone-500 text-lg font-bold" onClick={() => setShowPizzaHelp(false)} type="button">×</button>
             </div>
             <div className="modal-sheet__body space-y-4 text-[13px] text-stone-600 leading-relaxed">
 

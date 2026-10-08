@@ -50,7 +50,7 @@ export const DepartmentRow = memo(function DepartmentRow({
             disabled={isLast} onClick={() => onMoveDown(dept.id)} type="button"
           >↓</button>
           <button
-            className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg glass-btn text-stone-600"
+            className="glass-btn btn-sm text-stone-600"
             onClick={() => setEditing(true)} type="button"
           >Upravit</button>
           <button

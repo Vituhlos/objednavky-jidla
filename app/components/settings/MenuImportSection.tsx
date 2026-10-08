@@ -103,7 +103,7 @@ export function MenuImportSection({ settings }: { settings: AppSettings }) {
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         <button
-          className="glass-btn px-4 py-2 rounded-xl text-[12.5px] font-semibold text-stone-700 inline-flex items-center gap-2"
+          className="glass-btn btn-md text-stone-700"
           disabled={isPending}
           onClick={handleImapCheck}
           type="button"

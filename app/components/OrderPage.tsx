@@ -420,7 +420,7 @@ export default function OrderPage({
           <button
             type="button"
             onClick={() => actionDismissAutoSendError()}
-            className="shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-red-600"
+            className="glass-btn btn-sm shrink-0 text-red-600"
           >
             Zavřít
           </button>
@@ -504,7 +504,7 @@ export default function OrderPage({
       {/* Při přepnutí dne starý obsah odjede a nový přijede ze strany posunu
           (třídy day-slide-* v globals.css). Jiné změny uvnitř se neanimují. */}
       <ViewTransition default="none" update={daySlide}>
-      <main className="flex-1 overflow-y-auto scroll-area p-4" ref={mainRef}>
+      <main className="flex-1 overflow-y-auto scroll-area p-4 md:p-5" ref={mainRef}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
@@ -707,7 +707,7 @@ export default function OrderPage({
               <h3 className="modal-sheet__title" id="unlock-modal-title">Odemknout objednávky</h3>
               <button
                 aria-label="Zavřít"
-                className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+                className="glass-btn btn-icon text-stone-500 text-lg font-bold leading-none"
                 onClick={closeUnlock}
                 type="button"
               >×</button>

@@ -59,7 +59,7 @@ export function MenuItemEditModal({ item, isNew, disabled, onSave, onRequestDele
           </h3>
           <button
             aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500"
+            className="glass-btn btn-icon text-stone-500"
             onClick={onClose}
             type="button"
           >

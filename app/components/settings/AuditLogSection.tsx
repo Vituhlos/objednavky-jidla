@@ -34,7 +34,7 @@ export function AuditLogSection({
       action={
         entries.length > 0 ? (
           <select
-            className="text-[11.5px] px-2 py-1 rounded-lg glass-btn text-stone-600 font-medium bg-transparent cursor-pointer"
+            className="glass-btn btn-sm text-stone-600"
             value={auditFilter}
             onChange={(e) => setAuditFilter(e.target.value)}
           >

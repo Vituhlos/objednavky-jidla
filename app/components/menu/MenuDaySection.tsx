@@ -103,7 +103,7 @@ export function MenuDaySection({
             </div>
             {editMode && !closureLabel && (
               <button
-                className="text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+                className="glass-btn btn-md text-stone-600"
                 disabled={disabled}
                 onClick={() => onOpenDay(day)}
                 type="button"
@@ -141,7 +141,7 @@ export function MenuDaySection({
           />
           {editMode && (
             <button
-              className="w-full text-[12px] font-semibold py-2 rounded-2xl glass-btn-danger text-red-600"
+              className="glass-btn-danger btn-md w-full text-red-600"
               disabled={disabled}
               onClick={() => onCloseDay(day)}
               type="button"

@@ -108,9 +108,8 @@ export default function InstallHint() {
       </div>
       {installEvent && (
         <button
-          className="shrink-0 px-3.5 py-2 rounded-full text-[12.5px] font-semibold text-white active:scale-[0.97] transition"
+          className="btn-primary btn-md shrink-0"
           onClick={install}
-          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
           type="button"
         >
           Nainstalovat

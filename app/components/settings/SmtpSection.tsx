@@ -77,7 +77,7 @@ export function SmtpSection({ getPin, settings }: { getPin: () => string; settin
         </div>
         <div className="flex items-center gap-3 pt-1">
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+            className="glass-btn btn-md text-stone-600"
             disabled={isPending}
             onClick={handleSmtpTest}
             type="button"
