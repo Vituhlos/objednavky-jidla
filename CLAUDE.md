@@ -44,6 +44,7 @@ app/
   components/
     AppTopBar.tsx                  # Postranní panel (desktop); položky navigace
     MobileNav.tsx                  # Spodní navigace na mobilu: pilulka s tažením, nabídka „Více“
+    SheetDragManager.tsx           # Stahování spodních oken (.modal-sheet) prstem, pro všechna okna naráz
     InstallHint.tsx                # Nabídka „přidat na plochu“ na mobilu
     SwRegister.tsx                 # Registrace service workeru
     MIcon.tsx                      # Inline SVG ikony (registr; neznámé jméno nic nevykreslí)

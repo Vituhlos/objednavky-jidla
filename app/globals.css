@@ -487,14 +487,14 @@ button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit
     animation: scaleIn .22s ease both;
   }
 }
-.modal-sheet__drag-handle {
-  width: 36px; height: 4px;
-  background: rgba(26,18,8,0.12);
-  border-radius: 9999px;
-  margin: 8px auto 0;
-  flex-shrink: 0;
+/* Úchyt pro stažení prstem (viz SheetDragManager) — pseudo-prvek, aby ho měla
+   všechna spodní okna bez zásahu do jejich kódu. */
+.modal-sheet::before {
+  content: ''; flex: none;
+  width: 36px; height: 4px; margin: 8px auto 0;
+  background: rgba(26,18,8,0.16); border-radius: 9999px;
 }
-@media (min-width: 640px) { .modal-sheet__drag-handle { display: none; } }
+@media (min-width: 640px) { .modal-sheet::before { display: none; } }
 .modal-sheet__header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 1.25rem 1.25rem 0.75rem;
@@ -516,12 +516,37 @@ button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit
 }
 
 /* Spodní list na mobilu: tlačítka přes celou šířku a v dosahu palce, hlavní
-   akce širší; list je skoro neprůhledný, aby pod poli neprosvítal obsah stránky. */
+   akce širší. List je jedna plná teplá plocha — záhlaví nemá vlastní bílý
+   podklad (dělal pod úchytem viditelný „panel") a pod poli neprosvítá stránka. */
 @media (max-width: 639px) {
-  .modal-sheet { background: rgba(255,255,255,0.97); }
+  .modal-sheet { background: #f9f6f1; }
+  .modal-sheet__header {
+    background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+    padding-top: 0.75rem; border-bottom-color: rgba(26,18,8,0.07);
+  }
+  .modal-sheet__footer { border-top-color: rgba(26,18,8,0.07); }
   .modal-sheet__footer .modal-btn { flex: 1 1 0; min-height: 48px; font-size: 0.9375rem; }
   .modal-sheet__footer .modal-btn--primary { flex-grow: 2; }
 }
+
+/* Pole a bloky v okně: bílé okraje na bílém podkladu nebyly vidět (styl vznikl
+   pro průsvitné sklo). V okně mají bílou výplň a tmavší obrys. */
+.modal-sheet .modal-input,
+.modal-sheet .modal-select,
+.modal-sheet .modal-note {
+  background-color: #fff; border-color: rgba(26,18,8,0.14);
+  box-shadow: 0 1px 2px rgba(26,18,8,0.04);
+}
+.modal-sheet .modal-extras { background: rgba(255,255,255,0.7); border-color: rgba(26,18,8,0.12); }
+.modal-sheet .modal-stepper { border-bottom-color: rgba(26,18,8,0.07); }
+.modal-sheet .stepper-btn,
+.modal-sheet .modal-count-btn { background-color: #fff; border-color: rgba(26,18,8,0.14); }
+.modal-sheet .modal-btn--secondary { background: #fff; border-color: rgba(26,18,8,0.14); }
+
+/* Okno vykreslené uvnitř stránky (ne portálem do body) leží ve vrstvě shellu,
+   tedy pod spodní navigací — ta pak překrývala jeho spodek. Dokud je okno
+   otevřené, jde celý shell nad navigaci i postranní panel. */
+.k-shell:has(.modal-overlay) { z-index: 70; }
 
 /* ── Confirm dialog (used inside modal-overlay) ── */
 .confirm-dialog {

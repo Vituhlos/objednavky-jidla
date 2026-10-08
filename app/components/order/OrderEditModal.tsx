@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useSheetDrag } from "../useSheetDrag";
 import { createPortal } from "react-dom";
 import type { MealEntry, MenuItem, OrderRowEnriched } from "@/lib/types";
 import type { ExtrasPrices } from "@/lib/pricing";
@@ -50,9 +49,6 @@ export function OrderEditModal({
   const handleCancel = () => { if (isNew) onDelete(); else onClose(); };
   const handleCancelRef = useRef(handleCancel);
   useEffect(() => { handleCancelRef.current = handleCancel; });
-
-  // Stažení listu prstem dolů = totéž co „Zrušit".
-  const sheetRef = useSheetDrag<HTMLDivElement>(() => handleCancelRef.current());
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelRef.current(); };
@@ -124,9 +120,7 @@ export function OrderEditModal({
         aria-modal="true"
         aria-labelledby="edit-modal-title"
         onClick={(e) => e.stopPropagation()}
-        ref={sheetRef}
       >
-        <div className="modal-sheet__drag-handle" aria-hidden />
         <div className="modal-sheet__header">
           <h3 className="modal-sheet__title" id="edit-modal-title">{isNew ? "Přidat objednávku" : "Upravit objednávku"}</h3>
           <button

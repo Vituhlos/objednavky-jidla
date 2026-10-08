@@ -6,6 +6,12 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Špatně viditelná pole a tlačítka v oknech.** Pole, blok příloh a vedlejší tlačítka měly bílé okraje na bílém podkladu (styl vznikl pro průsvitné sklo) a v rc.3 o zbytek kontrastu přišly, když se okno na mobilu stalo skoro neprůhledným. V oknech mají nově bílou výplň a tmavší obrys. Okno na mobilu je jedna plná teplá plocha; záhlaví už nemá vlastní bílý podklad, který pod úchytem vypadal jako samostatný panel.
+- **Spodek okna pod navigací.** Okna vykreslená uvnitř stránky (nápověda, úprava jídla, odemčení a další) ležela ve vrstvě stránky, tedy pod spodní navigací, která pak překrývala jejich spodek („Pokročilé možnosti“ v nápovědě). Dokud je okno otevřené, jde celá stránka nad navigaci.
+- **Stažení prstem fungovalo jen u okna objednávky.** Tažení je nově na jednom místě (`app/components/SheetDragManager.tsx`) a platí pro všechna spodní okna; úchyt mají všechna. Zavření tahem je totéž co klepnutí mimo okno, takže každé okno se zavře svou vlastní cestou.
+
 ## [1.8.0-rc.3] - 2026-10-08
 
 Třetí zkušební vydání před 1.8.0: mobilní ovládání. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.3`.
