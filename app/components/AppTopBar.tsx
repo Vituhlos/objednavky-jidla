@@ -39,6 +39,16 @@ const SidebarClock = memo(function SidebarClock() {
 
 export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: boolean }) {
   const pathname = usePathname();
+  // Položka menu se zvýrazní hned po kliknutí, nečeká na načtení stránky —
+  // jinak se po kliknutí chvíli nedělo nic. Čekající volba se ruší při každé
+  // změně adresy (i při návratu tlačítkem Zpět).
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    setPendingHref(null);
+  }
+  const shownPath = pendingHref ?? pathname;
   const nav = pizzaEnabled ? NAV : NAV.filter((n) => n.href !== "/pizza");
   // Nová odpověď na vlastní připomínku — jen v prohlížeči autora
   const feedbackUpdates = useFeedbackBadge(pathname.startsWith("/pripominky"));
@@ -74,13 +84,15 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
 
         <div className="mt-2 flex flex-col gap-0.5">
           {nav.map(({ href, label, icon, exact }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
+            const isCurrent = exact ? pathname === href : pathname.startsWith(href);
+            const isActive = exact ? shownPath === href : shownPath.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                aria-current={isActive ? "page" : undefined}
+                aria-current={isCurrent ? "page" : undefined}
                 className={`flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-2xl transition ${isActive ? "sidebar-item-active" : "hover:bg-white/60"}`}
+                onClick={() => { if (!isCurrent) setPendingHref(href); }}
               >
                 <MIcon
                   name={icon}

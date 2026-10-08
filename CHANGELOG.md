@@ -8,6 +8,9 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Fixed
 
+- **Poskakování při přechodu mezi stránkami (rc.5).** Načítací kostra z rc.5 způsobila, že stará stránka při přechodu hned zmizela a nová naskočila až po chvíli; na rychlém připojení to bylo horší než dřív. Kostra je odstraněná, stará stránka zase zůstává, dokud není nová připravená. Odezvu na kliknutí dává okamžité zvýraznění položky v menu — ve spodní navigaci už z rc.3, nově i v postranním menu na počítači.
+- **Vybraný den v přepínači na iPhonu (rc.5).** Pilulka byla samostatný prvek pod čipy a spoléhala na `z-index`; Safari na iOS vrstvy s transformací řadí jinak, takže jednou zakryla popisek vybraného dne a jindy se nevykreslila vůbec. Pilulka je nově potomek vybraného čipu, takže výběr je správně i bez animace; klouzání mezi dny je jen přechod navíc (Web Animations).
+- **Skok při přepnutí dne (rc.5).** Příjezdová animace se spouštěla o jedno vykreslení dřív, než dorazila data nového dne — mřížka vjela se starými řádky a pod animací se přepsala. Spouští se až s novými daty; na počítači je to jen krátké prolnutí, posun do strany zůstal na mobilu.
 - **Bílé probliknutí při otevření.** Barva pozadí je nově přímo v HTML (`<html style>`), takže stránka není bílá, než se stáhne hlavní stylopis. Stylopis s písmem pro emoji se načítá až na konci `body`, kde neblokuje první vykreslení.
 
 ## [1.8.0-rc.5] - 2026-10-08

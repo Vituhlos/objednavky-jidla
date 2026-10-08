@@ -101,6 +101,8 @@ export default function OrderPage({
   const isFutureDay = !!(selectedDate && todayDate && selectedDate > todayDate);
 
   const [departments, setDepartments] = useState(initialData.departments);
+  // Mění se s daty nového dne; spouští příjezdovou animaci mřížky (viz níže).
+  const [dayAnimKey, setDayAnimKey] = useState(0);
   const departmentsRef = useRef(initialData.departments);
   useEffect(() => { departmentsRef.current = departments; }, [departments]);
 
@@ -158,6 +160,10 @@ export default function OrderPage({
     prevOrderIdRef.current = initialData.order.id;
     orderIdRef.current = initialData.order.id;
     setDepartments(initialData.departments);
+    // Příjezdová animace až teď, s novými daty. Klíč podle čísla objednávky
+    // přepnul mřížku o jedno vykreslení dřív — nejdřív vjela se starými řádky
+    // a pak se pod animací přepsala, což vypadalo jako skok.
+    setDayAnimKey((k) => k + 1);
     departmentsRef.current = initialData.departments;
     setOrderStatus(initialData.order.status);
     setSentAt(initialData.order.sentAt);
@@ -569,11 +575,11 @@ export default function OrderPage({
               )}
 
               {/* Department panels — 3-col on desktop */}
-              {/* key = objednávka: při změně dne se mřížka znovu vloží a vjede ze
-                  strany, kterou se den posunul. */}
+              {/* Klíč se mění ve chvíli, kdy dorazí data nového dne: mřížka se
+                  znovu vloží a vjede ze strany, kterou se den posunul. */}
               <div
                 className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 day-in day-in--${dayDirection} ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}
-                key={orderId}
+                key={dayAnimKey}
               >
                 {departments.map((dept) => (
                   <DepartmentPanel

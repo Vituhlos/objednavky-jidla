@@ -18,7 +18,11 @@ import { formatGapLabel, getDayLabel, type PickerItem } from "./order-utils";
  *
  * Vybraný den značí pilulka, která mezi dny klouže. Přesune se hned po volbě
  * (`pendingDate`), nečeká na odpověď serveru — jinak klepnutí působilo opožděně.
- * Dny mají různě široké popisky, takže se pilulka měří podle skutečného čipu.
+ *
+ * Pilulka je potomek vybraného čipu, ne samostatný prvek pod čipy. První verze
+ * ji měla zvlášť a spoléhala na `z-index`; Safari na iOS ale vrstvy s transformací
+ * řadí po svém, takže pilulka jednou zakryla popisek a jindy se nevykreslila.
+ * Takhle je výběr správně i bez animace a klouzání je jen přechod navíc.
  */
 export function DayPicker({
   pickerItems,
@@ -36,56 +40,51 @@ export function DayPicker({
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const pillRef = useRef<HTMLSpanElement>(null);
-  const measured = useRef(false);
+  /** Kde pilulka stála naposledy (v souřadnicích pásu) — odtud vyjíždí animace. */
+  const lastSpot = useRef<{ left: number; width: number } | null>(null);
   const shownDate = pendingDate ?? selectedDate;
 
   useLayoutEffect(() => {
     const track = trackRef.current;
-    const pill = pillRef.current;
     const scroller = scrollerRef.current;
-    if (!track || !pill) return;
+    const chip = track && shownDate ? track.querySelector<HTMLElement>(`[data-date="${shownDate}"]`) : null;
+    if (!chip) {
+      lastSpot.current = null;
+      return;
+    }
+    const spot = { left: chip.offsetLeft, width: chip.offsetWidth };
+    const previous = lastSpot.current;
+    lastSpot.current = spot;
 
-    const place = (animate: boolean) => {
-      const chip = shownDate ? track.querySelector<HTMLElement>(`[data-date="${shownDate}"]`) : null;
-      if (!chip) {
-        pill.style.opacity = "0";
-        return;
-      }
-      if (!animate) pill.style.transition = "none";
-      pill.style.width = `${chip.offsetWidth}px`;
-      pill.style.transform = `translate3d(${chip.offsetLeft}px, 0, 0)`;
-      pill.style.opacity = "1";
-      if (!animate) {
-        // Vynutí přepočet, aby se první umístění neanimovalo z nuly.
-        void pill.offsetWidth;
-        pill.style.transition = "";
-      }
-      // Vybraný den doroluj do zorného pole (pás je širší než displej).
-      if (scroller && scroller.scrollWidth > scroller.clientWidth) {
-        const target = chip.offsetLeft - (scroller.clientWidth - chip.offsetWidth) / 2;
-        scroller.scrollTo({ left: Math.max(0, target), behavior: animate ? "smooth" : "auto" });
-      }
-    };
+    // Vybraný den doroluj do zorného pole (pás je širší než displej).
+    if (scroller && scroller.scrollWidth > scroller.clientWidth) {
+      const target = spot.left - (scroller.clientWidth - spot.width) / 2;
+      scroller.scrollTo({ left: Math.max(0, target), behavior: previous ? "smooth" : "auto" });
+    }
 
-    place(measured.current);
-    measured.current = true;
-
-    // Po načtení písma se šířky čipů změní; pilulku je potřeba přeměřit.
-    const observer = new ResizeObserver(() => place(false));
-    observer.observe(track);
-    return () => observer.disconnect();
+    // Klouzání: pilulka už stojí na novém místě (je součástí čipu), jen se
+    // na okamžik opticky vrátí na staré a dojede. Když animace neproběhne,
+    // výběr je stejně vidět správně.
+    const pill = chip.querySelector<HTMLElement>(".day-pill");
+    if (!pill || !previous || spot.width === 0 || (previous.left === spot.left && previous.width === spot.width)) return;
+    if (typeof pill.animate !== "function" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    pill.animate(
+      [
+        { transform: `translateX(${previous.left - spot.left}px) scaleX(${previous.width / spot.width})` },
+        { transform: "none" },
+      ],
+      { duration: 340, easing: "cubic-bezier(.22,1.15,.36,1)" },
+    );
   }, [shownDate, pickerItems]);
 
   return (
     <div className="relative -mx-4">
       <div className="overflow-x-auto no-scrollbar px-4" ref={scrollerRef}>
         <div
-          className="relative flex p-1 rounded-2xl gap-0.5"
+          className="flex p-1 rounded-2xl gap-0.5"
           ref={trackRef}
           style={{ width: "max-content", background: "rgba(26,18,8,0.06)", border: "1px solid rgba(255,255,255,0.55)" }}
         >
-          <span aria-hidden="true" className="day-pill" ref={pillRef} />
           {pickerItems.map((item) => {
             if (item.kind === "gap") {
               const label = `zavřeno ${formatGapLabel(item.from, item.to)}`;
@@ -161,12 +160,13 @@ export function DayPicker({
                 aria-current={isActive ? "date" : undefined}
                 data-date={date}
                 key={date}
-                className={`relative z-[1] flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-colors duration-200 active:scale-[0.96] ${
+                className={`relative isolate flex-shrink-0 px-4 py-2.5 min-h-[44px] flex items-center rounded-xl text-[12.5px] font-semibold transition-colors duration-200 active:scale-[0.96] ${
                   isShown ? "text-white" : "text-stone-600 hover:text-stone-800"
                 }`}
                 onClick={() => { if (isShown) return; onSelect(date); }}
                 type="button"
               >
+                {isShown && <span aria-hidden="true" className="day-pill" />}
                 {getDayLabel(date, todayDate!)}
               </button>
             );
