@@ -384,7 +384,7 @@ export default function OrderPage({
 
       {/* ── Toasts & banners (fixed/absolute) ── */}
       {justSent && (
-        <div aria-live="polite" role="status" className="fixed top-16 left-1/2 -translate-x-1/2 z-[300] fade-up pointer-events-none">
+        <div aria-live="polite" role="status" className="fixed left-1/2 -translate-x-1/2 z-[300] fade-up pointer-events-none" style={{ top: "calc(4rem + env(safe-area-inset-top, 0px))" }}>
           <div className="glass rounded-full px-5 py-2.5 flex items-center gap-2 shadow-lg">
             <MIcon name="check_circle" size={16} fill style={{ color: "#16a34a" }} />
             <span className="font-display font-semibold text-[13px] text-stone-900">Objednávka odeslána!</span>
