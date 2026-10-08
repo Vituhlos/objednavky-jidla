@@ -55,6 +55,7 @@ app/
     HistoryPage.tsx                # Seznam historických objednávek
     MenuPage.tsx                   # Správa jídelníčku (import PDF, editace)
     PizzaPage.tsx                  # Objednávky pizzy
+    pizza/                         # PizzaRow, PizzaSelect, PizzaPriceBreakdown
     PizzaDetailPage.tsx            # Detail historické pizza objednávky
     SettingsPage.tsx               # Nastavení (PIN chráněno)
     FeedbackPage.tsx               # Stránka připomínek (skládá feedback/*)
@@ -74,7 +75,8 @@ app/
     orders/[id]/pdf/route.ts       # GET — PDF odeslané objednávky
     restore/route.ts               # POST — obnova databáze ze zálohy
     feedback/…                     # Připomínky: odeslání, mine, vote, withdraw, attachments
-    telegram/webhook/route.ts      # Telegram bot
+    telegram/webhook/              # Telegram bot: route.ts (handler), messages.ts (texty),
+                                   # keyboards.ts (klávesnice), telegram-api.ts (volání API)
     health, ping, version          # Diagnostika
 
   historie/

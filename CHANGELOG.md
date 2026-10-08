@@ -30,6 +30,8 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - Barva lišty prohlížeče a `theme_color` / `background_color` v manifestu odpovídají pozadí appky (`#f8f4ef`). Nainstalovaná appka na Androidu má tak stavový řádek krémový místo oranžového.
 - Ikona nainstalované appky na Androidu je oranžová jako na iPhonu a jako favicon; dosud manifest odkazoval na starší modrozelenou (`/icon`). Ta je z kódu odstraněná (`app/icon.tsx`), favicon zůstává `app/icon.svg`.
 - Test `tools/feedback.test.mjs` jde spustit i na Windows (dynamický import přes `file://` URL).
+- **Chyby, které dřív mizely beze stopy, jdou do logu.** Chování se nemění, nic nově nepadá: migrace sloupců v `lib/db.ts` mlčky přecházejí jen očekávané „duplicate column name“ a cokoli jiného zapíšou (`addColumn`); loguje se nedoručené volání Telegram API (jen text chyby, bez adresy s tokenem), neuložené PDF jídelníčku, neúspěšné smazání řádku na pozadí a neúspěšná registrace service workeru.
+- Vnitřní úklid bez změny chování: Telegram webhook je rozdělený na `route.ts`, `messages.ts`, `keyboards.ts` a `telegram-api.ts`; podkomponenty stránky Pizza jsou v `app/components/pizza/`.
 - `CLAUDE.md` a `AGENTS.md` popisují současný stav: fonty, CSS třídy, strukturu, testy a PWA.
 
 ## [1.7.0] - 2026-09-24

@@ -79,7 +79,7 @@ export default function PizzaPage({
 
   const commitDelete = useCallback((rowId: number) => {
     pendingDeleteTimer.current = null;
-    actionDeletePizzaRow(rowId).catch(() => {});
+    actionDeletePizzaRow(rowId).catch((err) => console.error("Smazání řádku se nepodařilo:", err));
     setPendingDelete(null);
     pendingDeleteRef.current = null;
   }, []);
@@ -124,7 +124,7 @@ export default function PizzaPage({
       rowData = prev.find((r) => r.id === rowId);
       return prev.filter((r) => r.id !== rowId);
     });
-    if (!rowData) { actionDeletePizzaRow(rowId).catch(() => {}); return; }
+    if (!rowData) { actionDeletePizzaRow(rowId).catch((err) => console.error("Smazání řádku se nepodařilo:", err)); return; }
     const info: PizzaPendingDelete = { rowId, rowData };
     pendingDeleteRef.current = info;
     setPendingDelete(info);

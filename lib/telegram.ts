@@ -365,7 +365,9 @@ export async function deleteTelegramWebhook(): Promise<void> {
   if (!s.telegramBotToken) return;
   try {
     await fetch(`https://api.telegram.org/bot${s.telegramBotToken}/deleteWebhook`, { method: "POST" });
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn("[telegram] deleteWebhook selhalo:", (err as Error).message);
+  }
 }
 
 export async function setTelegramCommands(): Promise<{ ok: boolean; description?: string }> {

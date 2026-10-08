@@ -31,7 +31,7 @@ export function useRowDeletion({
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const commitDelete = useCallback((rowId: number) => {
-    actionDeleteRow(rowId).catch(() => {});
+    actionDeleteRow(rowId).catch((err) => console.error("Smazání řádku se nepodařilo:", err));
     setPendingDelete(null);
     pendingDeleteRef.current = null;
     pendingDeleteTimer.current = null;
@@ -43,7 +43,7 @@ export function useRowDeletion({
     clearTimeout(pendingDeleteTimer.current);
     pendingDeleteTimer.current = null;
     if (pendingDeleteRef.current) {
-      actionDeleteRow(pendingDeleteRef.current.rowId).catch(() => {});
+      actionDeleteRow(pendingDeleteRef.current.rowId).catch((err) => console.error("Smazání řádku se nepodařilo:", err));
       pendingDeleteRef.current = null;
     }
   }, []);
@@ -64,7 +64,7 @@ export function useRowDeletion({
     );
 
     if (!rowData || !dept) {
-      actionDeleteRow(rowId).catch(() => {});
+      actionDeleteRow(rowId).catch((err) => console.error("Smazání řádku se nepodařilo:", err));
       return;
     }
 
