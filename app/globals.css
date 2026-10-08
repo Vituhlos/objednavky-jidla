@@ -270,13 +270,24 @@ body {
 .pb-nav { padding-bottom: calc(6rem + var(--nav-bottom)); }
 @media (min-width: 768px) { .pb-nav { padding-bottom: 2rem; } }
 
-/* ── Mobile bottom nav + fade pod ní ── */
+/* ── Mobile bottom nav ── */
 .mobile-nav { position: fixed; left: 0.5rem; right: 0.5rem; bottom: var(--nav-bottom); z-index: 40; }
-.mobile-nav-fade {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  height: calc(4.5rem + var(--nav-bottom));
-  background: linear-gradient(to top, var(--bg) 30%, rgb(248 244 239 / 0) 100%);
-  pointer-events: none;
+@media (max-width: 767px) {
+  /* Obsah se pod navigací vytrácí maskou, ne překrytím barvou: barevný pruh
+     přes celou šířku usekl pozadí (orby) v půlce navigace. Maska se týká jen
+     rolovaného obsahu, pozadí za ním zůstává celé. */
+  .k-shell .scroll-area.pb-nav,
+  .k-shell .scroll-area:has(.pb-nav) {
+    -webkit-mask-image: linear-gradient(to top, transparent calc(var(--nav-bottom) + 1rem), #000 calc(var(--nav-bottom) + 4.75rem));
+    mask-image: linear-gradient(to top, transparent calc(var(--nav-bottom) + 1rem), #000 calc(var(--nav-bottom) + 4.75rem));
+  }
+  /* Záhlaví na mobilu nic nepřekrývá (obsah roluje pod ním, ne za ním), takže
+     mléčné sklo jen kalilo pozadí. Bez výplně splyne se stavovým řádkem. */
+  .k-shell::before,
+  .k-shell .topbar {
+    background: transparent;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
 }
 
 /* ── Nabídka „přidat na plochu" (nad mobilní navigací) ── */
