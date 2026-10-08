@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.6",
+    version: "1.8.0-rc.7",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -31,6 +31,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Po odeslání objednávky přijde upozornění „Objednávka odeslána“ těm, kdo v ní mají řádek a zapnutý zvonek.",
           "Na Androidu nabídne dlouhé podržení ikony na ploše zkratky Oběd, Jídelníček a Připomínky. iPhone to u appek z plochy neumí.",
           "Appka z plochy má na iPhonu úvodní obrazovku a na Androidu ikonu, kterou systém nezmenšuje do bílého kolečka.",
+          "Potažením dolů se na telefonu obnoví data stránky.",
           "Spodní navigace na mobilu se chová jako nativní lišta: výběr plynule přejíždí a jde táhnout prstem. Při šesti a více položkách jsou Připomínky a Nastavení pod „Více“.",
         ],
       },
@@ -55,6 +56,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Ikona appky na Androidu je oranžová jako na iPhonu a stavový řádek má barvu pozadí appky.",
           "Záhlaví hlavní stránky na mobilu má velký nadpis dne a pod ním stav uzávěrky se souhrnem; prázdné oddělení zabere jeden řádek.",
           "Přepínání dnů v objednávkách: výběr plynule přejíždí a reaguje hned, mezi dny jde přejet prstem do strany.",
+          "Jídelníček na mobilu má dny jako jeden pás přes celou šířku a jde jím listovat přejetím; dnešek je popsaný slovem „Dnes“.",
+          "Řádky objednávky se při přidání a smazání plynule přeskládají a součty se při změně krátce přetočí.",
           "Položka v menu se zvýrazní hned po kliknutí, nečeká na načtení stránky; malá tlačítka mají na telefonu větší dotykovou plochu.",
           "Chyby, které dřív zmizely beze stopy (migrace databáze, volání Telegramu, uložení PDF jídelníčku), se zapisují do logu. Chování se nemění.",
         ],
@@ -74,7 +77,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Po odeslání objednávky přijde upozornění, pokud je zapnutý zvonek.",
       "Appku jde přidat na plochu telefonu; na Androidu podržení ikony nabídne zkratky.",
       "Spodní lišta na mobilu jde přejíždět prstem a okna stáhnout dolů.",
-      "Mezi dny v objednávkách jde přejet prstem do strany.",
+      "Mezi dny v objednávkách i v jídelníčku jde přejet prstem do strany.",
+      "Potažením dolů se stránka na telefonu obnoví.",
     ],
   },
   {

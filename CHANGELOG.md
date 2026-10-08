@@ -6,6 +6,15 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.7] - 2026-10-08
+
+Sedmé zkušební vydání před 1.8.0: druhá etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.7`.
+
+### Known issues
+
+- Gesta (potažení pro obnovení, listování dnů v jídelníčku) jsou ověřená simulovanými dotyky v prohlížeči, ne prstem na telefonu.
+- Pilulka vybraného dne po přestavbě z rc.6 zatím nebyla potvrzena v Safari na iOS.
+
 ### Added
 
 - **Potažení dolů pro obnovení** na dotykových zařízeních (`app/components/PullToRefresh.tsx`). Stránka sama neroluje, takže prohlížeč vlastní potažení nenabízel a appka z plochy neměla jak obnovit data. Tah dolů od horní hrany obsahu vysune ukazatel, po přetažení přes práh se znovu načtou data stránky (`router.refresh()`) a živá objednávka (událost `app:refresh`, i u objednávky na další dny). Nebere se v otevřeném okně, v odrolovaném obsahu a při vodorovném tahu.
