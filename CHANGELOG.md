@@ -6,6 +6,20 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.1] - 2026-10-08
+
+Zkušební vydání před 1.8.0. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.1`, `stable` ani `latest` nepřepisuje. Slouží hlavně k ověření na skutečném iPhonu a Androidu.
+
+### Migration notes
+
+- Bez změny databáze, proměnných prostředí i Docker konfigurace; žádný ruční krok.
+- Appku už přidanou na plochu iPhonu je pro novou úvodní obrazovku potřeba z plochy odebrat a přidat znovu. Ostatní změny se projeví samy.
+
+### Known issues
+
+- Oprava prázdného pruhu dole na iPhonu obchází chybu WebKitu a zatím nebyla ověřena na zařízení.
+- Odstup spodní navigace od proužku gest na Androidu nebyl ověřen na zařízení.
+
 ### Added
 
 - **Stránka „Bez připojení“.** Když se appka nedostane na server, ukáže vlastní hlášku s tlačítkem „Zkusit znovu“ místo chybové stránky prohlížeče a po obnovení spojení se načte sama. Service worker si drží v cache jen tuhle jednu stránku (`public/offline.html`) a zachytává pouze načtení stránky; appka, API ani SSE se necachují.

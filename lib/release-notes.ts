@@ -19,6 +19,52 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.8.0-rc.1",
+    date: "2026-10-08",
+    title: "Appka z plochy: iPhone, offline a upozornění",
+    sections: [
+      {
+        title: "Added",
+        items: [
+          "Bez připojení appka ukáže vlastní stránku s naposledy načtenou dnešní objednávkou (jen ke čtení) a po obnovení spojení se načte sama.",
+          "Na mobilu v prohlížeči se nabídne přidání appky na plochu: na Androidu tlačítkem, na iPhonu návodem. Na iPhonu fungují upozornění až v appce z plochy.",
+          "Po odeslání objednávky přijde upozornění „Objednávka odeslána“ těm, kdo v ní mají řádek a zapnutý zvonek.",
+          "Dlouhé podržení ikony na ploše nabídne zkratky Oběd, Jídelníček a Připomínky.",
+          "Appka z plochy má na iPhonu úvodní obrazovku a na Androidu ikonu, kterou systém nezmenšuje do bílého kolečka.",
+        ],
+      },
+      {
+        title: "Fixed",
+        items: [
+          "Na iPhonu zmizel prázdný pruh dole, spodní navigace sedí níž a záhlaví stránky už není schované pod hodinami.",
+          "Po návratu do appky se objednávka sama načte znovu, i když ji telefon mezitím uspal. Když se změnil den, načte se celá stránka.",
+          "Připomínka před uzávěrkou už nechodí těm, kdo mají objednáno.",
+        ],
+      },
+      {
+        title: "Changed",
+        items: [
+          "Ikona appky na Androidu je oranžová jako na iPhonu a stavový řádek má barvu pozadí appky.",
+          "Chyby, které dřív zmizely beze stopy (migrace databáze, volání Telegramu, uložení PDF jídelníčku), se zapisují do logu. Chování se nemění.",
+        ],
+      },
+      {
+        title: "Known issues",
+        items: [
+          "Zkušební vydání: oprava pruhu na iPhonu a odstup navigace na Androidu s gesty zatím nebyly ověřeny na skutečném zařízení.",
+          "Appku už přidanou na plochu iPhonu je pro novou úvodní obrazovku potřeba odebrat a přidat znovu.",
+        ],
+      },
+    ],
+    forEveryone: [
+      "Na iPhonu zmizel prázdný pruh dole a navigace sedí níž.",
+      "Bez signálu appka ukáže naposledy načtenou dnešní objednávku.",
+      "Po návratu do appky se objednávka sama načte znovu.",
+      "Po odeslání objednávky přijde upozornění, pokud je zapnutý zvonek.",
+      "Appku jde přidat na plochu telefonu; podržení ikony nabídne zkratky.",
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-09-24",
     title: "Vyřízené připomínky, odpovědi a duplicity",
