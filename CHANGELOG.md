@@ -6,6 +6,15 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.4] - 2026-10-08
+
+Čtvrté zkušební vydání před 1.8.0: opravy oken podle zkoušky rc.3 na telefonu. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.4`.
+
+### Known issues
+
+- V Safari mimo appku z plochy je pruh u hodin žlutý (Safari si barvu bere ze stránky).
+- Gesta byla ověřena simulovanými dotyky v prohlížeči, ne prstem na telefonu.
+
 ### Fixed
 
 - **Špatně viditelná pole a tlačítka v oknech.** Pole, blok příloh a vedlejší tlačítka měly bílé okraje na bílém podkladu (styl vznikl pro průsvitné sklo) a v rc.3 o zbytek kontrastu přišly, když se okno na mobilu stalo skoro neprůhledným. V oknech mají nově bílou výplň a tmavší obrys. Okno na mobilu je jedna plná teplá plocha; záhlaví už nemá vlastní bílý podklad, který pod úchytem vypadal jako samostatný panel.
