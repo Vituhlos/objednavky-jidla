@@ -4,6 +4,7 @@ import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
 import { getSettings } from "@/lib/settings";
+import { IOS_SPLASH_SCREENS, splashSizeParam } from "@/lib/pwa-assets";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -29,6 +30,10 @@ export const metadata: Metadata = {
     capable: true,
     title: "Kantýna",
     statusBarStyle: "black-translucent",
+    startupImage: IOS_SPLASH_SCREENS.map((s) => ({
+      url: `/pwa-splash/${splashSizeParam(s)}`,
+      media: `(device-width: ${s.w}px) and (device-height: ${s.h}px) and (-webkit-device-pixel-ratio: ${s.dpr}) and (orientation: portrait)`,
+    })),
   },
 };
 

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PWA_ICONS } from "@/lib/pwa-assets";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -10,9 +11,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#f8f4ef",
     theme_color: "#f8f4ef",
     orientation: "any",
-    icons: [
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/apple-icon", sizes: "180x180", type: "image/png", purpose: "any" },
-    ],
+    icons: PWA_ICONS.map(({ variant, size, maskable }) => ({
+      src: `/pwa-icon/${variant}`,
+      sizes: `${size}x${size}`,
+      type: "image/png",
+      purpose: maskable ? "maskable" : "any",
+    })),
   };
 }

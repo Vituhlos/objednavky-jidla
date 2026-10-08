@@ -6,6 +6,12 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Stránka „Bez připojení“.** Když se appka nedostane na server, ukáže vlastní hlášku s tlačítkem „Zkusit znovu“ místo chybové stránky prohlížeče a po obnovení spojení se načte sama. Service worker si drží v cache jen tuhle jednu stránku (`public/offline.html`) a zachytává pouze načtení stránky; appka, API ani SSE se necachují.
+- **Úvodní obrazovka na iPhonu.** Appka z plochy při startu neblikne bíle: pro iPhony od SE po 17 Pro Max má spouštěcí obrázek v barvě pozadí s ikonou (`apple-touch-startup-image`, routa `/pwa-splash/[size]`, jen na výšku). iOS si obrázek ukládá při přidání na plochu, takže u už nainstalované appky se projeví až po jejím odebrání a novém přidání.
+- **Ikony pro Android.** Manifest nově nabízí ikonu 192 a 512 px a variantu `maskable` (routa `/pwa-icon/[variant]`), takže ji launcher nezmenšuje do bílého kolečka.
+
 ### Fixed
 
 - **Prázdný pruh dole v appce z plochy na iPhonu.** Se stavovým řádkem `black-translucent` počítá WebKit výšku dokumentu bez horní safe area ([bug 236445](https://bugs.webkit.org/show_bug.cgi?id=236445)), takže vše ukotvené dole končilo o výšku stavového řádku nad okrajem displeje. V režimu `display-mode: standalone` se dokument o `safe-area-inset-top` natahuje a `.k-shell` je ukotvený (`position: fixed; inset: 0`) ke stejnému viewportu jako spodní navigace a pozadí. Na skutečném iPhonu zatím neověřeno.
@@ -16,6 +22,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - **Spodní navigace na mobilu sedí níž.** Na iPhonu těsně nad home indikátorem místo nad celou safe area (proměnná `--nav-bottom`); od ní se odvíjí i spodní odsazení obsahu, toast a plovoucí tlačítko uložení v Nastavení.
 - Barva lišty prohlížeče a `theme_color` / `background_color` v manifestu odpovídají pozadí appky (`#f8f4ef`). Nainstalovaná appka na Androidu má tak stavový řádek krémový místo oranžového.
+- Ikona nainstalované appky na Androidu je oranžová jako na iPhonu a jako favicon; dosud manifest odkazoval na starší modrozelenou (`/icon`).
 
 ## [1.7.0] - 2026-09-24
 

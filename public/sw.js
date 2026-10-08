@@ -1,6 +1,34 @@
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", () => {
-  caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+// Cache drží jedinou věc: stránku „Bez připojení". Appka sama se necachuje,
+// objednávky musí být vždy živé ze serveru.
+const OFFLINE_CACHE = "offline-v1";
+const OFFLINE_URL = "/offline.html";
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE)
+      .then((cache) => cache.add(new Request(OFFLINE_URL, { cache: "reload" })))
+      .catch(() => {})
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== OFFLINE_CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+// Jen načtení stránky; API, SSE a soubory jdou mimo service worker.
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(OFFLINE_URL);
+      return cached ?? Response.error();
+    })
+  );
 });
 
 self.addEventListener("push", (event) => {
