@@ -22,7 +22,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - **Hlavička pod stavovým řádkem.** Řádek s datem a stavem objednávky byl na iPhonu schovaný pod hodinami; shell má nově nahoře podklad ve výšce `safe-area-inset-top`. Toast „Objednávka odeslána!“ se posouvá o stejnou hodnotu.
 - **Stav po návratu do appky.** Appku z plochy systém na pozadí uspí i se živým spojením a tlačítko pro obnovení stránky v ní není. Po návratu se teď objednávka stáhne znovu (po pauze delší než 30 s a po každém obnovení spojení), spojení se naváže hned místo čekání až 60 s, a když se mezitím změnil den, stránka se načte celá, aby neukazovala včerejší objednávku.
 - **Připomínka před uzávěrkou chodila i těm, kdo už objednali.** Filtr četl z řádku objednávky pole `pushEndpoint`, které se z databáze vůbec nenačítalo, takže nikoho nevyřadil. Nově se ptá přímo databáze (`getOrderedPushEndpoints`).
-- Push notifikace odkazovaly na neexistující ikonu `/icons/icon-192.png`; nově používají `/apple-icon`.
+- Push notifikace odkazovaly na neexistující ikonu `/icons/icon-192.png`; nově používají `/apple-icon`. Stejně neplatný `badge` je odebraný, Android použije výchozí.
 
 ### Changed
 
