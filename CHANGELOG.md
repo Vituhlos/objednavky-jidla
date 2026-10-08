@@ -18,6 +18,7 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ### Fixed
 
+- **Stažení editačního okna prstem nefungovalo.** Okno objednávky šlo podle kódu stáhnout tahem dolů, ale nehýbalo se: vstupní animace `sheetUp` (`both`) držela svůj koncový `transform` i po doběhnutí a přebíjela posun nastavovaný při tažení. Nově okno jede s prstem, pozadí se při tom zesvětluje, po puštění se zavře (tah přes 120 px nebo rychlé švihnutí) nebo vrátí. Táhnout jde za úchyt, záhlaví i za obsah, pokud není odrolovaný; odrolovaný obsah normálně roluje. Logika je v `app/components/useSheetDrag.ts` a dá se použít pro další okna.
 - **Přiblížení stránky po klepnutí do pole na iPhonu.** Pole s písmem menším než 16 px (například hledání v Historii) iOS po klepnutí přiblíží a stránku už nevrátí. Na dotykových zařízeních mají pole vždy aspoň 16 px.
 - Ve stavovém pruhu pod objednávkou začínal na mobilu druhý řádek tečkou („· Uzávěrka proběhla v 08:00.“); druhá věta je teď na vlastním řádku bez ní.
 - Popis zkratek na ikoně appky tvrdil, že fungují všude. Fungují na Androidu a na počítači; iOS u appek z plochy `shortcuts` z manifestu nepodporuje.
