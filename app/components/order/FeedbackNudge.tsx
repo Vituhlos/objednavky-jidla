@@ -52,7 +52,7 @@ export function FeedbackNudge() {
         <span className="text-stone-500">{line.rest}</span>
       </p>
       <Link
-        className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-xl glass-btn text-orange-700"
+        className="tap shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-xl glass-btn text-orange-700"
         href="/pripominky"
       >
         <span className="hidden sm:inline">Napsat připomínku</span>
@@ -60,7 +60,7 @@ export function FeedbackNudge() {
       </Link>
       <button
         aria-label="Skrýt na 14 dní"
-        className="shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-black/5 transition"
+        className="tap shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-black/5 transition"
         onClick={dismiss}
         title="Skrýt na 14 dní"
         type="button"

@@ -16,6 +16,7 @@ import { useCutoff } from "./order/useCutoff";
 import { useCutoffUnlock } from "./order/useCutoffUnlock";
 import { DayPicker } from "./order/DayPicker";
 import { DayStatusBar } from "./order/DayStatusBar";
+import { useDaySwipe } from "./order/useDaySwipe";
 import { FeedbackNudge } from "./order/FeedbackNudge";
 import { HelpModal } from "./order/HelpModal";
 import { OrderHeader } from "./order/OrderHeader";
@@ -117,6 +118,7 @@ export default function OrderPage({
     pickerItems,
     showDayPicker,
     daySwitchPending,
+    pendingDate,
     goToDate,
     lastOrderableBeforeClosure,
     reopensAfterClosure,
@@ -165,6 +167,21 @@ export default function OrderPage({
     flushPendingDelete();
     clearPendingDelete();
   }, [clearPendingDelete, flushPendingDelete, initialData.departments, initialData.order.id, initialData.order.sentAt, initialData.order.status]);
+
+  // ── Přepnutí dne: směr pro animaci obsahu a přejetí prstem do strany ──
+  const [dayDirection, setDayDirection] = useState<"next" | "prev">("next");
+  const currentDate = selectedDate ?? todayDate;
+  const selectDate = useCallback((date: string) => {
+    if (currentDate) setDayDirection(date >= currentDate ? "next" : "prev");
+    goToDate(date);
+  }, [currentDate, goToDate]);
+  const mainRef = useRef<HTMLElement>(null);
+  const dayIndex = availableDates && currentDate ? availableDates.indexOf(currentDate) : -1;
+  useDaySwipe(mainRef, {
+    enabled: showDayPicker && dayIndex >= 0,
+    onPrev: () => { if (availableDates && dayIndex > 0) selectDate(availableDates[dayIndex - 1]); },
+    onNext: () => { if (availableDates && dayIndex < availableDates.length - 1) selectDate(availableDates[dayIndex + 1]); },
+  });
 
   const isSent = orderStatus === "sent";
   // ── Live cutoff check ─────────────────────────────────────
@@ -471,12 +488,13 @@ export default function OrderPage({
       />
 
       {/* ── Scrollable main content ── */}
-      <main className="flex-1 overflow-y-auto scroll-area p-4">
+      <main className="flex-1 overflow-y-auto scroll-area p-4" ref={mainRef}>
         <div className="flex flex-col gap-4 pb-nav md:pb-6">
 
           {showDayPicker && (
             <DayPicker
-              onSelect={goToDate}
+              onSelect={selectDate}
+              pendingDate={pendingDate}
               pickerItems={pickerItems}
               selectedDate={selectedDate}
               todayDate={todayDate}
@@ -551,7 +569,12 @@ export default function OrderPage({
               )}
 
               {/* Department panels — 3-col on desktop */}
-              <div className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
+              {/* key = objednávka: při změně dne se mřížka znovu vloží a vjede ze
+                  strany, kterou se den posunul. */}
+              <div
+                className={`grid md:grid-cols-3 gap-4 transition-opacity duration-150 day-in day-in--${dayDirection} ${daySwitchPending ? "opacity-40 pointer-events-none" : "opacity-100"}`}
+                key={orderId}
+              >
                 {departments.map((dept) => (
                   <DepartmentPanel
                     data={dept}

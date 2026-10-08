@@ -19,8 +19,9 @@ import MIcon from "./MIcon";
  * jako dřív. Tažení je vrstva navíc: začne až po pár pixelech pohybu, takže
  * klepnutí se s ním neplete.
  *
- * Pilulka se přesune hned po volbě (`pending`), nečeká na načtení stránky.
- * Platí jen do změny adresy; kdyby navigace selhala, vrátí se na aktivní položku.
+ * Pilulka se přesune hned po volbě (`pendingHref`), nečeká na načtení stránky.
+ * Čekající volba se ruší při každé změně adresy — i při návratu tlačítkem Zpět,
+ * jinak by pilulka po návratu ukázala na stránku, ze které se odešlo.
  */
 
 export type MobileNavItem = { href: string; label: string; shortLabel: string; icon: string; exact: boolean };
@@ -51,7 +52,12 @@ export default function MobileNav({
   const gesture = useRef<{ pointerId: number; startX: number; dragging: boolean } | null>(null);
   const suppressClick = useRef(false);
   const [drag, setDrag] = useState<Drag | null>(null);
-  const [pending, setPending] = useState<{ href: string; from: string } | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    setPendingHref(null);
+  }
   // Nabídka je otevřená jen pro adresu, na které ji někdo otevřel — přechod
   // na jinou stránku ji tím sám zavře.
   const [menuOpenAt, setMenuOpenAt] = useState<string | null>(null);
@@ -70,7 +76,7 @@ export default function MobileNav({
   };
   const activeItem = items.find(isActive);
   const activeIndex = activeItem ? slotOf(activeItem.href) : -1;
-  const pendingIndex = pending && pending.from === pathname ? slotOf(pending.href) : -1;
+  const pendingIndex = pendingHref ? slotOf(pendingHref) : -1;
   const dragIndex = drag ? clamp(Math.floor(drag.x / drag.itemWidth), 0, slotCount - 1) : -1;
   const shownIndex = dragIndex >= 0 ? dragIndex : menuOpen ? moreIndex : pendingIndex >= 0 ? pendingIndex : activeIndex;
   const overflowBadge = overflow.reduce((sum, item) => sum + badgeFor(item.href), 0);
@@ -93,7 +99,7 @@ export default function MobileNav({
   const go = (href: string) => {
     setMenuOpenAt(null);
     if (activeItem?.href === href) return;
-    setPending({ href, from: pathname });
+    setPendingHref(href);
   };
 
   const measure = (clientX: number): Drag | null => {

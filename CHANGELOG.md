@@ -6,6 +6,20 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- **Přepínání dnů v objednávkách.** Vybraný den značí pilulka, která mezi dny klouže a přesune se hned po volbě, nečeká na odpověď serveru. Vybraný den se sám doroluje do zorného pole, obsah po přepnutí vjede ze strany, kterou se den posunul, a mezi dny jde přejet prstem do strany (`useDaySwipe`; ne od okrajů displeje, kde má iOS návrat zpět, a ne v pásu dnů).
+- **Načítací kostra mezi stránkami** (`app/loading.tsx`). Po klepnutí na jinou stránku se na pomalém připojení dřív chvíli nedělo nic; kostra se ukáže po 180 ms, aby při rychlém načtení neproblikla.
+- **Větší dotykové plochy** na dotykových zařízeních (třída `.tap`, aspoň 44 px): zavření pozvánky k připomínkám, „Napsat“, „Odemknout“, PDF v jídelníčku, „Historie“ a „Znovu otevřít“ v detailu objednávky. Na počítači beze změny.
+- Zkratky dnů v jídelníčku mají 11 px místo 9,5 px.
+
+### Fixed
+
+- **Žlutá lišta u hodin v Safari.** Safari barví lištu podle prvku u horní hrany stránky. Plný pruh v barvě pozadí měl výšku jen v appce z plochy; nově ji má na mobilu i v prohlížeči a leží nad žlutým pruhem „odpojeno“, podle kterého se lišta barvila.
+- **Nabídka instalace přes celý desktop.** Karta „Kantýna jako appka“ měla být jen na mobilu, ale její `display: flex` přebil `md:hidden` a na počítači se roztáhla přes celou šířku.
+- **Pilulka na špatné položce po návratu.** Po návratu tlačítkem Zpět mohla pilulka ve spodní navigaci ukázat na stránku, ze které se odešlo. Čekající volba se nově ruší při každé změně adresy.
+- **Zešedlé panely po návratu na předchozí den.** Čekající den v `useDayNavigation` zůstal po návratu tlačítkem Zpět viset, panely zůstaly zešedlé a neklikatelné. Ruší se při každé změně vybraného dne.
+
 ## [1.8.0-rc.4] - 2026-10-08
 
 Čtvrté zkušební vydání před 1.8.0: opravy oken podle zkoušky rc.3 na telefonu. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.4`.
