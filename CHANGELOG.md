@@ -6,6 +6,17 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Potažení dolů pro obnovení** na dotykových zařízeních (`app/components/PullToRefresh.tsx`). Stránka sama neroluje, takže prohlížeč vlastní potažení nenabízel a appka z plochy neměla jak obnovit data. Tah dolů od horní hrany obsahu vysune ukazatel, po přetažení přes práh se znovu načtou data stránky (`router.refresh()`) a živá objednávka (událost `app:refresh`, i u objednávky na další dny). Nebere se v otevřeném okně, v odrolovaném obsahu a při vodorovném tahu.
+- **Animace řádků objednávky.** Nově přidaný řádek vjede; po smazání řádku ostatní plynule dojedou na místo (`useFlipList`, stejný mechanismus jako u hlasování v připomínkách).
+- **Animovaná čísla.** Součet oddělení, souhrn v záhlaví a ve stavovém pruhu se při změně krátce „přetočí“ (`AnimatedNumber`); při prvním vykreslení se neanimují.
+- **Klouzavá pilulka v jídelníčku** u přepínače týdnů a dnů. Logika pilulky je vytažená do `useSlidingPill` a sdílí ji s přepínačem dnů v objednávkách.
+
+### Changed
+
+- **Přechod mezi stránkami** je krátké prolnutí nové stránky z pozadí (160 ms, jen průhlednost). Nativní přechody (`ViewTransition`) dokumentace Next.js popisuje až pro React 19.3; projekt má 19.2, takže by šlo o experimentální funkci.
+
 ### Fixed
 
 - **Stylopis emoji pořád blokoval první vykreslení.** V rc.6 se přesunul z `head` na konec `body`, jenže `<link rel="stylesheet">` vložený parserem blokuje vykreslení i tam — prohlížeč se o něm jen dozví později. Nově ho vkládá skript po načtení stránky (`app/components/EmojiFont.tsx`), takže vykreslení neblokuje; do té doby kreslí emoji systémové písmo.

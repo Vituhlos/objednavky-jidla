@@ -6,6 +6,7 @@ import EmojiFont from "./components/EmojiFont";
 import AppTopBar from "./components/AppTopBar";
 import InstallHint from "./components/InstallHint";
 import SheetDragManager from "./components/SheetDragManager";
+import PullToRefresh from "./components/PullToRefresh";
 import { getSettings } from "@/lib/settings";
 import { IOS_SPLASH_SCREENS, PWA_BG, splashSizeParam } from "@/lib/pwa-assets";
 
@@ -71,6 +72,7 @@ export default function RootLayout({
         {children}
         <InstallHint />
         <SheetDragManager />
+        <PullToRefresh />
         <SwRegister />
         <EmojiFont />
       </body>

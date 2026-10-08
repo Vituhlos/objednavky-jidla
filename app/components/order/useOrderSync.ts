@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { DepartmentData } from "@/lib/types";
 import { getPragueISODate } from "@/lib/time";
+import { APP_REFRESH_EVENT } from "../PullToRefresh";
 
 /** Po takhle dlouhé pauze na pozadí se stav po návratu stáhne znovu. */
 const STALE_AFTER_HIDDEN_MS = 30_000;
@@ -74,9 +75,11 @@ export function useOrderSync({
   const tabNotifCount = useRef(0);
   const originalTitle = useRef<string>("");
 
-  const doRefresh = useCallback(() => {
+  // `force`: výslovná žádost uživatele (potažení dolů). Živé události se u objednávky
+  // dopředu neposlouchají, ale na požádání se má stáhnout i ta.
+  const doRefresh = useCallback((force = false) => {
     if (isPendingRef.current) return;
-    if (isFutureDayRef.current) return;
+    if (isFutureDayRef.current && !force) return;
     // Cancel any in-flight refresh for a previous date
     refreshAbortRef.current?.abort();
     const ac = new AbortController();
@@ -118,7 +121,11 @@ export function useOrderSync({
     };
     window.addEventListener("focus", resetTitle);
     document.addEventListener("visibilitychange", onVisibility);
+    // Potažení dolů (PullToRefresh): stav objednávky si klient drží sám.
+    const onAppRefresh = () => doRefresh(true);
+    window.addEventListener(APP_REFRESH_EVENT, onAppRefresh);
     return () => {
+      window.removeEventListener(APP_REFRESH_EVENT, onAppRefresh);
       window.removeEventListener("focus", resetTitle);
       document.removeEventListener("visibilitychange", onVisibility);
       document.title = originalTitle.current;

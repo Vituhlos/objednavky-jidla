@@ -1,6 +1,7 @@
 "use client";
 
 import type { MenuWeek } from "@/app/jidelnicek/page";
+import { useSlidingPill } from "../useSlidingPill";
 import type { MenuItem } from "@/lib/types";
 import { MenuDaySection } from "./MenuDaySection";
 import { WeekClosurePanel } from "./WeekClosurePanel";
@@ -46,6 +47,8 @@ export function MenuWorkspace({
   onCloseDay,
   onOpenDay,
 }: MenuWorkspaceProps) {
+  // Hook musí být před předčasným návratem níž.
+  const dayTrackRef = useSlidingPill<HTMLDivElement>(activeDay);
   if (activeWeekData.weekClosure) {
     return <WeekClosurePanel closure={activeWeekData.weekClosure} />;
   }
@@ -56,7 +59,7 @@ export function MenuWorkspace({
   return (
     <>
       {/* Day tabs — mobile only */}
-      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0">
+      <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar px-4 py-2 shrink-0" ref={dayTrackRef}>
         {DAY_ORDER.map((day) => {
           const active = activeDay === day;
           const isToday = day === visibleTodayCode;
@@ -64,14 +67,14 @@ export function MenuWorkspace({
           return (
             <button
               key={day}
-              className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
+              className={`relative isolate shrink-0 flex flex-col items-center px-3 py-2 rounded-xl active:scale-[0.95] transition ${!hasData && !active ? "opacity-40" : ""}`}
+              data-pill-key={day}
               onClick={() => onSelectDay(day)}
-              style={active
-                ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 14px -4px rgba(245,158,11,0.55)" }
-                : { background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.7)" }
-              }
+              /* Pozadí mají všechny dny stejné; vybraný ho překrývá pilulkou, která mezi dny klouže. */
+              style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}
               type="button"
             >
+              {active && <span aria-hidden="true" className="day-pill" data-pill />}
               <span className={`text-[11px] font-bold uppercase tracking-wide leading-none ${active ? "text-white/80" : "text-stone-500"}`}>{day}</span>
               <span className={`font-display font-bold text-[14px] leading-tight mt-0.5 ${active ? "text-white" : "text-stone-700"}`}>{dayDates[day]}</span>
               {isToday && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: active ? "rgba(255,255,255,0.8)" : "#F59E0B" }} />}
