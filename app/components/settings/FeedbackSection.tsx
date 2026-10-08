@@ -450,7 +450,7 @@ function FeedbackItem({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+              className="glass-btn btn-md shrink-0 text-stone-600"
               disabled={!textsDirty || isPending}
               onClick={() => persist({ adminNote, publicReply, voteTitle })}
             >

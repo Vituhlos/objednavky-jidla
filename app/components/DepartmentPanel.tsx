@@ -95,8 +95,7 @@ function DepartmentPanelInner({ data, soups, meals, isSent, existingNames = [], 
               type="button"
               disabled={isAdding}
               onClick={handleAddAndOpen}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white shrink-0 disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
-              style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
+              className="btn-primary btn-sm shrink-0"
             >
               {isAdding
                 ? <MIcon name="refresh" size={14} style={{ animation: "k-spin 0.8s linear infinite" }} />

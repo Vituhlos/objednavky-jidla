@@ -62,7 +62,7 @@ export function MenuImportDialog({
           </h3>
           <button
             aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 font-bold"
+            className="glass-btn btn-icon text-stone-500 font-bold"
             onClick={onClose}
             type="button"
           >
@@ -102,17 +102,15 @@ export function MenuImportDialog({
                 <div className="ml-auto flex items-center gap-1.5">
                   <span className="text-[11px] text-stone-400">Uložit jako:</span>
                   <button
-                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${state.targetWeekStart === currentWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
+                    className={`btn-sm ${state.targetWeekStart === currentWeekStart ? "btn-primary" : "glass-btn text-stone-600"}`}
                     onClick={onSelectCurrentWeek}
-                    style={state.targetWeekStart === currentWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                     type="button"
                   >
                     Aktuální
                   </button>
                   <button
-                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${state.targetWeekStart === nextWeekStart ? "text-white" : "glass-btn text-stone-600"}`}
+                    className={`btn-sm ${state.targetWeekStart === nextWeekStart ? "btn-primary" : "glass-btn text-stone-600"}`}
                     onClick={onSelectNextWeek}
-                    style={state.targetWeekStart === nextWeekStart ? { background: "linear-gradient(135deg,#F59E0B,#EA580C)" } : {}}
                     type="button"
                   >
                     Příští

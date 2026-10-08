@@ -59,7 +59,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <h3 className="modal-sheet__title" id="help-modal-title">Jak objednat oběd</h3>
           <button
             aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+            className="glass-btn btn-icon text-stone-500 text-lg font-bold leading-none"
             onClick={onClose}
             type="button"
           >×</button>

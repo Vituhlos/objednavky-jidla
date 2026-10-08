@@ -58,7 +58,7 @@ function BackButton({ mobile }: { mobile?: boolean }) {
   return (
     <Link
       href="/historie"
-      className={`tap inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+      className={`glass-btn btn-sm text-stone-600 shrink-0 ${mobile ? "-ml-1" : ""}`}
     >
       <MIcon name="arrow_back" size={mobile ? 15 : 13} />
       <span>Historie</span>

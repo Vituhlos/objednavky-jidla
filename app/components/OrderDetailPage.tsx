@@ -19,7 +19,7 @@ function BackButton({ mobile }: { mobile?: boolean }) {
   return (
     <Link
       href="/historie"
-      className={`tap inline-flex items-center gap-1 font-semibold rounded-full glass-btn text-stone-600 shrink-0 ${mobile ? "text-[13px] px-2 py-1 -ml-1" : "text-[12px] px-2.5 py-1"}`}
+      className={`glass-btn btn-sm text-stone-600 shrink-0 ${mobile ? "-ml-1" : ""}`}
     >
       <MIcon name="arrow_back" size={mobile ? 15 : 13} />
       <span>Historie</span>
@@ -42,7 +42,7 @@ function ReopenButton({ canReopen, onReopen, pending, small }: { canReopen: bool
   if (!canReopen) return null;
   return (
     <button
-      className={`tap inline-flex items-center gap-1.5 font-semibold rounded-full glass-btn text-stone-600 ${small ? "text-[11px] px-2.5 py-1.5" : "text-[12px] px-3.5 py-2"}`}
+      className={`glass-btn ${small ? "btn-sm" : "btn-md"} text-stone-600`}
       disabled={pending}
       onClick={onReopen}
       type="button"
@@ -85,13 +85,13 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                 href={`/api/orders/${order.id}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
+                className="glass-btn btn-sm text-stone-600"
               >
                 <MIcon name="picture_as_pdf" size={14} /> Zobrazit PDF
               </a>
               <a
                 href={`/api/orders/${order.id}/pdf?download=1`}
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full glass-btn text-stone-600"
+                className="glass-btn btn-sm text-stone-600"
               >
                 <MIcon name="download" size={14} /> Stáhnout
               </a>
@@ -122,13 +122,13 @@ export default function OrderDetailPage({ data, hasPdf = false }: { data: OrderD
                 href={`/api/orders/${order.id}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
+                className="glass-btn btn-sm text-stone-600"
               >
                 <MIcon name="picture_as_pdf" size={13} /> PDF
               </a>
               <a
                 href={`/api/orders/${order.id}/pdf?download=1`}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full glass-btn text-stone-600"
+                className="glass-btn btn-sm text-stone-600"
               >
                 <MIcon name="download" size={13} /> Stáhnout
               </a>

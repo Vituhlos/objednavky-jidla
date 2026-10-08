@@ -31,7 +31,7 @@ function HideEmptyToggle({
         <div className="w-8 h-[18px] rounded-full bg-black/15 transition-colors peer-checked:[background:linear-gradient(135deg,#F59E0B,#EA580C)]" />
         <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[14px]" />
       </div>
-      <span className="text-[11px] md:text-[12px] text-stone-600">{label}</span>
+      <span className="text-[11px] md:text-[12px] text-stone-600 whitespace-nowrap">{label}</span>
     </label>
   );
 }
@@ -67,14 +67,14 @@ export default function HistoryPage({
 
       {/* Desktop topbar */}
       <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
-        <span className="font-display font-bold text-[15px] text-stone-900 flex-1">Historie objednávek</span>
-        <span className="text-[12px] text-stone-500">
+        <span className="font-display font-bold text-[15px] text-stone-900 flex-1 whitespace-nowrap">Historie objednávek</span>
+        <span className="text-[12px] text-stone-500 whitespace-nowrap">
           <strong className="text-stone-700">{sentCount}</strong> {plural(sentCount, "oběd", "obědy", "obědů")}
           {pizzaEnabled && <> · <strong className="text-stone-700">{pizzaSentCount}</strong> {plural(pizzaSentCount, "pizza", "pizzy", "pizz")}</>}
         </span>
         <HideEmptyToggle checked={hideEmpty} label="Skrýt prázdné koncepty" onChange={setHideEmpty} />
         <input
-          className="modal-input !py-1.5 !text-[12px] w-56"
+          className="modal-input !py-1.5 !text-[12px] !w-56 shrink-0"
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Hledat (datum, e-mail)…"
           type="search"

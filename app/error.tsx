@@ -22,6 +22,8 @@ export default function GlobalError({
       odkud: window.location.pathname,
       chyba: detail.slice(0, 300),
     });
+    // Záměrně plné načtení, ne router: po chybě chceme stránku s čistým stavem.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/pripominky?${params.toString()}`;
   };
 

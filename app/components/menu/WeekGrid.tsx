@@ -104,7 +104,7 @@ export const WeekGrid = memo(function WeekGrid({
                     </span>
                     {editMode && (
                       <button
-                        className="text-[12px] font-semibold px-2.5 py-1 rounded-xl glass-btn text-stone-600"
+                        className="glass-btn btn-sm text-stone-600"
                         disabled={disabled}
                         onClick={() => onOpenDay(day)}
                         type="button"
@@ -128,10 +128,9 @@ export const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat polévku"
-                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
+                          className="btn-primary btn-sm ml-auto"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Polévka" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
                         ><MIcon name="add" size={13} />Přidat</button>
                       )}
@@ -151,10 +150,9 @@ export const WeekGrid = memo(function WeekGrid({
                       {editMode && (
                         <button
                           aria-label="Přidat jídlo"
-                          className="ml-auto inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-semibold text-white hover:opacity-80 transition"
+                          className="btn-primary btn-sm ml-auto"
                           disabled={disabled}
                           onClick={() => onAdd(day, "Jídlo" as const)}
-                          style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
                           type="button"
                         ><MIcon name="add" size={13} />Přidat</button>
                       )}
@@ -168,7 +166,7 @@ export const WeekGrid = memo(function WeekGrid({
                 {editMode && (
                   <div className="pt-1.5 pb-0.5">
                     <button
-                      className="w-full text-[10.5px] font-semibold py-1.5 rounded-xl glass-btn-danger text-red-600"
+                      className="glass-btn-danger btn-sm w-full text-red-600"
                       disabled={disabled}
                       onClick={() => onCloseDay(day)}
                       type="button"

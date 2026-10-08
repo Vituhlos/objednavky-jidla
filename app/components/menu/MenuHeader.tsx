@@ -56,14 +56,14 @@ export function MenuHeader({
           <span className="text-[12px] text-stone-500">Týden <strong className="text-stone-700">{activeWeekLabel}</strong></span>
         )}
         {hasPdfActive && (
-          <a className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600"
+          <a className="glass-btn btn-sm text-stone-600"
             download href={`/api/menu/pdf/${activeWeekStart}`}>
             ↓ PDF
           </a>
         )}
         <div className="ml-auto flex items-center gap-2">
           <button
-            className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn ${editMode ? "text-stone-900" : "text-stone-600"}`}
+            className={`glass-btn btn-md ${editMode ? "text-stone-900" : "text-stone-600"}`}
             onClick={onToggleEdit}
             type="button"
           >
@@ -71,7 +71,7 @@ export function MenuHeader({
           </button>
           {canDeleteActiveWeek && (
             <button
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn-danger active:scale-[0.97] transition disabled:opacity-50"
+              className="glass-btn-danger btn-md"
               disabled={isPending}
               onClick={onRequestDeleteWeek}
               type="button"
@@ -80,7 +80,7 @@ export function MenuHeader({
             </button>
           )}
           <button
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+            className="glass-btn btn-md text-stone-600"
             onClick={onOpenImport}
             type="button"
           >
@@ -97,7 +97,7 @@ export function MenuHeader({
           {hasPdfActive && (
             <a
               aria-label="Stáhnout PDF jídelníčku"
-              className="tap inline-flex items-center justify-center w-10 rounded-xl glass-btn text-stone-600 shrink-0"
+              className="glass-btn btn-icon text-stone-600 shrink-0"
               download
               href={`/api/menu/pdf/${activeWeekStart}`}
             >
@@ -106,7 +106,7 @@ export function MenuHeader({
           )}
           {isCurrentWeek && (
             <button
-              className={`tap inline-flex items-center text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn shrink-0 ${editMode ? "text-stone-900" : "text-stone-600"}`}
+              className={`glass-btn btn-sm shrink-0 ${editMode ? "text-stone-900" : "text-stone-600"}`}
               onClick={onToggleEdit}
               type="button"
             >
@@ -114,7 +114,7 @@ export function MenuHeader({
             </button>
           )}
           <button
-            className="tap inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
+            className="glass-btn btn-sm text-stone-600 shrink-0"
             onClick={onOpenImport}
             type="button"
           >

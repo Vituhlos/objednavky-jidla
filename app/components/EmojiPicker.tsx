@@ -123,7 +123,7 @@ export function EmojiPicker({ value, onChange }: { value: string; onChange: (ico
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="Vybrat ikonu"
-        className="w-11 h-11 rounded-2xl glass-btn inline-flex items-center justify-center active:scale-[0.97] transition"
+        className="glass-btn btn-icon"
         onClick={() => setOpen((v) => !v)}
         ref={triggerRef}
         type="button"

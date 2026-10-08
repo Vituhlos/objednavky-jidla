@@ -203,7 +203,7 @@ export function ClosuresSection({ isActive }: { isActive: boolean }) {
         </div>
       ) : (
         <button
-          className="self-start inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-xl glass-btn text-stone-600"
+          className="glass-btn btn-sm self-start text-stone-600"
           onClick={() => setShowAddClosure(true)}
           type="button"
         >

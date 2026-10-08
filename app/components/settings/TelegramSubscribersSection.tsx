@@ -71,7 +71,7 @@ export function TelegramSubscribersSection({
                       await actionSetTelegramAdmin(sub.chatId, !sub.isAdmin);
                       onChange((prev) => prev.map((s) => s.chatId === sub.chatId ? { ...s, isAdmin: !s.isAdmin } : s));
                     }}
-                    className="text-[11px] px-2 py-1 rounded-lg glass-btn text-stone-500 font-medium"
+                    className="glass-btn btn-sm text-stone-500"
                     title={sub.isAdmin ? "Odebrat admin" : "Nastavit jako admin"}
                   >
                     {sub.isAdmin ? "→ User" : "→ Admin"}
@@ -82,7 +82,7 @@ export function TelegramSubscribersSection({
                       await actionRemoveTelegramSubscription(sub.chatId);
                       onChange((prev) => prev.filter((s) => s.chatId !== sub.chatId));
                     }}
-                    className="w-7 h-7 rounded-lg glass-btn flex items-center justify-center text-red-400"
+                    className="glass-btn btn-icon btn-icon--sm text-red-400"
                     title="Odebrat"
                   >
                     <MIcon name="close" size={14} />

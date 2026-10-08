@@ -18,7 +18,7 @@ export function ProposalForm({ getPin, onChange }: { getPin: () => string; onCha
   if (!open) {
     return (
       <button
-        className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+        className="glass-btn btn-md self-start text-stone-600"
         onClick={() => setOpen(true)}
         type="button"
       >
@@ -74,7 +74,7 @@ export function ProposalForm({ getPin, onChange }: { getPin: () => string; onCha
       {error && <p className="text-[12px] text-red-500" role="alert">{error}</p>}
       <div className="flex items-center gap-2">
         <button
-          className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-700"
+          className="glass-btn btn-md text-stone-700"
           disabled={isPending || title.trim().length < 3}
           type="submit"
         >

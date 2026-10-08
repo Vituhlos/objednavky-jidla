@@ -82,7 +82,7 @@ export function AboutSection({ isActive }: { isActive: boolean }) {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap text-[12px]">
-                      <a className="inline-flex items-center gap-1.5 font-semibold px-3 py-2 rounded-2xl glass-btn text-stone-600" href="/api/version" rel="noreferrer" target="_blank">
+                      <a className="glass-btn btn-md text-stone-600" href="/api/version" rel="noreferrer" target="_blank">
                         <MIcon name="info" size={14} /> JSON diagnostika
                       </a>
                       <span className="text-stone-400">Technická adresa pro podporu, monitoring a ověření nasazené verze.</span>
@@ -95,7 +95,7 @@ export function AboutSection({ isActive }: { isActive: boolean }) {
                     <div className="modal-sheet" role="dialog" aria-modal="true" style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
                       <div className="modal-sheet__header">
                         <h3 className="modal-sheet__title">Co je nového</h3>
-                        <button aria-label="Zavřít" className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold" onClick={() => setShowReleaseNotes(false)} type="button">×</button>
+                        <button aria-label="Zavřít" className="glass-btn btn-icon text-stone-500 text-lg font-bold" onClick={() => setShowReleaseNotes(false)} type="button">×</button>
                       </div>
                       <div className="modal-sheet__body space-y-4">
                         {RELEASE_NOTES.map((note) => (

@@ -69,7 +69,7 @@ export function OrderHeader({
     {/* min-h: the bar used to shrink by 7px whenever "Odeslat" was absent (future days,
         already sent, auto-send on) – it is the tallest child, so the row collapsed
         with it. Reserving its height keeps the header still while switching days. */}
-    <div className="hidden md:flex px-5 py-2.5 min-h-[60px] border-b border-white/50 items-center gap-4 topbar shrink-0">
+    <div className="hidden md:flex px-5 py-2.5 border-b border-white/50 items-center gap-4 topbar shrink-0">
       <span className="font-display font-bold text-[15px] text-stone-900 shrink-0">{dayStr}</span>
       <span
         className={`w-1.5 h-1.5 rounded-full shrink-0 ${sseConnected ? "bg-green-400" : "bg-slate-300"}`}
@@ -110,10 +110,9 @@ export function OrderHeader({
       {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
         <div className="flex items-center gap-2 shrink-0">
           <button
-            className="px-4 py-2.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+            className="btn-primary btn-md"
             disabled={isPending}
             onClick={() => { if (activeOrderCount === 0) { onEmptyOrder(); return; } onSend(); }}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             type="button"
           >
             {isPending ? "Odesílám…" : "Odeslat"}
@@ -123,7 +122,7 @@ export function OrderHeader({
       {sendError && <span className="text-[11.5px] text-red-600">{sendError}</span>}
       <button
         aria-label="Nápověda"
-        className="w-8 h-8 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-stone-600 shrink-0"
+        className="glass-btn btn-icon btn-icon--sm text-stone-400 hover:text-stone-600 shrink-0"
         onClick={onHelp}
         type="button"
       >
@@ -150,7 +149,7 @@ export function OrderHeader({
         )}
         <button
           aria-label="Nápověda"
-          className="w-10 h-10 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 shrink-0"
+          className="glass-btn btn-icon text-stone-400 shrink-0"
           onClick={onHelp}
           type="button"
         >
@@ -197,10 +196,9 @@ export function OrderHeader({
         )}
         {!isSent && !isFutureDay && !noMenu && !autoSendEnabled && (
           <button
-            className="ml-auto shrink-0 px-4 py-1.5 min-h-[36px] rounded-full text-[12.5px] font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition"
+            className="btn-primary btn-md ml-auto shrink-0"
             disabled={isPending}
             onClick={() => { if (activeOrderCount === 0) { onEmptyOrder(); return; } onSend(); }}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)", boxShadow: "0 4px 12px -4px rgba(245,158,11,0.4)" }}
             type="button"
           >
             {isPending ? "Odesílám…" : "Odeslat"}

@@ -111,7 +111,7 @@ export function FeedbackAttachments({
             />
             <button
               aria-label="Zavřít"
-              className="absolute -top-3 -right-3 w-10 h-10 rounded-full glass-btn inline-flex items-center justify-center text-stone-600"
+              className="glass-btn btn-icon absolute -top-3 -right-3 text-stone-600"
               onClick={() => setOpen(null)}
               type="button"
             >

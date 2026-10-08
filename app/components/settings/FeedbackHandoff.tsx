@@ -33,7 +33,7 @@ export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
       <span className="modal-label">Předat k řešení</span>
       <div className="flex items-center gap-2 flex-wrap">
         <button
-          className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+          className="glass-btn btn-md shrink-0 text-stone-600"
           onClick={copy}
           type="button"
         >
@@ -42,7 +42,7 @@ export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
         </button>
         {entry.githubIssue ? (
           <a
-            className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+            className="glass-btn btn-md shrink-0 text-stone-600"
             href={`${GITHUB_REPO_URL}/issues/${entry.githubIssue}`}
             rel="noopener noreferrer"
             target="_blank"
@@ -53,7 +53,7 @@ export function FeedbackHandoff({ entry }: { entry: FeedbackEntry }) {
           </a>
         ) : (
           <a
-            className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+            className="glass-btn btn-md shrink-0 text-stone-600"
             href={buildGithubIssueUrl(entry)}
             onClick={() => window.dispatchEvent(new CustomEvent(ISSUE_PENDING_EVENT, { detail: entry.id }))}
             rel="noopener noreferrer"

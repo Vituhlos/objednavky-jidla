@@ -52,7 +52,7 @@ export function FeedbackNudge() {
         <span className="text-stone-500">{line.rest}</span>
       </p>
       <Link
-        className="tap shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-xl glass-btn text-orange-700"
+        className="glass-btn btn-md shrink-0 text-orange-700"
         href="/pripominky"
       >
         <span className="hidden sm:inline">Napsat připomínku</span>

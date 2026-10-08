@@ -38,10 +38,9 @@ export const MenuSection = memo(function MenuSection({
         <span className="font-display font-bold text-[13.5px] text-stone-900 flex-1">{title}</span>
         {editMode && onAdd && (
           <button
-            className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-50 hover:opacity-[0.88] active:scale-[0.97] transition"
+            className="btn-primary btn-sm"
             disabled={disabled}
             onClick={onAdd}
-            style={{ background: "linear-gradient(135deg,#F59E0B,#EA580C)" }}
             type="button"
           >
             <MIcon name="add" size={13} /> Přidat

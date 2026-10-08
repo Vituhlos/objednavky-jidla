@@ -40,7 +40,7 @@ export function SettingsSection({
             type="button"
             onClick={() => setShowHelp((v) => !v)}
             aria-label="Nápověda"
-            className="w-7 h-7 rounded-full glass-btn inline-flex items-center justify-center text-stone-400 hover:text-amber-600 transition"
+            className="glass-btn btn-icon btn-icon--sm text-stone-400 hover:text-amber-600"
           >
             <MIcon name="info" size={15} />
           </button>

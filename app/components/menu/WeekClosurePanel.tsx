@@ -10,7 +10,7 @@ import ClosureCard from "../ClosureCard";
 // in ClosureCard — the order screen shows the same one for a closed day.
 export function WeekClosurePanel({ closure }: { closure: WeekClosure }) {
   return (
-    <div className="flex-1 overflow-y-auto scroll-area px-4 pb-nav md:pb-8 pt-3">
+    <div className="flex-1 overflow-y-auto scroll-area px-4 md:px-5 pb-nav md:pb-8 pt-3 md:pt-5">
       <ClosureCard closure={closure} />
     </div>
   );

@@ -6,6 +6,27 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.8] - 2026-10-08
+
+Osmé zkušební vydání před 1.8.0: novější React a Next.js, přepnutí dne přes nativní přechody a sjednocená tlačítka. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.8`.
+
+### Known issues
+
+- Přepnutí dne (starý den odjede, nový přijede) je ověřené v Chromiu, ne v Safari na iPhonu. Bez podpory View Transitions se den vymění bez animace.
+- Tlačítka v Nastavení jsou převedená na jednotné velikosti stejně jako jinde, ale stránka za PINem nebyla prohlédnutá očima.
+- Tabulka v Historii má na počítači oříznutý sloupec s doplňkovým e-mailem.
+
+### Changed
+
+- **Jednotná tlačítka** — tlačítka mají tři velikosti (běžné, malé, ikonové) a stejné zaoblení napříč appkou; dřív jich bylo osm kombinací odsazení a čtyři různá zaoblení. Oranžová tlačítka (Přidat, Odeslat objednávku, Nainstalovat) mají stejný tvar jako ostatní místo dřívější „pilulky“. Na telefonu mají všechna výšku aspoň 40 px, běžná a ikonová 44 px.
+- **Jednotné okraje a záhlaví** — obsah má na počítači všude stejný okraj a záhlaví stránek stejnou výšku, takže při přechodu mezi stránkami obsah neposkočí.
+- **Přepnutí dne jako skutečná výměna obsahu** — v objednávkách i v jídelníčku na mobilu starý den odjede do strany a nový zároveň přijede (dřív jen nový den „vjel“ na místo starého). Na počítači se dny plynule prolnou. Staví na nativních přechodech z Reactu 19.3 (`<ViewTransition>`); v prohlížeči bez podpory View Transitions se den vymění bez animace.
+- **Aktualizace Reactu a Next.js** — React 19.2 → 19.3, Next.js 16.2 → 16.4 (včetně `eslint-config-next` a typů). Chování appky se nemění. `pdfkit` a `pdf-parse` zůstávají záměrně na stávajících verzích.
+
+### Fixed
+
+- **Historie na počítači:** nadpis „Historie objednávek“ se v záhlaví zalamoval na dva řádky, protože ho vyhledávací pole vytlačilo.
+
 ## [1.8.0-rc.7] - 2026-10-08
 
 Sedmé zkušební vydání před 1.8.0: druhá etapa dotažení mobilního rozhraní. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.7`.

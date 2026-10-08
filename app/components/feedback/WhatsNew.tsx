@@ -71,7 +71,7 @@ function AllNotesModal({ notes, onClose }: { notes: PublicReleaseNote[]; onClose
           <h3 className="modal-sheet__title" id="whats-new-modal-title">Co je nového</h3>
           <button
             aria-label="Zavřít"
-            className="w-11 h-11 rounded-full glass-btn inline-flex items-center justify-center text-stone-500 text-lg font-bold leading-none"
+            className="glass-btn btn-icon text-stone-500 text-lg font-bold leading-none"
             onClick={onClose}
             type="button"
           >×</button>

@@ -127,7 +127,7 @@ export function BackupSection({
         Stáhněte zálohu objednávek, jídelníčků, oddělení a nastavení ve formátu JSON, nebo obnovte data ze starší zálohy.
       </p>
       <button
-        className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600"
+        className="glass-btn btn-md self-start text-stone-600"
         onClick={handleDownload}
         type="button"
       >
@@ -151,7 +151,7 @@ export function BackupSection({
             type="file"
           />
           <label
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl glass-btn text-stone-600 cursor-pointer"
+            className="glass-btn btn-md text-stone-600"
             htmlFor="restore-file-input"
           >
             <MIcon name="upload_file" size={14} /> Vybrat soubor zálohy
