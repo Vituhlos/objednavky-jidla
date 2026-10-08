@@ -6,6 +6,11 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pozadí na mobilu končilo v půlce spodní navigace.** Obsah pod navigací zakrýval pruh v barvě pozadí přes celou šířku, který zároveň usekl barevné pozadí stránky. Obsah se teď pod navigací vytrácí maskou na rolované oblasti a pozadí zůstává celé.
+- **Zakalené záhlaví na mobilu.** Záhlaví stránky a podklad pod stavovým řádkem měly mléčné sklo, i když pod nimi nic neroluje; na telefonu to vypadalo jako rozmazaný pruh. Na mobilu jsou bez výplně, na desktopu beze změny.
+
 ## [1.8.0-rc.1] - 2026-10-08
 
 Zkušební vydání před 1.8.0. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.1`, `stable` ani `latest` nepřepisuje. Slouží hlavně k ověření na skutečném iPhonu a Androidu.

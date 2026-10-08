@@ -105,9 +105,6 @@ export default function AppTopBar({ pizzaEnabled = true }: { pizzaEnabled?: bool
         </div>
       </aside>
 
-      {/* ── Mobile bottom fade (masks background bleed under nav) ── */}
-      <div aria-hidden="true" className="md:hidden mobile-nav-fade" />
-
       {/* ── Mobile bottom nav (fixed pill, hidden on desktop) ── */}
       <nav aria-label="Navigace" className="md:hidden mobile-nav">
         <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
