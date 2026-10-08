@@ -329,6 +329,20 @@ body {
   margin: 0 calc(-1 * env(safe-area-inset-right, 0px)) 0 calc(-1 * env(safe-area-inset-left, 0px));
   background: rgba(255,255,255,0.42);
 }
+/* Plný pruh pod stavovým řádkem iOS. Od iOS 26 systém přes horní okraj appky
+   z plochy kreslí rozostření (text záhlaví byl neostrý) a CSS ho vypnout neumí.
+   WebKit ho vynechá jen tehdy, když u horní hrany leží fixed prvek přes celou
+   šířku s jednou plnou barvou — tu pak protáhne do systémové oblasti. Proto
+   plná barva bez průhlednosti a bez pointer-events: none (prvek musí být
+   „vidět" při vzorkování). Mimo appku z plochy má nulovou výšku. */
+.status-bar-fill {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+}
+@media (display-mode: standalone) {
+  .status-bar-fill { height: max(env(safe-area-inset-top, 0px), 6px); }
+}
 @media (min-width: 768px) {
   .k-shell { left: 232px; }
 }
