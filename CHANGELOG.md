@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stylopis emoji pořád blokoval první vykreslení.** V rc.6 se přesunul z `head` na konec `body`, jenže `<link rel="stylesheet">` vložený parserem blokuje vykreslení i tam — prohlížeč se o něm jen dozví později. Nově ho vkládá skript po načtení stránky (`app/components/EmojiFont.tsx`), takže vykreslení neblokuje; do té doby kreslí emoji systémové písmo.
+
 ## [1.8.0-rc.6] - 2026-10-08
 
 Šesté zkušební vydání před 1.8.0: opravy chyb zavlečených v rc.5 a kratší bílé probliknutí při otevření. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.6`.
