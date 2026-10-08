@@ -208,28 +208,30 @@ export default function PizzaPage({
 
       {/* Mobile topbar */}
       <div className="md:hidden border-b border-white/50 topbar shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <span className="font-display font-bold text-[14px] text-stone-900 flex-1">Pizza</span>
-          {totalCount > 0 && (
-            <span className="text-[12px] text-stone-700 font-semibold">
-              {totalCount} ks · {totals.finalTotal} Kč
-              {totals.pricePerPerson > 0 && <span className="text-amber-700"> · {totals.pricePerPerson} Kč/os.</span>}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
-          {scrapeStatus && <span className="text-[11px] text-emerald-600 flex-1 truncate">{scrapeStatus}</span>}
-          {scrapeError && <span className="text-[11px] text-red-500 flex-1 truncate">{scrapeError}</span>}
+        <div className="flex items-center gap-3 px-4 pt-2 pb-2">
+          <h1 className="font-display font-bold text-[18px] leading-tight text-stone-900 flex-1">Pizza</h1>
           <button
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl glass-btn text-stone-600 shrink-0"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 min-h-[40px] rounded-2xl glass-btn text-stone-600 shrink-0"
             disabled={isPending}
             onClick={handleScrape}
             type="button"
           >
-            <MIcon name="refresh" size={13} />
+            <MIcon name="refresh" size={14} />
             {isPending ? "Načítám…" : "Aktualizovat ceník"}
           </button>
         </div>
+        {(totalCount > 0 || scrapeStatus || scrapeError) && (
+          <div className="flex items-center gap-2 px-4 pb-2 text-[12px]">
+            {totalCount > 0 && (
+              <span className="text-stone-700 font-semibold shrink-0">
+                {totalCount} ks · {totals.finalTotal} Kč
+                {totals.pricePerPerson > 0 && <span className="text-amber-700"> · {totals.pricePerPerson} Kč/os.</span>}
+              </span>
+            )}
+            {scrapeStatus && <span className="text-emerald-600 flex-1 truncate text-right">{scrapeStatus}</span>}
+            {scrapeError && <span className="text-red-500 flex-1 truncate text-right">{scrapeError}</span>}
+          </div>
+        )}
       </div>
 
       {isClosed && (

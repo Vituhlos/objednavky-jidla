@@ -26,6 +26,13 @@ html, body { height: 100%; overflow: hidden; margin: 0; }
   html { height: calc(100% + env(safe-area-inset-top, 0px)); }
 }
 button, a { touch-action: manipulation; }
+/* iOS při klepnutí do pole s písmem menším než 16 px přiblíží celou stránku
+   a už ji nevrátí. Na dotykových zařízeních proto mají pole vždy aspoň 16 px. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select { font-size: max(16px, 1em); }
+}
 :focus-visible { outline: 2px solid rgba(245,158,11,0.7); outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -230,6 +237,14 @@ body {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 28px 16px; text-align: center;
   animation: empty-in .3s ease both;
+}
+/* Prázdné oddělení na mobilu: jeden řádek místo vysoké karty — čtyři prázdná
+   oddělení pod sebou jinak znamenala tři obrazovky rolování prázdnem. */
+@media (max-width: 767px) {
+  .empty-state--compact { flex-direction: row; justify-content: center; gap: 10px; padding: 14px 16px; }
+  .empty-state--compact .empty-state__icon { width: 32px; height: 32px; border-width: 1px; }
+  .empty-state--compact .empty-state__icon svg { width: 17px; height: 17px; }
+  .empty-state--compact .empty-state__sub { display: none; }
 }
 .empty-state__icon {
   width: 48px; height: 48px; border-radius: 50%;
@@ -498,6 +513,14 @@ button.mobile-nav__item { background: none; border: 0; padding: 0; font: inherit
   padding: 0.75rem 1.25rem 1rem;
   border-top: 1px solid rgba(255,255,255,0.5);
   flex-shrink: 0;
+}
+
+/* Spodní list na mobilu: tlačítka přes celou šířku a v dosahu palce, hlavní
+   akce širší; list je skoro neprůhledný, aby pod poli neprosvítal obsah stránky. */
+@media (max-width: 639px) {
+  .modal-sheet { background: rgba(255,255,255,0.97); }
+  .modal-sheet__footer .modal-btn { flex: 1 1 0; min-height: 48px; font-size: 0.9375rem; }
+  .modal-sheet__footer .modal-btn--primary { flex-grow: 2; }
 }
 
 /* ── Confirm dialog (used inside modal-overlay) ── */

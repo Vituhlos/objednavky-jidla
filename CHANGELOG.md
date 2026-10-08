@@ -11,9 +11,15 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 - **Spodní navigace na mobilu se chová jako nativní lišta.** Výběrová pilulka mezi položkami plynule přejíždí a při tažení prstem po liště jede s prstem; po puštění se zvolí položka pod ním. Klepnutí, klávesnice i čtečky fungují jako dřív, položky jsou dál obyčejné odkazy (`app/components/MobileNav.tsx`).
 - **Nejvýš pět položek v liště, zbytek pod „Více“.** Se šesti položkami se lišta nevešla na telefon široký 320 px a na 360 px jen těsně. Při šesti a více položkách zůstanou první čtyři (Oběd, Jídelníček, Pizza, Historie) a Připomínky s Nastavením jsou v nabídce „Více“; odznak nové odpovědi se pak ukazuje na „Více“. S vypnutou pizzou je položek pět a nabídka se nepoužije.
 - Položky lišty jsou stejně široké a vysoké 50 px (dřív 41 px a šířka podle délky slova); na širokém displeji se lišta neroztahuje přes celou šířku.
+- **Záhlaví hlavní stránky na mobilu má dva řádky.** Nahoře velký nadpis dne se zvonkem a nápovědou, pod ním stav uzávěrky a souhrn slovy („9 objednávek · 1020 Kč“). Na jednom řádku se datum na úzkém displeji ořezávalo („Pátek 9. 1…“) a souhrn byl jen „1 · 110 Kč“.
+- **Prázdné oddělení zabere na mobilu jeden řádek** místo vysoké karty; se čtyřmi odděleními se stránka zkrátila zhruba o čtvrtinu. Rada „Přidejte první osobu tlačítkem výše“ se ukazuje jen tehdy, když tlačítko opravdu je (ne po uzávěrce a po odeslání).
+- **Tlačítka v editačním okně na mobilu** jsou přes celou šířku a vysoká 48 px, „Uložit“ je širší; okno je skoro neprůhledné, aby pod poli neprosvítal obsah stránky.
+- Nadpisy stránek na mobilu jsou jednotně větší (18 px) a jsou to skutečné nadpisy (`h1`); na stránce Pizza je tlačítko ceníku vedle nadpisu místo samostatného řádku.
 
 ### Fixed
 
+- **Přiblížení stránky po klepnutí do pole na iPhonu.** Pole s písmem menším než 16 px (například hledání v Historii) iOS po klepnutí přiblíží a stránku už nevrátí. Na dotykových zařízeních mají pole vždy aspoň 16 px.
+- Ve stavovém pruhu pod objednávkou začínal na mobilu druhý řádek tečkou („· Uzávěrka proběhla v 08:00.“); druhá věta je teď na vlastním řádku bez ní.
 - Popis zkratek na ikoně appky tvrdil, že fungují všude. Fungují na Androidu a na počítači; iOS u appek z plochy `shortcuts` z manifestu nepodporuje.
 
 ## [1.8.0-rc.2] - 2026-10-08

@@ -64,18 +64,21 @@ export function DayStatusBar({
           <>
             <strong className="text-green-700">Objednávka odeslána</strong>
             {sentAt && <span> v {new Date(sentAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</span>}
-            <span className="text-stone-500"> · Další úpravy nejsou možné.</span>
+            <span className="hidden sm:inline"> · </span>
+            <span className="block sm:inline text-stone-500">Další úpravy nejsou možné.</span>
           </>
         ) : isCutoffLocked ? (
           <>
             <strong className="text-amber-700">Objednávky uzavřeny</strong>
-            <span className="text-stone-500"> · Uzávěrka proběhla v {cutoffTime}.</span>
+            <span className="hidden sm:inline"> · </span>
+            <span className="block sm:inline text-stone-500">Uzávěrka proběhla v {cutoffTime}.</span>
           </>
         ) : isForceOpen ? (
           <>
             <strong className="text-green-700">Objednávání odemčeno</strong>
-            <span className="text-stone-500">
-              {` · Uzávěrka v ${cutoffTime} dnes už neplatí.`}
+            <span className="hidden sm:inline"> · </span>
+            <span className="block sm:inline text-stone-500">
+              {`Uzávěrka v ${cutoffTime} dnes už neplatí.`}
               {autoSendEnabled ? ` Objednávka se odešle v ${autoSendTime}.` : ""}
             </span>
           </>
