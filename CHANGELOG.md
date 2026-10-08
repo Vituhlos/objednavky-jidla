@@ -6,6 +6,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.8] - 2026-10-08
+
+Osmé zkušební vydání před 1.8.0: novější React a Next.js, přepnutí dne přes nativní přechody a sjednocená tlačítka. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.8`.
+
+### Known issues
+
+- Přepnutí dne (starý den odjede, nový přijede) je ověřené v Chromiu, ne v Safari na iPhonu. Bez podpory View Transitions se den vymění bez animace.
+- Tlačítka v Nastavení jsou převedená na jednotné velikosti stejně jako jinde, ale stránka za PINem nebyla prohlédnutá očima.
+- Tabulka v Historii má na počítači oříznutý sloupec s doplňkovým e-mailem.
+
 ### Changed
 
 - **Jednotná tlačítka** — tlačítka mají tři velikosti (běžné, malé, ikonové) a stejné zaoblení napříč appkou; dřív jich bylo osm kombinací odsazení a čtyři různá zaoblení. Oranžová tlačítka (Přidat, Odeslat objednávku, Nainstalovat) mají stejný tvar jako ostatní místo dřívější „pilulky“. Na telefonu mají všechna výšku aspoň 40 px, běžná a ikonová 44 px.
