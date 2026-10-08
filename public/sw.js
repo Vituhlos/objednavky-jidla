@@ -32,13 +32,13 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Objednávky", body: "", url: "/" };
+  let data = { title: "Objednávky", body: "", url: "/", tag: "objednavky-reminder" };
   try { data = { ...data, ...JSON.parse(event.data.text()) }; } catch {}
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/apple-icon",
-      tag: "objednavky-reminder",
+      tag: data.tag,
       renotify: false,
       data: { url: data.url },
     })

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { DepartmentData } from "@/lib/types";
+import { getPragueISODate } from "@/lib/time";
+
+/** Po takhle dlouhé pauze na pozadí se stav po návratu stáhne znovu. */
+const STALE_AFTER_HIDDEN_MS = 30_000;
 
 /**
  * Živá synchronizace objednávky přes SSE.
@@ -22,6 +26,14 @@ import type { DepartmentData } from "@/lib/types";
  *    počet změn; stáhne se to až se návratem na kartu. Šetří to spojení
  *    a hlavně to dá vědět člověku, který má appku otevřenou vzadu.
  *
+ * A jedna kvůli appce z plochy telefonu, kterou systém na pozadí uspí i se
+ * spojením a která nemá tlačítko pro obnovení stránky:
+ *
+ *  - **Návrat do appky stav dožene.** Po delší pauze se stáhne znovu, zavřené
+ *    spojení se naváže hned (ne až po odstupu) a po každém obnovení spojení
+ *    přijde refresh, protože události z doby výpadku jsou pryč. Když se mezitím
+ *    změnil den, stránka se načte celá — jinak by ukazovala včerejší objednávku.
+ *
  * Hodnoty, které se čtou uvnitř dlouhoběžících posluchačů, jdou přes refy —
  * posluchač se registruje jednou a jinak by viděl props z prvního renderu.
  */
@@ -29,6 +41,7 @@ export function useOrderSync({
   isPending,
   isFutureDay,
   selectedDate,
+  todayDate,
   setDepartments,
   setOrderStatus,
   setSentAt,
@@ -36,6 +49,8 @@ export function useOrderSync({
   isPending: boolean;
   isFutureDay: boolean;
   selectedDate: string | undefined;
+  /** Dnešek podle serveru v okamžiku vykreslení stránky. */
+  todayDate: string | undefined;
   setDepartments: Dispatch<SetStateAction<DepartmentData[]>>;
   setOrderStatus: Dispatch<SetStateAction<"draft" | "sent">>;
   setSentAt: Dispatch<SetStateAction<string | null>>;
@@ -85,6 +100,7 @@ export function useOrderSync({
 
   useEffect(() => {
     originalTitle.current = document.title;
+    let hiddenAt: number | null = document.hidden ? Date.now() : null;
     const resetTitle = () => {
       if (tabNotifCount.current > 0) {
         tabNotifCount.current = 0;
@@ -92,7 +108,14 @@ export function useOrderSync({
         doRefresh();
       }
     };
-    const onVisibility = () => { if (!document.hidden) resetTitle(); };
+    const onVisibility = () => {
+      if (document.hidden) { hiddenAt = Date.now(); return; }
+      const hiddenFor = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (todayDate && getPragueISODate() !== todayDate) { window.location.reload(); return; }
+      if (tabNotifCount.current > 0) resetTitle();
+      else if (hiddenFor >= STALE_AFTER_HIDDEN_MS) doRefresh();
+    };
     window.addEventListener("focus", resetTitle);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -100,13 +123,14 @@ export function useOrderSync({
       document.removeEventListener("visibilitychange", onVisibility);
       document.title = originalTitle.current;
     };
-  }, [doRefresh]);
+  }, [doRefresh, todayDate]);
 
   useEffect(() => {
     let es: EventSource | null = null;
     let reconnectDelay = 1000;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let unmounted = false;
+    let wasDisconnected = false;
 
     function connect() {
       es = new EventSource("/api/sse");
@@ -114,9 +138,14 @@ export function useOrderSync({
         reconnectDelay = 1000;
         setSseConnected(true);
         setHasEverConnected(true);
+        if (wasDisconnected) {
+          wasDisconnected = false;
+          if (!document.hidden) doRefresh();
+        }
       });
       es.addEventListener("error", () => {
         setSseConnected(false);
+        wasDisconnected = true;
         es?.close();
         es = null;
         if (unmounted) return;
@@ -136,9 +165,21 @@ export function useOrderSync({
       });
     }
 
+    // Po návratu do appky nečekej na odstup (až 60 s) a spojení navaž hned.
+    const reconnectNow = () => {
+      if (document.hidden || es) return;
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      reconnectDelay = 1000;
+      connect();
+    };
+
     connect();
+    document.addEventListener("visibilitychange", reconnectNow);
+    window.addEventListener("online", reconnectNow);
     return () => {
       unmounted = true;
+      document.removeEventListener("visibilitychange", reconnectNow);
+      window.removeEventListener("online", reconnectNow);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       es?.close();
     };

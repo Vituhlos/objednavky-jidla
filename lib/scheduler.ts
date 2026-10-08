@@ -14,7 +14,7 @@ import { logAudit } from "./audit";
 import { getDb } from "./db";
 import { getPragueNow } from "./time";
 import { broadcast } from "./sse-broadcast";
-import { getAllSubscriptions, deleteSubscription } from "./push";
+import { getAllSubscriptions, deleteSubscription, getOrderedPushEndpoints } from "./push";
 import { sendTelegramToSubscribers, sendTelegramToAdmins, sendTelegramReminderNotification, sendTelegramToChat, getPersonalReminderSubscribers, getPersonalMorningMenuSubscribers } from "./telegram";
 import webpush from "web-push";
 import { cleanupOldAttachments } from "./feedback";
@@ -207,13 +207,7 @@ async function checkPushReminder(s: AppSettings, currentTime: string, jsDay: num
   if (isTodayClosed(data)) return;
 
   // Zjisti které endpointy mají v dnešní objednávce neprázdný řádek
-  const activeEndpoints = new Set(
-    data.departments
-      .flatMap((d) => d.rows)
-      .filter((r) => r.mainItem || r.soupItem || r.extraMealItems.length > 0)
-      .map((r) => (r as unknown as { pushEndpoint?: string }).pushEndpoint)
-      .filter(Boolean) as string[]
-  );
+  const activeEndpoints = getOrderedPushEndpoints(data.order.id);
 
   // Pošli jen těm, kdo ještě neobjednali
   const pending = allSubs.filter((sub) => !activeEndpoints.has(sub.endpoint));

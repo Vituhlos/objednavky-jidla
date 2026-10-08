@@ -45,6 +45,7 @@ import type {
 } from "./types";
 import { getDepartments, getDepartmentsByNames } from "./departments";
 import { logAudit } from "./audit";
+import { sendOrderSentPush } from "./push";
 import { isDepartmentSubmitted } from "./order-utils";
 
 function mapOrder(row: Record<string, unknown>): Order {
@@ -471,6 +472,8 @@ export async function sendOrder(orderId: number, source: "manual" | "auto" = "ma
     .prepare("SELECT * FROM orders WHERE id = ?")
     .get(orderId) as Record<string, unknown>;
   logAudit({ action: source === "auto" ? "auto_send" : "order_send", orderId });
+  // Bez await: e-mail už odešel a zdržení ani chyba push služby nesmí odeslání shodit.
+  void sendOrderSentPush(orderId, sentAt).catch((err) => console.warn("[push] Oznámení o odeslání selhalo:", (err as Error).message));
   return mapOrder(order);
 }
 

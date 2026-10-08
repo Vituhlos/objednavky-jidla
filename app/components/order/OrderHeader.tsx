@@ -174,7 +174,7 @@ export function OrderHeader({
       {pushState !== "unsupported" && pushState !== "denied" && (
         <button
           onClick={onPushToggle}
-          title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění 20 min před uzávěrkou"}
+          title={pushState === "subscribed" ? "Vypnout push notifikace" : "Zapnout upozornění před uzávěrkou a po odeslání objednávky"}
           className={`shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center transition ${pushState === "subscribed" ? "text-amber-600" : "text-stone-400 hover:text-amber-500"}`}
           type="button"
         >

@@ -9,6 +9,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 ### Added
 
 - **Stránka „Bez připojení“.** Když se appka nedostane na server, ukáže vlastní hlášku s tlačítkem „Zkusit znovu“ místo chybové stránky prohlížeče a po obnovení spojení se načte sama. Service worker si drží v cache jen tuhle jednu stránku (`public/offline.html`) a zachytává pouze načtení stránky; appka, API ani SSE se necachují.
+- **Poslední objednávka i bez připojení.** Stránka „Bez připojení“ ukáže naposledy načtený stav dnešní objednávky (kdo, co, cena, čas načtení), jen ke čtení. Appka si ho průběžně ukládá do localStorage prohlížeče (`offlineOrderSnapshot`); starší než dnešní se neukazuje. Test `app/components/order/offline-snapshot.test.ts`.
+- **Nabídka „přidat na plochu“.** Na mobilu v prohlížeči se nad navigací ukáže karta: na Androidu s tlačítkem „Nainstalovat“, na iPhonu s návodem (Sdílet → Přidat na plochu), protože tam upozornění fungují až v appce z plochy. Po zavření se 30 dní neukáže, v nainstalované appce nikdy.
+- **Upozornění „Objednávka odeslána“.** Po ručním i automatickém odeslání dostanou push ti, kdo mají v objednávce vyplněný řádek a mají zapnutý zvonek. Selhání push služby odeslání objednávky neovlivní.
+- **Zkratky na ikoně appky.** Dlouhé podržení ikony na ploše nabídne Oběd, Jídelníček a Připomínky (`shortcuts` v manifestu).
 - **Úvodní obrazovka na iPhonu.** Appka z plochy při startu neblikne bíle: pro iPhony od SE po 17 Pro Max má spouštěcí obrázek v barvě pozadí s ikonou (`apple-touch-startup-image`, routa `/pwa-splash/[size]`, jen na výšku). iOS si obrázek ukládá při přidání na plochu, takže u už nainstalované appky se projeví až po jejím odebrání a novém přidání.
 - **Ikony pro Android.** Manifest nově nabízí ikonu 192 a 512 px a variantu `maskable` (routa `/pwa-icon/[variant]`), takže ji launcher nezmenšuje do bílého kolečka.
 
@@ -16,6 +20,8 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - **Prázdný pruh dole v appce z plochy na iPhonu.** Se stavovým řádkem `black-translucent` počítá WebKit výšku dokumentu bez horní safe area ([bug 236445](https://bugs.webkit.org/show_bug.cgi?id=236445)), takže vše ukotvené dole končilo o výšku stavového řádku nad okrajem displeje. V režimu `display-mode: standalone` se dokument o `safe-area-inset-top` natahuje a `.k-shell` je ukotvený (`position: fixed; inset: 0`) ke stejnému viewportu jako spodní navigace a pozadí. Na skutečném iPhonu zatím neověřeno.
 - **Hlavička pod stavovým řádkem.** Řádek s datem a stavem objednávky byl na iPhonu schovaný pod hodinami; shell má nově nahoře podklad ve výšce `safe-area-inset-top`. Toast „Objednávka odeslána!“ se posouvá o stejnou hodnotu.
+- **Stav po návratu do appky.** Appku z plochy systém na pozadí uspí i se živým spojením a tlačítko pro obnovení stránky v ní není. Po návratu se teď objednávka stáhne znovu (po pauze delší než 30 s a po každém obnovení spojení), spojení se naváže hned místo čekání až 60 s, a když se mezitím změnil den, stránka se načte celá, aby neukazovala včerejší objednávku.
+- **Připomínka před uzávěrkou chodila i těm, kdo už objednali.** Filtr četl z řádku objednávky pole `pushEndpoint`, které se z databáze vůbec nenačítalo, takže nikoho nevyřadil. Nově se ptá přímo databáze (`getOrderedPushEndpoints`).
 - Push notifikace odkazovaly na neexistující ikonu `/icons/icon-192.png`; nově používají `/apple-icon`.
 
 ### Changed

@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/SwRegister";
 import AppTopBar from "./components/AppTopBar";
+import InstallHint from "./components/InstallHint";
 import { getSettings } from "@/lib/settings";
 import { IOS_SPLASH_SCREENS, splashSizeParam } from "@/lib/pwa-assets";
 
@@ -70,6 +71,7 @@ export default function RootLayout({
         </div>
         <AppTopBar pizzaEnabled={pizzaEnabled} />
         {children}
+        <InstallHint />
         <SwRegister />
       </body>
     </html>

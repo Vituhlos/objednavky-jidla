@@ -33,11 +33,46 @@ export function getAllSubscriptions(): PushSubscriptionRow[] {
   return getDb().prepare("SELECT * FROM push_subscriptions").all() as PushSubscriptionRow[];
 }
 
+/** Prohlížeče, které mají v objednávce vyplněný řádek (jídlo nebo polévku). */
+export function getOrderedPushEndpoints(orderId: number): Set<string> {
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT push_endpoint FROM order_rows
+       WHERE order_id = ? AND push_endpoint IS NOT NULL
+         AND (main_item_id IS NOT NULL OR soup_item_id IS NOT NULL
+              OR (extra_meals IS NOT NULL AND extra_meals NOT IN ('', '[]')))`
+    )
+    .all(orderId) as { push_endpoint: string }[];
+  return new Set(rows.map((r) => r.push_endpoint));
+}
+
 export async function sendPushToAll(title: string, body: string, url = "/"): Promise<void> {
+  await sendPush(getAllSubscriptions(), { title, body, url });
+}
+
+/**
+ * Dá vědět, že objednávka odešla — jen prohlížečům, které v ní mají vyplněný
+ * řádek. Vlastní `tag`, aby notifikace nenahradila připomínku uzávěrky potichu.
+ */
+export async function sendOrderSentPush(orderId: number, sentAt: string): Promise<void> {
+  const endpoints = getOrderedPushEndpoints(orderId);
+  if (endpoints.size === 0) return;
+
+  const time = new Date(sentAt).toLocaleTimeString("cs-CZ", { timeZone: "Europe/Prague", hour: "2-digit", minute: "2-digit" });
+  await sendPush(
+    getAllSubscriptions().filter((s) => endpoints.has(s.endpoint)),
+    { title: "Objednávka odeslána ✓", body: `Dnešní obědy odešly v ${time}.`, url: "/", tag: "objednavky-odeslano" },
+  );
+}
+
+async function sendPush(
+  subs: PushSubscriptionRow[],
+  payload: { title: string; body: string; url: string; tag?: string },
+): Promise<void> {
+  if (subs.length === 0) return;
   const { publicKey, privateKey } = getOrCreateVapidKeys();
   webpush.setVapidDetails("mailto:app@localhost", publicKey, privateKey);
 
-  const subs = getAllSubscriptions();
   const dead: string[] = [];
 
   await Promise.allSettled(
@@ -45,7 +80,7 @@ export async function sendPushToAll(title: string, body: string, url = "/"): Pro
       try {
         await webpush.sendNotification(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-          JSON.stringify({ title, body, url }),
+          JSON.stringify(payload),
         );
       } catch (err: unknown) {
         const status = (err as { statusCode?: number }).statusCode;

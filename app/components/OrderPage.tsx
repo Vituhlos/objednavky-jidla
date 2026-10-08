@@ -11,6 +11,7 @@ import { usePushNotifications } from "./order/usePushNotifications";
 import { useRowDeletion } from "./order/useRowDeletion";
 import { useDayNavigation } from "./order/useDayNavigation";
 import { useOrderSync } from "./order/useOrderSync";
+import { buildOfflineSnapshot, saveOfflineSnapshot } from "./order/offline-snapshot";
 import { useCutoff } from "./order/useCutoff";
 import { useCutoffUnlock } from "./order/useCutoffUnlock";
 import { DayPicker } from "./order/DayPicker";
@@ -183,6 +184,7 @@ export default function OrderPage({
     isPending,
     isFutureDay,
     selectedDate,
+    todayDate,
     setDepartments,
     setOrderStatus,
     setSentAt,
@@ -331,6 +333,19 @@ export default function OrderPage({
       day.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })
     );
   }, [selectedDate]);
+
+  // Snímek dnešní objednávky pro stránku „Bez připojení". Jiné dny se neukládají,
+  // offline má smysl jen odpověď na „co mám dnes objednáno".
+  useEffect(() => {
+    if (!todayDate || (selectedDate && selectedDate !== todayDate)) return;
+    saveOfflineSnapshot(buildOfflineSnapshot({
+      date: todayDate,
+      dayLabel: dayStr,
+      sent: orderStatus === "sent",
+      total: totalPrice,
+      departments,
+    }));
+  }, [dayStr, departments, orderStatus, selectedDate, todayDate, totalPrice]);
 
   const futureDayPhrase = isFutureDay && selectedDate && todayDate
     ? getFutureDayPhrase(selectedDate, todayDate)
