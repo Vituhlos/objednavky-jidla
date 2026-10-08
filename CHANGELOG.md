@@ -6,6 +6,15 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.3] - 2026-10-08
+
+Třetí zkušební vydání před 1.8.0: mobilní ovládání. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.3`.
+
+### Known issues
+
+- Gesta (tažení pilulky v navigaci, stahování editačního okna) byla ověřena simulovanými dotyky v prohlížeči, ne prstem na telefonu.
+- Oprava neostrého záhlaví na iPhonu z rc.2 vyžaduje appku z plochy odebrat a přidat znovu.
+
 ### Changed
 
 - **Spodní navigace na mobilu se chová jako nativní lišta.** Výběrová pilulka mezi položkami plynule přejíždí a při tažení prstem po liště jede s prstem; po puštění se zvolí položka pod ním. Klepnutí, klávesnice i čtečky fungují jako dřív, položky jsou dál obyčejné odkazy (`app/components/MobileNav.tsx`).
