@@ -6,6 +6,17 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Prázdný pruh dole v appce z plochy na iPhonu.** Se stavovým řádkem `black-translucent` počítá WebKit výšku dokumentu bez horní safe area ([bug 236445](https://bugs.webkit.org/show_bug.cgi?id=236445)), takže vše ukotvené dole končilo o výšku stavového řádku nad okrajem displeje. V režimu `display-mode: standalone` se dokument o `safe-area-inset-top` natahuje a `.k-shell` je ukotvený (`position: fixed; inset: 0`) ke stejnému viewportu jako spodní navigace a pozadí. Na skutečném iPhonu zatím neověřeno.
+- **Hlavička pod stavovým řádkem.** Řádek s datem a stavem objednávky byl na iPhonu schovaný pod hodinami; shell má nově nahoře podklad ve výšce `safe-area-inset-top`. Toast „Objednávka odeslána!“ se posouvá o stejnou hodnotu.
+- Push notifikace odkazovaly na neexistující ikonu `/icons/icon-192.png`; nově používají `/apple-icon`.
+
+### Changed
+
+- **Spodní navigace na mobilu sedí níž.** Na iPhonu těsně nad home indikátorem místo nad celou safe area (proměnná `--nav-bottom`); od ní se odvíjí i spodní odsazení obsahu, toast a plovoucí tlačítko uložení v Nastavení.
+- Barva lišty prohlížeče a `theme_color` / `background_color` v manifestu odpovídají pozadí appky (`#f8f4ef`). Nainstalovaná appka na Androidu má tak stavový řádek krémový místo oranžového.
+
 ## [1.7.0] - 2026-09-24
 
 ### Migration notes
