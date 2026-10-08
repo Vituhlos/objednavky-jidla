@@ -28,7 +28,9 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 - **Spodní navigace na mobilu sedí níž.** Na iPhonu těsně nad home indikátorem místo nad celou safe area (proměnná `--nav-bottom`); od ní se odvíjí i spodní odsazení obsahu, toast a plovoucí tlačítko uložení v Nastavení.
 - Barva lišty prohlížeče a `theme_color` / `background_color` v manifestu odpovídají pozadí appky (`#f8f4ef`). Nainstalovaná appka na Androidu má tak stavový řádek krémový místo oranžového.
-- Ikona nainstalované appky na Androidu je oranžová jako na iPhonu a jako favicon; dosud manifest odkazoval na starší modrozelenou (`/icon`).
+- Ikona nainstalované appky na Androidu je oranžová jako na iPhonu a jako favicon; dosud manifest odkazoval na starší modrozelenou (`/icon`). Ta je z kódu odstraněná (`app/icon.tsx`), favicon zůstává `app/icon.svg`.
+- Test `tools/feedback.test.mjs` jde spustit i na Windows (dynamický import přes `file://` URL).
+- `CLAUDE.md` a `AGENTS.md` popisují současný stav: fonty, CSS třídy, strukturu, testy a PWA.
 
 ## [1.7.0] - 2026-09-24
 

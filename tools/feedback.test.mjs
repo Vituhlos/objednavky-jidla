@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadLib } from "./test-helpers.mjs";
 
@@ -149,7 +150,7 @@ test("upozornění na Telegram dostane jen admin, který si ho zapnul", async ()
 // ── Screenshoty ──────────────────────────────────────────────────────────────
 
 const attachmentsLib = await lib("feedback-attachments");
-const { default: sharp } = await import(path.resolve("node_modules/sharp/lib/index.js"));
+const { default: sharp } = await import(pathToFileURL(path.resolve("node_modules/sharp/lib/index.js")).href);
 
 const png = (w, h) => sharp({ create: { width: w, height: h, channels: 3, background: "#ea580c" } }).png().toBuffer();
 
