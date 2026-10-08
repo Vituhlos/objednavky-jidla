@@ -10,7 +10,6 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/apple-icon",
-      badge: "/apple-icon",
       tag: "objednavky-reminder",
       renotify: false,
       data: { url: data.url },
