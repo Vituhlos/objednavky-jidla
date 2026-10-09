@@ -1,10 +1,9 @@
 "use client";
 
 import type { MenuWeek } from "@/app/jidelnicek/page";
-import { addTransitionType, startTransition, useRef, ViewTransition } from "react";
+import { useRef, useState } from "react";
 import { useSlidingPill } from "../useSlidingPill";
 import { useDaySwipe } from "../order/useDaySwipe";
-import { DAY_SLIDE, DAY_TRANSITION } from "../order/day-transition";
 import type { MenuItem } from "@/lib/types";
 import { MenuDaySection } from "./MenuDaySection";
 import { WeekClosurePanel } from "./WeekClosurePanel";
@@ -53,14 +52,12 @@ export function MenuWorkspace({
   // Hooky musí být před předčasným návratem níž.
   const dayTrackRef = useSlidingPill<HTMLDivElement>(activeDay);
   const mobileRef = useRef<HTMLDivElement>(null);
+  const [dayDirection, setDayDirection] = useState<"next" | "prev">("next");
   const dayCodes: readonly string[] = DAY_ORDER;
   const dayIndex = dayCodes.indexOf(activeDay);
   const selectDay = (day: typeof activeDay) => {
-    // Jako přechod, aby `<ViewTransition>` níž den vyměnil s posunem do strany.
-    startTransition(() => {
-      addTransitionType(dayCodes.indexOf(day) >= dayIndex ? DAY_TRANSITION.next : DAY_TRANSITION.prev);
-      onSelectDay(day);
-    });
+    setDayDirection(dayCodes.indexOf(day) >= dayIndex ? "next" : "prev");
+    onSelectDay(day);
   };
   useDaySwipe(mobileRef, {
     enabled: !activeWeekData.weekClosure,
@@ -128,9 +125,9 @@ export function MenuWorkspace({
       </div>
 
       {/* Mobile: single day view */}
-      {/* Mezi dny jde listovat přejetím do strany; starý den odjede, nový přijede. */}
-      <ViewTransition default="none" update={DAY_SLIDE}>
+      {/* Mezi dny jde listovat přejetím do strany; den vjede ze strany posunu. */}
       <div className="md:hidden flex-1 overflow-y-auto scroll-area px-4 pb-nav" ref={mobileRef}>
+        <div className={`day-in day-in--${dayDirection}`} key={`${activeWeekStart}-${activeDay}`}>
         <MenuDaySection
           closure={activeWeekData.closureLabels[activeDay] ?? null}
           day={activeDay}
@@ -144,8 +141,8 @@ export function MenuWorkspace({
           onOpenDay={onOpenDay}
           soups={soups}
         />
+        </div>
       </div>
-      </ViewTransition>
     </>
   );
 }
