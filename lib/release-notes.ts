@@ -20,7 +20,7 @@ export type ReleaseNote = {
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: "1.8.0-rc.9",
-    date: "2026-10-08",
+    date: "2026-10-09",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
       {
