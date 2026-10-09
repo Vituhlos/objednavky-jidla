@@ -285,32 +285,14 @@ body {
   box-shadow: 0 2px 8px -2px rgba(234,88,12,0.35);
   transform-origin: left top;
 }
-/* Výměna obsahu dne (React <ViewTransition>, třídy z order/day-transition.ts).
-   Prohlížeč vyfotí starý a nový stav a prolne je; na mobilu se k tomu starý den
-   odsune a nový přisune ze strany posunu. Na počítači jen prolnutí — posun tří
-   sloupců do strany působil jako skok. Bez podpory View Transitions se den
-   vymění bez animace. */
-::view-transition-old(.day-slide-next), ::view-transition-old(.day-slide-prev),
-::view-transition-new(.day-slide-next), ::view-transition-new(.day-slide-prev) {
-  animation-duration: .2s; animation-timing-function: ease;
-}
-@keyframes daySlideOutLeft  { to   { opacity: 0; transform: translate3d(-34%, 0, 0); } }
-@keyframes daySlideOutRight { to   { opacity: 0; transform: translate3d(34%, 0, 0); } }
-@keyframes daySlideInRight  { from { opacity: 0; transform: translate3d(34%, 0, 0); } }
-@keyframes daySlideInLeft   { from { opacity: 0; transform: translate3d(-34%, 0, 0); } }
+@keyframes dayInNext { from { opacity: 0; transform: translate3d(18px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes dayInPrev { from { opacity: 0; transform: translate3d(-18px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes dayInFade { from { opacity: 0.35; } to { opacity: 1; } }
+/* Na počítači jen prolnutí — posun tří sloupců do strany působil jako skok. */
+.day-in--next, .day-in--prev { animation: dayInFade .2s ease; }
 @media (max-width: 767px) {
-  ::view-transition-old(.day-slide-next) { animation: daySlideOutLeft .3s cubic-bezier(.3,.7,.2,1) both; }
-  ::view-transition-new(.day-slide-next) { animation: daySlideInRight .3s cubic-bezier(.3,.7,.2,1) both; }
-  ::view-transition-old(.day-slide-prev) { animation: daySlideOutRight .3s cubic-bezier(.3,.7,.2,1) both; }
-  ::view-transition-new(.day-slide-prev) { animation: daySlideInLeft .3s cubic-bezier(.3,.7,.2,1) both; }
-  /* Fotka obsahu se kreslí nad stránkou; navigace a nabídka instalace mají
-     vlastní vrstvu, aby zůstaly nahoře a obsah pod nimi projížděl jako při
-     rolování. */
-  .mobile-nav { view-transition-name: mobile-nav; }
-  .install-hint { view-transition-name: install-hint; }
-}
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .day-in--next { animation: dayInNext .28s cubic-bezier(.2,.8,.2,1); }
+  .day-in--prev { animation: dayInPrev .28s cubic-bezier(.2,.8,.2,1); }
 }
 
 /* ── Etapa 2: řádky, čísla, přechod stránek, potažení pro obnovení ── */

@@ -6,6 +6,10 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sekané přepínání dnů (regrese z 1.8.0-rc.8):** přepnutí dne přes nativní View Transitions je pryč a vrátila se původní animace, kdy nový den jen vjede. Prohlížeč při nativním přechodu na 50–90 ms zastavil vykreslování, aby stránku vyfotil, a to se trefilo doprostřed jízdy pilulky v pásu dnů. Změřeno: na rc.8 zásek u 9 z 10 přepnutí, po opravě u žádného z 15.
+
 ## [1.8.0-rc.8] - 2026-10-08
 
 Osmé zkušební vydání před 1.8.0: novější React a Next.js, přepnutí dne přes nativní přechody a sjednocená tlačítka. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.8`.
