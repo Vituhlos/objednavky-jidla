@@ -6,6 +6,16 @@ Formát vychází z Keep a Changelog a projekt používá Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.8.0-rc.9] - 2026-10-09
+
+Deváté zkušební vydání před 1.8.0: oprava sekaného přepínání dnů z rc.8. Publikuje se jen pod přesným Docker tagem `1.8.0-rc.9`.
+
+### Known issues
+
+- Plynulost přepínání dnů je změřená v bezhlavém prohlížeči, ne na skutečném počítači a telefonu.
+- Tlačítka v Nastavení jsou převedená na jednotné velikosti, ale stránka za PINem nebyla prohlédnutá očima.
+- Tabulka v Historii má na počítači oříznutý sloupec s doplňkovým e-mailem.
+
 ### Fixed
 
 - **Sekané přepínání dnů (regrese z 1.8.0-rc.8):** přepnutí dne přes nativní View Transitions je pryč a vrátila se původní animace, kdy nový den jen vjede. Prohlížeč při nativním přechodu na 50–90 ms zastavil vykreslování, aby stránku vyfotil, a to se trefilo doprostřed jízdy pilulky v pásu dnů. Změřeno: na rc.8 zásek u 9 z 10 přepnutí, po opravě u žádného z 15.

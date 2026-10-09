@@ -19,7 +19,7 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.8.0-rc.8",
+    version: "1.8.0-rc.9",
     date: "2026-10-08",
     title: "Appka z plochy: iPhone, offline a upozornění",
     sections: [
@@ -56,7 +56,6 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           "Ikona appky na Androidu je oranžová jako na iPhonu a stavový řádek má barvu pozadí appky.",
           "Záhlaví hlavní stránky na mobilu má velký nadpis dne a pod ním stav uzávěrky se souhrnem; prázdné oddělení zabere jeden řádek.",
           "Přepínání dnů v objednávkách: výběr plynule přejíždí a reaguje hned, mezi dny jde přejet prstem do strany.",
-          "Při přepnutí dne starý den odjede do strany a nový zároveň přijede (objednávky i jídelníček na mobilu); na počítači se dny prolnou.",
           "Tlačítka mají napříč appkou stejné velikosti a zaoblení; na telefonu jsou dost vysoká, aby se dala trefit prstem.",
           "Jídelníček na mobilu má dny jako jeden pás přes celou šířku a jde jím listovat přejetím; dnešek je popsaný slovem „Dnes“.",
           "Řádky objednávky se při přidání a smazání plynule přeskládají a součty se při změně krátce přetočí.",
